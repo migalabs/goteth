@@ -205,6 +205,9 @@ func (s *StateAnalyzer) Run() {
 				if err != nil {
 					log.Errorf("unable to calculate the performance for validator %d on slot %d. %s", task.ValIdx, task.Slot, err.Error())
 				}
+				// save the calculated rewards on the the list of items
+				fmt.Println(met)
+				s.Metrics.Store(task.ValIdx, met)
 			}
 
 		}()
