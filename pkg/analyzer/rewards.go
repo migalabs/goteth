@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	participationRate   = 0.945
+	participationRate   = 0.945 // about to calculate participation rate
 	baseRewardFactor    = 64
 	baseRewardsPerEpoch = 4
 )
