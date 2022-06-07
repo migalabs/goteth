@@ -15,6 +15,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
 
@@ -38,7 +39,8 @@ type StateAnalyzer struct {
 	//
 	EpochTaskChan chan *EpochTask
 	// http CLient
-	cli *clientapi.APIClient
+	cli      *clientapi.APIClient
+	dbClient *postgresql.PostgresDBService
 
 	//
 	initTime time.Time
@@ -80,6 +82,11 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		metrics.Store(val, mets)
 	}
 
+	i_dbClient, err := postgresql.ConnectToDB(ctx, "postgresql://beaconchain:beaconchain@localhost:5432/beacon_states")
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to generate DB Client.")
+	}
+
 	return &StateAnalyzer{
 		ctx:              ctx,
 		InitSlot:         initSlot,
@@ -89,6 +96,7 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		Metrics:          metrics,
 		EpochTaskChan:    make(chan *EpochTask, len(valIdxs)),
 		cli:              httpCli,
+		dbClient:         i_dbClient,
 	}, nil
 }
 
@@ -120,6 +128,8 @@ func (s *StateAnalyzer) Run() {
 					close(s.EpochTaskChan)
 					return
 				}
+
+				// _, _ = GetParticipationRate(bstate)
 
 				log.Debug("requesting Validator list from endpoint")
 				validatorFilter := make([]phase0.ValidatorIndex, 0)
@@ -309,6 +319,7 @@ func (s *StateAnalyzer) ExportToCsv(outputFolder string) error {
 			if err != nil {
 				return err
 			}
+			//s.dbClient.InsertNewData(valMetrics)
 			totRewards += valMetrics.Reward
 			totMaxRewards += valMetrics.MaxReward
 			totPerc += valMetrics.RewardPercentage

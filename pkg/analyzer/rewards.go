@@ -48,6 +48,29 @@ func GetParticipationRate(customBState CustomBeaconState, s *StateAnalyzer, m ma
 	return 0, nil
 }
 
+func GetParticipationRate(bstate *spec.VersionedBeaconState) (uint64, error) {
+
+	// participationRate := 0.85
+
+	switch bstate.Version {
+	case spec.DataVersionPhase0:
+		previousAttestatons := bstate.Phase0.PreviousEpochAttestations
+		fmt.Println(previousAttestatons)
+
+	case spec.DataVersionAltair:
+		participationRate := bstate.Altair.PreviousEpochParticipation
+		fmt.Println(participationRate)
+
+	case spec.DataVersionBellatrix:
+		participationRate := bstate.Bellatrix.PreviousEpochParticipation
+		fmt.Println(participationRate)
+	default:
+
+	}
+
+	return 0, nil
+}
+
 // https://kb.beaconcha.in/rewards-and-penalties
 // https://consensys.net/blog/codefi/rewards-and-penalties-on-ethereum-20-phase-0/
 // TODO: -would be nice to incorporate top the max value wheather there were 2-3 consecutive missed blocks afterwards

@@ -6,6 +6,7 @@ import (
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth2-state-analyzer/pkg/model"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
@@ -97,8 +98,8 @@ func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState
 	return nil
 }
 
-func (m *RewardMetrics) GetEpochMetrics(slot uint64) (SingleEpochMetrics, error) {
-	var epochMetrics SingleEpochMetrics
+func (m *RewardMetrics) GetEpochMetrics(slot uint64) (model.SingleEpochMetrics, error) {
+	var epochMetrics model.SingleEpochMetrics
 
 	// calculate the index
 	idx := m.GetIndexFromslot(slot)
@@ -139,18 +140,4 @@ func (m *RewardMetrics) GetIndexFromslot(slot uint64) int {
 func (m *RewardMetrics) AddslotPerformance() error {
 
 	return nil
-}
-
-type SingleEpochMetrics struct {
-	ValidatorIdx     uint64
-	Slot             uint64
-	Epoch            uint64
-	ValidatorBalance uint64  // Gwei ?¿
-	MaxReward        uint64  // Gwei ?¿
-	Reward           uint64  // Gweis ?¿
-	RewardPercentage float64 // %
-
-	MissingSource uint64
-	MissingHead   uint64
-	MissingTarget uint64
 }
