@@ -44,6 +44,55 @@ func GetValidatorBalance(bstate *spec.VersionedBeaconState, valIdx uint64) (uint
 	return balance, err
 }
 
+func GetParticipationRate(bstate *spec.VersionedBeaconState, s *StateAnalyzer) (uint64, error) {
+
+	// participationRate := 0.85
+
+	switch bstate.Version {
+	case spec.DataVersionPhase0:
+		currentSlot := bstate.Phase0.Slot
+		currentEpoch := currentSlot / 32
+		totalAttPreviousEpoch := 0
+		totalAttCurrentEpoch := 0
+		totalAttestingVals := 0
+
+		previousAttestatons := bstate.Phase0.PreviousEpochAttestations
+		currentAttestations := bstate.Phase0.CurrentEpochAttestations
+		vals := bstate.Phase0.Validators
+
+		for _, item := range vals {
+			if item.ActivationEligibilityEpoch < phase0.Epoch(currentEpoch) {
+				totalAttestingVals += 1
+			}
+		}
+
+		for _, item := range previousAttestatons {
+			totalAttPreviousEpoch += int(item.AggregationBits.Count())
+		}
+
+		for _, item := range currentAttestations {
+			totalAttCurrentEpoch += int(item.AggregationBits.Count())
+		}
+
+		fmt.Println("Current Epoch: ", currentEpoch)
+		fmt.Println("Using Block at: ", currentSlot)
+		fmt.Println("Attestations in the current Epoch: ", totalAttCurrentEpoch)
+		fmt.Println("Total number of Validators: ", totalAttestingVals)
+
+	case spec.DataVersionAltair:
+		participationRate := bstate.Altair.PreviousEpochParticipation
+		fmt.Println(participationRate)
+
+	case spec.DataVersionBellatrix:
+		participationRate := bstate.Bellatrix.PreviousEpochParticipation
+		fmt.Println(participationRate)
+	default:
+
+	}
+
+	return 0, nil
+}
+
 // https://kb.beaconcha.in/rewards-and-penalties
 // https://consensys.net/blog/codefi/rewards-and-penalties-on-ethereum-20-phase-0/
 // TODO: -would be nice to incorporate top the max value wheather there were 2-3 consecutive missed blocks afterwards

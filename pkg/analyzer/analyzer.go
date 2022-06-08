@@ -63,6 +63,11 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		slotRanges = append(slotRanges, i)
 		epochRange++
 	}
+
+	// for i := (initSlot - (initSlot % 32)); i < (finalSlot + (32 - (finalSlot % 32))); i += utils.SlotBase {
+	// 	slotRanges = append(slotRanges, i)
+	// 	epochRange++
+	// }
 	log.Debug("slotRanges are:", slotRanges)
 
 	var metrics sync.Map
@@ -115,6 +120,7 @@ func (s *StateAnalyzer) Run() {
 					close(s.ValidatorTaskChan)
 					return
 				}
+				_, _ = GetParticipationRate(bstate, s)
 
 				log.Debug("requesting Validator list from endpoint")
 				validatorFilter := make([]phase0.ValidatorIndex, 0)
@@ -206,7 +212,7 @@ func (s *StateAnalyzer) Run() {
 					log.Errorf("unable to calculate the performance for validator %d on slot %d. %s", task.ValIdx, task.Slot, err.Error())
 				}
 				// save the calculated rewards on the the list of items
-				fmt.Println(met)
+				// fmt.Println(met)
 				s.Metrics.Store(task.ValIdx, met)
 			}
 
