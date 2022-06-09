@@ -111,7 +111,7 @@ func (m *RewardMetrics) GetEpochMetrics(slot uint64) (model.SingleEpochMetrics, 
 	m.m.Lock()
 	// if the index is okey, compose the Singe epoch metrics
 	epochMetrics.ValidatorIdx = m.validatorIdx
-	epochMetrics.Slot = m.validatorIdx
+	epochMetrics.Slot = slot
 	epochMetrics.Epoch = utils.GetEpochFromSlot(slot)
 	epochMetrics.ValidatorBalance = m.ValidatorBalances[idx]
 	epochMetrics.MaxReward = m.MaxRewards[idx]

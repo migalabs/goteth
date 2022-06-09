@@ -75,18 +75,33 @@ func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error 
 
 func (p *PostgresDBService) createRewardsTable(ctx context.Context, pool *pgxpool.Pool) error {
 	// create the tables
-	_, err := pool.Exec(ctx, createValidatorRewardsTable)
+	_, err := pool.Exec(ctx, model.CreateValidatorRewardsTable)
 	if err != nil {
-		return errors.Wrap(err, "error creating peer-message-metrics table")
+		return errors.Wrap(err, "error creating rewards table")
 	}
 	return nil
 }
 
-func (p *PostgresDBService) InsertNewData(model.SingleEpochMetrics) error {
-	// create the tables
-	_, err := p.psqlPool.Exec(p.ctx, createValidatorRewardsTable)
+func (p *PostgresDBService) InsertNewValidatorRow(epochMetrics model.SingleEpochMetrics) error {
+
+	valRewardsObj := model.NewValidatorRewardsFromSingleEpochMetrics(epochMetrics)
+
+	_, err := p.psqlPool.Exec(p.ctx, model.InsertNewLineTable, valRewardsObj.ValidatorIndex, valRewardsObj.Slot, valRewardsObj.ValidatorBalance)
 	if err != nil {
-		return errors.Wrap(err, "error creating peer-message-metrics table")
+		return errors.Wrap(err, "error inserting row in validator rewards table")
 	}
 	return nil
+}
+
+func (p *PostgresDBService) GetValidatorRow(iValIdx uint64, iSlot uint64) (model.ValidatorRewards, error) {
+
+	row := p.psqlPool.QueryRow(p.ctx, model.SelectByVal, iValIdx, iSlot)
+	validatorRow := model.NewEmptyValidatorRewards()
+
+	err := row.Scan(&validatorRow.ValidatorIndex, &validatorRow.Slot, &validatorRow.ValidatorBalance)
+
+	if err != nil {
+		return model.NewEmptyValidatorRewards(), errors.Wrap(err, "error retrieving row from validator rewards table")
+	}
+	return validatorRow, nil
 }

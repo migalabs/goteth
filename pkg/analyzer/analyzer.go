@@ -319,7 +319,8 @@ func (s *StateAnalyzer) ExportToCsv(outputFolder string) error {
 			if err != nil {
 				return err
 			}
-			//s.dbClient.InsertNewData(valMetrics)
+			s.dbClient.InsertNewValidatorRow(valMetrics)
+
 			totRewards += valMetrics.Reward
 			totMaxRewards += valMetrics.MaxReward
 			totPerc += valMetrics.RewardPercentage
