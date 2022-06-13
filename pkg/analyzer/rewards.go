@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/cortze/eth2-state-analyzer/pkg/custom_spec"
 	"github.com/pkg/errors"
+	"github.com/prysmaticlabs/go-bitfield"
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec"
@@ -12,83 +14,36 @@ import (
 )
 
 const (
-	participationRate   = 0.945 // about to calculate participation rate
+	// participationRate   = 0.945 // about to calculate participation rate
 	baseRewardFactor    = 64
 	baseRewardsPerEpoch = 4
 )
 
-func GetValidatorBalance(bstate *spec.VersionedBeaconState, valIdx uint64) (uint64, error) {
-	var balance uint64
-	var err error
-	switch bstate.Version {
-	case spec.DataVersionPhase0:
-		if uint64(len(bstate.Phase0.Balances)) < valIdx {
-			err = fmt.Errorf("phase0 - validator index %d wasn't activated in slot %d", valIdx, bstate.Phase0.Slot)
-		}
-		balance = bstate.Phase0.Balances[valIdx]
+func GetValidatorBalance(customBState CustomBeaconState, valIdx uint64) (uint64, error) {
 
-	case spec.DataVersionAltair:
-		if uint64(len(bstate.Altair.Balances)) < valIdx {
-			err = fmt.Errorf("altair - validator index %d wasn't activated in slot %d", valIdx, bstate.Phase0.Slot)
-		}
-		balance = bstate.Altair.Balances[valIdx]
+	balance, err := customBState.ObtainBalance(valIdx)
 
-	case spec.DataVersionBellatrix:
-		if uint64(len(bstate.Bellatrix.Balances)) < valIdx {
-			err = fmt.Errorf("bellatrix - validator index %d wasn't activated in slot %d", valIdx, bstate.Phase0.Slot)
-		}
-		balance = bstate.Bellatrix.Balances[valIdx]
-	default:
-
+	if err != nil {
+		return 0, err
 	}
-	return balance, err
+
+	return balance, nil
 }
 
-func GetParticipationRate(bstate *spec.VersionedBeaconState, s *StateAnalyzer) (uint64, error) {
+func GetParticipationRate(customBState CustomBeaconState, s *StateAnalyzer, m map[string]bitfield.Bitlist) (uint64, error) {
 
 	// participationRate := 0.85
 
-	switch bstate.Version {
-	case spec.DataVersionPhase0:
-		currentSlot := bstate.Phase0.Slot
-		currentEpoch := currentSlot / 32
-		totalAttPreviousEpoch := 0
-		totalAttCurrentEpoch := 0
-		totalAttestingVals := 0
+	currentSlot := customBState.ObtainCurrentSlot()
+	currentEpoch := customBState.ObtainCurrentEpoch()
+	totalAttPreviousEpoch := customBState.ObtainPreviousEpochAttestations()
+	totalAttestingVals := customBState.ObtainPreviousEpochValNum()
 
-		previousAttestatons := bstate.Phase0.PreviousEpochAttestations
-		currentAttestations := bstate.Phase0.CurrentEpochAttestations
-		vals := bstate.Phase0.Validators
-
-		for _, item := range vals {
-			if item.ActivationEligibilityEpoch < phase0.Epoch(currentEpoch) {
-				totalAttestingVals += 1
-			}
-		}
-
-		for _, item := range previousAttestatons {
-			totalAttPreviousEpoch += int(item.AggregationBits.Count())
-		}
-
-		for _, item := range currentAttestations {
-			totalAttCurrentEpoch += int(item.AggregationBits.Count())
-		}
-
-		fmt.Println("Current Epoch: ", currentEpoch)
-		fmt.Println("Using Block at: ", currentSlot)
-		fmt.Println("Attestations in the current Epoch: ", totalAttCurrentEpoch)
-		fmt.Println("Total number of Validators: ", totalAttestingVals)
-
-	case spec.DataVersionAltair:
-		participationRate := bstate.Altair.PreviousEpochParticipation
-		fmt.Println(participationRate)
-
-	case spec.DataVersionBellatrix:
-		participationRate := bstate.Bellatrix.PreviousEpochParticipation
-		fmt.Println(participationRate)
-	default:
-
-	}
+	// TODO: for now we print it but the goal is to store in a DB
+	fmt.Println("Current Epoch: ", currentEpoch)
+	fmt.Println("Using Block at: ", currentSlot)
+	fmt.Println("Attestations in the last Epoch: ", totalAttPreviousEpoch)
+	fmt.Println("Total number of Validators: ", totalAttestingVals)
 
 	return 0, nil
 }
@@ -96,7 +51,7 @@ func GetParticipationRate(bstate *spec.VersionedBeaconState, s *StateAnalyzer) (
 // https://kb.beaconcha.in/rewards-and-penalties
 // https://consensys.net/blog/codefi/rewards-and-penalties-on-ethereum-20-phase-0/
 // TODO: -would be nice to incorporate top the max value wheather there were 2-3 consecutive missed blocks afterwards
-func GetMaxReward(valIdx uint64, totValStatus *map[phase0.ValidatorIndex]*api.Validator, totalActiveBalance uint64) (uint64, error) {
+func GetMaxReward(valIdx uint64, totValStatus *map[phase0.ValidatorIndex]*api.Validator, totalActiveBalance uint64, participationRate float64) (uint64, error) {
 	// First iteration just taking 31/8*BaseReward as Max value
 	// BaseReward = ( effectiveBalance * (BaseRewardFactor)/(BaseRewardsPerEpoch * sqrt(activeBalance)) )
 
@@ -126,4 +81,28 @@ func GetBaseReward(valEffectiveBalance phase0.Gwei, totalActiveBalance uint64) u
 
 	baseReward = uint64(bsRewrd)
 	return baseReward
+}
+
+type CustomBeaconState interface {
+	ObtainPreviousEpochAttestations() uint64
+	ObtainPreviousEpochValNum() uint64
+	ObtainCurrentEpoch() uint64
+	ObtainCurrentSlot() uint64
+	ObtainBalance(valIdx uint64) (uint64, error)
+}
+
+func ObtainBStateByForkVersion(bstate *spec.VersionedBeaconState) (CustomBeaconState, error) {
+	switch bstate.Version {
+
+	case spec.DataVersionPhase0:
+		return custom_spec.NewPhase0Spec(bstate), nil
+
+	case spec.DataVersionAltair:
+		return custom_spec.NewAltairSpec(bstate), nil
+
+	case spec.DataVersionBellatrix:
+		return custom_spec.NewBellatrixSpec(bstate), nil
+	default:
+		return nil, fmt.Errorf("could not figure out the Beacon State Fork Version")
+	}
 }

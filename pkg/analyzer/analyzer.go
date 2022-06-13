@@ -36,7 +36,7 @@ type StateAnalyzer struct {
 	Metrics    sync.Map
 	SlotRanges []uint64
 	//
-	ValidatorTaskChan chan *ValidatorTask
+	EpochTaskChan chan *EpochTask
 	// http CLient
 	cli *clientapi.APIClient
 
@@ -81,14 +81,14 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	}
 
 	return &StateAnalyzer{
-		ctx:               ctx,
-		InitSlot:          initSlot,
-		FinalSlot:         finalSlot,
-		ValidatorIndexes:  valIdxs,
-		SlotRanges:        slotRanges,
-		Metrics:           metrics,
-		ValidatorTaskChan: make(chan *ValidatorTask, len(valIdxs)),
-		cli:               httpCli,
+		ctx:              ctx,
+		InitSlot:         initSlot,
+		FinalSlot:        finalSlot,
+		ValidatorIndexes: valIdxs,
+		SlotRanges:       slotRanges,
+		Metrics:          metrics,
+		EpochTaskChan:    make(chan *EpochTask, len(valIdxs)),
+		cli:              httpCli,
 	}, nil
 }
 
@@ -107,7 +107,7 @@ func (s *StateAnalyzer) Run() {
 			select {
 			case <-s.ctx.Done():
 				log.Info("context has died, closing state requester routine")
-				close(s.ValidatorTaskChan)
+				close(s.EpochTaskChan)
 				return
 
 			default:
@@ -117,10 +117,9 @@ func (s *StateAnalyzer) Run() {
 				if err != nil {
 					// close the channel (to tell other routines to stop processing and end)
 					log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
-					close(s.ValidatorTaskChan)
+					close(s.EpochTaskChan)
 					return
 				}
-				_, _ = GetParticipationRate(bstate, s)
 
 				log.Debug("requesting Validator list from endpoint")
 				validatorFilter := make([]phase0.ValidatorIndex, 0)
@@ -128,7 +127,7 @@ func (s *StateAnalyzer) Run() {
 				if err != nil {
 					// close the channel (to tell other routines to stop processing and end)
 					log.Errorf("Unable to retrieve Validators from the beacon node, closing requester routine. %s", err.Error())
-					close(s.ValidatorTaskChan)
+					close(s.EpochTaskChan)
 					return
 				}
 
@@ -146,27 +145,41 @@ func (s *StateAnalyzer) Run() {
 
 				}
 
-				// Once the state has been downloaded, loop over the validator
-				for _, val := range s.ValidatorIndexes {
-					// compose the next task
-					valTask := &ValidatorTask{
-						ValIdx:                val,
-						Slot:                  slot,
-						State:                 bstate,
-						TotalValidatorStatus:  &activeValidators,
-						TotalEffectiveBalance: totalEffectiveBalance,
-						TotalActiveBalance:    totalActiveBalance,
-					}
+				// // Once the state has been downloaded, loop over the validator
+				// for _, val := range s.ValidatorIndexes {
+				// 	// compose the next task
+				// 	valTask := &EpochTask{
+				// 		ValIdx:                val,
+				// 		Slot:                  slot,
+				// 		State:                 bstate,
+				// 		TotalValidatorStatus:  &activeValidators,
+				// 		TotalEffectiveBalance: totalEffectiveBalance,
+				// 		TotalActiveBalance:    totalActiveBalance,
+				// 	}
 
-					log.Debugf("sending task for slot %d and validator %d", slot, val)
-					s.ValidatorTaskChan <- valTask
+				// 	log.Debugf("sending task for slot %d and validator %d", slot, val)
+				// 	s.EpochTaskChan <- valTask
+				// }
+
+				// compose the next task
+				valTask := &EpochTask{
+					ValIdxs:               s.ValidatorIndexes,
+					Slot:                  slot,
+					State:                 bstate,
+					TotalValidatorStatus:  &activeValidators,
+					TotalEffectiveBalance: totalEffectiveBalance,
+					TotalActiveBalance:    totalActiveBalance,
 				}
+
+				log.Debugf("sending task for slot", slot)
+				s.EpochTaskChan <- valTask
+
 			}
 			// check if the min Request time has been completed (to avoid spaming the API)
 			<-ticker.C
 		}
 		log.Infof("All states for the slot ranges has been successfully retrieved, clossing go routine")
-		close(s.ValidatorTaskChan)
+		close(s.EpochTaskChan)
 	}()
 
 	// generate workers, validator tasks consumers
@@ -188,32 +201,38 @@ func (s *StateAnalyzer) Run() {
 			// keep iterrating until the channel is closed due to finishing
 			for {
 				// cehck if the channel has been closed
-				task, ok := <-s.ValidatorTaskChan
+				task, ok := <-s.EpochTaskChan
 				if !ok {
 					wlog.Warn("the task channel has been closed, finishing worker routine")
 					return
 				}
-				wlog.Debugf("task received for slot %d and val %d", task.Slot, task.ValIdx)
+				wlog.Debugf("task received for slot %d", task.Slot)
 				// Proccess State
 				wlog.Debug("analyzing the receved state")
+				customBState, err := ObtainBStateByForkVersion(task.State)
+				if err != nil {
+					log.Errorf(err.Error())
+				}
 
 				// TODO: Analyze rewards for the given Validator
+				for _, valIdx := range task.ValIdxs {
+					// check if there is a metrics already
+					metInterface, ok := s.Metrics.Load(valIdx)
+					if !ok {
+						log.Errorf("Validator %d not found in list of tracked validators", valIdx)
+					}
+					// met is already the pointer to the metrics, we don't need to store it again
+					met := metInterface.(*RewardMetrics)
+					log.Debug("Calculating the performance of the validator")
+					err := met.CalculateEpochPerformance(customBState, task.TotalValidatorStatus, task.TotalEffectiveBalance)
+					if err != nil {
+						log.Errorf("unable to calculate the performance for validator %d on slot %d. %s", valIdx, task.Slot, err.Error())
+					}
+					// save the calculated rewards on the the list of items
+					// fmt.Println(met)
+					s.Metrics.Store(valIdx, met)
+				}
 
-				// check if there is a metrics already
-				metInterface, ok := s.Metrics.Load(task.ValIdx)
-				if !ok {
-					log.Errorf("Validator %d not found in list of tracked validators", task.ValIdx)
-				}
-				// met is already the pointer to the metrics, we don't need to store it again
-				met := metInterface.(*RewardMetrics)
-				log.Debug("Calculating the performance of the validator")
-				err := met.CalculateEpochPerformance(task.State, task.TotalValidatorStatus, task.TotalEffectiveBalance)
-				if err != nil {
-					log.Errorf("unable to calculate the performance for validator %d on slot %d. %s", task.ValIdx, task.Slot, err.Error())
-				}
-				// save the calculated rewards on the the list of items
-				// fmt.Println(met)
-				s.Metrics.Store(task.ValIdx, met)
 			}
 
 		}()
@@ -231,8 +250,8 @@ func (s *StateAnalyzer) Run() {
 }
 
 //
-type ValidatorTask struct {
-	ValIdx                uint64
+type EpochTask struct {
+	ValIdxs               []uint64
 	Slot                  uint64
 	State                 *spec.VersionedBeaconState
 	TotalValidatorStatus  *map[phase0.ValidatorIndex]*api.Validator
