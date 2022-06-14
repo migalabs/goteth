@@ -43,10 +43,10 @@ func NewRewardMetrics(initslot uint64, epochRange uint64, validatorIdx uint64) (
 // Supposed to be
 func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState, validators *map[phase0.ValidatorIndex]*api.Validator, totalActiveBalance uint64) error {
 
-	numOfAttPreviousEpoch := customBState.ObtainPreviousEpochAttestations()
-	numOfAttestingValsPreviousEpoch := customBState.ObtainPreviousEpochValNum()
+	numOfAttPreviousEpoch := customBState.PreviousEpochAttestations()
+	numOfAttestingValsPreviousEpoch := customBState.PreviousEpochValNum()
 
-	participationRate := float64(numOfAttPreviousEpoch / numOfAttestingValsPreviousEpoch)
+	participationRate := float64(float64(numOfAttPreviousEpoch) / float64(numOfAttestingValsPreviousEpoch))
 
 	validatorBalance, err := GetValidatorBalance(customBState, m.validatorIdx)
 	if err != nil {
@@ -80,7 +80,7 @@ func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState
 		// Proccess Reward-Performance-Ratio
 		rewardPerf := (float64(reward) * 100) / float64(maxReward)
 		m.RewardPercentage[m.innerCnt] = rewardPerf
-		log.Debugf("reward performance for %d = %f%", m.validatorIdx, rewardPerf)
+		// log.Debugf("reward performance for %d = %f%", m.validatorIdx, rewardPerf)
 
 		// TODO:
 		// Add number of missing sources

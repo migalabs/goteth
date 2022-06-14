@@ -21,7 +21,7 @@ const (
 
 func GetValidatorBalance(customBState CustomBeaconState, valIdx uint64) (uint64, error) {
 
-	balance, err := customBState.ObtainBalance(valIdx)
+	balance, err := customBState.Balance(valIdx)
 
 	if err != nil {
 		return 0, err
@@ -34,10 +34,10 @@ func GetParticipationRate(customBState CustomBeaconState, s *StateAnalyzer, m ma
 
 	// participationRate := 0.85
 
-	currentSlot := customBState.ObtainCurrentSlot()
-	currentEpoch := customBState.ObtainCurrentEpoch()
-	totalAttPreviousEpoch := customBState.ObtainPreviousEpochAttestations()
-	totalAttestingVals := customBState.ObtainPreviousEpochValNum()
+	currentSlot := customBState.CurrentSlot()
+	currentEpoch := customBState.CurrentEpoch()
+	totalAttPreviousEpoch := customBState.PreviousEpochAttestations()
+	totalAttestingVals := customBState.PreviousEpochValNum()
 
 	// TODO: for now we print it but the goal is to store in a DB
 	fmt.Println("Current Epoch: ", currentEpoch)
@@ -84,14 +84,15 @@ func GetBaseReward(valEffectiveBalance phase0.Gwei, totalActiveBalance uint64) u
 }
 
 type CustomBeaconState interface {
-	ObtainPreviousEpochAttestations() uint64
-	ObtainPreviousEpochValNum() uint64
-	ObtainCurrentEpoch() uint64
-	ObtainCurrentSlot() uint64
-	ObtainBalance(valIdx uint64) (uint64, error)
+	PreviousEpochAttestations() uint64
+	PreviousEpochValNum() uint64 // those activated before current Epoch
+	CurrentEpoch() uint64
+	CurrentSlot() uint64
+	GetDoubleVotes() uint64
+	Balance(valIdx uint64) (uint64, error)
 }
 
-func ObtainBStateByForkVersion(bstate *spec.VersionedBeaconState) (CustomBeaconState, error) {
+func BStateByForkVersion(bstate *spec.VersionedBeaconState) (CustomBeaconState, error) {
 	switch bstate.Version {
 
 	case spec.DataVersionPhase0:

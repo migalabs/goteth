@@ -10,14 +10,16 @@ import (
 )
 
 type Phase0Spec struct {
-	BState     spec.VersionedBeaconState
-	Committees map[string]bitfield.Bitlist
+	BState      spec.VersionedBeaconState
+	Committees  map[string]bitfield.Bitlist
+	DoubleVotes uint64
 }
 
 func NewPhase0Spec(bstate *spec.VersionedBeaconState) Phase0Spec {
 	phase0Obj := Phase0Spec{
-		BState:     *bstate,
-		Committees: make(map[string]bitfield.Bitlist),
+		BState:      *bstate,
+		Committees:  make(map[string]bitfield.Bitlist),
+		DoubleVotes: 0,
 	}
 	phase0Obj.CalculatePreviousEpochAttestations()
 
@@ -25,12 +27,12 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState) Phase0Spec {
 
 }
 
-func (p Phase0Spec) ObtainCurrentSlot() uint64 {
+func (p Phase0Spec) CurrentSlot() uint64 {
 	return p.BState.Phase0.Slot
 }
 
-func (p Phase0Spec) ObtainCurrentEpoch() uint64 {
-	return uint64(p.ObtainCurrentSlot() / 32)
+func (p Phase0Spec) CurrentEpoch() uint64 {
+	return uint64(p.CurrentSlot() / 32)
 }
 
 func (p *Phase0Spec) CalculatePreviousEpochAttestations() {
@@ -45,7 +47,7 @@ func (p *Phase0Spec) CalculatePreviousEpochAttestations() {
 
 	// TODO: check validator active, slashed or exiting
 	for _, item := range vals {
-		if item.ActivationEligibilityEpoch < phase0.Epoch(p.ObtainCurrentEpoch()) {
+		if item.ActivationEligibilityEpoch < phase0.Epoch(p.CurrentEpoch()) {
 			totalAttestingVals += 1
 		}
 	}
@@ -88,9 +90,11 @@ func (p *Phase0Spec) CalculatePreviousEpochAttestations() {
 
 	}
 
+	p.DoubleVotes = uint64(doubleVotes)
+
 }
 
-func (p Phase0Spec) ObtainPreviousEpochAttestations() uint64 {
+func (p Phase0Spec) PreviousEpochAttestations() uint64 {
 
 	numOf1Bits := 0 // it should be equal to the number of validators that attested
 
@@ -102,7 +106,11 @@ func (p Phase0Spec) ObtainPreviousEpochAttestations() uint64 {
 	return uint64(numOf1Bits)
 }
 
-func (p Phase0Spec) ObtainPreviousEpochValNum() uint64 {
+func (p Phase0Spec) PreviousEpochAggregations() []*phase0.PendingAttestation {
+	return p.BState.Phase0.PreviousEpochAttestations
+}
+
+func (p Phase0Spec) PreviousEpochValNum() uint64 {
 
 	numOfBits := 0 // it should be equal to the number of validators
 
@@ -114,7 +122,11 @@ func (p Phase0Spec) ObtainPreviousEpochValNum() uint64 {
 	return uint64(numOfBits)
 }
 
-func (p Phase0Spec) ObtainBalance(valIdx uint64) (uint64, error) {
+func (p Phase0Spec) GetDoubleVotes() uint64 {
+	return p.DoubleVotes
+}
+
+func (p Phase0Spec) Balance(valIdx uint64) (uint64, error) {
 	if uint64(len(p.BState.Phase0.Balances)) < valIdx {
 		err := fmt.Errorf("phase0 - validator index %d wasn't activated in slot %d", valIdx, p.BState.Phase0.Slot)
 		return 0, err

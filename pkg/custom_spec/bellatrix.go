@@ -4,44 +4,84 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 	"github.com/prysmaticlabs/go-bitfield"
 )
 
 type BellatrixSpec struct {
-	BState     spec.VersionedBeaconState
-	Committees map[string]bitfield.Bitlist
+	BState      spec.VersionedBeaconState
+	Committees  map[string]bitfield.Bitlist
+	DoubleVotes uint64
 }
 
 func NewBellatrixSpec(bstate *spec.VersionedBeaconState) BellatrixSpec {
 	bellatrixObj := BellatrixSpec{
-		BState:     *bstate,
-		Committees: make(map[string]bitfield.Bitlist),
+		BState:      *bstate,
+		Committees:  make(map[string]bitfield.Bitlist),
+		DoubleVotes: 0,
 	}
-	bellatrixObj.CalculatePreviousEpochAttestations()
+	bellatrixObj.PreviousEpochAttestations()
 
 	return bellatrixObj
 }
 
-func (p BellatrixSpec) ObtainCurrentSlot() uint64 {
+func (p BellatrixSpec) CurrentSlot() uint64 {
 	return p.BState.Bellatrix.Slot
 }
 
-func (p BellatrixSpec) ObtainCurrentEpoch() uint64 {
-	return uint64(p.ObtainCurrentSlot() / 32)
+func (p BellatrixSpec) CurrentEpoch() uint64 {
+	return uint64(p.CurrentSlot() / 32)
 }
 
-func (p BellatrixSpec) CalculatePreviousEpochAttestations() {
+func (p BellatrixSpec) PreviousEpochAttestations() uint64 {
+	numOfAttestations := 0
+	attestationsPerVal := p.BState.Bellatrix.PreviousEpochParticipation
+
+	for _, item := range attestationsPerVal {
+		// Here we have one item per validator
+		// This is an 8-bit string, where the bit 0 is the source
+		// If it is set, we consider there was a vote from this validator
+		if utils.IsBitSet(uint8(item), 0) {
+			numOfAttestations++
+		}
+	}
+
+	return uint64(numOfAttestations)
 }
 
-func (p BellatrixSpec) ObtainPreviousEpochAttestations() uint64 {
-	return 0
+func (p BellatrixSpec) PreviousEpochMissedAttestations() uint64 {
+	numOfMissedAttestations := 0
+	attestationsPerVal := p.BState.Bellatrix.PreviousEpochParticipation
+
+	for _, item := range attestationsPerVal {
+		// Here we have one item per validator
+		if !utils.IsBitSet(uint8(item), 0) {
+			numOfMissedAttestations++
+		}
+	}
+
+	return uint64(numOfMissedAttestations)
+
 }
 
-func (p BellatrixSpec) ObtainPreviousEpochValNum() uint64 {
-	return 0
+func (p BellatrixSpec) PreviousEpochValNum() uint64 {
+	vals := p.BState.Bellatrix.Validators
+	totalAttestingVals := 0
+	// TODO: check validator active, slashed or exiting
+	for _, item := range vals {
+		if item.ActivationEligibilityEpoch < phase0.Epoch(p.CurrentEpoch()) {
+			totalAttestingVals += 1
+		}
+	}
+	return uint64(totalAttestingVals)
 }
 
-func (p BellatrixSpec) ObtainBalance(valIdx uint64) (uint64, error) {
+func (p BellatrixSpec) GetDoubleVotes() uint64 {
+	return p.DoubleVotes
+}
+
+func (p BellatrixSpec) Balance(valIdx uint64) (uint64, error) {
 	if uint64(len(p.BState.Bellatrix.Balances)) < valIdx {
 		err := fmt.Errorf("phase0 - validator index %d wasn't activated in slot %d", valIdx, p.BState.Bellatrix.Slot)
 		return 0, err

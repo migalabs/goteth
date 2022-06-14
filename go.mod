@@ -26,6 +26,7 @@ require (
 	github.com/jackc/puddle v1.2.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.11 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
+	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect

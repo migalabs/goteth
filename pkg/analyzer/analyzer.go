@@ -157,7 +157,7 @@ func (s *StateAnalyzer) Run() {
 				// 		TotalActiveBalance:    totalActiveBalance,
 				// 	}
 
-				// 	log.Debugf("sending task for slot %d and validator %d", slot, val)
+				// log.Debugf("sending task for slot %d and validator %d", slot, val)
 				// 	s.EpochTaskChan <- valTask
 				// }
 
@@ -171,7 +171,7 @@ func (s *StateAnalyzer) Run() {
 					TotalActiveBalance:    totalActiveBalance,
 				}
 
-				log.Debugf("sending task for slot", slot)
+				log.Debugf("sending task for slot: %d", slot)
 				s.EpochTaskChan <- valTask
 
 			}
@@ -209,7 +209,7 @@ func (s *StateAnalyzer) Run() {
 				wlog.Debugf("task received for slot %d", task.Slot)
 				// Proccess State
 				wlog.Debug("analyzing the receved state")
-				customBState, err := ObtainBStateByForkVersion(task.State)
+				customBState, err := BStateByForkVersion(task.State)
 				if err != nil {
 					log.Errorf(err.Error())
 				}
