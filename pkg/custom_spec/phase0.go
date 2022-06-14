@@ -45,9 +45,10 @@ func (p *Phase0Spec) CalculatePreviousEpochAttestations() {
 	doubleVotes := 0
 	vals := p.BState.Phase0.Validators
 
-	// TODO: check validator active, slashed or exiting
 	for _, item := range vals {
-		if item.ActivationEligibilityEpoch < phase0.Epoch(p.CurrentEpoch()) {
+		// validator must be either active, exiting or slashed
+		if item.ActivationEligibilityEpoch < phase0.Epoch(p.CurrentEpoch()) &&
+			item.ExitEpoch > phase0.Epoch(p.CurrentEpoch()) {
 			totalAttestingVals += 1
 		}
 	}

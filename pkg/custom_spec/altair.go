@@ -69,9 +69,10 @@ func (p AltairSpec) PreviousEpochMissedAttestations() uint64 {
 func (p AltairSpec) PreviousEpochValNum() uint64 {
 	vals := p.BState.Altair.Validators
 	totalAttestingVals := 0
-	// TODO: check validator active, slashed or exiting
 	for _, item := range vals {
-		if item.ActivationEligibilityEpoch < phase0.Epoch(p.CurrentEpoch()) {
+		// validator must be either active, exiting or slashed
+		if item.ActivationEligibilityEpoch < phase0.Epoch(p.CurrentEpoch()) &&
+			item.ExitEpoch > phase0.Epoch(p.CurrentEpoch()) {
 			totalAttestingVals += 1
 		}
 	}
