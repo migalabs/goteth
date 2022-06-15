@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
-	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
@@ -42,9 +41,14 @@ func NewRewardMetrics(initslot uint64, epochRange uint64, validatorIdx uint64) (
 }
 
 // Supposed to be
-func (m *RewardMetrics) CalculateEpochPerformance(bState *spec.VersionedBeaconState, validators *map[phase0.ValidatorIndex]*api.Validator, totalActiveBalance uint64) error {
+func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState, validators *map[phase0.ValidatorIndex]*api.Validator, totalActiveBalance uint64) error {
 
-	validatorBalance, err := GetValidatorBalance(bState, m.validatorIdx)
+	numOfAttPreviousEpoch := customBState.PreviousEpochAttestations()
+	numOfAttestingValsPreviousEpoch := customBState.PreviousEpochValNum()
+
+	participationRate := float64(float64(numOfAttPreviousEpoch) / float64(numOfAttestingValsPreviousEpoch))
+
+	validatorBalance, err := GetValidatorBalance(customBState, m.validatorIdx)
 	if err != nil {
 		return err
 	}
@@ -66,7 +70,7 @@ func (m *RewardMetrics) CalculateEpochPerformance(bState *spec.VersionedBeaconSt
 		m.Rewards[m.innerCnt] = reward
 
 		// Proccess Max-Rewards
-		maxReward, err := GetMaxReward(m.validatorIdx, validators, totalActiveBalance)
+		maxReward, err := GetMaxReward(m.validatorIdx, validators, totalActiveBalance, participationRate)
 		if err != nil {
 			return err
 		}
@@ -76,7 +80,7 @@ func (m *RewardMetrics) CalculateEpochPerformance(bState *spec.VersionedBeaconSt
 		// Proccess Reward-Performance-Ratio
 		rewardPerf := (float64(reward) * 100) / float64(maxReward)
 		m.RewardPercentage[m.innerCnt] = rewardPerf
-		log.Debugf("reward performance for %d = %f%", m.validatorIdx, rewardPerf)
+		// log.Debugf("reward performance for %d = %f%", m.validatorIdx, rewardPerf)
 
 		// TODO:
 		// Add number of missing sources
