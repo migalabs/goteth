@@ -3,6 +3,7 @@ package analyzer
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"sync"
 	"time"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth2-state-analyzer/pkg/model"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
 
@@ -61,15 +63,17 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	// calculate the list of slots that we will analyze
 	slotRanges := make([]uint64, 0)
 	epochRange := uint64(0)
+	// minimum slot is 0
+	initEpoch := int(initSlot / 32)
+	finalEpoch := int(finalSlot / 32)
+	// force to be on the last slot of the previous epoch
+	initSlot = uint64(math.Max(31, float64((initEpoch*32)-1)))
+	// for the finalSlot go the last slot of the next epoch
+	finalSlot = uint64(math.Max(31, float64((finalEpoch*32)-1+int(2*utils.SlotBase))))
 	for i := initSlot; i < (finalSlot + utils.SlotBase); i += utils.SlotBase {
 		slotRanges = append(slotRanges, i)
 		epochRange++
 	}
-
-	// for i := (initSlot - (initSlot % 32)); i < (finalSlot + (32 - (finalSlot % 32))); i += utils.SlotBase {
-	// 	slotRanges = append(slotRanges, i)
-	// 	epochRange++
-	// }
 	log.Debug("slotRanges are:", slotRanges)
 
 	var metrics sync.Map
@@ -110,7 +114,7 @@ func (s *StateAnalyzer) Run() {
 		defer wg.Done()
 		log.Info("Launching Beacon State Requester")
 		// loop over the list of slots that we need to analyze
-		for _, slot := range s.SlotRanges {
+		for idx, slot := range s.SlotRanges {
 			ticker := time.NewTicker(minReqTime)
 			select {
 			case <-s.ctx.Done():
@@ -125,11 +129,9 @@ func (s *StateAnalyzer) Run() {
 				if err != nil {
 					// close the channel (to tell other routines to stop processing and end)
 					log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
-					close(s.EpochTaskChan)
+					// close(s.EpochTaskChan)
 					return
 				}
-
-				// _, _ = GetParticipationRate(bstate)
 
 				log.Debug("requesting Validator list from endpoint")
 				validatorFilter := make([]phase0.ValidatorIndex, 0)
@@ -149,27 +151,14 @@ func (s *StateAnalyzer) Run() {
 					if !val.Status.IsActive() {
 						continue
 					}
+					if val.Balance > 32000000000 {
+						fmt.Println(val.Balance)
+					}
 					// since it's active
 					totalActiveBalance += uint64(val.Balance)
 					totalEffectiveBalance += uint64(val.Validator.EffectiveBalance)
 
 				}
-
-				// // Once the state has been downloaded, loop over the validator
-				// for _, val := range s.ValidatorIndexes {
-				// 	// compose the next task
-				// 	valTask := &EpochTask{
-				// 		ValIdx:                val,
-				// 		Slot:                  slot,
-				// 		State:                 bstate,
-				// 		TotalValidatorStatus:  &activeValidators,
-				// 		TotalEffectiveBalance: totalEffectiveBalance,
-				// 		TotalActiveBalance:    totalActiveBalance,
-				// 	}
-
-				// log.Debugf("sending task for slot %d and validator %d", slot, val)
-				// 	s.EpochTaskChan <- valTask
-				// }
 
 				// compose the next task
 				valTask := &EpochTask{
@@ -179,6 +168,10 @@ func (s *StateAnalyzer) Run() {
 					TotalValidatorStatus:  &activeValidators,
 					TotalEffectiveBalance: totalEffectiveBalance,
 					TotalActiveBalance:    totalActiveBalance,
+				}
+
+				if idx == len(s.SlotRanges)-1 {
+					valTask.OnlyPrevAtt = true
 				}
 
 				log.Debugf("sending task for slot: %d", slot)
@@ -224,6 +217,23 @@ func (s *StateAnalyzer) Run() {
 					log.Errorf(err.Error())
 				}
 
+				epochObj := model.NewEpochMetrics(customBState.CurrentEpoch(), customBState.CurrentSlot(), customBState.PreviousEpochAttestations(), customBState.PreviousEpochValNum(), task.TotalActiveBalance, task.TotalEffectiveBalance)
+
+				// only do this if we are not in the last slot
+				// keep in mind slotRanges goes one epoch further
+				if !task.OnlyPrevAtt {
+					// Store Epoch Metrics in db
+					err = s.dbClient.InsertNewEpochRow(epochObj)
+					if err != nil {
+						log.Errorf(err.Error())
+					}
+				}
+
+				err = s.dbClient.UpdatePrevEpochAtt(epochObj)
+				if err != nil {
+					log.Errorf(err.Error())
+				}
+
 				// TODO: Analyze rewards for the given Validator
 				for _, valIdx := range task.ValIdxs {
 					// check if there is a metrics already
@@ -234,6 +244,7 @@ func (s *StateAnalyzer) Run() {
 					// met is already the pointer to the metrics, we don't need to store it again
 					met := metInterface.(*RewardMetrics)
 					log.Debug("Calculating the performance of the validator")
+					// err := met.CalculateEpochPerformance(customBState, task.TotalValidatorStatus, task.TotalEffectiveBalance)
 					err := met.CalculateEpochPerformance(customBState, task.TotalValidatorStatus, task.TotalEffectiveBalance)
 					if err != nil {
 						log.Errorf("unable to calculate the performance for validator %d on slot %d. %s", valIdx, task.Slot, err.Error())
@@ -241,6 +252,19 @@ func (s *StateAnalyzer) Run() {
 					// save the calculated rewards on the the list of items
 					// fmt.Println(met)
 					s.Metrics.Store(valIdx, met)
+
+					// Store validator metrics in db
+					valMetrics, err := met.GetEpochMetrics(customBState.CurrentSlot())
+					if err != nil {
+						log.Errorf(err.Error())
+					}
+					if !task.OnlyPrevAtt {
+						err = s.dbClient.InsertNewValidatorRow(valMetrics)
+						if err != nil {
+							log.Errorf(err.Error())
+						}
+					}
+
 				}
 
 			}
@@ -267,6 +291,7 @@ type EpochTask struct {
 	TotalValidatorStatus  *map[phase0.ValidatorIndex]*api.Validator
 	TotalEffectiveBalance uint64
 	TotalActiveBalance    uint64
+	OnlyPrevAtt           bool
 }
 
 // Exporter Functions

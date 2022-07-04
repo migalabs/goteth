@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
@@ -42,9 +43,10 @@ func NewRewardMetrics(initslot uint64, epochRange uint64, validatorIdx uint64) (
 }
 
 // Supposed to be
-func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState, validators *map[phase0.ValidatorIndex]*api.Validator, totalActiveBalance uint64) error {
+func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState, validators *map[phase0.ValidatorIndex]*api.Validator, totalEffectiveBalance uint64) error {
 
 	numOfAttPreviousEpoch := customBState.PreviousEpochAttestations()
+
 	numOfAttestingValsPreviousEpoch := customBState.PreviousEpochValNum()
 
 	participationRate := float64(float64(numOfAttPreviousEpoch) / float64(numOfAttestingValsPreviousEpoch))
@@ -66,12 +68,14 @@ func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState
 		// calculate Reward from the previous Balance
 		reward := validatorBalance - m.ValidatorBalances[m.innerCnt-1]
 		log.Debugf("reward for validator %d = %d", m.validatorIdx, reward)
-
+		if reward == 69275 {
+			fmt.Println("bad")
+		}
 		// Add Reward
 		m.Rewards[m.innerCnt] = reward
 
 		// Proccess Max-Rewards
-		maxReward, err := GetMaxReward(m.validatorIdx, validators, totalActiveBalance, participationRate)
+		maxReward, err := GetMaxReward(m.validatorIdx, validators, totalEffectiveBalance, participationRate)
 		if err != nil {
 			return err
 		}
@@ -81,7 +85,7 @@ func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState
 		// Proccess Reward-Performance-Ratio
 		rewardPerf := (float64(reward) * 100) / float64(maxReward)
 		m.RewardPercentage[m.innerCnt] = rewardPerf
-		// log.Debugf("reward performance for %d = %f%", m.validatorIdx, rewardPerf)
+		log.Debugf("reward performance for %d = %f", m.validatorIdx, rewardPerf)
 
 		// TODO:
 		// Add number of missing sources
@@ -91,6 +95,7 @@ func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState
 		// Add number of missing targets
 
 	}
+
 	// do not forget to increment the internal counter
 	m.innerCnt++
 	log.Debugf("done with validator %d", m.validatorIdx)

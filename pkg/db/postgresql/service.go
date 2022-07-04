@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/model"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -70,38 +69,11 @@ func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error 
 	if err != nil {
 		return err
 	}
-	return nil
-}
 
-func (p *PostgresDBService) createRewardsTable(ctx context.Context, pool *pgxpool.Pool) error {
-	// create the tables
-	_, err := pool.Exec(ctx, model.CreateValidatorRewardsTable)
+	err = p.createEpochMetricsTable(ctx, pool)
 	if err != nil {
-		return errors.Wrap(err, "error creating rewards table")
+		return err
 	}
+
 	return nil
-}
-
-func (p *PostgresDBService) InsertNewValidatorRow(epochMetrics model.SingleEpochMetrics) error {
-
-	valRewardsObj := model.NewValidatorRewardsFromSingleEpochMetrics(epochMetrics)
-
-	_, err := p.psqlPool.Exec(p.ctx, model.InsertNewLineTable, valRewardsObj.ValidatorIndex, valRewardsObj.Slot, valRewardsObj.ValidatorBalance)
-	if err != nil {
-		return errors.Wrap(err, "error inserting row in validator rewards table")
-	}
-	return nil
-}
-
-func (p *PostgresDBService) GetValidatorRow(iValIdx uint64, iSlot uint64) (model.ValidatorRewards, error) {
-
-	row := p.psqlPool.QueryRow(p.ctx, model.SelectByVal, iValIdx, iSlot)
-	validatorRow := model.NewEmptyValidatorRewards()
-
-	err := row.Scan(&validatorRow.ValidatorIndex, &validatorRow.Slot, &validatorRow.ValidatorBalance)
-
-	if err != nil {
-		return model.NewEmptyValidatorRewards(), errors.Wrap(err, "error retrieving row from validator rewards table")
-	}
-	return validatorRow, nil
 }
