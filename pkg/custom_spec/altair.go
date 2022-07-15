@@ -1,8 +1,10 @@
 package custom_spec
 
 import (
+	"errors"
 	"fmt"
 
+	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
@@ -51,6 +53,11 @@ func (p AltairSpec) PreviousEpochAttestations() uint64 {
 
 }
 
+func (p AltairSpec) GetValidatorBalance(valIdx uint64) uint64 {
+	return p.BState.Altair.Balances[valIdx]
+
+}
+
 func (p AltairSpec) PreviousEpochMissedAttestations() uint64 {
 	numOfMissedAttestations := 0
 	attestationsPerVal := p.BState.Altair.PreviousEpochParticipation
@@ -91,4 +98,45 @@ func (p AltairSpec) Balance(valIdx uint64) (uint64, error) {
 	balance := p.BState.Altair.Balances[valIdx]
 
 	return balance, nil
+}
+
+func (p AltairSpec) GetMaxSyncComReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
+	inCommittee := false
+	for _, val := range p.BState.Altair.CurrentSyncCommittee.Pubkeys {
+		if val == valPubKey {
+			inCommittee = true
+		}
+	}
+
+	if inCommittee {
+		increments := float64(totalEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT)
+		return SYNC_COMMITTEE_FACTOR * increments * GetBaseRewardPerInc(totalEffectiveBalance) * EPOCH
+	}
+
+	return 0
+
+}
+
+func (p AltairSpec) GetMaxAttestationReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
+
+	increments := float64(valEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT)
+
+	return ATTESTATION_FACTOR * increments * GetBaseRewardPerInc(totalEffectiveBalance)
+}
+
+func (p AltairSpec) GetMaxReward(valIdx uint64, totValStatus *map[phase0.ValidatorIndex]*api.Validator, totalEffectiveBalance uint64) (uint64, error) {
+	valStatus, ok := (*totValStatus)[phase0.ValidatorIndex(valIdx)]
+
+	if !ok {
+		return 0, errors.New("could not get validator effective balance")
+	}
+
+	valEffectiveBalance := valStatus.Validator.EffectiveBalance
+
+	maxAttReward := p.GetMaxAttestationReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
+	maxSyncReward := p.GetMaxSyncComReward(valIdx, valStatus.Validator.PublicKey, uint64(valEffectiveBalance), totalEffectiveBalance)
+
+	maxReward := maxAttReward + maxSyncReward
+
+	return uint64(maxReward), nil
 }

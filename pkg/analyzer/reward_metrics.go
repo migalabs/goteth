@@ -2,11 +2,11 @@ package analyzer
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth2-state-analyzer/pkg/custom_spec"
 	"github.com/cortze/eth2-state-analyzer/pkg/model"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
@@ -43,13 +43,7 @@ func NewRewardMetrics(initslot uint64, epochRange uint64, validatorIdx uint64) (
 }
 
 // Supposed to be
-func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState, validators *map[phase0.ValidatorIndex]*api.Validator, totalEffectiveBalance uint64) error {
-
-	numOfAttPreviousEpoch := customBState.PreviousEpochAttestations()
-
-	numOfAttestingValsPreviousEpoch := customBState.PreviousEpochValNum()
-
-	participationRate := float64(float64(numOfAttPreviousEpoch) / float64(numOfAttestingValsPreviousEpoch))
+func (m *RewardMetrics) CalculateEpochPerformance(customBState custom_spec.CustomBeaconState, validators *map[phase0.ValidatorIndex]*api.Validator, totalEffectiveBalance uint64) error {
 
 	validatorBalance, err := GetValidatorBalance(customBState, m.validatorIdx)
 	if err != nil {
@@ -68,14 +62,11 @@ func (m *RewardMetrics) CalculateEpochPerformance(customBState CustomBeaconState
 		// calculate Reward from the previous Balance
 		reward := validatorBalance - m.ValidatorBalances[m.innerCnt-1]
 		log.Debugf("reward for validator %d = %d", m.validatorIdx, reward)
-		if reward == 69275 {
-			fmt.Println("bad")
-		}
 		// Add Reward
 		m.Rewards[m.innerCnt] = reward
 
 		// Proccess Max-Rewards
-		maxReward, err := GetMaxReward(m.validatorIdx, validators, totalEffectiveBalance, participationRate)
+		maxReward, err := customBState.GetMaxReward(m.validatorIdx, validators, totalEffectiveBalance)
 		if err != nil {
 			return err
 		}
@@ -134,7 +125,8 @@ func (m *RewardMetrics) GetIndexFromslot(slot uint64) int {
 	idx := -1
 	m.m.Lock()
 	defer m.m.Unlock()
-	idx = int(slot/m.baseslot) - 1
+	// idx = int(slot/m.baseslot) - 1
+	idx = int(slot-m.baseslot) / 32
 	if idx >= len(m.Rewards) {
 		return -1
 	}

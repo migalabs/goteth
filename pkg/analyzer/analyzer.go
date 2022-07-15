@@ -16,6 +16,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth2-state-analyzer/pkg/custom_spec"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth2-state-analyzer/pkg/model"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
@@ -35,6 +36,7 @@ type StateAnalyzer struct {
 	InitSlot         uint64
 	FinalSlot        uint64
 	ValidatorIndexes []uint64
+	//ValidatorPubkeys []
 	// map of [validatorIndexes]RewardMetrics
 	Metrics    sync.Map
 	SlotRanges []uint64
@@ -86,7 +88,7 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		metrics.Store(val, mets)
 	}
 
-	i_dbClient, err := postgresql.ConnectToDB(ctx, "postgresql://beaconchain:beaconchain@localhost:5432/beacon_states")
+	i_dbClient, err := postgresql.ConnectToDB(ctx, "postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_mainnet")
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -114,6 +116,9 @@ func (s *StateAnalyzer) Run() {
 		defer wg.Done()
 		log.Info("Launching Beacon State Requester")
 		// loop over the list of slots that we need to analyze
+		var prevBState spec.VersionedBeaconState
+		var bstate *spec.VersionedBeaconState
+		var err error
 		for idx, slot := range s.SlotRanges {
 			ticker := time.NewTicker(minReqTime)
 			select {
@@ -125,7 +130,10 @@ func (s *StateAnalyzer) Run() {
 			default:
 				// make the state query
 				log.Debug("requesting Beacon State from endpoint")
-				bstate, err := s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
+				if bstate != nil {
+					prevBState = *bstate
+				}
+				bstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
 				if err != nil {
 					// close the channel (to tell other routines to stop processing and end)
 					log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
@@ -165,6 +173,7 @@ func (s *StateAnalyzer) Run() {
 					ValIdxs:               s.ValidatorIndexes,
 					Slot:                  slot,
 					State:                 bstate,
+					PrevState:             prevBState,
 					TotalValidatorStatus:  &activeValidators,
 					TotalEffectiveBalance: totalEffectiveBalance,
 					TotalActiveBalance:    totalActiveBalance,
@@ -212,7 +221,8 @@ func (s *StateAnalyzer) Run() {
 				wlog.Debugf("task received for slot %d", task.Slot)
 				// Proccess State
 				wlog.Debug("analyzing the receved state")
-				customBState, err := BStateByForkVersion(task.State)
+				customBState, err := custom_spec.BStateByForkVersion(task.State, task.PrevState, s.cli.Api)
+
 				if err != nil {
 					log.Errorf(err.Error())
 				}
@@ -288,6 +298,7 @@ type EpochTask struct {
 	ValIdxs               []uint64
 	Slot                  uint64
 	State                 *spec.VersionedBeaconState
+	PrevState             spec.VersionedBeaconState
 	TotalValidatorStatus  *map[phase0.ValidatorIndex]*api.Validator
 	TotalEffectiveBalance uint64
 	TotalActiveBalance    uint64

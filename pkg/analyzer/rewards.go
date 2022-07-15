@@ -1,14 +1,12 @@
 package analyzer
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/custom_spec"
 	"github.com/pkg/errors"
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
-	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 )
 
@@ -18,7 +16,7 @@ const (
 	// participationRate   = 0.945 // about to calculate participation rate
 )
 
-func GetValidatorBalance(customBState CustomBeaconState, valIdx uint64) (uint64, error) {
+func GetValidatorBalance(customBState custom_spec.CustomBeaconState, valIdx uint64) (uint64, error) {
 
 	balance, err := customBState.Balance(valIdx)
 
@@ -86,29 +84,4 @@ func GetBaseReward(valEffectiveBalance phase0.Gwei, totalEffectiveBalance uint64
 	baseReward = num / denom
 
 	return baseReward
-}
-
-type CustomBeaconState interface {
-	PreviousEpochAttestations() uint64
-	PreviousEpochValNum() uint64 // those activated before current Epoch
-	CurrentEpoch() uint64
-	CurrentSlot() uint64
-	GetDoubleVotes() uint64
-	Balance(valIdx uint64) (uint64, error)
-}
-
-func BStateByForkVersion(bstate *spec.VersionedBeaconState) (CustomBeaconState, error) {
-	switch bstate.Version {
-
-	case spec.DataVersionPhase0:
-		return custom_spec.NewPhase0Spec(bstate), nil
-
-	case spec.DataVersionAltair:
-		return custom_spec.NewAltairSpec(bstate), nil
-
-	case spec.DataVersionBellatrix:
-		return custom_spec.NewBellatrixSpec(bstate), nil
-	default:
-		return nil, fmt.Errorf("could not figure out the Beacon State Fork Version")
-	}
 }
