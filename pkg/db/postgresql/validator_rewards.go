@@ -17,11 +17,18 @@ func (p *PostgresDBService) createRewardsTable(ctx context.Context, pool *pgxpoo
 	return nil
 }
 
-func (p *PostgresDBService) InsertNewValidatorRow(epochMetrics model.SingleEpochMetrics) error {
+func (p *PostgresDBService) InsertNewValidatorRow(valRewardsObj model.ValidatorRewards) error {
 
-	valRewardsObj := model.NewValidatorRewardsFromSingleEpochMetrics(epochMetrics)
+	_, err := p.psqlPool.Exec(p.ctx, model.InsertNewValidatorLineTable, valRewardsObj.ValidatorIndex, valRewardsObj.Slot, valRewardsObj.Epoch, valRewardsObj.ValidatorBalance, valRewardsObj.Reward, valRewardsObj.MaxReward, valRewardsObj.AttSlot)
+	if err != nil {
+		return errors.Wrap(err, "error inserting row in validator rewards table")
+	}
+	return nil
+}
 
-	_, err := p.psqlPool.Exec(p.ctx, model.InsertNewValidatorLineTable, valRewardsObj.ValidatorIndex, valRewardsObj.Slot, valRewardsObj.Epoch, valRewardsObj.ValidatorBalance, valRewardsObj.Reward, valRewardsObj.MaxReward)
+func (p *PostgresDBService) UpdateValidatorRowReward(valRewardsObj model.ValidatorRewards) error {
+
+	_, err := p.psqlPool.Exec(p.ctx, model.UpdateValidatorLineTable, valRewardsObj.ValidatorIndex, valRewardsObj.Slot, valRewardsObj.Reward)
 	if err != nil {
 		return errors.Wrap(err, "error inserting row in validator rewards table")
 	}

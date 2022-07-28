@@ -1,10 +1,9 @@
 package custom_spec
 
 import (
-	"errors"
 	"fmt"
 
-	api "github.com/attestantio/go-eth2-client/api/v1"
+	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
@@ -12,16 +11,18 @@ import (
 )
 
 type BellatrixSpec struct {
-	BState      spec.VersionedBeaconState
-	Committees  map[string]bitfield.Bitlist
-	DoubleVotes uint64
+	BState       spec.VersionedBeaconState
+	Committees   map[string]bitfield.Bitlist
+	DoubleVotes  uint64
+	EpochStructs EpochData
 }
 
-func NewBellatrixSpec(bstate *spec.VersionedBeaconState) BellatrixSpec {
+func NewBellatrixSpec(bstate *spec.VersionedBeaconState, iApi *http.Service) BellatrixSpec {
 	bellatrixObj := BellatrixSpec{
-		BState:      *bstate,
-		Committees:  make(map[string]bitfield.Bitlist),
-		DoubleVotes: 0,
+		BState:       *bstate,
+		Committees:   make(map[string]bitfield.Bitlist),
+		DoubleVotes:  0,
+		EpochStructs: NewEpochData(iApi, bstate.Bellatrix.Slot),
 	}
 	bellatrixObj.PreviousEpochAttestations()
 
@@ -34,6 +35,15 @@ func (p BellatrixSpec) CurrentSlot() uint64 {
 
 func (p BellatrixSpec) CurrentEpoch() uint64 {
 	return uint64(p.CurrentSlot() / 32)
+}
+
+func (p BellatrixSpec) PrevStateSlot() uint64 {
+	// return p.PrevBState.Phase0.Slot
+	return 0
+}
+
+func (p BellatrixSpec) PrevStateEpoch() uint64 {
+	return uint64(p.PrevStateSlot() / 32)
 }
 
 func (p BellatrixSpec) PreviousEpochAttestations() uint64 {
@@ -105,7 +115,7 @@ func (p BellatrixSpec) GetMaxSyncComReward(valIdx uint64, valPubKey phase0.BLSPu
 
 	if inCommittee {
 		increments := totalEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
-		return SYNC_COMMITTEE_FACTOR * float64(increments) * GetBaseReward(valEffectiveBalance, totalEffectiveBalance) * EPOCH
+		return SYNC_COMMITTEE_FACTOR * float64(increments) * GetBaseReward(valEffectiveBalance, totalEffectiveBalance) * EPOCH_SLOTS
 	}
 
 	return 0
@@ -119,19 +129,31 @@ func (p BellatrixSpec) GetMaxAttestationReward(valIdx uint64, valEffectiveBalanc
 	return ATTESTATION_FACTOR * float64(increments) * GetBaseReward(valEffectiveBalance, totalEffectiveBalance)
 }
 
-func (p BellatrixSpec) GetMaxReward(valIdx uint64, totValStatus *map[phase0.ValidatorIndex]*api.Validator, totalEffectiveBalance uint64) (uint64, error) {
-	valStatus, ok := (*totValStatus)[phase0.ValidatorIndex(valIdx)]
+func (p BellatrixSpec) GetMaxReward(valIdx uint64) (uint64, error) {
+	// valStatus, ok := (*totValStatus)[phase0.ValidatorIndex(valIdx)]
 
-	if !ok {
-		return 0, errors.New("could not get validator effective balance")
-	}
+	// if !ok {
+	// 	return 0, errors.New("could not get validator effective balance")
+	// }
 
-	valEffectiveBalance := valStatus.Validator.EffectiveBalance
+	// valEffectiveBalance := valStatus.Validator.EffectiveBalance
 
-	maxAttReward := p.GetMaxAttestationReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
-	maxSyncReward := p.GetMaxSyncComReward(valIdx, valStatus.Validator.PublicKey, uint64(valEffectiveBalance), totalEffectiveBalance)
+	// maxAttReward := p.GetMaxAttestationReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
+	// maxSyncReward := p.GetMaxSyncComReward(valIdx, valStatus.Validator.PublicKey, uint64(valEffectiveBalance), totalEffectiveBalance)
 
-	maxReward := maxAttReward + maxSyncReward
+	// maxReward := maxAttReward + maxSyncReward
 
-	return uint64(maxReward), nil
+	// return uint64(maxReward), nil
+	return 0, nil
+}
+
+func (p BellatrixSpec) GetAttestingSlot(valIdx uint64) uint64 {
+
+	attestingSlot := p.EpochStructs.ValidatorAttSlot[valIdx]
+
+	return attestingSlot - (p.BState.Bellatrix.Slot - (EPOCH_SLOTS - 1)) // return the attesting Slot inside the epoch
+}
+
+func (p BellatrixSpec) PrevEpochReward(valIdx uint64) uint64 {
+	return 0
 }

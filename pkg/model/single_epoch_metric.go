@@ -6,8 +6,9 @@ type SingleEpochMetrics struct {
 	Epoch            uint64
 	ValidatorBalance uint64  // Gwei ?¿
 	MaxReward        uint64  // Gwei ?¿
-	Reward           uint64  // Gweis ?¿
+	Reward           int64   // Gweis ?¿
 	RewardPercentage float64 // %
+	AttSlot          uint64
 
 	MissingSource uint64
 	MissingHead   uint64

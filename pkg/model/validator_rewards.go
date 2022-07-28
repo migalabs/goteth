@@ -10,15 +10,22 @@ var (
 		f_balance BIGINT,
 		f_reward BIGINT,
 		f_max_reward BIGINT,
+		f_attesting_slot BIGINT,
 		CONSTRAINT PK_ValidatorSlot PRIMARY KEY (f_val_idx,f_slot));`
 
 	InsertNewValidatorLineTable = `
-	INSERT INTO t_validator_rewards_summary (f_val_idx, f_slot, f_epoch, f_balance, f_reward, f_max_reward)
-	VALUES ($1, $2, $3, $4, $5, $6);
+	INSERT INTO t_validator_rewards_summary (f_val_idx, f_slot, f_epoch, f_balance, f_reward, f_max_reward, f_attesting_slot)
+	VALUES ($1, $2, $3, $4, $5, $6, $7);
+	`
+
+	UpdateValidatorLineTable = `
+	UPDATE t_validator_rewards_summary
+	SET f_reward=$3
+	WHERE f_val_idx=$1 AND f_slot=$2
 	`
 
 	SelectByValSlot = `
-	SELECT f_val_idx, f_slot, f_epoch, f_balance, f_reward, f_max_reward FROM t_validator_rewards_summary
+	SELECT f_val_idx, f_slot, f_epoch, f_balance, f_reward, f_max_reward, f_attesting_slot FROM t_validator_rewards_summary
 	WHERE f_val_idx=$1 AND f_slot=$2;
 	`
 )
@@ -28,11 +35,12 @@ type ValidatorRewards struct {
 	Slot             uint64
 	Epoch            uint64
 	ValidatorBalance uint64
-	Reward           uint64
+	Reward           int64
 	MaxReward        uint64
+	AttSlot          uint64
 }
 
-func NewValidatorRewards(iValIdx uint64, iSlot uint64, iEpoch uint64, iValBal uint64, iReward uint64, iMaxReward uint64) ValidatorRewards {
+func NewValidatorRewards(iValIdx uint64, iSlot uint64, iEpoch uint64, iValBal uint64, iReward int64, iMaxReward, iAttSlot uint64) ValidatorRewards {
 	return ValidatorRewards{
 		ValidatorIndex:   iValIdx,
 		Slot:             iSlot,
@@ -40,11 +48,12 @@ func NewValidatorRewards(iValIdx uint64, iSlot uint64, iEpoch uint64, iValBal ui
 		ValidatorBalance: iValBal,
 		Reward:           iReward,
 		MaxReward:        iMaxReward,
+		AttSlot:          iAttSlot,
 	}
 }
 
 func NewValidatorRewardsFromSingleEpochMetrics(iMetrics SingleEpochMetrics) ValidatorRewards {
-	return NewValidatorRewards(iMetrics.ValidatorIdx, iMetrics.Slot, iMetrics.Epoch, iMetrics.ValidatorBalance, iMetrics.Reward, iMetrics.MaxReward)
+	return NewValidatorRewards(iMetrics.ValidatorIdx, iMetrics.Slot, iMetrics.Epoch, iMetrics.ValidatorBalance, iMetrics.Reward, iMetrics.MaxReward, iMetrics.AttSlot)
 }
 
 func NewEmptyValidatorRewards() ValidatorRewards {

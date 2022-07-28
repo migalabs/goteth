@@ -88,7 +88,7 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		metrics.Store(val, mets)
 	}
 
-	i_dbClient, err := postgresql.ConnectToDB(ctx, "postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_mainnet")
+	i_dbClient, err := postgresql.ConnectToDB(ctx, "postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_kiln")
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -159,9 +159,6 @@ func (s *StateAnalyzer) Run() {
 					if !val.Status.IsActive() {
 						continue
 					}
-					if val.Balance > 32000000000 {
-						fmt.Println(val.Balance)
-					}
 					// since it's active
 					totalActiveBalance += uint64(val.Balance)
 					totalEffectiveBalance += uint64(val.Validator.EffectiveBalance)
@@ -227,53 +224,94 @@ func (s *StateAnalyzer) Run() {
 					log.Errorf(err.Error())
 				}
 
-				epochObj := model.NewEpochMetrics(customBState.CurrentEpoch(), customBState.CurrentSlot(), customBState.PreviousEpochAttestations(), customBState.PreviousEpochValNum(), task.TotalActiveBalance, task.TotalEffectiveBalance)
+				// epochObj := model.NewEpochMetrics(customBState.CurrentEpoch(), customBState.CurrentSlot(), customBState.PreviousEpochAttestations(), customBState.PreviousEpochValNum(), task.TotalActiveBalance, task.TotalEffectiveBalance)
 
-				// only do this if we are not in the last slot
-				// keep in mind slotRanges goes one epoch further
-				if !task.OnlyPrevAtt {
-					// Store Epoch Metrics in db
-					err = s.dbClient.InsertNewEpochRow(epochObj)
-					if err != nil {
-						log.Errorf(err.Error())
-					}
-				}
+				// // only do this if we are not in the last slot
+				// // keep in mind slotRanges goes one epoch further
+				// if !task.OnlyPrevAtt {
+				// 	// Store Epoch Metrics in db
+				// 	err = s.dbClient.InsertNewEpochRow(epochObj)
+				// 	if err != nil {
+				// 		log.Errorf(err.Error())
+				// 	}
+				// }
 
-				err = s.dbClient.UpdatePrevEpochAtt(epochObj)
-				if err != nil {
-					log.Errorf(err.Error())
-				}
+				// err = s.dbClient.UpdatePrevEpochAtt(epochObj)
+				// if err != nil {
+				// 	log.Errorf(err.Error())
+				// }
 
 				// TODO: Analyze rewards for the given Validator
 				for _, valIdx := range task.ValIdxs {
-					// check if there is a metrics already
-					metInterface, ok := s.Metrics.Load(valIdx)
-					if !ok {
-						log.Errorf("Validator %d not found in list of tracked validators", valIdx)
-					}
-					// met is already the pointer to the metrics, we don't need to store it again
-					met := metInterface.(*RewardMetrics)
-					log.Debug("Calculating the performance of the validator")
-					// err := met.CalculateEpochPerformance(customBState, task.TotalValidatorStatus, task.TotalEffectiveBalance)
-					err := met.CalculateEpochPerformance(customBState, task.TotalValidatorStatus, task.TotalEffectiveBalance)
-					if err != nil {
-						log.Errorf("unable to calculate the performance for validator %d on slot %d. %s", valIdx, task.Slot, err.Error())
-					}
-					// save the calculated rewards on the the list of items
-					// fmt.Println(met)
-					s.Metrics.Store(valIdx, met)
+					maxReward, err := customBState.GetMaxReward(valIdx)
 
-					// Store validator metrics in db
-					valMetrics, err := met.GetEpochMetrics(customBState.CurrentSlot())
+					if err != nil {
+						log.Errorf("Error obtaining max reward: ", err.Error())
+					}
+
+					balance, err := customBState.Balance(valIdx)
+
+					if err != nil {
+						log.Errorf("Error obtaining validator balance: ", err.Error())
+					}
+
+					validatorDBRow := model.NewValidatorRewards(valIdx,
+						customBState.CurrentSlot(),
+						customBState.CurrentEpoch(),
+						balance,
+						0,
+						maxReward,
+						0)
+
+					err = s.dbClient.InsertNewValidatorRow(validatorDBRow)
 					if err != nil {
 						log.Errorf(err.Error())
 					}
-					if !task.OnlyPrevAtt {
-						err = s.dbClient.InsertNewValidatorRow(valMetrics)
-						if err != nil {
-							log.Errorf(err.Error())
-						}
+
+					reward := customBState.PrevEpochReward(valIdx)
+					log.Debugf("Slot %d Validator %d Reward: %d", customBState.PrevStateSlot(), valIdx, reward)
+
+					validatorDBRow = model.NewValidatorRewards(valIdx,
+						customBState.PrevStateSlot(),
+						customBState.PrevStateEpoch(),
+						0,
+						int64(reward),
+						0,
+						0)
+
+					err = s.dbClient.UpdateValidatorRowReward(validatorDBRow)
+					if err != nil {
+						log.Errorf(err.Error())
 					}
+
+					// 	// check if there is a metrics already
+					// 	metInterface, ok := s.Metrics.Load(valIdx)
+					// 	if !ok {
+					// 		log.Errorf("Validator %d not found in list of tracked validators", valIdx)
+					// 	}
+					// 	// met is already the pointer to the metrics, we don't need to store it again
+					// 	met := metInterface.(*RewardMetrics)
+					// 	log.Debug("Calculating the performance of the validator")
+					// 	// err := met.CalculateEpochPerformance(customBState, task.TotalValidatorStatus, task.TotalEffectiveBalance)
+					// 	err := met.CalculateEpochPerformance(customBState, task.TotalValidatorStatus, task.TotalEffectiveBalance)
+					// 	if err != nil {
+					// 		log.Errorf("unable to calculate the performance for validator %d on slot %d. %s", valIdx, task.Slot, err.Error())
+					// 	}
+					// 	// save the calculated rewards on the the list of items
+					// 	// fmt.Println(met)
+					// 	s.Metrics.Store(valIdx, met)
+
+					// 	// Store validator metrics in db
+					// 	valMetrics, err := met.GetEpochMetrics(customBState.CurrentSlot() - custom_spec.EPOCH_SLOTS)
+					// 	if err != nil {
+					// 		log.Errorf(err.Error())
+					// 	}
+					// 	if !task.OnlyPrevAtt {
+					// 		err = s.dbClient.InsertNewValidatorRow(valMetrics)
+					// 		if err != nil {
+					// 			log.Errorf(err.Error())
+					// 		}
+					// 	}
 
 				}
 
@@ -339,7 +377,7 @@ func (s *StateAnalyzer) ExportToCsv(outputFolder string) error {
 		auxRowMaxRewards := ""
 		auxRowRewardsPerc := ""
 
-		var totRewards uint64
+		var totRewards int64
 		var totMaxRewards uint64
 		var totPerc float64
 
@@ -355,7 +393,7 @@ func (s *StateAnalyzer) ExportToCsv(outputFolder string) error {
 			if err != nil {
 				return err
 			}
-			s.dbClient.InsertNewValidatorRow(valMetrics)
+			// s.dbClient.InsertNewValidatorRow(valMetrics)
 
 			totRewards += valMetrics.Reward
 			totMaxRewards += valMetrics.MaxReward
