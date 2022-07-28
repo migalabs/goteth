@@ -106,17 +106,6 @@ func (p BellatrixSpec) Balance(valIdx uint64) (uint64, error) {
 }
 
 func (p BellatrixSpec) GetMaxSyncComReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
-	inCommittee := false
-	for _, val := range p.BState.Bellatrix.CurrentSyncCommittee.Pubkeys {
-		if val == valPubKey {
-			inCommittee = true
-		}
-	}
-
-	if inCommittee {
-		increments := totalEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
-		return SYNC_COMMITTEE_FACTOR * float64(increments) * GetBaseReward(valEffectiveBalance, totalEffectiveBalance) * EPOCH_SLOTS
-	}
 
 	return 0
 
@@ -124,34 +113,16 @@ func (p BellatrixSpec) GetMaxSyncComReward(valIdx uint64, valPubKey phase0.BLSPu
 
 func (p BellatrixSpec) GetMaxAttestationReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
 
-	increments := valEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
-
-	return ATTESTATION_FACTOR * float64(increments) * GetBaseReward(valEffectiveBalance, totalEffectiveBalance)
+	return 0
 }
 
 func (p BellatrixSpec) GetMaxReward(valIdx uint64) (uint64, error) {
-	// valStatus, ok := (*totValStatus)[phase0.ValidatorIndex(valIdx)]
-
-	// if !ok {
-	// 	return 0, errors.New("could not get validator effective balance")
-	// }
-
-	// valEffectiveBalance := valStatus.Validator.EffectiveBalance
-
-	// maxAttReward := p.GetMaxAttestationReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
-	// maxSyncReward := p.GetMaxSyncComReward(valIdx, valStatus.Validator.PublicKey, uint64(valEffectiveBalance), totalEffectiveBalance)
-
-	// maxReward := maxAttReward + maxSyncReward
-
-	// return uint64(maxReward), nil
 	return 0, nil
 }
 
 func (p BellatrixSpec) GetAttestingSlot(valIdx uint64) uint64 {
 
-	attestingSlot := p.EpochStructs.ValidatorAttSlot[valIdx]
-
-	return attestingSlot - (p.BState.Bellatrix.Slot - (EPOCH_SLOTS - 1)) // return the attesting Slot inside the epoch
+	return 0
 }
 
 func (p BellatrixSpec) PrevEpochReward(valIdx uint64) uint64 {
