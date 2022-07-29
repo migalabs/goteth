@@ -40,6 +40,10 @@ var RewardsCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:  "log-level",
 			Usage: "log level: debug, warn, info, error",
+		},
+		&cli.StringFlag{
+			Name:  "db-url",
+			Usage: "example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_kiln",
 		}},
 }
 
@@ -71,10 +75,14 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	if c.IsSet("log-level") {
 		logrus.SetLevel(utils.ParseLogLevel(c.String("log-level")))
 	}
+	if !c.IsSet("db-url") {
+		return errors.New("db-url not provided")
+	}
 	bnEndpoint := c.String("bn-endpoint")
 	outputFile := c.String("outfolder")
 	initSlot := uint64(c.Int("init-slot"))
 	finalSlot := uint64(c.Int("final-slot"))
+	dbUrl := c.String("db-url")
 
 	validatorIndexes, err := utils.GetValIndexesFromJson(c.String("validator-indexes"))
 	if err != nil {
@@ -87,7 +95,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 		return err
 	}
 	// generate the state analyzer
-	stateAnalyzer, err := analyzer.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes)
+	stateAnalyzer, err := analyzer.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl)
 	if err != nil {
 		return err
 	}

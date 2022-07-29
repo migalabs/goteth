@@ -50,7 +50,7 @@ type StateAnalyzer struct {
 	initTime time.Time
 }
 
-func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlot uint64, finalSlot uint64, valIdxs []uint64) (*StateAnalyzer, error) {
+func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlot uint64, finalSlot uint64, valIdxs []uint64, idbUrl string) (*StateAnalyzer, error) {
 	log.Infof("generating new State Analzyer from slots %d:%d, for validators %v", initSlot, finalSlot, valIdxs)
 	// Check if the range of slots is valid
 	if !utils.IsValidRangeuint64(initSlot, finalSlot) {
@@ -88,7 +88,7 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		metrics.Store(val, mets)
 	}
 
-	i_dbClient, err := postgresql.ConnectToDB(ctx, "postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_kiln")
+	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
