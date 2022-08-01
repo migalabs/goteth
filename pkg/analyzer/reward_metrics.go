@@ -20,7 +20,7 @@ type RewardMetrics struct {
 	validatorIdx      uint64
 	ValidatorBalances []uint64  // Gwei ?¿
 	MaxRewards        []uint64  // Gwei ?¿
-	Rewards           []int64   // Gweis ?¿
+	Rewards           []int64   // Gweis ?¿ // reward can now be negative as well
 	RewardPercentage  []float64 // %
 	AttSlot           []uint64  // attesting slot inside epoch
 
@@ -45,7 +45,7 @@ func NewRewardMetrics(initslot uint64, epochRange uint64, validatorIdx uint64) (
 	}, nil
 }
 
-// Supposed to be
+// TODO: check how to organize calculations, not clear for now
 func (m *RewardMetrics) CalculateEpochPerformance(customBState custom_spec.CustomBeaconState, validators *map[phase0.ValidatorIndex]*api.Validator, totalEffectiveBalance uint64) error {
 
 	validatorBalance, err := GetValidatorBalance(customBState, m.validatorIdx)

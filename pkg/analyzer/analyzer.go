@@ -68,7 +68,7 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	// minimum slot is 0
 	initEpoch := int(initSlot / 32)
 	finalEpoch := int(finalSlot / 32)
-	// force to be on the last slot of the previous epoch
+	// force to be on the last slot of the previous epoch, to be checked
 	initSlot = uint64(math.Max(31, float64((initEpoch*32)-1)))
 	// for the finalSlot go the last slot of the next epoch
 	finalSlot = uint64(math.Max(31, float64((finalEpoch*32)-1+int(2*utils.SlotBase))))
@@ -116,7 +116,7 @@ func (s *StateAnalyzer) Run() {
 		defer wg.Done()
 		log.Info("Launching Beacon State Requester")
 		// loop over the list of slots that we need to analyze
-		var prevBState spec.VersionedBeaconState
+		var prevBState spec.VersionedBeaconState // to be checked, it may make calculation easier to store previous state
 		var bstate *spec.VersionedBeaconState
 		var err error
 		for idx, slot := range s.SlotRanges {
@@ -130,7 +130,7 @@ func (s *StateAnalyzer) Run() {
 			default:
 				// make the state query
 				log.Debug("requesting Beacon State from endpoint")
-				if bstate != nil {
+				if bstate != nil { // in case we already had a bstate (only false the first time)
 					prevBState = *bstate
 				}
 				bstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
@@ -165,6 +165,7 @@ func (s *StateAnalyzer) Run() {
 
 				}
 
+				// we now only compose one single task that contains a list of validator indexes
 				// compose the next task
 				valTask := &EpochTask{
 					ValIdxs:               s.ValidatorIndexes,
@@ -176,6 +177,7 @@ func (s *StateAnalyzer) Run() {
 					TotalActiveBalance:    totalActiveBalance,
 				}
 
+				// to be checked, as we may change how we calcuate rewards
 				if idx == len(s.SlotRanges)-1 {
 					valTask.OnlyPrevAtt = true
 				}
@@ -218,6 +220,8 @@ func (s *StateAnalyzer) Run() {
 				wlog.Debugf("task received for slot %d", task.Slot)
 				// Proccess State
 				wlog.Debug("analyzing the receved state")
+
+				// returns the state in a custom struct for Phase0, Altair of Bellatrix
 				customBState, err := custom_spec.BStateByForkVersion(task.State, task.PrevState, s.cli.Api)
 
 				if err != nil {
@@ -241,48 +245,57 @@ func (s *StateAnalyzer) Run() {
 				// 	log.Errorf(err.Error())
 				// }
 
+				// to be checked how to calculate epoch rewards, this way might be easier
 				// TODO: Analyze rewards for the given Validator
 				for _, valIdx := range task.ValIdxs {
+					// get max reward at given epoch using the formulas
 					maxReward, err := customBState.GetMaxReward(valIdx)
 
 					if err != nil {
 						log.Errorf("Error obtaining max reward: ", err.Error())
 					}
 
+					// calculate the current balance of validator
 					balance, err := customBState.Balance(valIdx)
 
 					if err != nil {
 						log.Errorf("Error obtaining validator balance: ", err.Error())
 					}
 
+					// create a model to be inserted into the db
 					validatorDBRow := model.NewValidatorRewards(valIdx,
 						customBState.CurrentSlot(),
 						customBState.CurrentEpoch(),
 						balance,
-						0,
+						0, // reward: will be filled in the next epoch
 						maxReward,
-						0)
+						0) // attestingSlot: to be used in the future, 0 for now
 
 					err = s.dbClient.InsertNewValidatorRow(validatorDBRow)
 					if err != nil {
 						log.Errorf(err.Error())
 					}
 
+					// we now fill the reward of the previous epoch
+					// with the current balance difference we see the result of performing duties
+					// the last epoch
 					reward := customBState.PrevEpochReward(valIdx)
 					log.Debugf("Slot %d Validator %d Reward: %d", customBState.PrevStateSlot(), valIdx, reward)
 
 					validatorDBRow = model.NewValidatorRewards(valIdx,
 						customBState.PrevStateSlot(),
 						customBState.PrevStateEpoch(),
-						0,
+						0, // balance: was already filled in the last epoch
 						int64(reward),
-						0,
-						0)
+						0, // maxReward: was already calculated in the previous epoch
+						0) // attestingSlot: to be used in the future, 0 for now
 
 					err = s.dbClient.UpdateValidatorRowReward(validatorDBRow)
 					if err != nil {
 						log.Errorf(err.Error())
 					}
+
+					// TODO: to be checked if to use or not
 
 					// 	// check if there is a metrics already
 					// 	metInterface, ok := s.Metrics.Load(valIdx)
