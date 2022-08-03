@@ -160,6 +160,8 @@ func (p AltairSpec) GetMaxProposerSyncReward(valIdx uint64, valPubKey phase0.BLS
 
 }
 
+// TODO: check missing blocks
+// If there are missing blocks then these rewards would be less (not multiply by 32)
 func (p AltairSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
 
 	inCommittee := false
@@ -185,7 +187,10 @@ func (p AltairSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance uint6
 	maxParticipantRewards := totalBaseRewards * float64(SYNC_REWARD_WEIGHT) / float64(WEIGHT_DENOMINATOR) / SLOTS_PER_EPOCH
 	participantReward := maxParticipantRewards / float64(SYNC_COMMITTEE_SIZE)
 
-	return participantReward
+	// this is the participantReward for a single slot
+	// However, if the validator was in the current sync committee, it gained rewards over the whole epoch
+
+	return participantReward * SLOTS_PER_EPOCH
 
 }
 
