@@ -196,9 +196,8 @@ func (p AltairSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance uint6
 
 func (p AltairSpec) GetMaxAttestationReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
 
-	maxReward := float64(0)
+	maxFlagsReward := float64(0)
 	// the maxReward would be each flag_index_weight * base_reward * (attesting_balance_inc / total_active_balance_inc) / WEIGHT_DENOMINATOR
-	// ==> flag_factor = (14+26+14)/64 = 0.84375
 
 	for i := range p.AttestingVals {
 		attestingBalanceInc := p.ValsBalance(p.AttestingVals[i]) / EFFECTIVE_BALANCE_INCREMENT
@@ -207,10 +206,10 @@ func (p AltairSpec) GetMaxAttestationReward(valIdx uint64, valEffectiveBalance u
 		baseReward := float64(valIncrements * uint64(GetBaseRewardPerInc(totalEffectiveBalance)))
 		flagReward := float64(PARTICIPATING_FLAGS_WEIGHT[i]) * baseReward * float64(attestingBalanceInc)
 		flagReward = flagReward / ((float64(totalEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT)) * float64(WEIGHT_DENOMINATOR))
-		maxReward += flagReward
+		maxFlagsReward += flagReward
 	}
 
-	return maxReward
+	return maxFlagsReward
 }
 
 func (p AltairSpec) GetMaxReward(valIdx uint64) (uint64, error) {
