@@ -12,13 +12,14 @@ import (
 )
 
 var (
-	TIMELY_SOURCE_WEIGHT = 14
-	TIMELY_TARGET_WEIGHT = 26
-	TIMELY_HEAD_WEIGHT   = 14
-	SYNC_REWARD_WEIGHT   = 2
-	PROPOSER_WEIGHT      = 8
-	WEIGHT_DENOMINATOR   = 64
-	SYNC_COMMITTEE_SIZE  = 512
+	TIMELY_SOURCE_WEIGHT       = 14
+	TIMELY_TARGET_WEIGHT       = 26
+	TIMELY_HEAD_WEIGHT         = 14
+	PARTICIPATING_FLAGS_WEIGHT = []int{TIMELY_SOURCE_WEIGHT, TIMELY_TARGET_WEIGHT, TIMELY_HEAD_WEIGHT}
+	SYNC_REWARD_WEIGHT         = 2
+	PROPOSER_WEIGHT            = 8
+	WEIGHT_DENOMINATOR         = 64
+	SYNC_COMMITTEE_SIZE        = 512
 )
 
 type AltairSpec struct {
@@ -28,10 +29,21 @@ type AltairSpec struct {
 	DoubleVotes   uint64
 	Api           *http.Service
 	EpochStructs  EpochData
-	AttestingVals []uint64
+	AttestingVals [][]uint64 // one array of validators per participating flag
 }
 
 func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) AltairSpec {
+
+	if prevBstate.Altair == nil {
+		prevBstate = *bstate
+	}
+
+	attestingVals := make([][]uint64, 3)
+
+	for i := range attestingVals {
+		attestingVals[i] = make([]uint64, len(prevBstate.Altair.Validators))
+	}
+
 	altairObj := AltairSpec{
 		PrevBState:    prevBstate,
 		BState:        *bstate,
@@ -39,7 +51,7 @@ func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 		DoubleVotes:   0,
 		Api:           iApi,
 		EpochStructs:  NewEpochData(iApi, bstate.Altair.Slot),
-		AttestingVals: make([]uint64, len(prevBstate.Altair.Validators)),
+		AttestingVals: attestingVals,
 	}
 	altairObj.CalculatePreviousAttestingVals()
 
@@ -56,7 +68,6 @@ func (p AltairSpec) CurrentEpoch() uint64 {
 
 func (p AltairSpec) PrevStateSlot() uint64 {
 	return p.PrevBState.Altair.Slot
-	return 0
 }
 
 func (p AltairSpec) PrevStateEpoch() uint64 {
@@ -64,18 +75,27 @@ func (p AltairSpec) PrevStateEpoch() uint64 {
 }
 
 func (p *AltairSpec) CalculatePreviousAttestingVals() {
-	flag := altair.ParticipationFlags(math.Pow(2, float64(altair.TimelySourceFlagIndex)))
 
-	for valIndex, item := range p.BState.Altair.PreviousEpochParticipation {
-		// Here we have one item per validator
-		// This is an 8-bit string, where the bit 0 is the source
-		// If it is set, we consider there was a vote from this validator
-		// if utils.IsBitSet(uint8(item), 0) {
-		// }
+	flags := []altair.ParticipationFlag{
+		altair.TimelySourceFlagIndex,
+		altair.TimelyTargetFlagIndex,
+		altair.TimelyHeadFlagIndex}
 
-		if (item & flag) == flag {
-			// The attestation has a timely source value, therefore we consider it attest
-			p.AttestingVals[valIndex] += uint64(1)
+	for participatingFlag := range flags {
+
+		flag := altair.ParticipationFlags(math.Pow(2, float64(participatingFlag)))
+
+		for valIndex, item := range p.BState.Altair.PreviousEpochParticipation {
+			// Here we have one item per validator
+			// This is an 8-bit string, where the bit 0 is the source
+			// If it is set, we consider there was a vote from this validator
+			// if utils.IsBitSet(uint8(item), 0) {
+			// }
+
+			if (item & flag) == flag {
+				// The attestation has a timely source value, therefore we consider it attest
+				p.AttestingVals[participatingFlag][valIndex] += uint64(1)
+			}
 		}
 	}
 }
@@ -86,10 +106,12 @@ func (p *AltairSpec) CalculatePreviousAttestingVals() {
 func (p AltairSpec) ValsBalance(valList []uint64) uint64 {
 
 	attestingBalance := uint64(0)
+	countedVals := 0 // for testing
 
 	for valIdx, numAtt := range valList { // loop over validators
 		if numAtt > 0 {
-			attestingBalance += uint64(p.PrevBState.Altair.Validators[valIdx].EffectiveBalance)
+			countedVals += 1 // for testing
+			attestingBalance += uint64(p.BState.Altair.Validators[valIdx].EffectiveBalance)
 		}
 	}
 
@@ -113,12 +135,11 @@ func (p AltairSpec) TotalActiveBalance() uint64 {
 		return uint64(len(p.BState.Altair.Validators) * EFFECTIVE_BALANCE_INCREMENT * MAX_EFFECTIVE_INCREMENTS)
 	}
 
-	all_vals := p.PrevBState.Altair.Validators
+	all_vals := p.BState.Altair.Validators
 	val_array := make([]uint64, len(all_vals))
 
-	for idx, _ := range val_array {
-		if all_vals[idx].ActivationEligibilityEpoch < phase0.Epoch(p.CurrentEpoch()) &&
-			all_vals[idx].ExitEpoch > phase0.Epoch(p.CurrentEpoch()) {
+	for idx := range val_array {
+		if IsActive(*all_vals[idx], phase0.Epoch(p.CurrentEpoch())) {
 			val_array[idx] += 1
 		}
 
@@ -128,6 +149,12 @@ func (p AltairSpec) TotalActiveBalance() uint64 {
 }
 
 func (p AltairSpec) GetMaxProposerAttReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
+
+	return 0
+
+}
+
+func (p AltairSpec) GetMaxProposerSyncReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
 
 	return 0
 
@@ -164,21 +191,36 @@ func (p AltairSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance uint6
 
 func (p AltairSpec) GetMaxAttestationReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
 
-	attestingBalanceInc := p.ValsBalance(p.AttestingVals) / EFFECTIVE_BALANCE_INCREMENT
-
+	maxReward := float64(0)
 	// the maxReward would be each flag_index_weight * base_reward * (attesting_balance_inc / total_active_balance_inc) / WEIGHT_DENOMINATOR
 	// ==> flag_factor = (14+26+14)/64 = 0.84375
 
-	valIncrements := valEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
-	baseReward := valIncrements * uint64(GetBaseRewardPerInc(totalEffectiveBalance))
-	FLAG_INDEX_FACTOR := (TIMELY_SOURCE_WEIGHT + TIMELY_TARGET_WEIGHT + TIMELY_HEAD_WEIGHT) / WEIGHT_DENOMINATOR
+	for i := range p.AttestingVals {
+		attestingBalanceInc := p.ValsBalance(p.AttestingVals[i]) / EFFECTIVE_BALANCE_INCREMENT
 
-	return float64(FLAG_INDEX_FACTOR) * float64(baseReward) * float64(attestingBalanceInc) / float64(totalEffectiveBalance)
+		valIncrements := valEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
+		baseReward := float64(valIncrements * uint64(GetBaseRewardPerInc(totalEffectiveBalance)))
+		flagReward := float64(PARTICIPATING_FLAGS_WEIGHT[i]) * baseReward * float64(attestingBalanceInc)
+		flagReward = flagReward / ((float64(totalEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT)) * float64(WEIGHT_DENOMINATOR))
+		maxReward += flagReward
+	}
+
+	return maxReward
 }
 
 func (p AltairSpec) GetMaxReward(valIdx uint64) (uint64, error) {
 
-	return 0, nil
+	vallEffectiveBalance := p.PrevBState.Altair.Validators[valIdx].EffectiveBalance
+
+	totalEffectiveBalance := p.TotalActiveBalance()
+
+	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, uint64(vallEffectiveBalance), totalEffectiveBalance)
+
+	syncComMaxReward := p.GetMaxSyncComReward(valIdx, uint64(vallEffectiveBalance), totalEffectiveBalance)
+
+	maxReward := flagIndexMaxReward + syncComMaxReward
+
+	return uint64(maxReward), nil
 }
 
 func (p AltairSpec) GetAttestingSlot(valIdx uint64) uint64 {
@@ -186,5 +228,5 @@ func (p AltairSpec) GetAttestingSlot(valIdx uint64) uint64 {
 }
 
 func (p AltairSpec) PrevEpochReward(valIdx uint64) uint64 {
-	return 0
+	return p.BState.Altair.Balances[valIdx] - p.PrevBState.Altair.Balances[valIdx]
 }
