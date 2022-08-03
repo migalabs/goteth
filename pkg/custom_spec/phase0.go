@@ -116,7 +116,7 @@ func (p Phase0Spec) ValsBalance(valList []uint64) uint64 {
 
 	for valIdx, numAtt := range valList { // loop over validators
 		if numAtt > 0 {
-			attestingBalance += uint64(p.PrevBState.Phase0.Validators[valIdx].EffectiveBalance)
+			attestingBalance += uint64(p.BState.Phase0.Validators[valIdx].EffectiveBalance)
 		}
 	}
 
@@ -124,11 +124,11 @@ func (p Phase0Spec) ValsBalance(valList []uint64) uint64 {
 }
 
 func (p Phase0Spec) Balance(valIdx uint64) (uint64, error) {
-	if uint64(len(p.PrevBState.Phase0.Balances)) < valIdx {
-		err := fmt.Errorf("phase0 - validator index %d wasn't activated in slot %d", valIdx, p.PrevBState.Phase0.Slot)
+	if uint64(len(p.BState.Phase0.Balances)) < valIdx {
+		err := fmt.Errorf("phase0 - validator index %d wasn't activated in slot %d", valIdx, p.BState.Phase0.Slot)
 		return 0, err
 	}
-	balance := p.PrevBState.Phase0.Balances[valIdx]
+	balance := p.BState.Phase0.Balances[valIdx]
 
 	return balance, nil
 }
@@ -143,7 +143,7 @@ func (p Phase0Spec) TotalActiveBalance() uint64 {
 	all_vals := p.PrevBState.Phase0.Validators
 	val_array := make([]uint64, len(all_vals))
 
-	for idx, _ := range val_array {
+	for idx := range val_array {
 		if all_vals[idx].ActivationEligibilityEpoch < phase0.Epoch(p.CurrentEpoch()) &&
 			all_vals[idx].ExitEpoch > phase0.Epoch(p.CurrentEpoch()) {
 			val_array[idx] += 1
@@ -177,7 +177,7 @@ func (p Phase0Spec) CalculateCurrentEpochAggegations() {
 		// loop over the vals that attested
 		for _, index := range attestingIndices {
 			valID := committee[index]
-			if uint64(inclusionSlot) >= (p.BState.Phase0.Slot - (EPOCH_SLOTS - 1)) {
+			if uint64(inclusionSlot) >= (p.BState.Phase0.Slot - (SLOTS_PER_EPOCH - 1)) {
 				attestingVals[valID] = attestingVals[valID] + 1
 			}
 
