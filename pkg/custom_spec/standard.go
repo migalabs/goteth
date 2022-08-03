@@ -52,7 +52,16 @@ func GetBaseRewardPerInc(totalEffectiveBalance uint64) float64 {
 	return baseReward
 }
 
+func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
+	if validator.ActivationEpoch < epoch &&
+		validator.ExitEpoch > epoch {
+		return true
+	}
+	return false
+}
+
 type CustomBeaconState interface {
+	Balance(valIdx uint64) (uint64, error)
 	CurrentEpoch() uint64
 	CurrentSlot() uint64
 	PrevStateEpoch() uint64
