@@ -66,12 +66,17 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	slotRanges := make([]uint64, 0)
 	epochRange := uint64(0)
 	// minimum slot is 0
+	// its already a uint64
+	initSlot = uint64(math.Max(31, float64(initSlot)))
+	finalSlot = uint64(math.Max(31, float64(finalSlot)))
 	initEpoch := int(initSlot / 32)
 	finalEpoch := int(finalSlot / 32)
-	// force to be on the last slot of the previous epoch, to be checked
-	initSlot = uint64(math.Max(31, float64((initEpoch*32)-1)))
+	// force to be on the last slot of the init epoch
+	// epoch 0 ==> (0+1) * 32 - 1
+	initSlot = uint64((initEpoch+1)*custom_spec.SLOTS_PER_EPOCH - 1)
 	// for the finalSlot go the last slot of the next epoch
-	finalSlot = uint64(math.Max(31, float64((finalEpoch*32)-1+int(2*utils.SlotBase))))
+	// remember rewards are calculated post epoch
+	finalSlot = uint64((finalEpoch+2)*custom_spec.SLOTS_PER_EPOCH - 1)
 	for i := initSlot; i < (finalSlot + utils.SlotBase); i += utils.SlotBase {
 		slotRanges = append(slotRanges, i)
 		epochRange++
