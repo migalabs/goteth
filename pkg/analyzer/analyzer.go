@@ -66,12 +66,17 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	slotRanges := make([]uint64, 0)
 	epochRange := uint64(0)
 	// minimum slot is 0
+	// its already a uint64
+	initSlot = uint64(math.Max(31, float64(initSlot)))
+	finalSlot = uint64(math.Max(31, float64(finalSlot)))
 	initEpoch := int(initSlot / 32)
 	finalEpoch := int(finalSlot / 32)
-	// force to be on the last slot of the previous epoch, to be checked
-	initSlot = uint64(math.Max(31, float64((initEpoch*32)-1)))
+	// force to be on the last slot of the init epoch
+	// epoch 0 ==> (0+1) * 32 - 1
+	initSlot = uint64((initEpoch+1)*custom_spec.SLOTS_PER_EPOCH - 1)
 	// for the finalSlot go the last slot of the next epoch
-	finalSlot = uint64(math.Max(31, float64((finalEpoch*32)-1+int(2*utils.SlotBase))))
+	// remember rewards are calculated post epoch
+	finalSlot = uint64((finalEpoch+2)*custom_spec.SLOTS_PER_EPOCH - 1)
 	for i := initSlot; i < (finalSlot + utils.SlotBase); i += utils.SlotBase {
 		slotRanges = append(slotRanges, i)
 		epochRange++
@@ -228,23 +233,6 @@ func (s *StateAnalyzer) Run() {
 					log.Errorf(err.Error())
 				}
 
-				// epochObj := model.NewEpochMetrics(customBState.CurrentEpoch(), customBState.CurrentSlot(), customBState.PreviousEpochAttestations(), customBState.PreviousEpochValNum(), task.TotalActiveBalance, task.TotalEffectiveBalance)
-
-				// // only do this if we are not in the last slot
-				// // keep in mind slotRanges goes one epoch further
-				// if !task.OnlyPrevAtt {
-				// 	// Store Epoch Metrics in db
-				// 	err = s.dbClient.InsertNewEpochRow(epochObj)
-				// 	if err != nil {
-				// 		log.Errorf(err.Error())
-				// 	}
-				// }
-
-				// err = s.dbClient.UpdatePrevEpochAtt(epochObj)
-				// if err != nil {
-				// 	log.Errorf(err.Error())
-				// }
-
 				// to be checked how to calculate epoch rewards, this way might be easier
 				// TODO: Analyze rewards for the given Validator
 				for _, valIdx := range task.ValIdxs {
@@ -294,37 +282,6 @@ func (s *StateAnalyzer) Run() {
 					if err != nil {
 						log.Errorf(err.Error())
 					}
-
-					// TODO: to be checked if to use or not
-
-					// 	// check if there is a metrics already
-					// 	metInterface, ok := s.Metrics.Load(valIdx)
-					// 	if !ok {
-					// 		log.Errorf("Validator %d not found in list of tracked validators", valIdx)
-					// 	}
-					// 	// met is already the pointer to the metrics, we don't need to store it again
-					// 	met := metInterface.(*RewardMetrics)
-					// 	log.Debug("Calculating the performance of the validator")
-					// 	// err := met.CalculateEpochPerformance(customBState, task.TotalValidatorStatus, task.TotalEffectiveBalance)
-					// 	err := met.CalculateEpochPerformance(customBState, task.TotalValidatorStatus, task.TotalEffectiveBalance)
-					// 	if err != nil {
-					// 		log.Errorf("unable to calculate the performance for validator %d on slot %d. %s", valIdx, task.Slot, err.Error())
-					// 	}
-					// 	// save the calculated rewards on the the list of items
-					// 	// fmt.Println(met)
-					// 	s.Metrics.Store(valIdx, met)
-
-					// 	// Store validator metrics in db
-					// 	valMetrics, err := met.GetEpochMetrics(customBState.CurrentSlot() - custom_spec.EPOCH_SLOTS)
-					// 	if err != nil {
-					// 		log.Errorf(err.Error())
-					// 	}
-					// 	if !task.OnlyPrevAtt {
-					// 		err = s.dbClient.InsertNewValidatorRow(valMetrics)
-					// 		if err != nil {
-					// 			log.Errorf(err.Error())
-					// 		}
-					// 	}
 
 				}
 

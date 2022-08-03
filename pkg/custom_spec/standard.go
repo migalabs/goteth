@@ -19,10 +19,7 @@ const (
 	BASE_REWARD_FACTOR          = 64.0
 	BASE_REWARD_PER_EPOCH       = 4.0
 	EFFECTIVE_BALANCE_INCREMENT = 1000000000
-	ATTESTATION_FACTOR          = 0.84375 // 14+26+14/64
-	PROPOSER_WEIGHT             = 0.125
-	SYNC_COMMITTEE_FACTOR       = 0.00000190734
-	EPOCH_SLOTS                 = 32
+	SLOTS_PER_EPOCH             = 32
 	SHUFFLE_ROUND_COUNT         = uint64(90)
 	PROPOSER_REWARD_QUOTIENT    = 8
 	// participationRate   = 0.945 // about to calculate participation rate
@@ -55,15 +52,20 @@ func GetBaseRewardPerInc(totalEffectiveBalance uint64) float64 {
 	return baseReward
 }
 
+func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
+	if validator.ActivationEpoch < epoch &&
+		validator.ExitEpoch > epoch {
+		return true
+	}
+	return false
+}
+
 type CustomBeaconState interface {
-	PreviousEpochAttestations() uint64
-	PreviousEpochValNum() uint64 // those activated before current Epoch
+	Balance(valIdx uint64) (uint64, error)
 	CurrentEpoch() uint64
 	CurrentSlot() uint64
 	PrevStateEpoch() uint64
 	PrevStateSlot() uint64
-	Balance(valIdx uint64) (uint64, error)
-	GetAttestingSlot(valIdx uint64) uint64
 	GetMaxReward(valIdx uint64) (uint64, error)
 	PrevEpochReward(valIdx uint64) uint64
 }
@@ -75,7 +77,7 @@ func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.Vers
 		return NewPhase0Spec(bstate, prevBstate, iApi), nil
 
 	case spec.DataVersionAltair:
-		return NewAltairSpec(bstate, iApi), nil
+		return NewAltairSpec(bstate, prevBstate, iApi), nil
 
 	case spec.DataVersionBellatrix:
 		return NewBellatrixSpec(bstate, iApi), nil

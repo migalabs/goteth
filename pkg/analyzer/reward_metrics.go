@@ -61,7 +61,7 @@ func (m *RewardMetrics) CalculateEpochPerformance(customBState custom_spec.Custo
 	}()
 	m.ValidatorBalances[m.innerCnt] = uint64(validatorBalance)
 
-	m.AttSlot[m.innerCnt] = customBState.GetAttestingSlot(m.validatorIdx)
+	// m.AttSlot[m.innerCnt] = customBState.GetAttestingSlot(m.validatorIdx)
 
 	// Proccess Max-Rewards
 	maxReward, err := customBState.GetMaxReward(m.validatorIdx)
