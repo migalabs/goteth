@@ -60,6 +60,10 @@ func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
 	return false
 }
 
+// This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
+type ForkStateWrapper struct {
+}
+
 type CustomBeaconState interface {
 	Balance(valIdx uint64) (uint64, error)
 	CurrentEpoch() uint64
