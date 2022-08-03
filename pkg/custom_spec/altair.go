@@ -105,17 +105,17 @@ func (p *AltairSpec) CalculatePreviousAttestingVals() {
 // if the item has a number > 0, count it
 func (p AltairSpec) ValsBalance(valList []uint64) uint64 {
 
-	attestingBalance := uint64(0)
+	combinedEffectiveBalance := uint64(0)
 	countedVals := 0 // for testing
 
 	for valIdx, numAtt := range valList { // loop over validators
 		if numAtt > 0 {
 			countedVals += 1 // for testing
-			attestingBalance += uint64(p.BState.Altair.Validators[valIdx].EffectiveBalance)
+			combinedEffectiveBalance += uint64(p.BState.Altair.Validators[valIdx].EffectiveBalance)
 		}
 	}
 
-	return uint64(attestingBalance)
+	return uint64(combinedEffectiveBalance)
 }
 
 func (p AltairSpec) Balance(valIdx uint64) (uint64, error) {
