@@ -80,8 +80,8 @@ func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.Vers
 	case spec.DataVersionAltair:
 		return NewAltairSpec(bstate, prevBstate, iApi), nil
 
-	case spec.DataVersionBellatrix:
-		return NewBellatrixSpec(bstate, iApi), nil
+	// case spec.DataVersionBellatrix:
+	// 	return NewBellatrixSpec(bstate, iApi), nil
 	default:
 		return nil, fmt.Errorf("could not figure out the Beacon State Fork Version")
 	}
