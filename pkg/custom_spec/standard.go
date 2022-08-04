@@ -87,7 +87,7 @@ func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.Vers
 	}
 }
 
-type CustomAggregation struct {
+type CustomAttestation struct {
 	AggregationBits bitfield.Bitlist
 	ValidatorsIDs   []phase0.ValidatorIndex
 }
@@ -123,7 +123,7 @@ func (p *ValVote) AddNewAtt(attestedSlot uint64, inclusionSlot uint64) {
 
 }
 
-func (p CustomAggregation) GetAttestingVals() []uint64 {
+func (p CustomAttestation) GetAttestingVals() []uint64 {
 
 	attestingVals := make([]uint64, 0)
 
