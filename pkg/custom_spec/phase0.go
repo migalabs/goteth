@@ -19,10 +19,9 @@ type Phase0Spec struct {
 	BState                        spec.VersionedBeaconState
 	PrevBState                    spec.VersionedBeaconState
 	PreviousEpochAttestingVals    []uint64
-	PreviousEpochAttestingNum     uint64
 	PreviousEpochAttestingBalance uint64
+	TotalActiveBalance            uint64
 	ValAttestationInclusion       map[uint64]ValVote
-	TotalActiveVals               uint64
 	Api                           *http.Service
 	PrevEpochStructs              EpochData
 	EpochStructs                  EpochData
@@ -40,10 +39,8 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 		BState:                        *bstate,
 		PrevBState:                    prevBstate,
 		PreviousEpochAttestingVals:    make([]uint64, len(prevBstate.Phase0.Validators)),
-		PreviousEpochAttestingNum:     0,
 		PreviousEpochAttestingBalance: 0,
 		ValAttestationInclusion:       make(map[uint64]ValVote),
-		TotalActiveVals:               0,
 		Api:                           iApi,
 		PrevEpochStructs:              NewEpochData(iApi, prevBstate.Phase0.Slot),
 		EpochStructs:                  NewEpochData(iApi, bstate.Phase0.Slot),
@@ -62,7 +59,7 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 
 	phase0Obj.PreviousEpochAttestingVals = phase0Obj.CalculateAttestingVals(attestations, uint64(len(prevBstate.Phase0.Validators)))
 	phase0Obj.PreviousEpochAttestingBalance = phase0Obj.ValsBalance(phase0Obj.PreviousEpochAttestingVals)
-
+	phase0Obj.TotalActiveBalance = phase0Obj.GetTotalActiveBalance()
 	phase0Obj.CalculateCurrentEpochAggegations()
 	return phase0Obj
 
@@ -133,7 +130,7 @@ func (p Phase0Spec) Balance(valIdx uint64) (uint64, error) {
 	return balance, nil
 }
 
-func (p Phase0Spec) TotalActiveBalance() uint64 {
+func (p Phase0Spec) GetTotalActiveBalance() uint64 {
 
 	if p.CurrentSlot() < 32 {
 		// genesis epoch, validators preactivated
@@ -248,7 +245,7 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 	valEffectiveBalance := p.BState.Phase0.Validators[valIdx].EffectiveBalance
 	previousAttestedBalance := p.ValsBalance(p.PreviousEpochAttestingVals)
 
-	activeBalance := p.TotalActiveBalance()
+	activeBalance := p.GetTotalActiveBalance()
 
 	participationRate := float64(previousAttestedBalance) / float64(activeBalance)
 
