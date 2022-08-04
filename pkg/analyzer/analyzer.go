@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
 	"sync"
 	"time"
 
@@ -84,14 +83,6 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	log.Debug("slotRanges are:", slotRanges)
 
 	var metrics sync.Map
-	// Compose the metrics array with each of the RewardMetrics
-	for _, val := range valIdxs {
-		mets, err := NewRewardMetrics(initSlot, epochRange, val)
-		if err != nil {
-			return nil, errors.Wrap(err, "unable to generate RewarMetrics.")
-		}
-		metrics.Store(val, mets)
-	}
 
 	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl)
 	if err != nil {
@@ -124,7 +115,7 @@ func (s *StateAnalyzer) Run() {
 		var prevBState spec.VersionedBeaconState // to be checked, it may make calculation easier to store previous state
 		var bstate *spec.VersionedBeaconState
 		var err error
-		for idx, slot := range s.SlotRanges {
+		for _, slot := range s.SlotRanges {
 			ticker := time.NewTicker(minReqTime)
 			select {
 			case <-s.ctx.Done():
@@ -146,45 +137,13 @@ func (s *StateAnalyzer) Run() {
 					return
 				}
 
-				log.Debug("requesting Validator list from endpoint")
-				validatorFilter := make([]phase0.ValidatorIndex, 0)
-				activeValidators, err := s.cli.Api.Validators(s.ctx, fmt.Sprintf("%d", slot), validatorFilter)
-				if err != nil {
-					// close the channel (to tell other routines to stop processing and end)
-					log.Errorf("Unable to retrieve Validators from the beacon node, closing requester routine. %s", err.Error())
-					close(s.EpochTaskChan)
-					return
-				}
-
-				var totalActiveBalance uint64 = 0
-				var totalEffectiveBalance uint64 = 0
-
-				for _, val := range activeValidators {
-					// only count active validators
-					if !val.Status.IsActive() {
-						continue
-					}
-					// since it's active
-					totalActiveBalance += uint64(val.Balance)
-					totalEffectiveBalance += uint64(val.Validator.EffectiveBalance)
-
-				}
-
 				// we now only compose one single task that contains a list of validator indexes
 				// compose the next task
 				valTask := &EpochTask{
-					ValIdxs:               s.ValidatorIndexes,
-					Slot:                  slot,
-					State:                 bstate,
-					PrevState:             prevBState,
-					TotalValidatorStatus:  &activeValidators,
-					TotalEffectiveBalance: totalEffectiveBalance,
-					TotalActiveBalance:    totalActiveBalance,
-				}
-
-				// to be checked, as we may change how we calcuate rewards
-				if idx == len(s.SlotRanges)-1 {
-					valTask.OnlyPrevAtt = true
+					ValIdxs:   s.ValidatorIndexes,
+					Slot:      slot,
+					State:     bstate,
+					PrevState: prevBState,
 				}
 
 				log.Debugf("sending task for slot: %d", slot)
@@ -317,77 +276,77 @@ type EpochTask struct {
 
 func (s *StateAnalyzer) ExportToCsv(outputFolder string) error {
 	// check if the folder exists
-	csvRewardsFile, err := os.Create(outputFolder + "/validator_rewards.csv")
-	if err != nil {
-		return err
-	}
-	csvMaxRewardFile, err := os.Create(outputFolder + "/validator_max_rewards.csv")
-	if err != nil {
-		return err
-	}
-	csvPercentageFile, err := os.Create(outputFolder + "/validator_rewards_percentage.csv")
-	if err != nil {
-		return err
-	}
-	// write headers on the csvs
-	headers := "slot,total"
-	for _, val := range s.ValidatorIndexes {
-		headers += "," + fmt.Sprintf("%d", val)
-	}
-	csvRewardsFile.WriteString(headers + "\n")
-	csvMaxRewardFile.WriteString(headers + "\n")
-	csvPercentageFile.WriteString(headers + "\n")
+	// csvRewardsFile, err := os.Create(outputFolder + "/validator_rewards.csv")
+	// if err != nil {
+	// 	return err
+	// }
+	// csvMaxRewardFile, err := os.Create(outputFolder + "/validator_max_rewards.csv")
+	// if err != nil {
+	// 	return err
+	// }
+	// csvPercentageFile, err := os.Create(outputFolder + "/validator_rewards_percentage.csv")
+	// if err != nil {
+	// 	return err
+	// }
+	// // write headers on the csvs
+	// headers := "slot,total"
+	// for _, val := range s.ValidatorIndexes {
+	// 	headers += "," + fmt.Sprintf("%d", val)
+	// }
+	// csvRewardsFile.WriteString(headers + "\n")
+	// csvMaxRewardFile.WriteString(headers + "\n")
+	// csvPercentageFile.WriteString(headers + "\n")
 
-	for _, slot := range s.SlotRanges {
-		rowRewards := fmt.Sprintf("%d", slot)
-		rowMaxRewards := fmt.Sprintf("%d", slot)
-		rowRewardsPerc := fmt.Sprintf("%d", slot)
+	// for _, slot := range s.SlotRanges {
+	// 	rowRewards := fmt.Sprintf("%d", slot)
+	// 	rowMaxRewards := fmt.Sprintf("%d", slot)
+	// 	rowRewardsPerc := fmt.Sprintf("%d", slot)
 
-		auxRowRewards := ""
-		auxRowMaxRewards := ""
-		auxRowRewardsPerc := ""
+	// 	auxRowRewards := ""
+	// 	auxRowMaxRewards := ""
+	// 	auxRowRewardsPerc := ""
 
-		var totRewards int64
-		var totMaxRewards uint64
-		var totPerc float64
+	// 	var totRewards int64
+	// 	var totMaxRewards uint64
+	// 	var totPerc float64
 
-		// iter through the validator results
-		for _, val := range s.ValidatorIndexes {
+	// 	// iter through the validator results
+	// 	for _, val := range s.ValidatorIndexes {
 
-			m, ok := s.Metrics.Load(val)
-			if !ok {
-				log.Errorf("validator %d has no metrics", val)
-			}
-			met := m.(*RewardMetrics)
-			valMetrics, err := met.GetEpochMetrics(slot)
-			if err != nil {
-				return err
-			}
-			// s.dbClient.InsertNewValidatorRow(valMetrics)
+	// 		m, ok := s.Metrics.Load(val)
+	// 		if !ok {
+	// 			log.Errorf("validator %d has no metrics", val)
+	// 		}
+	// 		met := m.(*RewardMetrics)
+	// 		valMetrics, err := met.GetEpochMetrics(slot)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		// s.dbClient.InsertNewValidatorRow(valMetrics)
 
-			totRewards += valMetrics.Reward
-			totMaxRewards += valMetrics.MaxReward
-			totPerc += valMetrics.RewardPercentage
+	// 		totRewards += valMetrics.Reward
+	// 		totMaxRewards += valMetrics.MaxReward
+	// 		totPerc += valMetrics.RewardPercentage
 
-			auxRowRewards += "," + fmt.Sprintf("%d", valMetrics.Reward)
-			auxRowMaxRewards += "," + fmt.Sprintf("%d", valMetrics.MaxReward)
-			auxRowRewardsPerc += "," + fmt.Sprintf("%.3f", valMetrics.RewardPercentage)
+	// 		auxRowRewards += "," + fmt.Sprintf("%d", valMetrics.Reward)
+	// 		auxRowMaxRewards += "," + fmt.Sprintf("%d", valMetrics.MaxReward)
+	// 		auxRowRewardsPerc += "," + fmt.Sprintf("%.3f", valMetrics.RewardPercentage)
 
-		}
+	// 	}
 
-		rowRewards += fmt.Sprintf(",%d", totRewards) + auxRowRewards
-		rowMaxRewards += fmt.Sprintf(",%d", totMaxRewards) + auxRowMaxRewards
-		rowRewardsPerc += fmt.Sprintf(",%.3f", totPerc/float64(len(s.ValidatorIndexes))) + auxRowRewardsPerc
+	// 	rowRewards += fmt.Sprintf(",%d", totRewards) + auxRowRewards
+	// 	rowMaxRewards += fmt.Sprintf(",%d", totMaxRewards) + auxRowMaxRewards
+	// 	rowRewardsPerc += fmt.Sprintf(",%.3f", totPerc/float64(len(s.ValidatorIndexes))) + auxRowRewardsPerc
 
-		// end up with the line
-		csvRewardsFile.WriteString(rowRewards + "\n")
-		csvMaxRewardFile.WriteString(rowMaxRewards + "\n")
-		csvPercentageFile.WriteString(rowRewardsPerc + "\n")
-	}
+	// 	// end up with the line
+	// 	csvRewardsFile.WriteString(rowRewards + "\n")
+	// 	csvMaxRewardFile.WriteString(rowMaxRewards + "\n")
+	// 	csvPercentageFile.WriteString(rowRewardsPerc + "\n")
+	// }
 
-	csvRewardsFile.Close()
-	csvMaxRewardFile.Close()
-	csvPercentageFile.Close()
+	// csvRewardsFile.Close()
+	// csvMaxRewardFile.Close()
+	// csvPercentageFile.Close()
 
 	return nil
 }
