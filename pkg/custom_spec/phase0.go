@@ -46,6 +46,8 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 		// the maximum inclusionDelay is 32, and we are counting aggregations from the current Epoch
 	}
 
+	phase0Obj.WrappedState.InitializeArrays(uint64(len(bstate.Phase0.Validators)))
+
 	var attestations []*phase0.PendingAttestation
 	if len(bstate.Phase0.PreviousEpochAttestations) > 0 {
 		// we are not in genesis
@@ -58,7 +60,7 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	phase0Obj.PreviousEpochAttestingVals = phase0Obj.CalculateAttestingVals(attestations, uint64(len(prevBstate.Phase0.Validators)))
 	phase0Obj.PreviousEpochAttestingBalance = phase0Obj.ValsBalance(phase0Obj.PreviousEpochAttestingVals)
 	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveBalance()
-	phase0Obj.CalculateCurrentEpochAggegations()
+	phase0Obj.CalculateValAttestationInclusion()
 	return phase0Obj
 
 }
@@ -149,11 +151,10 @@ func (p Phase0Spec) GetTotalActiveBalance() uint64 {
 	return p.ValsBalance(val_array)
 }
 
-func (p Phase0Spec) CalculateCurrentEpochAggegations() {
+func (p Phase0Spec) CalculateValAttestationInclusion() {
 
-	attestations := append(p.WrappedState.BState.Phase0.CurrentEpochAttestations, p.WrappedState.BState.Phase0.PreviousEpochAttestations...)
-	attestingVals := make([]uint64, len(p.WrappedState.BState.Phase0.Validators))
-	// we need to take into account also previous epoch attestations that were included in this epoch
+	// we only look at attestations referring the previous epoch
+	attestations := p.WrappedState.BState.Phase0.PreviousEpochAttestations
 
 	for _, item := range attestations {
 
@@ -172,9 +173,6 @@ func (p Phase0Spec) CalculateCurrentEpochAggegations() {
 		// loop over the vals that attested
 		for _, index := range attestingIndices {
 			valID := committee[index]
-			if uint64(inclusionSlot) >= (p.WrappedState.BState.Phase0.Slot - (SLOTS_PER_EPOCH - 1)) {
-				attestingVals[valID] = attestingVals[valID] + 1
-			}
 
 			if val, ok := p.ValAttestationInclusion[uint64(valID)]; ok {
 				// it already existed
@@ -193,14 +191,6 @@ func (p Phase0Spec) CalculateCurrentEpochAggegations() {
 		}
 	}
 
-	attestingBalance := uint64(0)
-	for valIdx, numAtt := range attestingVals {
-		if numAtt > 0 {
-			attestingBalance += uint64(p.WrappedState.BState.Phase0.Validators[valIdx].EffectiveBalance)
-		}
-
-	}
-
 }
 
 func (p Phase0Spec) PrevEpochReward(valIdx uint64) uint64 {
@@ -211,7 +201,8 @@ func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint
 
 	isProposer := false
 	proposerSlot := 0
-	for _, duty := range p.WrappedState.PrevEpochStructs.ProposerDuties {
+	duties := append(p.WrappedState.EpochStructs.ProposerDuties, p.WrappedState.PrevEpochStructs.ProposerDuties...)
+	for _, duty := range duties {
 		if duty.ValidatorIndex == phase0.ValidatorIndex(valIdx) {
 			isProposer = true
 			proposerSlot = int(duty.Slot)
@@ -239,6 +230,10 @@ func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint
 }
 
 func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
+
+	if p.CurrentEpoch() == GENESIS_EPOCH { // No rewards are applied at genesis
+		return 0, nil
+	}
 
 	valEffectiveBalance := p.WrappedState.BState.Phase0.Validators[valIdx].EffectiveBalance
 	previousAttestedBalance := p.ValsBalance(p.PreviousEpochAttestingVals)

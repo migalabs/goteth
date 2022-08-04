@@ -50,6 +50,9 @@ func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 		AttestingVals:    attestingVals,
 		AttestingBalance: make([]uint64, 3),
 	}
+
+	altairObj.WrappedState.InitializeArrays(uint64(len(bstate.Altair.Validators)))
+
 	altairObj.CalculatePreviousAttestingVals()
 
 	for i := range altairObj.AttestingBalance {
@@ -88,13 +91,11 @@ func (p *AltairSpec) CalculatePreviousAttestingVals() {
 
 		for valIndex, item := range p.WrappedState.BState.Altair.PreviousEpochParticipation {
 			// Here we have one item per validator
-			// This is an 8-bit string, where the bit 0 is the source
-			// If it is set, we consider there was a vote from this validator
-			// if utils.IsBitSet(uint8(item), 0) {
-			// }
+			// This is an 3-bit string (int up to 8)
+			// each bit represents a flag
 
 			if (item & flag) == flag {
-				// The attestation has a timely source value, therefore we consider it attest
+				// The attestation has a timely flag, therefore we consider it attest
 				p.AttestingVals[participatingFlag][valIndex] += uint64(1)
 			}
 		}
