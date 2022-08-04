@@ -20,7 +20,7 @@ var (
 
 	UpdateValidatorLineTable = `
 	UPDATE t_validator_rewards_summary
-	SET f_reward=$3
+	SET f_reward=$3, f_balance=$4
 	WHERE f_val_idx=$1 AND f_slot=$2
 	`
 

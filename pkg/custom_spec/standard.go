@@ -54,8 +54,8 @@ func GetBaseRewardPerInc(totalEffectiveBalance uint64) float64 {
 }
 
 func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
-	if validator.ActivationEpoch < epoch &&
-		validator.ExitEpoch > epoch {
+	if validator.ActivationEpoch <= epoch &&
+		epoch < validator.ExitEpoch {
 		return true
 	}
 	return false
@@ -68,7 +68,7 @@ type CustomBeaconState interface {
 	PrevStateEpoch() uint64
 	PrevStateSlot() uint64
 	GetMaxReward(valIdx uint64) (uint64, error)
-	PrevEpochReward(valIdx uint64) uint64
+	PrevEpochReward(valIdx uint64) int64
 }
 
 func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) (CustomBeaconState, error) {

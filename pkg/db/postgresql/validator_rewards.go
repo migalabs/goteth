@@ -28,7 +28,7 @@ func (p *PostgresDBService) InsertNewValidatorRow(valRewardsObj model.ValidatorR
 
 func (p *PostgresDBService) UpdateValidatorRowReward(valRewardsObj model.ValidatorRewards) error {
 
-	_, err := p.psqlPool.Exec(p.ctx, model.UpdateValidatorLineTable, valRewardsObj.ValidatorIndex, valRewardsObj.Slot, valRewardsObj.Reward)
+	_, err := p.psqlPool.Exec(p.ctx, model.UpdateValidatorLineTable, valRewardsObj.ValidatorIndex, valRewardsObj.Slot, valRewardsObj.Reward, valRewardsObj.ValidatorBalance)
 	if err != nil {
 		return errors.Wrap(err, "error inserting row in validator rewards table")
 	}

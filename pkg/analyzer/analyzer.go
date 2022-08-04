@@ -64,19 +64,22 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	// calculate the list of slots that we will analyze
 	slotRanges := make([]uint64, 0)
 	epochRange := uint64(0)
-	// minimum slot is 0
-	// its already a uint64
-	initSlot = uint64(math.Max(31, float64(initSlot)))
-	finalSlot = uint64(math.Max(31, float64(finalSlot)))
+
+	// minimum slot is 31
+	// force to be in the previous epoch than select by user
+	initSlot = uint64(math.Max(31, float64(int(initSlot-custom_spec.SLOTS_PER_EPOCH))))
 	initEpoch := int(initSlot / 32)
-	finalEpoch := int(finalSlot / 32)
 	// force to be on the last slot of the init epoch
 	// epoch 0 ==> (0+1) * 32 - 1
 	initSlot = uint64((initEpoch+1)*custom_spec.SLOTS_PER_EPOCH - 1)
+
+	finalSlot = uint64(math.Max(31, float64(finalSlot)))
+	finalEpoch := int(finalSlot / 32)
 	// for the finalSlot go the last slot of the next epoch
 	// remember rewards are calculated post epoch
-	finalSlot = uint64((finalEpoch+2)*custom_spec.SLOTS_PER_EPOCH - 1)
-	for i := initSlot; i < (finalSlot + utils.SlotBase); i += utils.SlotBase {
+	finalSlot = uint64((finalEpoch+3)*custom_spec.SLOTS_PER_EPOCH - 1)
+
+	for i := initSlot; i <= (finalSlot); i += utils.SlotBase {
 		slotRanges = append(slotRanges, i)
 		epochRange++
 	}
@@ -125,7 +128,7 @@ func (s *StateAnalyzer) Run() {
 
 			default:
 				// make the state query
-				log.Debug("requesting Beacon State from endpoint")
+				log.Debugf("requesting Beacon State from endpoint: slot %d", slot)
 				if bstate != nil { // in case we already had a bstate (only false the first time)
 					prevBState = *bstate
 				}
@@ -173,9 +176,9 @@ func (s *StateAnalyzer) Run() {
 		go func() {
 			defer wg.Done()
 
-			// keep iterrating until the channel is closed due to finishing
+			// keep iterating until the channel is closed due to finishing
 			for {
-				// cehck if the channel has been closed
+				// check if the channel has been closed
 				task, ok := <-s.EpochTaskChan
 				if !ok {
 					wlog.Warn("the task channel has been closed, finishing worker routine")
@@ -213,8 +216,8 @@ func (s *StateAnalyzer) Run() {
 					validatorDBRow := model.NewValidatorRewards(valIdx,
 						customBState.CurrentSlot(),
 						customBState.CurrentEpoch(),
-						balance,
-						0, // reward: will be filled in the next epoch
+						0,
+						0, // reward is written after state transition
 						maxReward,
 						0) // attestingSlot: to be used in the future, 0 for now
 
@@ -223,23 +226,28 @@ func (s *StateAnalyzer) Run() {
 						log.Errorf(err.Error())
 					}
 
-					// we now fill the reward of the previous epoch
-					// with the current balance difference we see the result of performing duties
-					// the last epoch
-					reward := customBState.PrevEpochReward(valIdx)
-					log.Debugf("Slot %d Validator %d Reward: %d", customBState.PrevStateSlot(), valIdx, reward)
+					rewardSlot := int(customBState.PrevStateSlot())
+					rewardEpoch := int(customBState.PrevStateEpoch())
+					if rewardSlot >= 31 {
+						reward := customBState.PrevEpochReward(valIdx)
 
-					validatorDBRow = model.NewValidatorRewards(valIdx,
-						customBState.PrevStateSlot(),
-						customBState.PrevStateEpoch(),
-						0, // balance: was already filled in the last epoch
-						int64(reward),
-						0, // maxReward: was already calculated in the previous epoch
-						0) // attestingSlot: to be used in the future, 0 for now
+						log.Debugf("Slot %d Validator %d Reward: %d", rewardSlot, valIdx, reward)
 
-					err = s.dbClient.UpdateValidatorRowReward(validatorDBRow)
-					if err != nil {
-						log.Errorf(err.Error())
+						// keep in mind that rewards for epoch 10 can be seen at beginning of epoch 12,
+						// after state_transition
+						// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
+						validatorDBRow = model.NewValidatorRewards(valIdx,
+							uint64(rewardSlot),
+							uint64(rewardEpoch),
+							balance, // balance: was already filled in the last epoch
+							int64(reward),
+							0, // maxReward: was already calculated in the previous epoch
+							0) // attestingSlot: to be used in the future, 0 for now
+
+						err = s.dbClient.UpdateValidatorRowReward(validatorDBRow)
+						if err != nil {
+							log.Errorf(err.Error())
+						}
 					}
 
 				}
