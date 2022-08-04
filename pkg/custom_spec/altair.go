@@ -56,7 +56,7 @@ func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	altairObj.CalculatePreviousAttestingVals()
 
 	for i := range altairObj.AttestingBalance {
-		altairObj.AttestingBalance[i] = altairObj.ValsBalance(altairObj.AttestingVals[i])
+		altairObj.AttestingBalance[i] = altairObj.ValsEffectiveBalance(altairObj.AttestingVals[i])
 	}
 
 	return altairObj
@@ -105,7 +105,7 @@ func (p *AltairSpec) CalculatePreviousAttestingVals() {
 // the length of the valList = number of validators
 // each position represents a valIdx
 // if the item has a number > 0, count it
-func (p AltairSpec) ValsBalance(valList []uint64) uint64 {
+func (p AltairSpec) ValsEffectiveBalance(valList []uint64) uint64 {
 
 	combinedEffectiveBalance := uint64(0)
 	countedVals := 0 // for testing
@@ -147,7 +147,7 @@ func (p AltairSpec) TotalActiveBalance() uint64 {
 
 	}
 
-	return p.ValsBalance(val_array)
+	return p.ValsEffectiveBalance(val_array)
 }
 
 func (p AltairSpec) GetMaxProposerAttReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
