@@ -16,15 +16,10 @@ var (
 )
 
 type Phase0Spec struct {
-	BState                        spec.VersionedBeaconState
-	PrevBState                    spec.VersionedBeaconState
+	WrappedState                  ForkStateWrapper
 	PreviousEpochAttestingVals    []uint64
 	PreviousEpochAttestingBalance uint64
-	TotalActiveBalance            uint64
 	ValAttestationInclusion       map[uint64]ValVote
-	Api                           *http.Service
-	PrevEpochStructs              EpochData
-	EpochStructs                  EpochData
 	AttestedValsPerSlot           map[uint64][]uint64
 }
 
@@ -36,14 +31,17 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	}
 
 	phase0Obj := Phase0Spec{
-		BState:                        *bstate,
-		PrevBState:                    prevBstate,
+		WrappedState: ForkStateWrapper{
+			BState:           *bstate,
+			PrevBState:       prevBstate,
+			Api:              iApi,
+			PrevEpochStructs: NewEpochData(iApi, prevBstate.Phase0.Slot),
+			EpochStructs:     NewEpochData(iApi, bstate.Phase0.Slot),
+		},
+
 		PreviousEpochAttestingVals:    make([]uint64, len(prevBstate.Phase0.Validators)),
 		PreviousEpochAttestingBalance: 0,
 		ValAttestationInclusion:       make(map[uint64]ValVote),
-		Api:                           iApi,
-		PrevEpochStructs:              NewEpochData(iApi, prevBstate.Phase0.Slot),
-		EpochStructs:                  NewEpochData(iApi, bstate.Phase0.Slot),
 		AttestedValsPerSlot:           make(map[uint64][]uint64),
 		// the maximum inclusionDelay is 32, and we are counting aggregations from the current Epoch
 	}
@@ -59,14 +57,14 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 
 	phase0Obj.PreviousEpochAttestingVals = phase0Obj.CalculateAttestingVals(attestations, uint64(len(prevBstate.Phase0.Validators)))
 	phase0Obj.PreviousEpochAttestingBalance = phase0Obj.ValsBalance(phase0Obj.PreviousEpochAttestingVals)
-	phase0Obj.TotalActiveBalance = phase0Obj.GetTotalActiveBalance()
+	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveBalance()
 	phase0Obj.CalculateCurrentEpochAggegations()
 	return phase0Obj
 
 }
 
 func (p Phase0Spec) CurrentSlot() uint64 {
-	return p.BState.Phase0.Slot
+	return p.WrappedState.BState.Phase0.Slot
 }
 
 func (p Phase0Spec) CurrentEpoch() uint64 {
@@ -74,7 +72,7 @@ func (p Phase0Spec) CurrentEpoch() uint64 {
 }
 
 func (p Phase0Spec) PrevStateSlot() uint64 {
-	return p.PrevBState.Phase0.Slot
+	return p.WrappedState.PrevBState.Phase0.Slot
 }
 
 func (p Phase0Spec) PrevStateEpoch() uint64 {
@@ -90,7 +88,7 @@ func (p *Phase0Spec) CalculateAttestingVals(attestations []*phase0.PendingAttest
 		slot := item.Data.Slot            // Block that is being attested, not included
 		committeeIndex := item.Data.Index // committee in the attested slot
 
-		validatorIDs := p.PrevEpochStructs.GetValList(uint64(slot), uint64(committeeIndex))
+		validatorIDs := p.WrappedState.PrevEpochStructs.GetValList(uint64(slot), uint64(committeeIndex))
 
 		attestingIndices := item.AggregationBits.BitIndices()
 
@@ -113,7 +111,7 @@ func (p Phase0Spec) ValsBalance(valList []uint64) uint64 {
 
 	for valIdx, numAtt := range valList { // loop over validators
 		if numAtt > 0 {
-			attestingBalance += uint64(p.BState.Phase0.Validators[valIdx].EffectiveBalance)
+			attestingBalance += uint64(p.WrappedState.BState.Phase0.Validators[valIdx].EffectiveBalance)
 		}
 	}
 
@@ -121,11 +119,11 @@ func (p Phase0Spec) ValsBalance(valList []uint64) uint64 {
 }
 
 func (p Phase0Spec) Balance(valIdx uint64) (uint64, error) {
-	if uint64(len(p.BState.Phase0.Balances)) < valIdx {
-		err := fmt.Errorf("phase0 - validator index %d wasn't activated in slot %d", valIdx, p.BState.Phase0.Slot)
+	if uint64(len(p.WrappedState.BState.Phase0.Balances)) < valIdx {
+		err := fmt.Errorf("phase0 - validator index %d wasn't activated in slot %d", valIdx, p.WrappedState.BState.Phase0.Slot)
 		return 0, err
 	}
-	balance := p.BState.Phase0.Balances[valIdx]
+	balance := p.WrappedState.BState.Phase0.Balances[valIdx]
 
 	return balance, nil
 }
@@ -134,10 +132,10 @@ func (p Phase0Spec) GetTotalActiveBalance() uint64 {
 
 	if p.CurrentSlot() < 32 {
 		// genesis epoch, validators preactivated
-		return uint64(len(p.BState.Phase0.Validators) * EFFECTIVE_BALANCE_INCREMENT * MAX_EFFECTIVE_INCREMENTS)
+		return uint64(len(p.WrappedState.BState.Phase0.Validators) * EFFECTIVE_BALANCE_INCREMENT * MAX_EFFECTIVE_INCREMENTS)
 	}
 
-	all_vals := p.PrevBState.Phase0.Validators
+	all_vals := p.WrappedState.PrevBState.Phase0.Validators
 	val_array := make([]uint64, len(all_vals))
 
 	for idx := range val_array {
@@ -153,8 +151,8 @@ func (p Phase0Spec) GetTotalActiveBalance() uint64 {
 
 func (p Phase0Spec) CalculateCurrentEpochAggegations() {
 
-	attestations := append(p.BState.Phase0.CurrentEpochAttestations, p.BState.Phase0.PreviousEpochAttestations...)
-	attestingVals := make([]uint64, len(p.BState.Phase0.Validators))
+	attestations := append(p.WrappedState.BState.Phase0.CurrentEpochAttestations, p.WrappedState.BState.Phase0.PreviousEpochAttestations...)
+	attestingVals := make([]uint64, len(p.WrappedState.BState.Phase0.Validators))
 	// we need to take into account also previous epoch attestations that were included in this epoch
 
 	for _, item := range attestations {
@@ -165,16 +163,16 @@ func (p Phase0Spec) CalculateCurrentEpochAggegations() {
 
 		attestingIndices := item.AggregationBits.BitIndices()
 
-		committee := p.PrevEpochStructs.GetValList(uint64(slot), uint64(committeeIndex))
+		committee := p.WrappedState.PrevEpochStructs.GetValList(uint64(slot), uint64(committeeIndex))
 
 		if committee == nil {
-			committee = p.EpochStructs.GetValList(uint64(slot), uint64(committeeIndex))
+			committee = p.WrappedState.EpochStructs.GetValList(uint64(slot), uint64(committeeIndex))
 		}
 
 		// loop over the vals that attested
 		for _, index := range attestingIndices {
 			valID := committee[index]
-			if uint64(inclusionSlot) >= (p.BState.Phase0.Slot - (SLOTS_PER_EPOCH - 1)) {
+			if uint64(inclusionSlot) >= (p.WrappedState.BState.Phase0.Slot - (SLOTS_PER_EPOCH - 1)) {
 				attestingVals[valID] = attestingVals[valID] + 1
 			}
 
@@ -198,7 +196,7 @@ func (p Phase0Spec) CalculateCurrentEpochAggegations() {
 	attestingBalance := uint64(0)
 	for valIdx, numAtt := range attestingVals {
 		if numAtt > 0 {
-			attestingBalance += uint64(p.BState.Phase0.Validators[valIdx].EffectiveBalance)
+			attestingBalance += uint64(p.WrappedState.BState.Phase0.Validators[valIdx].EffectiveBalance)
 		}
 
 	}
@@ -206,14 +204,14 @@ func (p Phase0Spec) CalculateCurrentEpochAggegations() {
 }
 
 func (p Phase0Spec) PrevEpochReward(valIdx uint64) uint64 {
-	return p.BState.Phase0.Balances[valIdx] - p.PrevBState.Phase0.Balances[valIdx]
+	return p.WrappedState.BState.Phase0.Balances[valIdx] - p.WrappedState.PrevBState.Phase0.Balances[valIdx]
 }
 
 func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
 
 	isProposer := false
 	proposerSlot := 0
-	for _, duty := range p.PrevEpochStructs.ProposerDuties {
+	for _, duty := range p.WrappedState.PrevEpochStructs.ProposerDuties {
 		if duty.ValidatorIndex == phase0.ValidatorIndex(valIdx) {
 			isProposer = true
 			proposerSlot = int(duty.Slot)
@@ -242,7 +240,7 @@ func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint
 
 func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 
-	valEffectiveBalance := p.BState.Phase0.Validators[valIdx].EffectiveBalance
+	valEffectiveBalance := p.WrappedState.BState.Phase0.Validators[valIdx].EffectiveBalance
 	previousAttestedBalance := p.ValsBalance(p.PreviousEpochAttestingVals)
 
 	activeBalance := p.GetTotalActiveBalance()
