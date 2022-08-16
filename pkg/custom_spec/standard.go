@@ -23,6 +23,7 @@ const (
 	SHUFFLE_ROUND_COUNT         = uint64(90)
 	PROPOSER_REWARD_QUOTIENT    = 8
 	GENESIS_EPOCH               = 0
+	SLOTS_PER_HISTORICAL_ROOT   = 8192
 	// participationRate   = 0.945 // about to calculate participation rate
 )
 

@@ -1,10 +1,12 @@
 package custom_spec
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/sirupsen/logrus"
 )
@@ -82,6 +84,20 @@ func (p *Phase0Spec) CalculateAttestingVals(attestations []*phase0.PendingAttest
 			attestingValIdx := validatorIDs[index]
 
 			resultAttVals[attestingValIdx] = resultAttVals[attestingValIdx] + 1
+		}
+
+		// measure missing head target and source
+
+		if !p.IsCorrectSource(*item) {
+			p.WrappedState.MissingFlags[altair.TimelySourceFlagIndex] += uint64(1)
+		}
+
+		if !p.IsCorrectTarget(*item) {
+			p.WrappedState.MissingFlags[altair.TimelyTargetFlagIndex] += uint64(1)
+		}
+
+		if !p.IsCorrectHead(*item) {
+			p.WrappedState.MissingFlags[altair.TimelyHeadFlagIndex] += uint64(1)
 		}
 	}
 
@@ -254,4 +270,35 @@ func (p Phase0Spec) PrevStateSlot() uint64 {
 
 func (p Phase0Spec) PrevStateEpoch() uint64 {
 	return uint64(p.PrevStateSlot() / 32)
+}
+
+func (p Phase0Spec) IsCorrectSource(attestation phase0.PendingAttestation) bool {
+	epoch := attestation.Data.Source.Epoch
+	if epoch == phase0.Epoch(p.WrappedState.BState.Phase0.Slot/SLOTS_PER_EPOCH) ||
+		epoch == phase0.Epoch(p.WrappedState.PrevBState.Phase0.Slot/SLOTS_PER_EPOCH) {
+		return true
+	}
+	return false
+}
+
+func (p Phase0Spec) IsCorrectTarget(attestation phase0.PendingAttestation) bool {
+	target := attestation.Data.Target.Root
+
+	slot := int(p.WrappedState.BState.Phase0.Slot / SLOTS_PER_EPOCH)
+	slot = slot * SLOTS_PER_EPOCH
+	expected := p.WrappedState.BState.Phase0.BlockRoots[slot%SLOTS_PER_HISTORICAL_ROOT]
+
+	res := bytes.Compare(target[:], expected)
+
+	return res == 0 // if 0, then block roots are the same
+}
+
+func (p Phase0Spec) IsCorrectHead(attestation phase0.PendingAttestation) bool {
+	head := attestation.Data.BeaconBlockRoot
+
+	index := attestation.Data.Slot % SLOTS_PER_HISTORICAL_ROOT
+	expected := p.WrappedState.BState.Phase0.BlockRoots[index]
+
+	res := bytes.Compare(head[:], expected)
+	return res == 0 // if 0, then block roots are the same
 }

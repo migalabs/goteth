@@ -13,13 +13,10 @@ type ForkStateContent struct {
 	EpochStructs       EpochData
 	Api                *http.Service
 	TotalActiveBalance uint64
-	MissingFlags       [][]uint64
+	MissingFlags       []uint64
 }
 
 func (p *ForkStateContent) InitializeArrays(arrayLen uint64) {
-	p.MissingFlags = make([][]uint64, 3)
+	p.MissingFlags = make([]uint64, 3)
 
-	for i := range p.MissingFlags {
-		p.MissingFlags[i] = make([]uint64, arrayLen)
-	}
 }
