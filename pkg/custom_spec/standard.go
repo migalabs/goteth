@@ -22,6 +22,7 @@ const (
 	SLOTS_PER_EPOCH             = 32
 	SHUFFLE_ROUND_COUNT         = uint64(90)
 	PROPOSER_REWARD_QUOTIENT    = 8
+	GENESIS_EPOCH               = 0
 	// participationRate   = 0.945 // about to calculate participation rate
 )
 
@@ -41,7 +42,7 @@ func GetBaseReward(valEffectiveBalance uint64, totalEffectiveBalance uint64) flo
 }
 
 func GetBaseRewardPerInc(totalEffectiveBalance uint64) float64 {
-	// BaseReward = ( effectiveBalance * (BaseRewardFactor)/(BaseRewardsPerEpoch * sqrt(activeBalance)) )
+
 	var baseReward float64
 
 	sqrt := uint64(math.Sqrt(float64(totalEffectiveBalance)))
@@ -53,8 +54,8 @@ func GetBaseRewardPerInc(totalEffectiveBalance uint64) float64 {
 }
 
 func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
-	if validator.ActivationEpoch < epoch &&
-		validator.ExitEpoch > epoch {
+	if validator.ActivationEpoch <= epoch &&
+		epoch < validator.ExitEpoch {
 		return true
 	}
 	return false
@@ -67,7 +68,7 @@ type CustomBeaconState interface {
 	PrevStateEpoch() uint64
 	PrevStateSlot() uint64
 	GetMaxReward(valIdx uint64) (uint64, error)
-	PrevEpochReward(valIdx uint64) uint64
+	PrevEpochReward(valIdx uint64) int64
 }
 
 func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) (CustomBeaconState, error) {
@@ -79,14 +80,14 @@ func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.Vers
 	case spec.DataVersionAltair:
 		return NewAltairSpec(bstate, prevBstate, iApi), nil
 
-	case spec.DataVersionBellatrix:
-		return NewBellatrixSpec(bstate, iApi), nil
+	// case spec.DataVersionBellatrix:
+	// 	return NewBellatrixSpec(bstate, iApi), nil
 	default:
 		return nil, fmt.Errorf("could not figure out the Beacon State Fork Version")
 	}
 }
 
-type CustomAggregation struct {
+type CustomAttestation struct {
 	AggregationBits bitfield.Bitlist
 	ValidatorsIDs   []phase0.ValidatorIndex
 }
@@ -122,7 +123,7 @@ func (p *ValVote) AddNewAtt(attestedSlot uint64, inclusionSlot uint64) {
 
 }
 
-func (p CustomAggregation) GetAttestingVals() []uint64 {
+func (p CustomAttestation) GetAttestingVals() []uint64 {
 
 	attestingVals := make([]uint64, 0)
 

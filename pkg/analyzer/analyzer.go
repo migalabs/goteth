@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
 	"sync"
 	"time"
 
@@ -65,33 +64,28 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	// calculate the list of slots that we will analyze
 	slotRanges := make([]uint64, 0)
 	epochRange := uint64(0)
-	// minimum slot is 0
-	// its already a uint64
-	initSlot = uint64(math.Max(31, float64(initSlot)))
-	finalSlot = uint64(math.Max(31, float64(finalSlot)))
+
+	// minimum slot is 31
+	// force to be in the previous epoch than select by user
+	initSlot = uint64(math.Max(31, float64(int(initSlot-custom_spec.SLOTS_PER_EPOCH))))
 	initEpoch := int(initSlot / 32)
-	finalEpoch := int(finalSlot / 32)
 	// force to be on the last slot of the init epoch
 	// epoch 0 ==> (0+1) * 32 - 1
 	initSlot = uint64((initEpoch+1)*custom_spec.SLOTS_PER_EPOCH - 1)
+
+	finalSlot = uint64(math.Max(31, float64(finalSlot)))
+	finalEpoch := int(finalSlot / 32)
 	// for the finalSlot go the last slot of the next epoch
 	// remember rewards are calculated post epoch
-	finalSlot = uint64((finalEpoch+2)*custom_spec.SLOTS_PER_EPOCH - 1)
-	for i := initSlot; i < (finalSlot + utils.SlotBase); i += utils.SlotBase {
+	finalSlot = uint64((finalEpoch+3)*custom_spec.SLOTS_PER_EPOCH - 1)
+
+	for i := initSlot; i <= (finalSlot); i += utils.SlotBase {
 		slotRanges = append(slotRanges, i)
 		epochRange++
 	}
 	log.Debug("slotRanges are:", slotRanges)
 
 	var metrics sync.Map
-	// Compose the metrics array with each of the RewardMetrics
-	for _, val := range valIdxs {
-		mets, err := NewRewardMetrics(initSlot, epochRange, val)
-		if err != nil {
-			return nil, errors.Wrap(err, "unable to generate RewarMetrics.")
-		}
-		metrics.Store(val, mets)
-	}
 
 	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl)
 	if err != nil {
@@ -124,7 +118,7 @@ func (s *StateAnalyzer) Run() {
 		var prevBState spec.VersionedBeaconState // to be checked, it may make calculation easier to store previous state
 		var bstate *spec.VersionedBeaconState
 		var err error
-		for idx, slot := range s.SlotRanges {
+		for _, slot := range s.SlotRanges {
 			ticker := time.NewTicker(minReqTime)
 			select {
 			case <-s.ctx.Done():
@@ -134,7 +128,7 @@ func (s *StateAnalyzer) Run() {
 
 			default:
 				// make the state query
-				log.Debug("requesting Beacon State from endpoint")
+				log.Debugf("requesting Beacon State from endpoint: slot %d", slot)
 				if bstate != nil { // in case we already had a bstate (only false the first time)
 					prevBState = *bstate
 				}
@@ -146,45 +140,13 @@ func (s *StateAnalyzer) Run() {
 					return
 				}
 
-				log.Debug("requesting Validator list from endpoint")
-				validatorFilter := make([]phase0.ValidatorIndex, 0)
-				activeValidators, err := s.cli.Api.Validators(s.ctx, fmt.Sprintf("%d", slot), validatorFilter)
-				if err != nil {
-					// close the channel (to tell other routines to stop processing and end)
-					log.Errorf("Unable to retrieve Validators from the beacon node, closing requester routine. %s", err.Error())
-					close(s.EpochTaskChan)
-					return
-				}
-
-				var totalActiveBalance uint64 = 0
-				var totalEffectiveBalance uint64 = 0
-
-				for _, val := range activeValidators {
-					// only count active validators
-					if !val.Status.IsActive() {
-						continue
-					}
-					// since it's active
-					totalActiveBalance += uint64(val.Balance)
-					totalEffectiveBalance += uint64(val.Validator.EffectiveBalance)
-
-				}
-
 				// we now only compose one single task that contains a list of validator indexes
 				// compose the next task
 				valTask := &EpochTask{
-					ValIdxs:               s.ValidatorIndexes,
-					Slot:                  slot,
-					State:                 bstate,
-					PrevState:             prevBState,
-					TotalValidatorStatus:  &activeValidators,
-					TotalEffectiveBalance: totalEffectiveBalance,
-					TotalActiveBalance:    totalActiveBalance,
-				}
-
-				// to be checked, as we may change how we calcuate rewards
-				if idx == len(s.SlotRanges)-1 {
-					valTask.OnlyPrevAtt = true
+					ValIdxs:   s.ValidatorIndexes,
+					Slot:      slot,
+					State:     bstate,
+					PrevState: prevBState,
 				}
 
 				log.Debugf("sending task for slot: %d", slot)
@@ -214,9 +176,9 @@ func (s *StateAnalyzer) Run() {
 		go func() {
 			defer wg.Done()
 
-			// keep iterrating until the channel is closed due to finishing
+			// keep iterating until the channel is closed due to finishing
 			for {
-				// cehck if the channel has been closed
+				// check if the channel has been closed
 				task, ok := <-s.EpochTaskChan
 				if !ok {
 					wlog.Warn("the task channel has been closed, finishing worker routine")
@@ -255,7 +217,7 @@ func (s *StateAnalyzer) Run() {
 						customBState.CurrentSlot(),
 						customBState.CurrentEpoch(),
 						balance,
-						0, // reward: will be filled in the next epoch
+						0, // reward is written after state transition
 						maxReward,
 						0) // attestingSlot: to be used in the future, 0 for now
 
@@ -264,23 +226,28 @@ func (s *StateAnalyzer) Run() {
 						log.Errorf(err.Error())
 					}
 
-					// we now fill the reward of the previous epoch
-					// with the current balance difference we see the result of performing duties
-					// the last epoch
-					reward := customBState.PrevEpochReward(valIdx)
-					log.Debugf("Slot %d Validator %d Reward: %d", customBState.PrevStateSlot(), valIdx, reward)
+					rewardSlot := int(customBState.PrevStateSlot())
+					rewardEpoch := int(customBState.PrevStateEpoch())
+					if rewardSlot >= 31 {
+						reward := customBState.PrevEpochReward(valIdx)
 
-					validatorDBRow = model.NewValidatorRewards(valIdx,
-						customBState.PrevStateSlot(),
-						customBState.PrevStateEpoch(),
-						0, // balance: was already filled in the last epoch
-						int64(reward),
-						0, // maxReward: was already calculated in the previous epoch
-						0) // attestingSlot: to be used in the future, 0 for now
+						log.Debugf("Slot %d Validator %d Reward: %d", rewardSlot, valIdx, reward)
 
-					err = s.dbClient.UpdateValidatorRowReward(validatorDBRow)
-					if err != nil {
-						log.Errorf(err.Error())
+						// keep in mind that rewards for epoch 10 can be seen at beginning of epoch 12,
+						// after state_transition
+						// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
+						validatorDBRow = model.NewValidatorRewards(valIdx,
+							uint64(rewardSlot),
+							uint64(rewardEpoch),
+							0, // balance: was already filled in the last epoch
+							int64(reward),
+							0, // maxReward: was already calculated in the previous epoch
+							0) // attestingSlot: to be used in the future, 0 for now
+
+						err = s.dbClient.UpdateValidatorRowReward(validatorDBRow)
+						if err != nil {
+							log.Errorf(err.Error())
+						}
 					}
 
 				}
@@ -314,80 +281,3 @@ type EpochTask struct {
 }
 
 // Exporter Functions
-
-func (s *StateAnalyzer) ExportToCsv(outputFolder string) error {
-	// check if the folder exists
-	csvRewardsFile, err := os.Create(outputFolder + "/validator_rewards.csv")
-	if err != nil {
-		return err
-	}
-	csvMaxRewardFile, err := os.Create(outputFolder + "/validator_max_rewards.csv")
-	if err != nil {
-		return err
-	}
-	csvPercentageFile, err := os.Create(outputFolder + "/validator_rewards_percentage.csv")
-	if err != nil {
-		return err
-	}
-	// write headers on the csvs
-	headers := "slot,total"
-	for _, val := range s.ValidatorIndexes {
-		headers += "," + fmt.Sprintf("%d", val)
-	}
-	csvRewardsFile.WriteString(headers + "\n")
-	csvMaxRewardFile.WriteString(headers + "\n")
-	csvPercentageFile.WriteString(headers + "\n")
-
-	for _, slot := range s.SlotRanges {
-		rowRewards := fmt.Sprintf("%d", slot)
-		rowMaxRewards := fmt.Sprintf("%d", slot)
-		rowRewardsPerc := fmt.Sprintf("%d", slot)
-
-		auxRowRewards := ""
-		auxRowMaxRewards := ""
-		auxRowRewardsPerc := ""
-
-		var totRewards int64
-		var totMaxRewards uint64
-		var totPerc float64
-
-		// iter through the validator results
-		for _, val := range s.ValidatorIndexes {
-
-			m, ok := s.Metrics.Load(val)
-			if !ok {
-				log.Errorf("validator %d has no metrics", val)
-			}
-			met := m.(*RewardMetrics)
-			valMetrics, err := met.GetEpochMetrics(slot)
-			if err != nil {
-				return err
-			}
-			// s.dbClient.InsertNewValidatorRow(valMetrics)
-
-			totRewards += valMetrics.Reward
-			totMaxRewards += valMetrics.MaxReward
-			totPerc += valMetrics.RewardPercentage
-
-			auxRowRewards += "," + fmt.Sprintf("%d", valMetrics.Reward)
-			auxRowMaxRewards += "," + fmt.Sprintf("%d", valMetrics.MaxReward)
-			auxRowRewardsPerc += "," + fmt.Sprintf("%.3f", valMetrics.RewardPercentage)
-
-		}
-
-		rowRewards += fmt.Sprintf(",%d", totRewards) + auxRowRewards
-		rowMaxRewards += fmt.Sprintf(",%d", totMaxRewards) + auxRowMaxRewards
-		rowRewardsPerc += fmt.Sprintf(",%.3f", totPerc/float64(len(s.ValidatorIndexes))) + auxRowRewardsPerc
-
-		// end up with the line
-		csvRewardsFile.WriteString(rowRewards + "\n")
-		csvMaxRewardFile.WriteString(rowMaxRewards + "\n")
-		csvPercentageFile.WriteString(rowRewardsPerc + "\n")
-	}
-
-	csvRewardsFile.Close()
-	csvMaxRewardFile.Close()
-	csvPercentageFile.Close()
-
-	return nil
-}
