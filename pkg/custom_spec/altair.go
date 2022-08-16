@@ -22,7 +22,7 @@ var ( // spec weight constants
 )
 
 type AltairSpec struct {
-	WrappedState     ForkStateWrapper
+	WrappedState     ForkStateContent
 	AttestingVals    [][]uint64 // one array of validators per participating flag
 	AttestingBalance []uint64   // one attesting balance per participation flag
 }
@@ -40,7 +40,7 @@ func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	}
 
 	altairObj := AltairSpec{
-		WrappedState: ForkStateWrapper{
+		WrappedState: ForkStateContent{
 			PrevBState:   prevBstate,
 			BState:       *bstate,
 			Api:          iApi,

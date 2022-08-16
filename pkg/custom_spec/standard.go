@@ -42,7 +42,7 @@ func GetBaseReward(valEffectiveBalance uint64, totalEffectiveBalance uint64) flo
 }
 
 func GetBaseRewardPerInc(totalEffectiveBalance uint64) float64 {
-	// BaseReward = ( effectiveBalance * (BaseRewardFactor)/(BaseRewardsPerEpoch * sqrt(activeBalance)) )
+
 	var baseReward float64
 
 	sqrt := uint64(math.Sqrt(float64(totalEffectiveBalance)))

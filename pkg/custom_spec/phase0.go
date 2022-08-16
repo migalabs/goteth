@@ -16,7 +16,7 @@ var (
 )
 
 type Phase0Spec struct {
-	WrappedState                  ForkStateWrapper
+	WrappedState                  ForkStateContent
 	PreviousEpochAttestingVals    []uint64
 	PreviousEpochAttestingBalance uint64
 	ValAttestationInclusion       map[uint64]ValVote
@@ -31,7 +31,7 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	}
 
 	phase0Obj := Phase0Spec{
-		WrappedState: ForkStateWrapper{
+		WrappedState: ForkStateContent{
 			BState:           *bstate,
 			PrevBState:       prevBstate,
 			Api:              iApi,

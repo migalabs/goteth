@@ -6,7 +6,7 @@ import (
 )
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
-type ForkStateWrapper struct {
+type ForkStateContent struct {
 	BState             spec.VersionedBeaconState
 	PrevBState         spec.VersionedBeaconState
 	PrevEpochStructs   EpochData
@@ -16,7 +16,7 @@ type ForkStateWrapper struct {
 	MissingFlags       [][]uint64
 }
 
-func (p *ForkStateWrapper) InitializeArrays(arrayLen uint64) {
+func (p *ForkStateContent) InitializeArrays(arrayLen uint64) {
 	p.MissingFlags = make([][]uint64, 3)
 
 	for i := range p.MissingFlags {
