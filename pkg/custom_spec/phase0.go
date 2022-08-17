@@ -63,6 +63,9 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	phase0Obj.PreviousEpochAttestingBalance = phase0Obj.ValsEffectiveBalance(phase0Obj.PreviousEpochAttestingVals)
 	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveBalance()
 	phase0Obj.CalculateValAttestationInclusion()
+	phase0Obj.TrackMissingBlocks()
+	missedBlocks := phase0Obj.WrappedState.MissingBlocks
+	fmt.Println(missedBlocks)
 	return phase0Obj
 
 }
@@ -301,4 +304,27 @@ func (p Phase0Spec) IsCorrectHead(attestation phase0.PendingAttestation) bool {
 
 	res := bytes.Compare(head[:], expected)
 	return res == 0 // if 0, then block roots are the same
+}
+
+func (p Phase0Spec) GetMissingFlags() []uint64 {
+	return p.WrappedState.MissingFlags
+}
+
+func (p *Phase0Spec) TrackMissingBlocks() {
+	firstIndex := p.WrappedState.BState.Phase0.Slot - SLOTS_PER_EPOCH + 1
+	lastIndex := p.WrappedState.BState.Phase0.Slot
+
+	for i := firstIndex; i <= lastIndex; i++ {
+		if i == 0 {
+			continue
+		}
+		lastItem := p.WrappedState.BState.Phase0.BlockRoots[i-1]
+		item := p.WrappedState.BState.Phase0.BlockRoots[i]
+		res := bytes.Compare(lastItem, item)
+
+		if res == 0 {
+			// both roots were the same ==> missed block
+			p.WrappedState.MissingBlocks = append(p.WrappedState.MissingBlocks, uint64(i))
+		}
+	}
 }

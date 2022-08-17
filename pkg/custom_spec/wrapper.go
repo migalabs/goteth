@@ -14,9 +14,10 @@ type ForkStateContent struct {
 	Api                *http.Service
 	TotalActiveBalance uint64
 	MissingFlags       []uint64
+	MissingBlocks      []uint64 // array that stores the slot number where there was a missing block
 }
 
 func (p *ForkStateContent) InitializeArrays(arrayLen uint64) {
 	p.MissingFlags = make([]uint64, 3)
-
+	p.MissingBlocks = make([]uint64, 0)
 }
