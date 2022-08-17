@@ -1,6 +1,7 @@
 package custom_spec
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 
@@ -61,6 +62,7 @@ func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	for i := range altairObj.AttestingBalance {
 		altairObj.AttestingBalance[i] = altairObj.ValsEffectiveBalance(altairObj.AttestingVals[i])
 	}
+	altairObj.TrackMissingBlocks()
 
 	return altairObj
 }
@@ -85,6 +87,7 @@ func (p *AltairSpec) CalculatePreviousAttestingVals() {
 			if (item & flag) == flag {
 				// The attestation has a timely flag, therefore we consider it correct flag
 				p.AttestingVals[participatingFlag][valIndex] += uint64(1)
+				p.WrappedState.CorrectFlags[valIndex][participatingFlag] = true
 			}
 		}
 	}
@@ -240,4 +243,39 @@ func (p AltairSpec) PrevStateSlot() uint64 {
 
 func (p AltairSpec) PrevStateEpoch() uint64 {
 	return uint64(p.PrevStateSlot() / 32)
+}
+
+// Argument: 0 for source, 1 for target and 2 for head
+func (p AltairSpec) GetMissingFlag(flagIndex int) uint64 {
+	result := uint64(0)
+	for _, item := range p.WrappedState.CorrectFlags {
+		if item[flagIndex] {
+			result += 1
+		}
+	}
+
+	return result
+}
+
+func (p AltairSpec) GetMissedBlocks() []uint64 {
+	return p.WrappedState.MissedBlocks
+}
+
+func (p *AltairSpec) TrackMissingBlocks() {
+	firstIndex := p.WrappedState.BState.Altair.Slot - SLOTS_PER_EPOCH + 1
+	lastIndex := p.WrappedState.BState.Altair.Slot
+
+	for i := firstIndex; i <= lastIndex; i++ {
+		if i == 0 {
+			continue
+		}
+		lastItem := p.WrappedState.BState.Altair.BlockRoots[i-1]
+		item := p.WrappedState.BState.Altair.BlockRoots[i]
+		res := bytes.Compare(lastItem, item)
+
+		if res == 0 {
+			// both roots were the same ==> missed block
+			p.WrappedState.MissedBlocks = append(p.WrappedState.MissedBlocks, uint64(i))
+		}
+	}
 }

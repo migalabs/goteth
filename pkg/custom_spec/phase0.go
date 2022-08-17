@@ -64,7 +64,7 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveBalance()
 	phase0Obj.CalculateValAttestationInclusion()
 	phase0Obj.TrackMissingBlocks()
-	missedBlocks := phase0Obj.WrappedState.MissingBlocks
+	missedBlocks := phase0Obj.WrappedState.MissedBlocks
 	fmt.Println(missedBlocks)
 	return phase0Obj
 
@@ -87,21 +87,22 @@ func (p *Phase0Spec) CalculateAttestingVals(attestations []*phase0.PendingAttest
 			attestingValIdx := validatorIDs[index]
 
 			resultAttVals[attestingValIdx] = resultAttVals[attestingValIdx] + 1
+
+			if p.IsCorrectSource() {
+				p.WrappedState.CorrectFlags[attestingValIdx][altair.TimelySourceFlagIndex] = true
+			}
+
+			if p.IsCorrectTarget(*item) {
+				p.WrappedState.CorrectFlags[attestingValIdx][altair.TimelyTargetFlagIndex] = true
+			}
+
+			if p.IsCorrectHead(*item) {
+				p.WrappedState.CorrectFlags[attestingValIdx][altair.TimelyHeadFlagIndex] = true
+			}
 		}
 
 		// measure missing head target and source
 
-		if !p.IsCorrectSource(*item) {
-			p.WrappedState.MissingFlags[altair.TimelySourceFlagIndex] += uint64(1)
-		}
-
-		if !p.IsCorrectTarget(*item) {
-			p.WrappedState.MissingFlags[altair.TimelyTargetFlagIndex] += uint64(1)
-		}
-
-		if !p.IsCorrectHead(*item) {
-			p.WrappedState.MissingFlags[altair.TimelyHeadFlagIndex] += uint64(1)
-		}
 	}
 
 	return resultAttVals
@@ -275,10 +276,11 @@ func (p Phase0Spec) PrevStateEpoch() uint64 {
 	return uint64(p.PrevStateSlot() / 32)
 }
 
-func (p Phase0Spec) IsCorrectSource(attestation phase0.PendingAttestation) bool {
-	epoch := attestation.Data.Source.Epoch
-	if epoch == phase0.Epoch(p.WrappedState.BState.Phase0.Slot/SLOTS_PER_EPOCH) ||
-		epoch == phase0.Epoch(p.WrappedState.PrevBState.Phase0.Slot/SLOTS_PER_EPOCH) {
+func (p Phase0Spec) IsCorrectSource() bool {
+	epoch := phase0.Epoch(p.WrappedState.BState.Phase0.Slot / SLOTS_PER_EPOCH)
+	currentEpoch := phase0.Epoch(p.WrappedState.BState.Phase0.Slot / SLOTS_PER_EPOCH)
+	prevEpoch := phase0.Epoch(p.WrappedState.PrevBState.Phase0.Slot / SLOTS_PER_EPOCH)
+	if epoch == currentEpoch || epoch == prevEpoch {
 		return true
 	}
 	return false
@@ -287,9 +289,9 @@ func (p Phase0Spec) IsCorrectSource(attestation phase0.PendingAttestation) bool 
 func (p Phase0Spec) IsCorrectTarget(attestation phase0.PendingAttestation) bool {
 	target := attestation.Data.Target.Root
 
-	slot := int(p.WrappedState.BState.Phase0.Slot / SLOTS_PER_EPOCH)
+	slot := int(p.WrappedState.PrevBState.Phase0.Slot / SLOTS_PER_EPOCH)
 	slot = slot * SLOTS_PER_EPOCH
-	expected := p.WrappedState.BState.Phase0.BlockRoots[slot%SLOTS_PER_HISTORICAL_ROOT]
+	expected := p.WrappedState.PrevBState.Phase0.BlockRoots[slot%SLOTS_PER_HISTORICAL_ROOT]
 
 	res := bytes.Compare(target[:], expected)
 
@@ -306,8 +308,8 @@ func (p Phase0Spec) IsCorrectHead(attestation phase0.PendingAttestation) bool {
 	return res == 0 // if 0, then block roots are the same
 }
 
-func (p Phase0Spec) GetMissingFlags() []uint64 {
-	return p.WrappedState.MissingFlags
+func (p Phase0Spec) GetMissedBlocks() []uint64 {
+	return p.WrappedState.MissedBlocks
 }
 
 func (p *Phase0Spec) TrackMissingBlocks() {
@@ -324,7 +326,19 @@ func (p *Phase0Spec) TrackMissingBlocks() {
 
 		if res == 0 {
 			// both roots were the same ==> missed block
-			p.WrappedState.MissingBlocks = append(p.WrappedState.MissingBlocks, uint64(i))
+			p.WrappedState.MissedBlocks = append(p.WrappedState.MissedBlocks, uint64(i))
 		}
 	}
+}
+
+// Argument: 0 for source, 1 for target and 2 for head
+func (p Phase0Spec) GetMissingFlag(flagIndex int) uint64 {
+	result := uint64(0)
+	for _, item := range p.WrappedState.CorrectFlags {
+		if !item[flagIndex] {
+			result += 1
+		}
+	}
+
+	return result
 }
