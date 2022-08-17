@@ -52,10 +52,6 @@ func NewValidatorRewards(iValIdx uint64, iSlot uint64, iEpoch uint64, iValBal ui
 	}
 }
 
-func NewValidatorRewardsFromSingleEpochMetrics(iMetrics SingleEpochMetrics) ValidatorRewards {
-	return NewValidatorRewards(iMetrics.ValidatorIdx, iMetrics.Slot, iMetrics.Epoch, iMetrics.ValidatorBalance, iMetrics.Reward, iMetrics.MaxReward, iMetrics.AttSlot)
-}
-
 func NewEmptyValidatorRewards() ValidatorRewards {
 	return ValidatorRewards{}
 }

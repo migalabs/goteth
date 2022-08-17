@@ -27,7 +27,7 @@ func (p *PostgresDBService) createEpochMetricsTable(ctx context.Context, pool *p
 
 func (p *PostgresDBService) InsertNewEpochRow(iEpochObj model.EpochMetrics) error {
 
-	_, err := p.psqlPool.Exec(p.ctx, model.InsertNewEpochLineTable, iEpochObj.Epoch, iEpochObj.Slot, 0, 0, iEpochObj.TotalBalance, iEpochObj.TotalEffectiveBalance)
+	_, err := p.psqlPool.Exec(p.ctx, model.InsertNewEpochLineTable, iEpochObj.Epoch, iEpochObj.Slot, iEpochObj.PrevNumAttestations, iEpochObj.PrevNumValidators, iEpochObj.TotalBalance, iEpochObj.TotalEffectiveBalance, iEpochObj.MissingSource, iEpochObj.MissingTarget, iEpochObj.MissingHead, iEpochObj.MissedBlocks)
 
 	if err != nil {
 		return errors.Wrap(err, "error inserting row in epoch metrics table")
@@ -36,11 +36,11 @@ func (p *PostgresDBService) InsertNewEpochRow(iEpochObj model.EpochMetrics) erro
 }
 
 // to be checked if we need it
-func (p *PostgresDBService) UpdatePrevEpochAtt(iEpochObj model.EpochMetrics) error {
+func (p *PostgresDBService) UpdatePrevEpochMetrics(iEpochObj model.EpochMetrics) error {
 
 	if iEpochObj.Slot > utils.SlotBase {
 		log.Debugf("updating row %d from epoch metrics", iEpochObj.Slot-utils.SlotBase)
-		_, err := p.psqlPool.Exec(p.ctx, model.UpdateAttestation, iEpochObj.PrevNumAttestations, iEpochObj.PrevNumValidators, iEpochObj.Slot-utils.SlotBase)
+		_, err := p.psqlPool.Exec(p.ctx, model.UpdateRow, iEpochObj.PrevNumAttestations, iEpochObj.PrevNumValidators, iEpochObj.Slot-utils.SlotBase, iEpochObj.TotalBalance, iEpochObj.TotalEffectiveBalance, iEpochObj.MissingSource, iEpochObj.MissingTarget, iEpochObj.MissingHead)
 		if err != nil {
 			return errors.Wrap(err, "error updating row in epoch metrics table")
 		}
