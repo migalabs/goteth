@@ -213,12 +213,18 @@ func (s *StateAnalyzer) Run() {
 					0,
 					0,
 					0,
+					0,
 					uint64(len(customBState.GetMissedBlocks())))
 
 				err = s.dbClient.InsertNewEpochRow(epochDBRow)
 				if err != nil {
 					log.Errorf(err.Error())
 				}
+
+				epochDBRow.PrevNumAttestations = customBState.GetAttNum()
+				epochDBRow.PrevNumAttValidators = customBState.GetAttestingValNum()
+				epochDBRow.TotalBalance = customBState.GetTotalActiveBalance()
+				epochDBRow.TotalEffectiveBalance = customBState.GetTotalActiveEffBalance()
 
 				epochDBRow.MissingSource = customBState.GetMissingFlag(int(altair.TimelySourceFlagIndex))
 				epochDBRow.MissingTarget = customBState.GetMissingFlag(int(altair.TimelyTargetFlagIndex))

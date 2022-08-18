@@ -62,7 +62,7 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 
 	phase0Obj.PreviousEpochAttestingVals = phase0Obj.CalculateAttestingVals(attestations, uint64(len(prevBstate.Phase0.Validators)))
 	phase0Obj.PreviousEpochAttestingBalance = phase0Obj.ValsEffectiveBalance(phase0Obj.PreviousEpochAttestingVals)
-	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveBalance()
+	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveEffBalance()
 	phase0Obj.CalculateValAttestationInclusion()
 	phase0Obj.TrackMissingBlocks()
 	missedBlocks := phase0Obj.WrappedState.MissedBlocks
@@ -135,7 +135,7 @@ func (p Phase0Spec) Balance(valIdx uint64) (uint64, error) {
 	return balance, nil
 }
 
-func (p Phase0Spec) GetTotalActiveBalance() uint64 {
+func (p Phase0Spec) GetTotalActiveEffBalance() uint64 {
 
 	all_vals := p.WrappedState.BState.Phase0.Validators
 	val_array := make([]uint64, len(all_vals))
@@ -234,7 +234,7 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 		return 0, nil
 	}
 	valEffectiveBalance := p.WrappedState.PrevBState.Phase0.Validators[valIdx].EffectiveBalance
-	activeBalance := p.GetTotalActiveBalance()
+	activeBalance := p.GetTotalActiveEffBalance()
 	baseReward := GetBaseReward(uint64(valEffectiveBalance), activeBalance)
 	voteReward := float64(0)
 	inclusionDelayReward := float64(0)
@@ -354,4 +354,34 @@ func (p Phase0Spec) GetMissingFlag(flagIndex int) uint64 {
 	}
 
 	return result
+}
+
+func (p Phase0Spec) GetTotalActiveBalance() uint64 {
+	all_vals := p.WrappedState.BState.Phase0.Validators
+	totalBalance := uint64(0)
+
+	for idx := range all_vals {
+		if IsActive(*all_vals[idx], phase0.Epoch(p.CurrentEpoch())) {
+			totalBalance += p.WrappedState.BState.Phase0.Balances[idx]
+		}
+
+	}
+	return totalBalance
+}
+
+func (p Phase0Spec) GetAttestingValNum() uint64 {
+	result := uint64(0)
+
+	for _, item := range p.PreviousEpochAttestingVals {
+		if item > 0 {
+			result += 1
+		}
+	}
+
+	return result
+}
+
+func (p Phase0Spec) GetAttNum() uint64 {
+
+	return uint64(len(p.WrappedState.BState.Phase0.PreviousEpochAttestations))
 }

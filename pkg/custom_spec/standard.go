@@ -72,6 +72,10 @@ type CustomBeaconState interface {
 	PrevEpochReward(valIdx uint64) int64
 	GetMissingFlag(flagIndex int) uint64
 	GetMissedBlocks() []uint64
+	GetTotalActiveEffBalance() uint64
+	GetTotalActiveBalance() uint64
+	GetAttestingValNum() uint64
+	GetAttNum() uint64
 }
 
 func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) (CustomBeaconState, error) {

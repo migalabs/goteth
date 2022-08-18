@@ -122,7 +122,7 @@ func (p AltairSpec) Balance(valIdx uint64) (uint64, error) {
 }
 
 // This method returns the Effective Balance of all active validators
-func (p AltairSpec) TotalActiveBalance() uint64 {
+func (p AltairSpec) GetTotalActiveEffBalance() uint64 {
 
 	if p.CurrentSlot() < 32 {
 		// genesis epoch, validators preactivated with default balance
@@ -210,7 +210,7 @@ func (p AltairSpec) GetMaxReward(valIdx uint64) (uint64, error) {
 
 	vallEffectiveBalance := p.WrappedState.PrevBState.Altair.Validators[valIdx].EffectiveBalance
 
-	totalEffectiveBalance := p.TotalActiveBalance()
+	totalEffectiveBalance := p.GetTotalActiveEffBalance()
 
 	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, uint64(vallEffectiveBalance), totalEffectiveBalance)
 
@@ -278,4 +278,17 @@ func (p *AltairSpec) TrackMissingBlocks() {
 			p.WrappedState.MissedBlocks = append(p.WrappedState.MissedBlocks, uint64(i))
 		}
 	}
+}
+
+func (p AltairSpec) GetTotalActiveBalance() uint64 {
+	return 0
+}
+
+func (p AltairSpec) GetAttestingValNum() uint64 {
+	return 0
+}
+
+func (p AltairSpec) GetAttNum() uint64 {
+
+	return 0
 }
