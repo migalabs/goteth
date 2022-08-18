@@ -22,7 +22,7 @@ type Phase0Spec struct {
 	WrappedState                  ForkStateContent
 	PreviousEpochAttestingVals    []uint64
 	PreviousEpochAttestingBalance uint64
-	ValAttestationInclusion       map[uint64]ValVote
+	ValAttestationInclusion       map[uint64]ValVote // key is valID
 	AttestedValsPerSlot           map[uint64][]uint64
 }
 
@@ -65,8 +65,6 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveEffBalance()
 	phase0Obj.CalculateValAttestationInclusion()
 	phase0Obj.TrackMissingBlocks()
-	missedBlocks := phase0Obj.WrappedState.MissedBlocks
-	fmt.Println(missedBlocks)
 	return phase0Obj
 
 }
@@ -269,8 +267,28 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 	return uint64(maxReward), nil
 }
 
-func (p Phase0Spec) GetAttestingSlot(valIdx uint64) uint64 {
-	return 0
+func (p Phase0Spec) GetAttSlot(valIdx uint64) int64 {
+
+	for _, item := range p.ValAttestationInclusion[valIdx].AttestedSlot {
+		// we are looking for a vote to the previous epoch
+		if item >= p.WrappedState.PrevBState.Phase0.Slot+1-SLOTS_PER_EPOCH &&
+			item <= p.WrappedState.PrevBState.Phase0.Slot {
+			return int64(item)
+		}
+	}
+	return -1
+}
+
+func (p Phase0Spec) GetAttInclusionSlot(valIdx uint64) int64 {
+
+	for i, item := range p.ValAttestationInclusion[valIdx].AttestedSlot {
+		// we are looking for a vote to the previous epoch
+		if item >= p.WrappedState.PrevBState.Phase0.Slot+1-SLOTS_PER_EPOCH &&
+			item <= p.WrappedState.PrevBState.Phase0.Slot {
+			return int64(p.ValAttestationInclusion[valIdx].InclusionSlot[i])
+		}
+	}
+	return -1
 }
 
 func (p Phase0Spec) CurrentSlot() uint64 {
@@ -384,4 +402,10 @@ func (p Phase0Spec) GetAttestingValNum() uint64 {
 func (p Phase0Spec) GetAttNum() uint64 {
 
 	return uint64(len(p.WrappedState.BState.Phase0.PreviousEpochAttestations))
+}
+
+func (p Phase0Spec) GetBaseReward(valIdx uint64) float64 {
+	effectiveBalance := p.WrappedState.BState.Phase0.Validators[valIdx].EffectiveBalance
+	totalEffBalance := p.GetTotalActiveEffBalance()
+	return GetBaseReward(uint64(effectiveBalance), totalEffBalance)
 }

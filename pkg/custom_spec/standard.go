@@ -76,6 +76,9 @@ type CustomBeaconState interface {
 	GetTotalActiveBalance() uint64
 	GetAttestingValNum() uint64
 	GetAttNum() uint64
+	GetAttSlot(valIdx uint64) int64
+	GetAttInclusionSlot(valIdx uint64) int64
+	GetBaseReward(valIdx uint64) float64
 }
 
 func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) (CustomBeaconState, error) {

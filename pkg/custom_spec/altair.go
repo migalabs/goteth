@@ -292,3 +292,19 @@ func (p AltairSpec) GetAttNum() uint64 {
 
 	return 0
 }
+
+func (p AltairSpec) GetAttSlot(valIdx uint64) int64 {
+
+	return -1
+}
+
+func (p AltairSpec) GetAttInclusionSlot(valIdx uint64) int64 {
+
+	return -1
+}
+
+func (p AltairSpec) GetBaseReward(valIdx uint64) float64 {
+	effectiveBalanceInc := p.WrappedState.BState.Altair.Validators[valIdx].EffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
+	totalEffBalance := p.GetTotalActiveEffBalance()
+	return GetBaseRewardPerInc(totalEffBalance) * float64(effectiveBalanceInc)
+}

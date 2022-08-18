@@ -10,12 +10,15 @@ var (
 		f_balance BIGINT,
 		f_reward BIGINT,
 		f_max_reward BIGINT,
-		f_attesting_slot BIGINT,
+		f_att_slot BIGINT,
+		f_att_inclusion_slot BIGINT,
+		f_base_reward FLOAT,
 		CONSTRAINT PK_ValidatorSlot PRIMARY KEY (f_val_idx,f_slot));`
 
 	InsertNewValidatorLineTable = `
-	INSERT INTO t_validator_rewards_summary (f_val_idx, f_slot, f_epoch, f_balance, f_reward, f_max_reward, f_attesting_slot)
-	VALUES ($1, $2, $3, $4, $5, $6, $7);
+	INSERT INTO t_validator_rewards_summary 
+	(f_val_idx, f_slot, f_epoch, f_balance, f_reward, f_max_reward, f_att_slot, f_att_inclusion_slot, f_base_reward)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 	`
 
 	UpdateValidatorLineTable = `
@@ -25,7 +28,8 @@ var (
 	`
 
 	SelectByValSlot = `
-	SELECT f_val_idx, f_slot, f_epoch, f_balance, f_reward, f_max_reward, f_attesting_slot FROM t_validator_rewards_summary
+	SELECT f_val_idx, f_slot, f_epoch, f_balance, f_reward, f_max_reward, f_att_slot, f_att_inclusion_slot, f_base_reward
+	FROM t_validator_rewards_summary
 	WHERE f_val_idx=$1 AND f_slot=$2;
 	`
 )
@@ -37,10 +41,21 @@ type ValidatorRewards struct {
 	ValidatorBalance uint64
 	Reward           int64
 	MaxReward        uint64
-	AttSlot          uint64
+	AttSlot          int64
+	InclusionDelay   int64
+	BaseReward       uint64
 }
 
-func NewValidatorRewards(iValIdx uint64, iSlot uint64, iEpoch uint64, iValBal uint64, iReward int64, iMaxReward, iAttSlot uint64) ValidatorRewards {
+func NewValidatorRewards(
+	iValIdx uint64,
+	iSlot uint64,
+	iEpoch uint64,
+	iValBal uint64,
+	iReward int64,
+	iMaxReward uint64,
+	iAttSlot int64,
+	iInclusionDelay int64,
+	iBaseReward uint64) ValidatorRewards {
 	return ValidatorRewards{
 		ValidatorIndex:   iValIdx,
 		Slot:             iSlot,
@@ -49,6 +64,8 @@ func NewValidatorRewards(iValIdx uint64, iSlot uint64, iEpoch uint64, iValBal ui
 		Reward:           iReward,
 		MaxReward:        iMaxReward,
 		AttSlot:          iAttSlot,
+		InclusionDelay:   iInclusionDelay,
+		BaseReward:       iBaseReward,
 	}
 }
 

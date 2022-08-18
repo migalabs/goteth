@@ -253,13 +253,16 @@ func (s *StateAnalyzer) Run() {
 					}
 
 					// create a model to be inserted into the db
-					validatorDBRow := model.NewValidatorRewards(valIdx,
+					validatorDBRow := model.NewValidatorRewards(
+						valIdx,
 						customBState.CurrentSlot(),
 						customBState.CurrentEpoch(),
 						balance,
 						0, // reward is written after state transition
 						maxReward,
-						0) // attestingSlot: to be used in the future, 0 for now
+						customBState.GetAttSlot(valIdx),
+						customBState.GetAttInclusionSlot(valIdx),
+						uint64(customBState.GetBaseReward(valIdx)))
 
 					err = s.dbClient.InsertNewValidatorRow(validatorDBRow)
 					if err != nil {
@@ -282,7 +285,9 @@ func (s *StateAnalyzer) Run() {
 							0, // balance: was already filled in the last epoch
 							int64(reward),
 							0, // maxReward: was already calculated in the previous epoch
-							0) // attestingSlot: to be used in the future, 0 for now
+							0,
+							0,
+							0)
 
 						err = s.dbClient.UpdateValidatorRowReward(validatorDBRow)
 						if err != nil {
