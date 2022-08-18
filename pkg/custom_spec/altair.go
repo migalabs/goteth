@@ -87,7 +87,7 @@ func (p *AltairSpec) CalculatePreviousAttestingVals() {
 			if (item & flag) == flag {
 				// The attestation has a timely flag, therefore we consider it correct flag
 				p.AttestingVals[participatingFlag][valIndex] += uint64(1)
-				p.WrappedState.CorrectFlags[valIndex][participatingFlag] = true
+				p.WrappedState.CorrectFlags[participatingFlag][valIndex] = true
 			}
 		}
 	}

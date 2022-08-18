@@ -8,6 +8,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -89,15 +90,15 @@ func (p *Phase0Spec) CalculateAttestingVals(attestations []*phase0.PendingAttest
 			resultAttVals[attestingValIdx] = resultAttVals[attestingValIdx] + 1
 
 			if p.IsCorrectSource() {
-				p.WrappedState.CorrectFlags[attestingValIdx][altair.TimelySourceFlagIndex] = true
+				p.WrappedState.CorrectFlags[altair.TimelySourceFlagIndex][attestingValIdx] = true
 			}
 
 			if p.IsCorrectTarget(*item) {
-				p.WrappedState.CorrectFlags[attestingValIdx][altair.TimelyTargetFlagIndex] = true
+				p.WrappedState.CorrectFlags[altair.TimelyTargetFlagIndex][attestingValIdx] = true
 			}
 
 			if p.IsCorrectHead(*item) {
-				p.WrappedState.CorrectFlags[attestingValIdx][altair.TimelyHeadFlagIndex] = true
+				p.WrappedState.CorrectFlags[altair.TimelyHeadFlagIndex][attestingValIdx] = true
 			}
 		}
 
@@ -232,22 +233,34 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 	if p.CurrentEpoch() == GENESIS_EPOCH { // No rewards are applied at genesis
 		return 0, nil
 	}
-
 	valEffectiveBalance := p.WrappedState.PrevBState.Phase0.Validators[valIdx].EffectiveBalance
-	previousAttestedBalance := p.ValsEffectiveBalance(p.PreviousEpochAttestingVals)
-
 	activeBalance := p.GetTotalActiveBalance()
-
-	participationRate := float64(previousAttestedBalance) / float64(activeBalance)
-
-	// First iteration just taking 31/8*BaseReward as Max value
-	// BaseReward = ( effectiveBalance * (BaseRewardFactor)/(BaseRewardsPerEpoch * sqrt(activeBalance)) )
-
-	// apply formula
 	baseReward := GetBaseReward(uint64(valEffectiveBalance), activeBalance)
+	voteReward := float64(0)
+	inclusionDelayReward := float64(0)
 
-	voteReward := 3.0 * baseReward * participationRate
-	inclusionDelayReward := baseReward * 7.0 / 8.0
+	for _, item := range p.WrappedState.CorrectFlags {
+
+		if !item[valIdx] { // if this validators vote was not in an attestation with correct flag, dont sum
+			continue
+		}
+
+		previousAttestedBalance := p.ValsEffectiveBalance(utils.BoolToUint(item))
+
+		participationRate := float64(previousAttestedBalance) / float64(activeBalance)
+
+		// First iteration just taking 31/8*BaseReward as Max value
+		// BaseReward = ( effectiveBalance * (BaseRewardFactor)/(BaseRewardsPerEpoch * sqrt(activeBalance)) )
+
+		// apply formula
+
+		voteReward += baseReward * participationRate
+	}
+
+	if p.WrappedState.CorrectFlags[altair.TimelySourceFlagIndex][valIdx] {
+		// only add it when there was an attestation (correct source)
+		inclusionDelayReward = baseReward * 7.0 / 8.0
+	}
 
 	proposerReward := p.GetMaxProposerReward(valIdx, uint64(valEffectiveBalance), activeBalance)
 
@@ -334,8 +347,8 @@ func (p *Phase0Spec) TrackMissingBlocks() {
 // Argument: 0 for source, 1 for target and 2 for head
 func (p Phase0Spec) GetMissingFlag(flagIndex int) uint64 {
 	result := uint64(0)
-	for _, item := range p.WrappedState.CorrectFlags {
-		if !item[flagIndex] {
+	for _, item := range p.WrappedState.CorrectFlags[flagIndex] {
+		if !item {
 			result += 1
 		}
 	}

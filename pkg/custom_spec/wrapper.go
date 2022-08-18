@@ -18,10 +18,10 @@ type ForkStateContent struct {
 }
 
 func (p *ForkStateContent) InitializeArrays(arrayLen uint64) {
-	p.CorrectFlags = make([][]bool, arrayLen)
+	p.CorrectFlags = make([][]bool, 3)
 	p.MissedBlocks = make([]uint64, 0)
 
 	for i := range p.CorrectFlags {
-		p.CorrectFlags[i] = make([]bool, 3)
+		p.CorrectFlags[i] = make([]bool, arrayLen)
 	}
 }
