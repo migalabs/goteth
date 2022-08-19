@@ -10,10 +10,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth2-state-analyzer/pkg/custom_spec"
@@ -27,7 +25,7 @@ var (
 	log     = logrus.WithField(
 		"module", modName,
 	)
-	maxWorkers = 10
+	maxWorkers = 50
 	minReqTime = 10 * time.Second
 )
 
@@ -42,6 +40,7 @@ type StateAnalyzer struct {
 	SlotRanges []uint64
 	//
 	EpochTaskChan chan *EpochTask
+	ValTaskChan   chan *ValTask
 	// http CLient
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
@@ -100,7 +99,8 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		ValidatorIndexes: valIdxs,
 		SlotRanges:       slotRanges,
 		Metrics:          metrics,
-		EpochTaskChan:    make(chan *EpochTask, len(valIdxs)),
+		EpochTaskChan:    make(chan *EpochTask, 10),
+		ValTaskChan:      make(chan *ValTask, len(valIdxs)),
 		cli:              httpCli,
 		dbClient:         i_dbClient,
 	}, nil
@@ -148,7 +148,7 @@ func (s *StateAnalyzer) Run() {
 
 					// we now only compose one single task that contains a list of validator indexes
 					// compose the next task
-					valTask := &EpochTask{
+					epochTask := &EpochTask{
 						ValIdxs:   s.ValidatorIndexes,
 						Slot:      slot,
 						State:     bstate,
@@ -156,7 +156,7 @@ func (s *StateAnalyzer) Run() {
 					}
 
 					log.Debugf("sending task for slot: %d", slot)
-					s.EpochTaskChan <- valTask
+					s.EpochTaskChan <- epochTask
 				}
 
 			}
@@ -165,6 +165,87 @@ func (s *StateAnalyzer) Run() {
 		}
 		log.Infof("All states for the slot ranges has been successfully retrieved, clossing go routine")
 		close(s.EpochTaskChan)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for {
+			// check if the channel has been closed
+			task, ok := <-s.EpochTaskChan
+			if !ok {
+				log.Warn("the task channel has been closed, finishing epoch routine")
+				return
+			}
+			log.Debugf("task received for slot %d", task.Slot)
+			// Proccess State
+			log.Debug("analyzing the receved state")
+
+			// returns the state in a custom struct for Phase0, Altair of Bellatrix
+			customBState, err := custom_spec.BStateByForkVersion(task.State, task.PrevState, s.cli.Api)
+
+			if err != nil {
+				log.Errorf(err.Error())
+			}
+
+			valTaskSize := (len(task.ValIdxs) / maxWorkers)
+
+			for i := 0; i < len(task.ValIdxs); i += valTaskSize {
+				lastPosition := i + valTaskSize
+				if lastPosition >= len(task.ValIdxs) {
+					lastPosition = len(task.ValIdxs)
+				}
+				valTask := &ValTask{
+					ValIdxs:     task.ValIdxs[i:lastPosition],
+					CustomState: customBState,
+				}
+				s.ValTaskChan <- valTask
+			}
+
+			// create a model to be inserted into the db
+			epochDBRow := model.NewEpochMetrics(
+				customBState.CurrentEpoch(),
+				customBState.CurrentSlot(),
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				uint64(len(customBState.GetMissedBlocks())))
+
+			err = s.dbClient.InsertNewEpochRow(epochDBRow)
+			if err != nil {
+				log.Errorf(err.Error())
+			}
+
+			epochDBRow.PrevNumAttestations = customBState.GetAttNum()
+			epochDBRow.PrevNumAttValidators = customBState.GetAttestingValNum()
+			epochDBRow.PrevNumValidators = customBState.GetNumVals()
+			epochDBRow.TotalBalance = customBState.GetTotalActiveBalance()
+			epochDBRow.TotalEffectiveBalance = customBState.GetTotalActiveEffBalance()
+
+			epochDBRow.MissingSource = customBState.GetMissingFlag(int(altair.TimelySourceFlagIndex))
+			epochDBRow.MissingTarget = customBState.GetMissingFlag(int(altair.TimelyTargetFlagIndex))
+			epochDBRow.MissingHead = customBState.GetMissingFlag(int(altair.TimelyHeadFlagIndex))
+
+			err = s.dbClient.UpdatePrevEpochMetrics(epochDBRow)
+			if err != nil {
+				log.Errorf(err.Error())
+			}
+
+			select {
+			case <-s.ctx.Done():
+				log.Info("context has died, closing state processer routine")
+				close(s.EpochTaskChan)
+				return
+
+			default:
+
+			}
+		}
 	}()
 
 	// generate workers, validator tasks consumers
@@ -186,59 +267,19 @@ func (s *StateAnalyzer) Run() {
 			// keep iterating until the channel is closed due to finishing
 			for {
 				// check if the channel has been closed
-				task, ok := <-s.EpochTaskChan
+				valTask, ok := <-s.ValTaskChan
 				if !ok {
 					wlog.Warn("the task channel has been closed, finishing worker routine")
 					return
 				}
-				wlog.Debugf("task received for slot %d", task.Slot)
+				customBState := valTask.CustomState
+				log.Debugf("Length of validator set: %d", len(valTask.ValIdxs))
+				wlog.Debugf("task received for val %d - %d in slot %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.CustomState.CurrentSlot())
 				// Proccess State
 				wlog.Debug("analyzing the receved state")
 
-				// returns the state in a custom struct for Phase0, Altair of Bellatrix
-				customBState, err := custom_spec.BStateByForkVersion(task.State, task.PrevState, s.cli.Api)
+				for _, valIdx := range valTask.ValIdxs {
 
-				if err != nil {
-					log.Errorf(err.Error())
-				}
-
-				// create a model to be inserted into the db
-				epochDBRow := model.NewEpochMetrics(
-					customBState.CurrentEpoch(),
-					customBState.CurrentSlot(),
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					uint64(len(customBState.GetMissedBlocks())))
-
-				err = s.dbClient.InsertNewEpochRow(epochDBRow)
-				if err != nil {
-					log.Errorf(err.Error())
-				}
-
-				epochDBRow.PrevNumAttestations = customBState.GetAttNum()
-				epochDBRow.PrevNumAttValidators = customBState.GetAttestingValNum()
-				epochDBRow.PrevNumValidators = customBState.GetNumvals()
-				epochDBRow.TotalBalance = customBState.GetTotalActiveBalance()
-				epochDBRow.TotalEffectiveBalance = customBState.GetTotalActiveEffBalance()
-
-				epochDBRow.MissingSource = customBState.GetMissingFlag(int(altair.TimelySourceFlagIndex))
-				epochDBRow.MissingTarget = customBState.GetMissingFlag(int(altair.TimelyTargetFlagIndex))
-				epochDBRow.MissingHead = customBState.GetMissingFlag(int(altair.TimelyHeadFlagIndex))
-
-				err = s.dbClient.UpdatePrevEpochMetrics(epochDBRow)
-				if err != nil {
-					log.Errorf(err.Error())
-				}
-
-				// to be checked how to calculate epoch rewards, this way might be easier
-				// TODO: Analyze rewards for the given Validator
-				for _, valIdx := range task.ValIdxs {
 					// get max reward at given epoch using the formulas
 					maxReward, err := customBState.GetMaxReward(valIdx)
 
@@ -279,7 +320,7 @@ func (s *StateAnalyzer) Run() {
 					if rewardSlot >= 31 {
 						reward := customBState.PrevEpochReward(valIdx)
 
-						log.Debugf("Slot %d Validator %d Reward: %d", rewardSlot, valIdx, reward)
+						// log.Debugf("Slot %d Validator %d Reward: %d", rewardSlot, valIdx, reward)
 
 						// keep in mind that rewards for epoch 10 can be seen at beginning of epoch 12,
 						// after state_transition
@@ -304,7 +345,6 @@ func (s *StateAnalyzer) Run() {
 					}
 
 				}
-
 			}
 
 		}()
@@ -323,14 +363,17 @@ func (s *StateAnalyzer) Run() {
 
 //
 type EpochTask struct {
-	ValIdxs               []uint64
-	Slot                  uint64
-	State                 *spec.VersionedBeaconState
-	PrevState             spec.VersionedBeaconState
-	TotalValidatorStatus  *map[phase0.ValidatorIndex]*api.Validator
-	TotalEffectiveBalance uint64
-	TotalActiveBalance    uint64
-	OnlyPrevAtt           bool
+	ValIdxs     []uint64
+	Slot        uint64
+	State       *spec.VersionedBeaconState
+	PrevState   spec.VersionedBeaconState
+	OnlyPrevAtt bool
+}
+
+type ValTask struct {
+	ValIdxs     []uint64
+	CustomState custom_spec.CustomBeaconState
+	OnlyPrevAtt bool
 }
 
 // Exporter Functions
