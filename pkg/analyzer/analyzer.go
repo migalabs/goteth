@@ -223,6 +223,7 @@ func (s *StateAnalyzer) Run() {
 
 				epochDBRow.PrevNumAttestations = customBState.GetAttNum()
 				epochDBRow.PrevNumAttValidators = customBState.GetAttestingValNum()
+				epochDBRow.PrevNumValidators = customBState.GetNumvals()
 				epochDBRow.TotalBalance = customBState.GetTotalActiveBalance()
 				epochDBRow.TotalEffectiveBalance = customBState.GetTotalActiveEffBalance()
 
@@ -251,7 +252,8 @@ func (s *StateAnalyzer) Run() {
 					if err != nil {
 						log.Errorf("Error obtaining validator balance: ", err.Error())
 					}
-
+					//TODO: Added specific flag missing support for validators
+					// TODO: But pending for optimizations before further processing
 					// create a model to be inserted into the db
 					validatorDBRow := model.NewValidatorRewards(
 						valIdx,
@@ -262,7 +264,10 @@ func (s *StateAnalyzer) Run() {
 						maxReward,
 						customBState.GetAttSlot(valIdx),
 						customBState.GetAttInclusionSlot(valIdx),
-						uint64(customBState.GetBaseReward(valIdx)))
+						uint64(customBState.GetBaseReward(valIdx)),
+						false,
+						false,
+						false)
 
 					err = s.dbClient.InsertNewValidatorRow(validatorDBRow)
 					if err != nil {
@@ -287,7 +292,10 @@ func (s *StateAnalyzer) Run() {
 							0, // maxReward: was already calculated in the previous epoch
 							0,
 							0,
-							0)
+							0,
+							false,
+							false,
+							false)
 
 						err = s.dbClient.UpdateValidatorRowReward(validatorDBRow)
 						if err != nil {

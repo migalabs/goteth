@@ -75,6 +75,7 @@ type CustomBeaconState interface {
 	GetTotalActiveEffBalance() uint64
 	GetTotalActiveBalance() uint64
 	GetAttestingValNum() uint64
+	GetNumvals() uint64
 	GetAttNum() uint64
 	GetAttSlot(valIdx uint64) int64
 	GetAttInclusionSlot(valIdx uint64) int64

@@ -248,8 +248,8 @@ func (p AltairSpec) PrevStateEpoch() uint64 {
 // Argument: 0 for source, 1 for target and 2 for head
 func (p AltairSpec) GetMissingFlag(flagIndex int) uint64 {
 	result := uint64(0)
-	for _, item := range p.WrappedState.CorrectFlags {
-		if item[flagIndex] {
+	for _, item := range p.WrappedState.CorrectFlags[flagIndex] {
+		if !item {
 			result += 1
 		}
 	}
@@ -281,7 +281,16 @@ func (p *AltairSpec) TrackMissingBlocks() {
 }
 
 func (p AltairSpec) GetTotalActiveBalance() uint64 {
-	return 0
+	all_vals := p.WrappedState.BState.Altair.Validators
+	totalBalance := uint64(0)
+
+	for idx := range all_vals {
+		if IsActive(*all_vals[idx], phase0.Epoch(p.CurrentEpoch())) {
+			totalBalance += p.WrappedState.BState.Altair.Balances[idx]
+		}
+
+	}
+	return totalBalance
 }
 
 func (p AltairSpec) GetAttestingValNum() uint64 {
@@ -307,4 +316,16 @@ func (p AltairSpec) GetBaseReward(valIdx uint64) float64 {
 	effectiveBalanceInc := p.WrappedState.BState.Altair.Validators[valIdx].EffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
 	totalEffBalance := p.GetTotalActiveEffBalance()
 	return GetBaseRewardPerInc(totalEffBalance) * float64(effectiveBalanceInc)
+}
+
+func (p AltairSpec) GetNumvals() uint64 {
+	result := uint64(0)
+
+	for _, val := range p.WrappedState.BState.Altair.Validators {
+		if IsActive(*val, phase0.Epoch(p.CurrentEpoch())) {
+			result += 1
+		}
+
+	}
+	return result
 }

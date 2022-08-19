@@ -409,3 +409,15 @@ func (p Phase0Spec) GetBaseReward(valIdx uint64) float64 {
 	totalEffBalance := p.GetTotalActiveEffBalance()
 	return GetBaseReward(uint64(effectiveBalance), totalEffBalance)
 }
+
+func (p Phase0Spec) GetNumvals() uint64 {
+	result := uint64(0)
+
+	for _, val := range p.WrappedState.BState.Phase0.Validators {
+		if IsActive(*val, phase0.Epoch(p.CurrentEpoch())) {
+			result += 1
+		}
+
+	}
+	return result
+}
