@@ -318,7 +318,7 @@ func (p AltairSpec) GetBaseReward(valIdx uint64) float64 {
 	return GetBaseRewardPerInc(totalEffBalance) * float64(effectiveBalanceInc)
 }
 
-func (p AltairSpec) GetNumvals() uint64 {
+func (p AltairSpec) GetNumVals() uint64 {
 	result := uint64(0)
 
 	for _, val := range p.WrappedState.BState.Altair.Validators {

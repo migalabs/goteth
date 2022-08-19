@@ -410,7 +410,7 @@ func (p Phase0Spec) GetBaseReward(valIdx uint64) float64 {
 	return GetBaseReward(uint64(effectiveBalance), totalEffBalance)
 }
 
-func (p Phase0Spec) GetNumvals() uint64 {
+func (p Phase0Spec) GetNumVals() uint64 {
 	result := uint64(0)
 
 	for _, val := range p.WrappedState.BState.Phase0.Validators {
