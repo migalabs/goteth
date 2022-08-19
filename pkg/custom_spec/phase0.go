@@ -232,18 +232,18 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 		return 0, nil
 	}
 	valEffectiveBalance := p.WrappedState.PrevBState.Phase0.Validators[valIdx].EffectiveBalance
-	activeBalance := p.GetTotalActiveEffBalance()
+	activeBalance := p.WrappedState.TotalActiveBalance
 	baseReward := GetBaseReward(uint64(valEffectiveBalance), activeBalance)
 	voteReward := float64(0)
 	inclusionDelayReward := float64(0)
 
-	for _, item := range p.WrappedState.CorrectFlags {
+	for i, item := range p.WrappedState.CorrectFlags {
 
 		if !item[valIdx] { // if this validators vote was not in an attestation with correct flag, dont sum
 			continue
 		}
 
-		previousAttestedBalance := p.ValsEffectiveBalance(utils.BoolToUint(item))
+		previousAttestedBalance := p.WrappedState.AttestingBalance[i]
 
 		participationRate := float64(previousAttestedBalance) / float64(activeBalance)
 
@@ -260,8 +260,8 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 		inclusionDelayReward = baseReward * 7.0 / 8.0
 	}
 
-	proposerReward := p.GetMaxProposerReward(valIdx, uint64(valEffectiveBalance), activeBalance)
-
+	// proposerReward := p.GetMaxProposerReward(valIdx, uint64(valEffectiveBalance), activeBalance)
+	proposerReward := float64(0)
 	maxReward := voteReward + inclusionDelayReward + proposerReward
 
 	return uint64(maxReward), nil
@@ -420,4 +420,10 @@ func (p Phase0Spec) GetNumVals() uint64 {
 
 	}
 	return result
+}
+
+func (p *Phase0Spec) CalculateAttBalance() {
+	for i, item := range p.WrappedState.CorrectFlags {
+		p.WrappedState.AttestingBalance[i] = p.ValsEffectiveBalance(utils.BoolToUint(item))
+	}
 }
