@@ -19,7 +19,19 @@ func (p *PostgresDBService) createRewardsTable(ctx context.Context, pool *pgxpoo
 
 func (p *PostgresDBService) InsertNewValidatorRow(valRewardsObj model.ValidatorRewards) error {
 
-	_, err := p.psqlPool.Exec(p.ctx, model.InsertNewValidatorLineTable, valRewardsObj.ValidatorIndex, valRewardsObj.Slot, valRewardsObj.Epoch, valRewardsObj.ValidatorBalance, valRewardsObj.Reward, valRewardsObj.MaxReward, valRewardsObj.AttSlot)
+	_, err := p.psqlPool.Exec(p.ctx, model.InsertNewValidatorLineTable,
+		valRewardsObj.ValidatorIndex,
+		valRewardsObj.Slot,
+		valRewardsObj.Epoch,
+		valRewardsObj.ValidatorBalance,
+		valRewardsObj.Reward,
+		valRewardsObj.MaxReward,
+		valRewardsObj.AttSlot,
+		valRewardsObj.InclusionDelay,
+		valRewardsObj.BaseReward,
+		valRewardsObj.MissingSource,
+		valRewardsObj.MissingTarget,
+		valRewardsObj.MissingHead)
 	if err != nil {
 		return errors.Wrap(err, "error inserting row in validator rewards table")
 	}
@@ -33,17 +45,4 @@ func (p *PostgresDBService) UpdateValidatorRowReward(valRewardsObj model.Validat
 		return errors.Wrap(err, "error inserting row in validator rewards table")
 	}
 	return nil
-}
-
-func (p *PostgresDBService) GetValidatorRow(iValIdx uint64, iSlot uint64) (model.ValidatorRewards, error) {
-
-	row := p.psqlPool.QueryRow(p.ctx, model.SelectByValSlot, iValIdx, iSlot)
-	validatorRow := model.NewEmptyValidatorRewards()
-
-	err := row.Scan(&validatorRow.ValidatorIndex, &validatorRow.Slot, &validatorRow.ValidatorBalance, &validatorRow.Reward, &validatorRow.MaxReward)
-
-	if err != nil {
-		return model.NewEmptyValidatorRewards(), errors.Wrap(err, "error retrieving row from validator rewards table")
-	}
-	return validatorRow, nil
 }

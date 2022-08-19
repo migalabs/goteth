@@ -1,11 +1,14 @@
 package custom_spec
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,7 +22,7 @@ type Phase0Spec struct {
 	WrappedState                  ForkStateContent
 	PreviousEpochAttestingVals    []uint64
 	PreviousEpochAttestingBalance uint64
-	ValAttestationInclusion       map[uint64]ValVote
+	ValAttestationInclusion       map[uint64]ValVote // key is valID
 	AttestedValsPerSlot           map[uint64][]uint64
 }
 
@@ -59,8 +62,9 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 
 	phase0Obj.PreviousEpochAttestingVals = phase0Obj.CalculateAttestingVals(attestations, uint64(len(prevBstate.Phase0.Validators)))
 	phase0Obj.PreviousEpochAttestingBalance = phase0Obj.ValsEffectiveBalance(phase0Obj.PreviousEpochAttestingVals)
-	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveBalance()
+	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveEffBalance()
 	phase0Obj.CalculateValAttestationInclusion()
+	phase0Obj.TrackMissingBlocks()
 	return phase0Obj
 
 }
@@ -82,7 +86,22 @@ func (p *Phase0Spec) CalculateAttestingVals(attestations []*phase0.PendingAttest
 			attestingValIdx := validatorIDs[index]
 
 			resultAttVals[attestingValIdx] = resultAttVals[attestingValIdx] + 1
+
+			if p.IsCorrectSource() {
+				p.WrappedState.CorrectFlags[altair.TimelySourceFlagIndex][attestingValIdx] = true
+			}
+
+			if p.IsCorrectTarget(*item) {
+				p.WrappedState.CorrectFlags[altair.TimelyTargetFlagIndex][attestingValIdx] = true
+			}
+
+			if p.IsCorrectHead(*item) {
+				p.WrappedState.CorrectFlags[altair.TimelyHeadFlagIndex][attestingValIdx] = true
+			}
 		}
+
+		// measure missing head target and source
+
 	}
 
 	return resultAttVals
@@ -114,7 +133,7 @@ func (p Phase0Spec) Balance(valIdx uint64) (uint64, error) {
 	return balance, nil
 }
 
-func (p Phase0Spec) GetTotalActiveBalance() uint64 {
+func (p Phase0Spec) GetTotalActiveEffBalance() uint64 {
 
 	all_vals := p.WrappedState.BState.Phase0.Validators
 	val_array := make([]uint64, len(all_vals))
@@ -212,22 +231,34 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 	if p.CurrentEpoch() == GENESIS_EPOCH { // No rewards are applied at genesis
 		return 0, nil
 	}
-
 	valEffectiveBalance := p.WrappedState.PrevBState.Phase0.Validators[valIdx].EffectiveBalance
-	previousAttestedBalance := p.ValsEffectiveBalance(p.PreviousEpochAttestingVals)
-
-	activeBalance := p.GetTotalActiveBalance()
-
-	participationRate := float64(previousAttestedBalance) / float64(activeBalance)
-
-	// First iteration just taking 31/8*BaseReward as Max value
-	// BaseReward = ( effectiveBalance * (BaseRewardFactor)/(BaseRewardsPerEpoch * sqrt(activeBalance)) )
-
-	// apply formula
+	activeBalance := p.GetTotalActiveEffBalance()
 	baseReward := GetBaseReward(uint64(valEffectiveBalance), activeBalance)
+	voteReward := float64(0)
+	inclusionDelayReward := float64(0)
 
-	voteReward := 3.0 * baseReward * participationRate
-	inclusionDelayReward := baseReward * 7.0 / 8.0
+	for _, item := range p.WrappedState.CorrectFlags {
+
+		if !item[valIdx] { // if this validators vote was not in an attestation with correct flag, dont sum
+			continue
+		}
+
+		previousAttestedBalance := p.ValsEffectiveBalance(utils.BoolToUint(item))
+
+		participationRate := float64(previousAttestedBalance) / float64(activeBalance)
+
+		// First iteration just taking 31/8*BaseReward as Max value
+		// BaseReward = ( effectiveBalance * (BaseRewardFactor)/(BaseRewardsPerEpoch * sqrt(activeBalance)) )
+
+		// apply formula
+
+		voteReward += baseReward * participationRate
+	}
+
+	if p.WrappedState.CorrectFlags[altair.TimelySourceFlagIndex][valIdx] {
+		// only add it when there was an attestation (correct source)
+		inclusionDelayReward = baseReward * 7.0 / 8.0
+	}
 
 	proposerReward := p.GetMaxProposerReward(valIdx, uint64(valEffectiveBalance), activeBalance)
 
@@ -236,8 +267,28 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 	return uint64(maxReward), nil
 }
 
-func (p Phase0Spec) GetAttestingSlot(valIdx uint64) uint64 {
-	return 0
+func (p Phase0Spec) GetAttSlot(valIdx uint64) int64 {
+
+	for _, item := range p.ValAttestationInclusion[valIdx].AttestedSlot {
+		// we are looking for a vote to the previous epoch
+		if item >= p.WrappedState.PrevBState.Phase0.Slot+1-SLOTS_PER_EPOCH &&
+			item <= p.WrappedState.PrevBState.Phase0.Slot {
+			return int64(item)
+		}
+	}
+	return -1
+}
+
+func (p Phase0Spec) GetAttInclusionSlot(valIdx uint64) int64 {
+
+	for i, item := range p.ValAttestationInclusion[valIdx].AttestedSlot {
+		// we are looking for a vote to the previous epoch
+		if item >= p.WrappedState.PrevBState.Phase0.Slot+1-SLOTS_PER_EPOCH &&
+			item <= p.WrappedState.PrevBState.Phase0.Slot {
+			return int64(p.ValAttestationInclusion[valIdx].InclusionSlot[i])
+		}
+	}
+	return -1
 }
 
 func (p Phase0Spec) CurrentSlot() uint64 {
@@ -254,4 +305,119 @@ func (p Phase0Spec) PrevStateSlot() uint64 {
 
 func (p Phase0Spec) PrevStateEpoch() uint64 {
 	return uint64(p.PrevStateSlot() / 32)
+}
+
+func (p Phase0Spec) IsCorrectSource() bool {
+	epoch := phase0.Epoch(p.WrappedState.BState.Phase0.Slot / SLOTS_PER_EPOCH)
+	currentEpoch := phase0.Epoch(p.WrappedState.BState.Phase0.Slot / SLOTS_PER_EPOCH)
+	prevEpoch := phase0.Epoch(p.WrappedState.PrevBState.Phase0.Slot / SLOTS_PER_EPOCH)
+	if epoch == currentEpoch || epoch == prevEpoch {
+		return true
+	}
+	return false
+}
+
+func (p Phase0Spec) IsCorrectTarget(attestation phase0.PendingAttestation) bool {
+	target := attestation.Data.Target.Root
+
+	slot := int(p.WrappedState.PrevBState.Phase0.Slot / SLOTS_PER_EPOCH)
+	slot = slot * SLOTS_PER_EPOCH
+	expected := p.WrappedState.PrevBState.Phase0.BlockRoots[slot%SLOTS_PER_HISTORICAL_ROOT]
+
+	res := bytes.Compare(target[:], expected)
+
+	return res == 0 // if 0, then block roots are the same
+}
+
+func (p Phase0Spec) IsCorrectHead(attestation phase0.PendingAttestation) bool {
+	head := attestation.Data.BeaconBlockRoot
+
+	index := attestation.Data.Slot % SLOTS_PER_HISTORICAL_ROOT
+	expected := p.WrappedState.BState.Phase0.BlockRoots[index]
+
+	res := bytes.Compare(head[:], expected)
+	return res == 0 // if 0, then block roots are the same
+}
+
+func (p Phase0Spec) GetMissedBlocks() []uint64 {
+	return p.WrappedState.MissedBlocks
+}
+
+func (p *Phase0Spec) TrackMissingBlocks() {
+	firstIndex := p.WrappedState.BState.Phase0.Slot - SLOTS_PER_EPOCH + 1
+	lastIndex := p.WrappedState.BState.Phase0.Slot
+
+	for i := firstIndex; i <= lastIndex; i++ {
+		if i == 0 {
+			continue
+		}
+		lastItem := p.WrappedState.BState.Phase0.BlockRoots[i-1]
+		item := p.WrappedState.BState.Phase0.BlockRoots[i]
+		res := bytes.Compare(lastItem, item)
+
+		if res == 0 {
+			// both roots were the same ==> missed block
+			p.WrappedState.MissedBlocks = append(p.WrappedState.MissedBlocks, uint64(i))
+		}
+	}
+}
+
+// Argument: 0 for source, 1 for target and 2 for head
+func (p Phase0Spec) GetMissingFlag(flagIndex int) uint64 {
+	result := uint64(0)
+	for _, item := range p.WrappedState.CorrectFlags[flagIndex] {
+		if !item {
+			result += 1
+		}
+	}
+
+	return result
+}
+
+func (p Phase0Spec) GetTotalActiveBalance() uint64 {
+	all_vals := p.WrappedState.BState.Phase0.Validators
+	totalBalance := uint64(0)
+
+	for idx := range all_vals {
+		if IsActive(*all_vals[idx], phase0.Epoch(p.CurrentEpoch())) {
+			totalBalance += p.WrappedState.BState.Phase0.Balances[idx]
+		}
+
+	}
+	return totalBalance
+}
+
+func (p Phase0Spec) GetAttestingValNum() uint64 {
+	result := uint64(0)
+
+	for _, item := range p.PreviousEpochAttestingVals {
+		if item > 0 {
+			result += 1
+		}
+	}
+
+	return result
+}
+
+func (p Phase0Spec) GetAttNum() uint64 {
+
+	return uint64(len(p.WrappedState.BState.Phase0.PreviousEpochAttestations))
+}
+
+func (p Phase0Spec) GetBaseReward(valIdx uint64) float64 {
+	effectiveBalance := p.WrappedState.BState.Phase0.Validators[valIdx].EffectiveBalance
+	totalEffBalance := p.GetTotalActiveEffBalance()
+	return GetBaseReward(uint64(effectiveBalance), totalEffBalance)
+}
+
+func (p Phase0Spec) GetNumvals() uint64 {
+	result := uint64(0)
+
+	for _, val := range p.WrappedState.BState.Phase0.Validators {
+		if IsActive(*val, phase0.Epoch(p.CurrentEpoch())) {
+			result += 1
+		}
+
+	}
+	return result
 }

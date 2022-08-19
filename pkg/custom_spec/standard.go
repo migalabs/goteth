@@ -23,6 +23,7 @@ const (
 	SHUFFLE_ROUND_COUNT         = uint64(90)
 	PROPOSER_REWARD_QUOTIENT    = 8
 	GENESIS_EPOCH               = 0
+	SLOTS_PER_HISTORICAL_ROOT   = 8192
 	// participationRate   = 0.945 // about to calculate participation rate
 )
 
@@ -69,6 +70,16 @@ type CustomBeaconState interface {
 	PrevStateSlot() uint64
 	GetMaxReward(valIdx uint64) (uint64, error)
 	PrevEpochReward(valIdx uint64) int64
+	GetMissingFlag(flagIndex int) uint64
+	GetMissedBlocks() []uint64
+	GetTotalActiveEffBalance() uint64
+	GetTotalActiveBalance() uint64
+	GetAttestingValNum() uint64
+	GetNumvals() uint64
+	GetAttNum() uint64
+	GetAttSlot(valIdx uint64) int64
+	GetAttInclusionSlot(valIdx uint64) int64
+	GetBaseReward(valIdx uint64) float64
 }
 
 func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) (CustomBeaconState, error) {

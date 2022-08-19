@@ -1,6 +1,7 @@
 package custom_spec
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 
@@ -61,6 +62,7 @@ func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	for i := range altairObj.AttestingBalance {
 		altairObj.AttestingBalance[i] = altairObj.ValsEffectiveBalance(altairObj.AttestingVals[i])
 	}
+	altairObj.TrackMissingBlocks()
 
 	return altairObj
 }
@@ -85,6 +87,7 @@ func (p *AltairSpec) CalculatePreviousAttestingVals() {
 			if (item & flag) == flag {
 				// The attestation has a timely flag, therefore we consider it correct flag
 				p.AttestingVals[participatingFlag][valIndex] += uint64(1)
+				p.WrappedState.CorrectFlags[participatingFlag][valIndex] = true
 			}
 		}
 	}
@@ -119,7 +122,7 @@ func (p AltairSpec) Balance(valIdx uint64) (uint64, error) {
 }
 
 // This method returns the Effective Balance of all active validators
-func (p AltairSpec) TotalActiveBalance() uint64 {
+func (p AltairSpec) GetTotalActiveEffBalance() uint64 {
 
 	if p.CurrentSlot() < 32 {
 		// genesis epoch, validators preactivated with default balance
@@ -207,7 +210,7 @@ func (p AltairSpec) GetMaxReward(valIdx uint64) (uint64, error) {
 
 	vallEffectiveBalance := p.WrappedState.PrevBState.Altair.Validators[valIdx].EffectiveBalance
 
-	totalEffectiveBalance := p.TotalActiveBalance()
+	totalEffectiveBalance := p.GetTotalActiveEffBalance()
 
 	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, uint64(vallEffectiveBalance), totalEffectiveBalance)
 
@@ -240,4 +243,89 @@ func (p AltairSpec) PrevStateSlot() uint64 {
 
 func (p AltairSpec) PrevStateEpoch() uint64 {
 	return uint64(p.PrevStateSlot() / 32)
+}
+
+// Argument: 0 for source, 1 for target and 2 for head
+func (p AltairSpec) GetMissingFlag(flagIndex int) uint64 {
+	result := uint64(0)
+	for _, item := range p.WrappedState.CorrectFlags[flagIndex] {
+		if !item {
+			result += 1
+		}
+	}
+
+	return result
+}
+
+func (p AltairSpec) GetMissedBlocks() []uint64 {
+	return p.WrappedState.MissedBlocks
+}
+
+func (p *AltairSpec) TrackMissingBlocks() {
+	firstIndex := p.WrappedState.BState.Altair.Slot - SLOTS_PER_EPOCH + 1
+	lastIndex := p.WrappedState.BState.Altair.Slot
+
+	for i := firstIndex; i <= lastIndex; i++ {
+		if i == 0 {
+			continue
+		}
+		lastItem := p.WrappedState.BState.Altair.BlockRoots[i-1]
+		item := p.WrappedState.BState.Altair.BlockRoots[i]
+		res := bytes.Compare(lastItem, item)
+
+		if res == 0 {
+			// both roots were the same ==> missed block
+			p.WrappedState.MissedBlocks = append(p.WrappedState.MissedBlocks, uint64(i))
+		}
+	}
+}
+
+func (p AltairSpec) GetTotalActiveBalance() uint64 {
+	all_vals := p.WrappedState.BState.Altair.Validators
+	totalBalance := uint64(0)
+
+	for idx := range all_vals {
+		if IsActive(*all_vals[idx], phase0.Epoch(p.CurrentEpoch())) {
+			totalBalance += p.WrappedState.BState.Altair.Balances[idx]
+		}
+
+	}
+	return totalBalance
+}
+
+func (p AltairSpec) GetAttestingValNum() uint64 {
+	return 0
+}
+
+func (p AltairSpec) GetAttNum() uint64 {
+
+	return 0
+}
+
+func (p AltairSpec) GetAttSlot(valIdx uint64) int64 {
+
+	return -1
+}
+
+func (p AltairSpec) GetAttInclusionSlot(valIdx uint64) int64 {
+
+	return -1
+}
+
+func (p AltairSpec) GetBaseReward(valIdx uint64) float64 {
+	effectiveBalanceInc := p.WrappedState.BState.Altair.Validators[valIdx].EffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
+	totalEffBalance := p.GetTotalActiveEffBalance()
+	return GetBaseRewardPerInc(totalEffBalance) * float64(effectiveBalanceInc)
+}
+
+func (p AltairSpec) GetNumvals() uint64 {
+	result := uint64(0)
+
+	for _, val := range p.WrappedState.BState.Altair.Validators {
+		if IsActive(*val, phase0.Epoch(p.CurrentEpoch())) {
+			result += 1
+		}
+
+	}
+	return result
 }

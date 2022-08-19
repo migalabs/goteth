@@ -79,7 +79,6 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 		return errors.New("db-url not provided")
 	}
 	bnEndpoint := c.String("bn-endpoint")
-	outputFile := c.String("outfolder")
 	initSlot := uint64(c.Int("init-slot"))
 	finalSlot := uint64(c.Int("final-slot"))
 	dbUrl := c.String("db-url")
@@ -101,9 +100,5 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 
 	stateAnalyzer.Run()
-
-	// TODO: Compose Results
-	stateAnalyzer.ExportToCsv(outputFile)
-
 	return nil
 }

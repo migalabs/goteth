@@ -12,6 +12,7 @@ import (
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
@@ -127,30 +128,36 @@ func (s *StateAnalyzer) Run() {
 				return
 
 			default:
+				firstIteration := false
 				// make the state query
 				log.Debugf("requesting Beacon State from endpoint: slot %d", slot)
 				if bstate != nil { // in case we already had a bstate (only false the first time)
 					prevBState = *bstate
+				} else {
+					firstIteration = true
 				}
 				bstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
-				if err != nil {
-					// close the channel (to tell other routines to stop processing and end)
-					log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
-					// close(s.EpochTaskChan)
-					return
-				}
+				if !firstIteration {
+					// only execute tasks if it is not the first iteration
+					if err != nil {
+						// close the channel (to tell other routines to stop processing and end)
+						log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
+						// close(s.EpochTaskChan)
+						return
+					}
 
-				// we now only compose one single task that contains a list of validator indexes
-				// compose the next task
-				valTask := &EpochTask{
-					ValIdxs:   s.ValidatorIndexes,
-					Slot:      slot,
-					State:     bstate,
-					PrevState: prevBState,
-				}
+					// we now only compose one single task that contains a list of validator indexes
+					// compose the next task
+					valTask := &EpochTask{
+						ValIdxs:   s.ValidatorIndexes,
+						Slot:      slot,
+						State:     bstate,
+						PrevState: prevBState,
+					}
 
-				log.Debugf("sending task for slot: %d", slot)
-				s.EpochTaskChan <- valTask
+					log.Debugf("sending task for slot: %d", slot)
+					s.EpochTaskChan <- valTask
+				}
 
 			}
 			// check if the min Request time has been completed (to avoid spaming the API)
@@ -195,6 +202,40 @@ func (s *StateAnalyzer) Run() {
 					log.Errorf(err.Error())
 				}
 
+				// create a model to be inserted into the db
+				epochDBRow := model.NewEpochMetrics(
+					customBState.CurrentEpoch(),
+					customBState.CurrentSlot(),
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					uint64(len(customBState.GetMissedBlocks())))
+
+				err = s.dbClient.InsertNewEpochRow(epochDBRow)
+				if err != nil {
+					log.Errorf(err.Error())
+				}
+
+				epochDBRow.PrevNumAttestations = customBState.GetAttNum()
+				epochDBRow.PrevNumAttValidators = customBState.GetAttestingValNum()
+				epochDBRow.PrevNumValidators = customBState.GetNumvals()
+				epochDBRow.TotalBalance = customBState.GetTotalActiveBalance()
+				epochDBRow.TotalEffectiveBalance = customBState.GetTotalActiveEffBalance()
+
+				epochDBRow.MissingSource = customBState.GetMissingFlag(int(altair.TimelySourceFlagIndex))
+				epochDBRow.MissingTarget = customBState.GetMissingFlag(int(altair.TimelyTargetFlagIndex))
+				epochDBRow.MissingHead = customBState.GetMissingFlag(int(altair.TimelyHeadFlagIndex))
+
+				err = s.dbClient.UpdatePrevEpochMetrics(epochDBRow)
+				if err != nil {
+					log.Errorf(err.Error())
+				}
+
 				// to be checked how to calculate epoch rewards, this way might be easier
 				// TODO: Analyze rewards for the given Validator
 				for _, valIdx := range task.ValIdxs {
@@ -211,15 +252,22 @@ func (s *StateAnalyzer) Run() {
 					if err != nil {
 						log.Errorf("Error obtaining validator balance: ", err.Error())
 					}
-
+					//TODO: Added specific flag missing support for validators
+					// TODO: But pending for optimizations before further processing
 					// create a model to be inserted into the db
-					validatorDBRow := model.NewValidatorRewards(valIdx,
+					validatorDBRow := model.NewValidatorRewards(
+						valIdx,
 						customBState.CurrentSlot(),
 						customBState.CurrentEpoch(),
 						balance,
 						0, // reward is written after state transition
 						maxReward,
-						0) // attestingSlot: to be used in the future, 0 for now
+						customBState.GetAttSlot(valIdx),
+						customBState.GetAttInclusionSlot(valIdx),
+						uint64(customBState.GetBaseReward(valIdx)),
+						false,
+						false,
+						false)
 
 					err = s.dbClient.InsertNewValidatorRow(validatorDBRow)
 					if err != nil {
@@ -242,7 +290,12 @@ func (s *StateAnalyzer) Run() {
 							0, // balance: was already filled in the last epoch
 							int64(reward),
 							0, // maxReward: was already calculated in the previous epoch
-							0) // attestingSlot: to be used in the future, 0 for now
+							0,
+							0,
+							0,
+							false,
+							false,
+							false)
 
 						err = s.dbClient.UpdateValidatorRowReward(validatorDBRow)
 						if err != nil {
