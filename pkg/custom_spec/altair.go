@@ -339,10 +339,10 @@ func (p AltairSpec) GetNumVals() uint64 {
 	return result
 }
 
-func (p AltairSpec) GetValList() []uint64 {
+func (p AltairSpec) GetPrevValList() []uint64 {
 	result := []uint64{}
 
-	for i := range p.WrappedState.BState.Altair.Validators {
+	for i := range p.WrappedState.PrevBState.Altair.Validators {
 		result = append(result, uint64(i))
 	}
 	return result

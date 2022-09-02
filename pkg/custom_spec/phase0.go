@@ -430,10 +430,10 @@ func (p *Phase0Spec) CalculateAttBalance() {
 	}
 }
 
-func (p Phase0Spec) GetValList() []uint64 {
+func (p Phase0Spec) GetPrevValList() []uint64 {
 	result := []uint64{}
 
-	for i := range p.WrappedState.BState.Phase0.Validators {
+	for i := range p.WrappedState.PrevBState.Phase0.Validators {
 		result = append(result, uint64(i))
 	}
 	return result

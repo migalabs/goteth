@@ -52,7 +52,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 			log.Debugf("Creating validator batches for slot %d...", task.Slot)
 			snapshot = time.Now()
 			if len(task.ValIdxs) == 0 {
-				task.ValIdxs = customBState.GetValList()
+				task.ValIdxs = customBState.GetPrevValList()
 			}
 			stepSize := int(math.Max(float64(len(task.ValIdxs)/MAX_VAL_BATCHES), 1))
 			for i := 0; i < len(task.ValIdxs); i += stepSize {
