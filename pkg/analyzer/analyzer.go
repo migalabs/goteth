@@ -23,9 +23,9 @@ var (
 	log     = logrus.WithField(
 		"module", modName,
 	)
-	maxWorkers         = 50
-	minReqTime         = 10 * time.Second
-	MAX_VAL_PER_WORKER = 50
+	maxWorkers      = 50
+	minReqTime      = 10 * time.Second
+	MAX_VAL_BATCHES = 5000
 )
 
 type StateAnalyzer struct {
@@ -61,7 +61,8 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 
 	// check if valIdx where given
 	if len(valIdxs) < 1 {
-		return nil, errors.New("no validator indexes where provided")
+		log.Infof("No validator indexes provided: running all validators")
+		// return nil, errors.New("no validator indexes where provided")
 	}
 
 	// calculate the list of slots that we will analyze
@@ -115,7 +116,13 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	}, nil
 }
 
-func (s *StateAnalyzer) Run() {
+func (s *StateAnalyzer) Run(coworkers int) {
+
+	// Get init time
+	s.initTime = time.Now()
+
+	log.Info("State Analyzer initialized at", s.initTime)
+
 	// State requester
 	var wgDownload sync.WaitGroup
 	downloadFinishedFlag := false
@@ -128,18 +135,13 @@ func (s *StateAnalyzer) Run() {
 	totalTime := int64(0)
 	start := time.Now()
 
-	wgDownload.Add(1)
-
 	// State requester + Task generator
+	wgDownload.Add(1)
 	go s.runDownloadStates(&wgDownload)
 
 	wgProcess.Add(1)
-	go s.runProcessState(&wgProcess, &downloadFinishedFlag)
+	go s.runProcessState(&wgProcess, &downloadFinishedFlag, coworkers)
 
-	coworkers := len(s.ValidatorIndexes)
-	if coworkers > maxWorkers {
-		coworkers = maxWorkers
-	}
 	for i := 0; i < coworkers; i++ {
 		// state workers, receiving State and valIdx to measure performance
 		wlog := logrus.WithField(
@@ -150,11 +152,6 @@ func (s *StateAnalyzer) Run() {
 		wgWorkers.Add(1)
 		go s.runWorker(wlog, &wgWorkers, &processFinishedFlag)
 	}
-
-	// Get init time
-	s.initTime = time.Now()
-
-	log.Info("State Analyzer initialized at", s.initTime)
 
 	wgDownload.Wait()
 	downloadFinishedFlag = true

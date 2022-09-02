@@ -425,3 +425,12 @@ func (p *Phase0Spec) CalculateAttBalance() {
 		p.WrappedState.AttestingBalance[i] = p.ValsEffectiveBalance(utils.BoolToUint(item))
 	}
 }
+
+func (p Phase0Spec) GetValList() []uint64 {
+	result := []uint64{}
+
+	for i := range p.WrappedState.BState.Phase0.Validators {
+		result = append(result, uint64(i))
+	}
+	return result
+}

@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (s StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup, processFinishedFlag *bool) {
+func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup, processFinishedFlag *bool) {
 	defer wgWorkers.Done()
 	batch := pgx.Batch{}
 	// keep iterating until the channel is closed due to finishing
@@ -29,7 +29,7 @@ func (s StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup, 
 			}
 
 			customBState := valTask.CustomState
-			wlog.Tracef("task received for val %d - %d in slot %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.CustomState.CurrentSlot())
+			wlog.Debugf("task received for val %d - %d in slot %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.CustomState.CurrentSlot())
 			// Proccess State
 
 			for _, valIdx := range valTask.ValIdxs {

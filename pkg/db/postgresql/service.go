@@ -124,7 +124,7 @@ func (p PostgresDBService) runWriters(workersNum int) {
 
 				select {
 				case task := <-p.WriteChan:
-					logWriter.Tracef("Received new write task")
+					logWriter.Debugf("Received new write task")
 					err := p.ExecuteBatch(task)
 					if err != nil {
 						logWriter.Errorf("Error processing batch", err.Error())

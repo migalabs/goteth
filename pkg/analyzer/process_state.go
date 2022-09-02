@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"math"
 	"sync"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-func (s StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool) {
+func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool, coworkers int) {
 	defer wgProcess.Done()
 
 	epochBatch := pgx.Batch{}
@@ -50,10 +51,15 @@ func (s StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinish
 
 			log.Debugf("Creating validator batches for slot %d...", task.Slot)
 			snapshot = time.Now()
-
-			for i := range task.ValIdxs {
+			if len(task.ValIdxs) == 0 {
+				task.ValIdxs = customBState.GetValList()
+			}
+			stepSize := int(math.Max(float64(len(task.ValIdxs)/MAX_VAL_BATCHES), 1))
+			for i := 0; i < len(task.ValIdxs); i += stepSize {
+				endIndex := int(math.Min(float64(len(task.ValIdxs)), float64(i+stepSize)))
+				// subslice does not include the endIndex
 				valTask := &ValTask{
-					ValIdxs:     task.ValIdxs[i : i+1],
+					ValIdxs:     task.ValIdxs[i:endIndex],
 					CustomState: customBState,
 				}
 				s.ValTaskChan <- valTask
@@ -89,11 +95,6 @@ func (s StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinish
 				epochDBRow.MissingHead,
 				epochDBRow.MissedBlocks)
 
-			// err = s.dbClient.InsertNewEpochRow(epochDBRow)
-			// if err != nil {
-			// 	log.Errorf(err.Error())
-			// }
-
 			epochDBRow.PrevNumAttestations = customBState.GetAttNum()
 			epochDBRow.PrevNumAttValidators = customBState.GetAttestingValNum()
 			epochDBRow.PrevNumValidators = customBState.GetNumVals()
@@ -103,11 +104,6 @@ func (s StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinish
 			epochDBRow.MissingSource = customBState.GetMissingFlag(int(altair.TimelySourceFlagIndex))
 			epochDBRow.MissingTarget = customBState.GetMissingFlag(int(altair.TimelyTargetFlagIndex))
 			epochDBRow.MissingHead = customBState.GetMissingFlag(int(altair.TimelyHeadFlagIndex))
-
-			// err = s.dbClient.UpdatePrevEpochMetrics(epochDBRow)
-			// if err != nil {
-			// 	log.Errorf(err.Error())
-			// }
 
 			epochBatch.Queue(model.UpdateRow,
 				epochDBRow.Slot-utils.SlotBase,

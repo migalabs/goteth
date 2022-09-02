@@ -80,6 +80,7 @@ type CustomBeaconState interface {
 	GetAttSlot(valIdx uint64) int64
 	GetAttInclusionSlot(valIdx uint64) int64
 	GetBaseReward(valIdx uint64) float64
+	GetValList() []uint64
 }
 
 func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) (CustomBeaconState, error) {

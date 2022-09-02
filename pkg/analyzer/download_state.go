@@ -8,7 +8,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 )
 
-func (s StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
+func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon State Requester")
 	// loop over the list of slots that we need to analyze
