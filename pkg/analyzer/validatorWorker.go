@@ -35,7 +35,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 			for _, valIdx := range valTask.ValIdxs {
 
 				// get max reward at given epoch using the formulas
-				maxReward, err := customBState.GetMaxReward(valIdx)
+				maxRewards, err := customBState.GetMaxReward(valIdx)
 
 				if err != nil {
 					log.Errorf("Error obtaining max reward: ", err.Error())
@@ -56,10 +56,14 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					customBState.CurrentEpoch(),
 					balance,
 					0, // reward is written after state transition
-					maxReward,
+					maxRewards.MaxReward,
+					maxRewards.Attestation,
+					maxRewards.InclusionDelay,
+					maxRewards.FlagIndex,
+					maxRewards.SyncCommittee,
 					customBState.GetAttSlot(valIdx),
 					customBState.GetAttInclusionSlot(valIdx),
-					uint64(customBState.GetBaseReward(valIdx)),
+					maxRewards.MaxReward,
 					false,
 					false,
 					false)
@@ -75,6 +79,10 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					validatorDBRow.ValidatorBalance,
 					validatorDBRow.Reward,
 					validatorDBRow.MaxReward,
+					validatorDBRow.AttestationReward,
+					validatorDBRow.InclusionDelayReward,
+					validatorDBRow.FlagIndexReward,
+					validatorDBRow.SyncCommitteeReward,
 					validatorDBRow.AttSlot,
 					validatorDBRow.InclusionDelay,
 					validatorDBRow.BaseReward,
@@ -96,8 +104,12 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 						uint64(rewardSlot),
 						uint64(rewardEpoch),
 						0, // balance: was already filled in the last epoch
-						int64(reward),
+						reward,
 						0, // maxReward: was already calculated in the previous epoch
+						0,
+						0,
+						0,
+						0,
 						0,
 						0,
 						0,

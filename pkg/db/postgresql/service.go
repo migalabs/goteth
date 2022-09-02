@@ -21,7 +21,8 @@ var (
 	log      = logrus.WithField(
 		"module", PsqlType,
 	)
-	MAX_BATCH_QUEUE = 300
+	MAX_BATCH_QUEUE       = 300
+	MAX_EPOCH_BATCH_QUEUE = 5
 )
 
 type PostgresDBService struct {

@@ -68,8 +68,8 @@ type CustomBeaconState interface {
 	CurrentSlot() uint64
 	PrevStateEpoch() uint64
 	PrevStateSlot() uint64
-	GetMaxReward(valIdx uint64) (uint64, error)
-	PrevEpochReward(valIdx uint64) int64
+	GetMaxReward(valIdx uint64) (ValidatorSepRewards, error)
+	PrevEpochReward(valIdx uint64) float64
 	GetMissingFlag(flagIndex int) uint64
 	GetMissedBlocks() []uint64
 	GetTotalActiveEffBalance() uint64
@@ -206,4 +206,13 @@ func (p EpochData) GetValList(slot uint64, committeeIndex uint64) []phase0.Valid
 
 func GetEffectiveBalance(balance float64) float64 {
 	return math.Min(MAX_EFFECTIVE_INCREMENTS*EFFECTIVE_BALANCE_INCREMENT, balance)
+}
+
+type ValidatorSepRewards struct {
+	Attestation    float64
+	InclusionDelay float64
+	FlagIndex      float64
+	SyncCommittee  float64
+	MaxReward      float64
+	BaseReward     float64
 }

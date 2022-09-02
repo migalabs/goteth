@@ -116,7 +116,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				epochDBRow.MissingTarget,
 				epochDBRow.MissingHead)
 
-			if epochBatch.Len() >= postgresql.MAX_BATCH_QUEUE || (*downloadFinishedFlag && len(s.EpochTaskChan) == 0) {
+			if epochBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE || (*downloadFinishedFlag && len(s.EpochTaskChan) == 0) {
 				s.dbClient.WriteChan <- epochBatch
 				epochBatch = pgx.Batch{}
 

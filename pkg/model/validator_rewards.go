@@ -8,11 +8,15 @@ var (
 		f_slot INT,
 		f_epoch INT,
 		f_balance BIGINT,
-		f_reward BIGINT,
-		f_max_reward BIGINT,
+		f_reward NUMERIC,
+		f_max_reward NUMERIC,
+		f_max_att_reward NUMERIC,
+		f_max_incl_delay_reward NUMERIC,
+		f_max_flag_index_reward NUMERIC,
+		f_max_sync_committee_reward NUMERIC,
 		f_att_slot BIGINT,
 		f_att_inclusion_slot BIGINT,
-		f_base_reward FLOAT,
+		f_base_reward NUMERIC,
 		f_missing_source BOOL,
 		f_missing_target BOOL, 
 		f_missing_head BOOL,
@@ -26,13 +30,17 @@ var (
 		f_balance, 
 		f_reward, 
 		f_max_reward, 
+		f_max_att_reward,
+		f_max_incl_delay_reward,
+		f_max_flag_index_reward,
+		f_max_sync_committee_reward,
 		f_att_slot, 
 		f_att_inclusion_slot, 
 		f_base_reward,
 		f_missing_source,
 		f_missing_target,
 		f_missing_head)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
 	`
 
 	UpdateValidatorLineTable = `
@@ -45,15 +53,19 @@ var (
 )
 
 type ValidatorRewards struct {
-	ValidatorIndex   uint64
-	Slot             uint64
-	Epoch            uint64
-	ValidatorBalance uint64
-	Reward           int64
-	MaxReward        uint64
-	AttSlot          int64
-	InclusionDelay   int64
-	BaseReward       uint64
+	ValidatorIndex       uint64
+	Slot                 uint64
+	Epoch                uint64
+	ValidatorBalance     uint64
+	Reward               float64
+	MaxReward            float64
+	AttestationReward    float64
+	InclusionDelayReward float64
+	FlagIndexReward      float64
+	SyncCommitteeReward  float64
+	BaseReward           float64
+	AttSlot              int64
+	InclusionDelay       int64
 
 	MissingSource bool
 	MissingTarget bool
@@ -65,27 +77,35 @@ func NewValidatorRewards(
 	iSlot uint64,
 	iEpoch uint64,
 	iValBal uint64,
-	iReward int64,
-	iMaxReward uint64,
+	iReward float64,
+	iMaxReward float64,
+	iMaxAttReward float64,
+	iMaxInDelayReward float64,
+	iMaxFlagReward float64,
+	iMaxSyncComReward float64,
 	iAttSlot int64,
 	iInclusionDelay int64,
-	iBaseReward uint64,
+	iBaseReward float64,
 	iMissingSource bool,
 	iMissingTarget bool,
 	iMissingHead bool) ValidatorRewards {
 	return ValidatorRewards{
-		ValidatorIndex:   iValIdx,
-		Slot:             iSlot,
-		Epoch:            iEpoch,
-		ValidatorBalance: iValBal,
-		Reward:           iReward,
-		MaxReward:        iMaxReward,
-		AttSlot:          iAttSlot,
-		InclusionDelay:   iInclusionDelay,
-		BaseReward:       iBaseReward,
-		MissingSource:    iMissingSource,
-		MissingTarget:    iMissingTarget,
-		MissingHead:      iMissingHead,
+		ValidatorIndex:       iValIdx,
+		Slot:                 iSlot,
+		Epoch:                iEpoch,
+		ValidatorBalance:     iValBal,
+		Reward:               iReward,
+		MaxReward:            iMaxReward,
+		AttestationReward:    iMaxAttReward,
+		InclusionDelayReward: iMaxInDelayReward,
+		FlagIndexReward:      iMaxFlagReward,
+		SyncCommitteeReward:  iMaxSyncComReward,
+		AttSlot:              iAttSlot,
+		InclusionDelay:       iInclusionDelay,
+		BaseReward:           iBaseReward,
+		MissingSource:        iMissingSource,
+		MissingTarget:        iMissingTarget,
+		MissingHead:          iMissingHead,
 	}
 }
 

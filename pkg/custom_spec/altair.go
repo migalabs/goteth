@@ -185,7 +185,7 @@ func (p AltairSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance uint6
 
 }
 
-func (p AltairSpec) GetMaxAttestationReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
+func (p AltairSpec) GetMaxAttestationReward(valIdx uint64, baseReward float64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
 
 	maxFlagsReward := float64(0)
 	// the maxReward would be each flag_index_weight * base_reward * (attesting_balance_inc / total_active_balance_inc) / WEIGHT_DENOMINATOR
@@ -195,8 +195,6 @@ func (p AltairSpec) GetMaxAttestationReward(valIdx uint64, valEffectiveBalance u
 		// apply formula
 		attestingBalanceInc := p.AttestingBalance[i] / EFFECTIVE_BALANCE_INCREMENT
 
-		valIncrements := valEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
-		baseReward := float64(valIncrements * uint64(GetBaseRewardPerInc(totalEffectiveBalance)))
 		flagReward := float64(PARTICIPATING_FLAGS_WEIGHT[i]) * baseReward * float64(attestingBalanceInc)
 		flagReward = flagReward / ((float64(totalEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT)) * float64(WEIGHT_DENOMINATOR))
 		maxFlagsReward += flagReward
@@ -206,27 +204,38 @@ func (p AltairSpec) GetMaxAttestationReward(valIdx uint64, valEffectiveBalance u
 }
 
 // This method returns the Max Reward the validator could gain in the current
-func (p AltairSpec) GetMaxReward(valIdx uint64) (uint64, error) {
+func (p AltairSpec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 
-	vallEffectiveBalance := p.WrappedState.PrevBState.Altair.Validators[valIdx].EffectiveBalance
-
+	valEffectiveBalance := float64(p.WrappedState.PrevBState.Altair.Validators[valIdx].EffectiveBalance)
 	totalEffectiveBalance := p.GetTotalActiveEffBalance()
 
-	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, uint64(vallEffectiveBalance), totalEffectiveBalance)
+	valIncrements := valEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
+	baseReward := float64(valIncrements * float64(GetBaseRewardPerInc(totalEffectiveBalance)))
 
-	syncComMaxReward := p.GetMaxSyncComReward(valIdx, uint64(vallEffectiveBalance), totalEffectiveBalance)
+	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, baseReward, uint64(valEffectiveBalance), totalEffectiveBalance)
+
+	syncComMaxReward := p.GetMaxSyncComReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
 
 	maxReward := flagIndexMaxReward + syncComMaxReward
 
-	return uint64(maxReward), nil
+	result := ValidatorSepRewards{
+		Attestation:    0,
+		InclusionDelay: 0,
+		FlagIndex:      flagIndexMaxReward,
+		SyncCommittee:  syncComMaxReward,
+		MaxReward:      maxReward,
+		BaseReward:     baseReward,
+	}
+	return result, nil
+
 }
 
 func (p AltairSpec) GetAttestingSlot(valIdx uint64) uint64 {
 	return 0
 }
 
-func (p AltairSpec) PrevEpochReward(valIdx uint64) int64 {
-	return int64(p.WrappedState.BState.Altair.Balances[valIdx] - p.WrappedState.PrevBState.Altair.Balances[valIdx])
+func (p AltairSpec) PrevEpochReward(valIdx uint64) float64 {
+	return float64(p.WrappedState.BState.Altair.Balances[valIdx] - p.WrappedState.PrevBState.Altair.Balances[valIdx])
 }
 
 func (p AltairSpec) CurrentSlot() uint64 {

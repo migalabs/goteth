@@ -188,8 +188,8 @@ func (p Phase0Spec) CalculateValAttestationInclusion() {
 
 }
 
-func (p Phase0Spec) PrevEpochReward(valIdx uint64) int64 {
-	return int64(p.WrappedState.BState.Phase0.Balances[valIdx] - p.WrappedState.PrevBState.Phase0.Balances[valIdx])
+func (p Phase0Spec) PrevEpochReward(valIdx uint64) float64 {
+	return float64(p.WrappedState.BState.Phase0.Balances[valIdx] - p.WrappedState.PrevBState.Phase0.Balances[valIdx])
 }
 
 func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
@@ -224,10 +224,10 @@ func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint
 	return 0
 }
 
-func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
+func (p Phase0Spec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 
 	if p.CurrentEpoch() == GENESIS_EPOCH { // No rewards are applied at genesis
-		return 0, nil
+		return ValidatorSepRewards{}, nil
 	}
 	valEffectiveBalance := p.WrappedState.PrevBState.Phase0.Validators[valIdx].EffectiveBalance
 	activeBalance := p.WrappedState.TotalActiveBalance
@@ -236,10 +236,6 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 	inclusionDelayReward := float64(0)
 
 	for i := range p.WrappedState.CorrectFlags {
-
-		// if !item[valIdx] { // if this validators vote was not in an attestation with correct flag, dont sum
-		// 	continue
-		// }
 
 		previousAttestedBalance := p.WrappedState.AttestingBalance[i]
 
@@ -262,7 +258,15 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 	proposerReward := float64(0)
 	maxReward := voteReward + inclusionDelayReward + proposerReward
 
-	return uint64(maxReward), nil
+	result := ValidatorSepRewards{
+		Attestation:    voteReward,
+		InclusionDelay: inclusionDelayReward,
+		FlagIndex:      0,
+		SyncCommittee:  0,
+		MaxReward:      maxReward,
+		BaseReward:     baseReward,
+	}
+	return result, nil
 }
 
 func (p Phase0Spec) GetAttSlot(valIdx uint64) int64 {
