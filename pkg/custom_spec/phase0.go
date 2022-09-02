@@ -19,11 +19,10 @@ var (
 )
 
 type Phase0Spec struct {
-	WrappedState                  ForkStateContent
-	PreviousEpochAttestingVals    []uint64
-	PreviousEpochAttestingBalance uint64
-	ValAttestationInclusion       map[uint64]ValVote // key is valID
-	AttestedValsPerSlot           map[uint64][]uint64
+	WrappedState               ForkStateContent
+	PreviousEpochAttestingVals []uint64
+	ValAttestationInclusion    map[uint64]ValVote // key is valID
+	AttestedValsPerSlot        map[uint64][]uint64
 }
 
 func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) Phase0Spec {
@@ -42,10 +41,9 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 			EpochStructs:     NewEpochData(iApi, bstate.Phase0.Slot),
 		},
 
-		PreviousEpochAttestingVals:    make([]uint64, len(prevBstate.Phase0.Validators)),
-		PreviousEpochAttestingBalance: 0,
-		ValAttestationInclusion:       make(map[uint64]ValVote),
-		AttestedValsPerSlot:           make(map[uint64][]uint64),
+		PreviousEpochAttestingVals: make([]uint64, len(prevBstate.Phase0.Validators)),
+		ValAttestationInclusion:    make(map[uint64]ValVote),
+		AttestedValsPerSlot:        make(map[uint64][]uint64),
 		// the maximum inclusionDelay is 32, and we are counting aggregations from the current Epoch
 	}
 
@@ -61,7 +59,7 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	}
 
 	phase0Obj.PreviousEpochAttestingVals = phase0Obj.CalculateAttestingVals(attestations, uint64(len(prevBstate.Phase0.Validators)))
-	phase0Obj.PreviousEpochAttestingBalance = phase0Obj.ValsEffectiveBalance(phase0Obj.PreviousEpochAttestingVals)
+	phase0Obj.CalculateAttBalance()
 	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveEffBalance()
 	phase0Obj.CalculateValAttestationInclusion()
 	phase0Obj.TrackMissingBlocks()
@@ -237,11 +235,11 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 	voteReward := float64(0)
 	inclusionDelayReward := float64(0)
 
-	for i, item := range p.WrappedState.CorrectFlags {
+	for i := range p.WrappedState.CorrectFlags {
 
-		if !item[valIdx] { // if this validators vote was not in an attestation with correct flag, dont sum
-			continue
-		}
+		// if !item[valIdx] { // if this validators vote was not in an attestation with correct flag, dont sum
+		// 	continue
+		// }
 
 		previousAttestedBalance := p.WrappedState.AttestingBalance[i]
 
@@ -344,8 +342,8 @@ func (p Phase0Spec) GetMissedBlocks() []uint64 {
 }
 
 func (p *Phase0Spec) TrackMissingBlocks() {
-	firstIndex := p.WrappedState.BState.Phase0.Slot - SLOTS_PER_EPOCH + 1
-	lastIndex := p.WrappedState.BState.Phase0.Slot
+	firstIndex := (p.WrappedState.BState.Phase0.Slot - SLOTS_PER_EPOCH + 1) % SLOTS_PER_HISTORICAL_ROOT
+	lastIndex := (p.WrappedState.BState.Phase0.Slot) % SLOTS_PER_HISTORICAL_ROOT
 
 	for i := firstIndex; i <= lastIndex; i++ {
 		if i == 0 {

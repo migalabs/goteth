@@ -41,11 +41,7 @@ var (
 	WHERE f_val_idx=$1 AND f_slot=$2
 	`
 
-	SelectByValSlot = `
-	SELECT f_val_idx, f_slot, f_epoch, f_balance, f_reward, f_max_reward, f_att_slot, f_att_inclusion_slot, f_base_reward
-	FROM t_validator_rewards_summary
-	WHERE f_val_idx=$1 AND f_slot=$2;
-	`
+	VALIDATOR_QUERIES = [...]string{InsertNewEpochLineTable, UpdateValidatorLineTable}
 )
 
 type ValidatorRewards struct {

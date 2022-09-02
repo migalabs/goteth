@@ -11,6 +11,7 @@ import (
 
 	"github.com/cortze/eth2-state-analyzer/pkg/model"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
 )
@@ -68,6 +69,38 @@ func (p *PostgresDBService) UpdatePrevEpochMetrics(iEpochObj model.EpochMetrics)
 	} else {
 		log.Debugf("not updating row as we are in the first epoch")
 		return nil
+	}
+
+}
+
+func (p PostgresDBService) AddtoQueueEpoch(queryID int, iEpochObj model.EpochMetrics, batch *pgx.Batch) {
+
+	if queryID == 0 {
+		batch.Queue(model.InsertNewEpochLineTable,
+			iEpochObj.Epoch,
+			iEpochObj.Slot,
+			iEpochObj.PrevNumAttestations,
+			iEpochObj.PrevNumAttValidators,
+			iEpochObj.PrevNumValidators,
+			iEpochObj.TotalBalance,
+			iEpochObj.TotalEffectiveBalance,
+			iEpochObj.MissingSource,
+			iEpochObj.MissingTarget,
+			iEpochObj.MissingHead,
+			iEpochObj.MissedBlocks)
+	}
+
+	if queryID == 1 {
+		batch.Queue(model.UpdateRow,
+			iEpochObj.Slot-utils.SlotBase,
+			iEpochObj.PrevNumAttestations,
+			iEpochObj.PrevNumAttValidators,
+			iEpochObj.PrevNumValidators,
+			iEpochObj.TotalBalance,
+			iEpochObj.TotalEffectiveBalance,
+			iEpochObj.MissingSource,
+			iEpochObj.MissingTarget,
+			iEpochObj.MissingHead)
 	}
 
 }

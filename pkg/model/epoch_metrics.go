@@ -47,11 +47,7 @@ var (
 	WHERE f_slot=$1;
 	`
 
-	SelectByEpoch = `
-	SELECT f_epoch, f_slot, f_num_att, f_num_vals, f_total_balance, f_total_effective_balance 
-	FROM t_epoch_metrics_summary
-	WHERE f_epoch=$1;
-	`
+	EPOCH_QUERIES = [...]string{InsertNewEpochLineTable, UpdateRow}
 )
 
 type EpochMetrics struct {
