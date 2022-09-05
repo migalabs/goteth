@@ -12,6 +12,7 @@ import (
 func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup, processFinishedFlag *bool) {
 	defer wgWorkers.Done()
 	batch := pgx.Batch{}
+	log.Info("Launching Beacon State Worker")
 	// keep iterating until the channel is closed due to finishing
 	for {
 

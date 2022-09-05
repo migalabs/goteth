@@ -124,7 +124,7 @@ func (s *StateAnalyzer) Run(coworkers int) {
 	// Get init time
 	s.initTime = time.Now()
 
-	log.Info("State Analyzer initialized at", s.initTime)
+	log.Info("State Analyzer initialized at ", s.initTime)
 
 	// State requester
 	var wgDownload sync.WaitGroup

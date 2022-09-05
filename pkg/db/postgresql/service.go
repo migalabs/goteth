@@ -103,6 +103,7 @@ func (p PostgresDBService) DoneTasks() {
 func (p PostgresDBService) runWriters(workersNum int) {
 	var wgDBWriters sync.WaitGroup
 	finished := int32(0)
+	log.Info("Launching Beacon State Writers")
 	for i := 0; i < workersNum; i++ {
 		wgDBWriters.Add(1)
 		go func(dbWriterID int) {

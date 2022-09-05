@@ -16,6 +16,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 	defer wgProcess.Done()
 
 	epochBatch := pgx.Batch{}
+	log.Info("Launching Beacon State Pre-Processer")
 
 	for {
 
