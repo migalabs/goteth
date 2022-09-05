@@ -54,7 +54,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 			if len(task.ValIdxs) == 0 {
 				task.ValIdxs = customBState.GetPrevValList()
 			}
-			stepSize := int(math.Max(float64(len(task.ValIdxs)/MAX_VAL_BATCHES), 1))
+			stepSize := int(math.Min(float64(MAX_VAL_BATCH_SIZE), float64(len(task.ValIdxs)/coworkers)))
 			for i := 0; i < len(task.ValIdxs); i += stepSize {
 				endIndex := int(math.Min(float64(len(task.ValIdxs)), float64(i+stepSize)))
 				// subslice does not include the endIndex
@@ -74,7 +74,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				customBState.CurrentSlot(),
 				0,
 				0,
-				0,
+				customBState.GetNumVals(),
 				0,
 				0,
 				0,
@@ -97,7 +97,6 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 
 			epochDBRow.PrevNumAttestations = customBState.GetAttNum()
 			epochDBRow.PrevNumAttValidators = customBState.GetAttestingValNum()
-			epochDBRow.PrevNumValidators = customBState.GetNumVals()
 			epochDBRow.TotalBalance = customBState.GetTotalActiveBalance()
 			epochDBRow.TotalEffectiveBalance = customBState.GetTotalActiveEffBalance()
 
@@ -109,7 +108,6 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				epochDBRow.Slot-utils.SlotBase,
 				epochDBRow.PrevNumAttestations,
 				epochDBRow.PrevNumAttValidators,
-				epochDBRow.PrevNumValidators,
 				epochDBRow.TotalBalance,
 				epochDBRow.TotalEffectiveBalance,
 				epochDBRow.MissingSource,

@@ -23,9 +23,10 @@ var (
 	log     = logrus.WithField(
 		"module", modName,
 	)
-	maxWorkers      = 50
-	minReqTime      = 10 * time.Second
-	MAX_VAL_BATCHES = 5000
+	maxWorkers         = 50
+	minReqTime         = 10 * time.Second
+	MAX_VAL_BATCH_SIZE = 20000
+	VAL_LEN            = 400000
 )
 
 type StateAnalyzer struct {
@@ -59,9 +60,11 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		return nil, errors.New("provided slot range isn't valid")
 	}
 
+	valLength := len(valIdxs)
 	// check if valIdx where given
 	if len(valIdxs) < 1 {
 		log.Infof("No validator indexes provided: running all validators")
+		valLength = VAL_LEN
 		// return nil, errors.New("no validator indexes where provided")
 	}
 
@@ -91,10 +94,10 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 
 	var metricsMap sync.Map
 
-	monitorChan := make(chan struct{}, len(valIdxs)*maxWorkers)
-	monitorMetrics := metrics.NewMonitorMetrics(len(valIdxs))
+	monitorChan := make(chan struct{}, valLength*maxWorkers)
+	monitorMetrics := metrics.NewMonitorMetrics(valLength)
 
-	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, len(valIdxs)*maxWorkers, &monitorMetrics)
+	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, valLength*maxWorkers, &monitorMetrics)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -107,7 +110,7 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		SlotRanges:         slotRanges,
 		Metrics:            metricsMap,
 		EpochTaskChan:      make(chan *EpochTask, 10),
-		ValTaskChan:        make(chan *ValTask, len(valIdxs)*maxWorkers),
+		ValTaskChan:        make(chan *ValTask, valLength*maxWorkers),
 		MonitoringChan:     monitorChan,
 		MonitorSlotProcess: make(map[uint64]uint64),
 		MonitorMetrics:     &monitorMetrics,
@@ -138,6 +141,9 @@ func (s *StateAnalyzer) Run(coworkers int) {
 	// State requester + Task generator
 	wgDownload.Add(1)
 	go s.runDownloadStates(&wgDownload)
+
+	wgDownload.Add(1)
+	go s.runDownloadStatesFinalized(&wgDownload)
 
 	wgProcess.Add(1)
 	go s.runProcessState(&wgProcess, &downloadFinishedFlag, coworkers)

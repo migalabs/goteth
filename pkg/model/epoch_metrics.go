@@ -38,12 +38,11 @@ var (
 	SET 
 		f_num_att = $2, 
 		f_num_att_vals = $3, 
-		f_num_vals = $4,
-		f_total_balance = $5, 
-		f_total_effective_balance = $6, 
-		f_missing_source = $7, 
-		f_missing_target = $8, 
-		f_missing_head = $9
+		f_total_balance = $4, 
+		f_total_effective_balance = $5, 
+		f_missing_source = $6, 
+		f_missing_target = $7, 
+		f_missing_head = $8
 	WHERE f_slot=$1;
 	`
 
