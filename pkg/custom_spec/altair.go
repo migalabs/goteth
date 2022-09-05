@@ -9,6 +9,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
 
 var ( // spec weight constants
@@ -271,8 +272,8 @@ func (p AltairSpec) GetMissedBlocks() []uint64 {
 }
 
 func (p *AltairSpec) TrackMissingBlocks() {
-	firstIndex := p.WrappedState.BState.Altair.Slot - SLOTS_PER_EPOCH + 1
-	lastIndex := p.WrappedState.BState.Altair.Slot
+	firstIndex := (p.WrappedState.BState.Altair.Slot - SLOTS_PER_EPOCH + 1) % SLOTS_PER_HISTORICAL_ROOT
+	lastIndex := (p.WrappedState.BState.Altair.Slot) % SLOTS_PER_HISTORICAL_ROOT
 
 	for i := firstIndex; i <= lastIndex; i++ {
 		if i == 0 {
@@ -342,8 +343,11 @@ func (p AltairSpec) GetNumVals() uint64 {
 func (p AltairSpec) GetPrevValList() []uint64 {
 	result := []uint64{}
 
-	for i := range p.WrappedState.PrevBState.Altair.Validators {
-		result = append(result, uint64(i))
+	for i, item := range p.WrappedState.PrevBState.Altair.Validators {
+		epoch := utils.GetEpochFromSlot(p.WrappedState.PrevBState.Altair.Slot)
+		if IsActive(*item, phase0.Epoch(epoch)) {
+			result = append(result, uint64(i))
+		}
 	}
 	return result
 }

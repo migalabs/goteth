@@ -433,8 +433,12 @@ func (p *Phase0Spec) CalculateAttBalance() {
 func (p Phase0Spec) GetPrevValList() []uint64 {
 	result := []uint64{}
 
-	for i := range p.WrappedState.PrevBState.Phase0.Validators {
-		result = append(result, uint64(i))
+	for i, item := range p.WrappedState.PrevBState.Phase0.Validators {
+		epoch := utils.GetEpochFromSlot(p.WrappedState.PrevBState.Phase0.Slot)
+		if IsActive(*item, phase0.Epoch(epoch)) {
+			result = append(result, uint64(i))
+		}
+
 	}
 	return result
 }
