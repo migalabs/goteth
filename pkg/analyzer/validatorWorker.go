@@ -63,7 +63,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					maxRewards.SyncCommittee,
 					customBState.GetAttSlot(valIdx),
 					customBState.GetAttInclusionSlot(valIdx),
-					maxRewards.MaxReward,
+					maxRewards.BaseReward,
 					false,
 					false,
 					false)
