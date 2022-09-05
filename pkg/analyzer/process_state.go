@@ -3,7 +3,6 @@ package analyzer
 import (
 	"math"
 	"sync"
-	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/cortze/eth2-state-analyzer/pkg/custom_spec"
@@ -40,17 +39,17 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 			}
 			log.Infof("epoch task received for slot %d, analyzing...", task.Slot)
 
-			snapshot := time.Now()
+			// snapshot := time.Now()
 			// returns the state in a custom struct for Phase0, Altair of Bellatrix
 			customBState, err := custom_spec.BStateByForkVersion(task.State, task.PrevState, s.cli.Api)
-			s.MonitorMetrics.AddPreprocessTime(time.Since(snapshot).Seconds())
+			// s.MonitorMetrics.AddPreprocessTime(time.Since(snapshot).Seconds())
 
 			if err != nil {
 				log.Errorf(err.Error())
 			}
 
 			log.Debugf("Creating validator batches for slot %d...", task.Slot)
-			snapshot = time.Now()
+			// snapshot = time.Now()
 			if len(task.ValIdxs) == 0 {
 				task.ValIdxs = customBState.GetPrevValList()
 			}
@@ -65,7 +64,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				s.ValTaskChan <- valTask
 			}
 
-			s.MonitorMetrics.AddBatchingTime(time.Since(snapshot).Seconds())
+			// s.MonitorMetrics.AddBatchingTime(time.Since(snapshot).Seconds())
 
 			log.Debugf("Writing epoch metrics to DB for slot %d...", task.Slot)
 			// create a model to be inserted into the db

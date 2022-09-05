@@ -32,9 +32,9 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 			} else {
 				firstIteration = true
 			}
-			snapshot := time.Now()
+			// snapshot := time.Now()
 			bstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
-			s.MonitorMetrics.AddDownload(time.Since(snapshot).Seconds())
+			// s.MonitorMetrics.AddDownload(time.Since(snapshot).Seconds())
 			if !firstIteration {
 				// only execute tasks if it is not the first iteration
 				if err != nil {
@@ -89,7 +89,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			} else {
 				firstIteration = true
 			}
-			snapshot := time.Now()
+			// snapshot := time.Now()
 			header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "finalized")
 			if err != nil {
 				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing finalized requester routine. %s", err.Error())
@@ -99,9 +99,11 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 				log.Infof("No new finalized state yet")
 				continue
 			}
+
 			finalizedSlot = int(header.Header.Message.Slot)
+			log.Infof("New finalized state at slot: %d", finalizedSlot)
 			bstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", finalizedSlot))
-			s.MonitorMetrics.AddDownload(time.Since(snapshot).Seconds())
+			// s.MonitorMetrics.AddDownload(time.Since(snapshot).Seconds())
 			if !firstIteration {
 				// only execute tasks if it is not the first iteration
 				if err != nil {
