@@ -304,7 +304,15 @@ func (p AltairSpec) GetTotalActiveBalance() uint64 {
 }
 
 func (p AltairSpec) GetAttestingValNum() uint64 {
-	return 0
+	result := 0
+
+	for _, item := range p.AttestingVals[altair.TimelySourceFlagIndex] {
+		if item > 0 {
+			result += 1
+		}
+	}
+
+	return uint64(result)
 }
 
 func (p AltairSpec) GetAttNum() uint64 {
