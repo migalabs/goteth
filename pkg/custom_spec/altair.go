@@ -47,7 +47,7 @@ func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 			BState:           *bstate,
 			Api:              iApi,
 			EpochStructs:     NewEpochData(iApi, bstate.Altair.Slot),
-			PrevEpochStructs: NewEpochData(iApi, prevBstate.Phase0.Slot),
+			PrevEpochStructs: NewEpochData(iApi, prevBstate.Altair.Slot),
 		},
 
 		AttestingVals:    attestingVals,
