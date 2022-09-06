@@ -323,7 +323,7 @@ func (p AltairSpec) GetAttNum() uint64 {
 
 func (p AltairSpec) GetAttSlot(valIdx uint64) int64 {
 
-	return -1
+	return int64(p.WrappedState.PrevEpochStructs.ValidatorAttSlot[valIdx])
 }
 
 func (p AltairSpec) GetAttInclusionSlot(valIdx uint64) int64 {
@@ -357,6 +357,16 @@ func (p AltairSpec) GetPrevValList() []uint64 {
 		if IsActive(*item, phase0.Epoch(epoch)) {
 			result = append(result, uint64(i))
 		}
+	}
+	return result
+}
+
+func (p AltairSpec) MissingFlags(valIdx uint64) []bool {
+	result := []bool{false, false, false}
+
+	for i, item := range p.WrappedState.CorrectFlags {
+		result[i] = !item[valIdx]
+
 	}
 	return result
 }

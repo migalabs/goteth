@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth2-state-analyzer/pkg/model"
 	"github.com/jackc/pgx/v4"
@@ -50,6 +51,9 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					log.Errorf("Error obtaining validator balance: ", err.Error())
 					continue
 				}
+
+				flags := customBState.MissingFlags(valIdx)
+
 				//TODO: Added specific flag missing support for validators
 				// TODO: But pending for optimizations before further processing
 				// create a model to be inserted into the db
@@ -67,9 +71,9 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					customBState.GetAttSlot(valIdx),
 					customBState.GetAttInclusionSlot(valIdx),
 					maxRewards.BaseReward,
-					false,
-					false,
-					false)
+					flags[altair.TimelySourceFlagIndex],
+					flags[altair.TimelyTargetFlagIndex],
+					flags[altair.TimelyHeadFlagIndex])
 
 				batch.Queue(model.InsertNewValidatorLineTable,
 					validatorDBRow.ValidatorIndex,

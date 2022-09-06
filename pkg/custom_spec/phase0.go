@@ -442,3 +442,13 @@ func (p Phase0Spec) GetPrevValList() []uint64 {
 	}
 	return result
 }
+
+func (p Phase0Spec) MissingFlags(valIdx uint64) []bool {
+	result := []bool{false, false, false}
+
+	for i, item := range p.WrappedState.CorrectFlags {
+		result[i] = !item[valIdx]
+
+	}
+	return result
+}

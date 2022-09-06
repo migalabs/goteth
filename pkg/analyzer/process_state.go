@@ -47,6 +47,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 
 			if err != nil {
 				log.Errorf(err.Error())
+				continue
 			}
 
 			log.Debugf("Creating validator batches for slot %d...", task.Slot)
