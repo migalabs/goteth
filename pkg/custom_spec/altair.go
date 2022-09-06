@@ -43,10 +43,11 @@ func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 
 	altairObj := AltairSpec{
 		WrappedState: ForkStateContent{
-			PrevBState:   prevBstate,
-			BState:       *bstate,
-			Api:          iApi,
-			EpochStructs: NewEpochData(iApi, bstate.Altair.Slot),
+			PrevBState:       prevBstate,
+			BState:           *bstate,
+			Api:              iApi,
+			EpochStructs:     NewEpochData(iApi, bstate.Altair.Slot),
+			PrevEpochStructs: NewEpochData(iApi, prevBstate.Phase0.Slot),
 		},
 
 		AttestingVals:    attestingVals,
