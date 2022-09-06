@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"sync"
+	"time"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth2-state-analyzer/pkg/model"
@@ -31,7 +32,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 			customBState := valTask.CustomState
 			wlog.Debugf("task received for val %d - %d in slot %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.CustomState.CurrentSlot())
 			// Proccess State
-
+			snapshot := time.Now()
 			for _, valIdx := range valTask.ValIdxs {
 
 				// get max reward at given epoch using the formulas
@@ -39,6 +40,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 
 				if err != nil {
 					log.Errorf("Error obtaining max reward: ", err.Error())
+					continue
 				}
 
 				// calculate the current balance of validator
@@ -46,6 +48,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 
 				if err != nil {
 					log.Errorf("Error obtaining validator balance: ", err.Error())
+					continue
 				}
 				//TODO: Added specific flag missing support for validators
 				// TODO: But pending for optimizations before further processing
@@ -126,6 +129,8 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 				}
 
 			}
+
+			wlog.Debugf("Validator group processed, worker freed for next group. Took %f seconds", time.Since(snapshot).Seconds())
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state processer routine")

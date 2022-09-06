@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/metrics"
 	"github.com/jackc/pgx/v4"
@@ -158,7 +159,7 @@ func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
 	// for i := 0; i < batch.Len(); i++ {
 	// 	wlog.Tracef("Executing SQL: %s", batch.items[i])
 	// }
-	// snapshot := time.Now()
+	snapshot := time.Now()
 	tx, err := p.psqlPool.Begin(p.ctx)
 	if err != nil {
 		panic(err)
@@ -177,7 +178,7 @@ func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
 	}
 
 	// p.MonitorStruct.AddDBWrite(time.Since(snapshot).Seconds())
-	// wlog.Debugf("Batch process time: %f", time.Since(snapshot).Seconds())
+	wlog.Debugf("Batch process time: %f, batch size: %d", time.Since(snapshot).Seconds(), batch.Len())
 
 	return tx.Commit(p.ctx)
 
