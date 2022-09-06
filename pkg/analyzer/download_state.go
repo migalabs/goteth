@@ -101,7 +101,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 				continue
 			}
 
-			finalizedSlot = int(header.Header.Message.Slot)
+			finalizedSlot = int(header.Header.Message.Slot) - 1
 			log.Infof("New finalized state at slot: %d", finalizedSlot)
 			bstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", finalizedSlot))
 			if err != nil {
