@@ -71,7 +71,8 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	var prevBState spec.VersionedBeaconState // to be checked, it may make calculation easier to store previous state
 	var bstate *spec.VersionedBeaconState
 	finalizedSlot := 0
-	timerCh := time.Tick(time.Second * 12)
+	// epochSeconds := SLOT_SECONDS * EPOCH_SLOTS
+	timerCh := time.Tick(time.Second * 384)
 	for {
 		ticker := time.NewTicker(minReqTime)
 		select {

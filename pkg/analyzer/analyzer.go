@@ -27,6 +27,8 @@ var (
 	minReqTime         = 10 * time.Second
 	MAX_VAL_BATCH_SIZE = 20000
 	VAL_LEN            = 400000
+	SLOT_SECONDS       = 12
+	EPOCH_SLOTS        = 32
 )
 
 type StateAnalyzer struct {
