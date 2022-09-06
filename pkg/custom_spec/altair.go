@@ -308,8 +308,13 @@ func (p AltairSpec) GetTotalActiveBalance() uint64 {
 func (p AltairSpec) GetAttestingValNum() uint64 {
 	result := 0
 
-	for _, item := range p.AttestingVals[altair.TimelySourceFlagIndex] {
-		if item > 0 {
+	for i := 0; i < len(p.AttestingVals); i++ {
+		sourceFlag := p.AttestingVals[altair.TimelySourceFlagIndex][i]
+		targetFlag := p.AttestingVals[altair.TimelyTargetFlagIndex][i]
+		headFlag := p.AttestingVals[altair.TimelyHeadFlagIndex][i]
+
+		// if any of the flags is 1, then we consider attest
+		if (sourceFlag + targetFlag + headFlag) > 0 {
 			result += 1
 		}
 	}
