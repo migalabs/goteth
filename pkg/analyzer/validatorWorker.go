@@ -12,7 +12,6 @@ import (
 func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup, processFinishedFlag *bool) {
 	defer wgWorkers.Done()
 	batch := pgx.Batch{}
-	log.Info("Launching Beacon State Worker")
 	// keep iterating until the channel is closed due to finishing
 	for {
 
@@ -69,10 +68,6 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					false,
 					false)
 
-				// err = s.dbClient.InsertNewValidatorRow(validatorDBRow)
-				// if err != nil {
-				// 	log.Errorf(err.Error())
-				// }
 				batch.Queue(model.InsertNewValidatorLineTable,
 					validatorDBRow.ValidatorIndex,
 					validatorDBRow.Slot,
@@ -118,16 +113,13 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 						false,
 						false)
 
-					// err = s.dbClient.UpdateValidatorRowReward(validatorDBRow)
-					// if err != nil {
-					// 	log.Errorf(err.Error())
-					// }
 					batch.Queue(model.UpdateValidatorLineTable,
 						validatorDBRow.ValidatorIndex,
 						validatorDBRow.Slot,
 						validatorDBRow.Reward)
 
 					if batch.Len() > postgresql.MAX_BATCH_QUEUE || (*processFinishedFlag && len(s.ValTaskChan) == 0) {
+						wlog.Debugf("Sending batch to be stored...")
 						s.dbClient.WriteChan <- batch
 						batch = pgx.Batch{}
 					}

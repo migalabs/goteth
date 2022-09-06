@@ -15,9 +15,9 @@ import (
 
 // Static postgres queries, for each modification in the tables, the table needs to be reseted
 var (
-	// logrus associated with the postgres db
+	// wlogrus associated with the postgres db
 	PsqlType = "postgres-db"
-	log      = logrus.WithField(
+	wlog     = logrus.WithField(
 		"module", PsqlType,
 	)
 	MAX_BATCH_QUEUE       = 300
@@ -43,17 +43,17 @@ type PostgresDBService struct {
 // from the given url-composed credentials
 func ConnectToDB(ctx context.Context, url string, chanLength int, monitor *metrics.Monitor) (*PostgresDBService, error) {
 	mainCtx, cancel := context.WithCancel(ctx)
-	// spliting the url to don't share any confidential information on logs
-	log.Infof("Conneting to postgres DB %s", url)
+	// spliting the url to don't share any confidential information on wlogs
+	wlog.Infof("Conneting to postgres DB %s", url)
 	if strings.Contains(url, "@") {
-		log.Debugf("Connecting to PostgresDB at %s", strings.Split(url, "@")[1])
+		wlog.Debugf("Connecting to PostgresDB at %s", strings.Split(url, "@")[1])
 	}
 	psqlPool, err := pgxpool.Connect(mainCtx, url)
 	if err != nil {
 		return nil, err
 	}
 	if strings.Contains(url, "@") {
-		log.Infof("PostgresDB %s succesfully connected", strings.Split(url, "@")[1])
+		wlog.Infof("PostgresDB %s succesfully connected", strings.Split(url, "@")[1])
 	}
 	// filter the type of network that we are filtering
 
@@ -73,7 +73,7 @@ func ConnectToDB(ctx context.Context, url string, chanLength int, monitor *metri
 	if err != nil {
 		return psqlDB, errors.Wrap(err, "error initializing the tables of the psqldb")
 	}
-	go psqlDB.runWriters(20)
+	go psqlDB.runWriters(100)
 	return psqlDB, err
 }
 
@@ -100,44 +100,45 @@ func (p PostgresDBService) DoneTasks() {
 	p.doneTasks <- struct{}{}
 }
 
-func (p PostgresDBService) runWriters(workersNum int) {
+func (p *PostgresDBService) runWriters(workersNum int) {
 	var wgDBWriters sync.WaitGroup
 	finished := int32(0)
-	log.Info("Launching Beacon State Writers")
+	wlog.Info("Launching Beacon State Writers")
 	for i := 0; i < workersNum; i++ {
 		wgDBWriters.Add(1)
 		go func(dbWriterID int) {
 			defer wgDBWriters.Done()
-			logWriter := log.WithField("DBWriter", dbWriterID)
-
+			wlogWriter := wlog.WithField("DBWriter", dbWriterID)
+		loop:
 			for {
 
 				if p.endProcess >= 1 && len(p.WriteChan) == 0 {
 					atomic.AddInt32(&finished, int32(1))
-					return
+					break loop
 				}
 				select {
 				case <-p.doneTasks:
-					logWriter.Info("finish detected, closing persister")
+					wlogWriter.Info("finish detected, closing persister")
 					atomic.AddInt32(&p.endProcess, int32(1))
 				default:
 				}
 
 				select {
 				case task := <-p.WriteChan:
-					logWriter.Debugf("Received new write task")
+					wlogWriter.Debugf("Received new write task")
 					err := p.ExecuteBatch(task)
 					if err != nil {
-						logWriter.Errorf("Error processing batch", err.Error())
+						wlogWriter.Errorf("Error processing batch", err.Error())
 					}
 
 				case <-p.ctx.Done():
-					logWriter.Info("shutdown detected, closing persister")
-					return
+					wlogWriter.Info("shutdown detected, closing persister")
+					break loop
 				default:
 				}
 
 			}
+			wlogWriter.Debugf("DB Writer finished...")
 
 		}(i)
 	}
@@ -154,6 +155,9 @@ type WriteTask struct {
 
 func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
 
+	// for i := 0; i < batch.Len(); i++ {
+	// 	wlog.Tracef("Executing SQL: %s", batch.items[i])
+	// }
 	// snapshot := time.Now()
 	tx, err := p.psqlPool.Begin(p.ctx)
 	if err != nil {
@@ -168,9 +172,12 @@ func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
 		rows, qerr = batchResults.Query()
 		rows.Close()
 	}
+	if qerr.Error() != "no result" {
+		wlog.Errorf(qerr.Error())
+	}
 
 	// p.MonitorStruct.AddDBWrite(time.Since(snapshot).Seconds())
-	// log.Debugf("Batch process time: %f", time.Since(snapshot).Seconds())
+	// wlog.Debugf("Batch process time: %f", time.Since(snapshot).Seconds())
 
 	return tx.Commit(p.ctx)
 

@@ -51,7 +51,7 @@ func (p *PostgresDBService) InsertNewEpochRow(iEpochObj model.EpochMetrics) erro
 func (p *PostgresDBService) UpdatePrevEpochMetrics(iEpochObj model.EpochMetrics) error {
 
 	if iEpochObj.Slot > utils.SlotBase {
-		log.Debugf("updating row %d from epoch metrics", iEpochObj.Slot-utils.SlotBase)
+		wlog.Debugf("updating row %d from epoch metrics", iEpochObj.Slot-utils.SlotBase)
 		_, err := p.psqlPool.Exec(p.ctx, model.UpdateRow,
 			iEpochObj.Slot-utils.SlotBase,
 			iEpochObj.PrevNumAttestations,
@@ -67,7 +67,7 @@ func (p *PostgresDBService) UpdatePrevEpochMetrics(iEpochObj model.EpochMetrics)
 		}
 		return nil
 	} else {
-		log.Debugf("not updating row as we are in the first epoch")
+		wlog.Debugf("not updating row as we are in the first epoch")
 		return nil
 	}
 
