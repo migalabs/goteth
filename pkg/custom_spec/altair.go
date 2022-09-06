@@ -235,8 +235,9 @@ func (p AltairSpec) GetAttestingSlot(valIdx uint64) uint64 {
 	return 0
 }
 
-func (p AltairSpec) PrevEpochReward(valIdx uint64) float64 {
-	return float64(p.WrappedState.BState.Altair.Balances[valIdx] - p.WrappedState.PrevBState.Altair.Balances[valIdx])
+func (p AltairSpec) PrevEpochReward(valIdx uint64) int64 {
+
+	return int64(p.WrappedState.BState.Altair.Balances[valIdx] - p.WrappedState.PrevBState.Altair.Balances[valIdx])
 }
 
 func (p AltairSpec) CurrentSlot() uint64 {

@@ -69,7 +69,7 @@ type CustomBeaconState interface {
 	PrevStateEpoch() uint64
 	PrevStateSlot() uint64
 	GetMaxReward(valIdx uint64) (ValidatorSepRewards, error)
-	PrevEpochReward(valIdx uint64) float64
+	PrevEpochReward(valIdx uint64) int64
 	GetMissingFlag(flagIndex int) uint64
 	GetMissedBlocks() []uint64
 	GetTotalActiveEffBalance() uint64

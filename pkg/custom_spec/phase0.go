@@ -188,8 +188,8 @@ func (p Phase0Spec) CalculateValAttestationInclusion() {
 
 }
 
-func (p Phase0Spec) PrevEpochReward(valIdx uint64) float64 {
-	return float64(p.WrappedState.BState.Phase0.Balances[valIdx] - p.WrappedState.PrevBState.Phase0.Balances[valIdx])
+func (p Phase0Spec) PrevEpochReward(valIdx uint64) int64 {
+	return int64(p.WrappedState.BState.Phase0.Balances[valIdx] - p.WrappedState.PrevBState.Phase0.Balances[valIdx])
 }
 
 func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {

@@ -57,7 +57,7 @@ type ValidatorRewards struct {
 	Slot                 uint64
 	Epoch                uint64
 	ValidatorBalance     uint64
-	Reward               float64
+	Reward               int64
 	MaxReward            float64
 	AttestationReward    float64
 	InclusionDelayReward float64
@@ -77,7 +77,7 @@ func NewValidatorRewards(
 	iSlot uint64,
 	iEpoch uint64,
 	iValBal uint64,
-	iReward float64,
+	iReward int64,
 	iMaxReward float64,
 	iMaxAttReward float64,
 	iMaxInDelayReward float64,

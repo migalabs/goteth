@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -93,6 +94,9 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 				rewardEpoch := int(customBState.PrevStateEpoch())
 				if rewardSlot >= 31 {
 					reward := customBState.PrevEpochReward(valIdx)
+					if reward < 0 {
+						fmt.Println(0)
+					}
 
 					// log.Debugf("Slot %d Validator %d Reward: %d", rewardSlot, valIdx, reward)
 
