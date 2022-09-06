@@ -12,7 +12,7 @@ type ForkStateContent struct {
 	PrevEpochStructs   EpochData
 	EpochStructs       EpochData
 	Api                *http.Service
-	TotalActiveBalance uint64
+	TotalActiveBalance uint64   // effective balance
 	AttestingBalance   []uint64 // one attesting balance per flag
 	CorrectFlags       [][]bool
 	MissedBlocks       []uint64 // array that stores the slot number where there was a missing block

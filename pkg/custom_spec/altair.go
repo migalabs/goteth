@@ -58,7 +58,7 @@ func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 
 	// calculate attesting vals only once
 	altairObj.CalculatePreviousAttestingVals()
-
+	altairObj.WrappedState.TotalActiveBalance = altairObj.GetTotalActiveEffBalance()
 	// leave attestingBalance already calculated
 	for i := range altairObj.AttestingBalance {
 		altairObj.AttestingBalance[i] = altairObj.ValsEffectiveBalance(altairObj.AttestingVals[i])
@@ -208,7 +208,7 @@ func (p AltairSpec) GetMaxAttestationReward(valIdx uint64, baseReward float64, v
 func (p AltairSpec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 
 	valEffectiveBalance := float64(p.WrappedState.PrevBState.Altair.Validators[valIdx].EffectiveBalance)
-	totalEffectiveBalance := p.GetTotalActiveEffBalance()
+	totalEffectiveBalance := p.WrappedState.TotalActiveBalance
 
 	valIncrements := valEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
 	baseReward := float64(valIncrements * float64(GetBaseRewardPerInc(totalEffectiveBalance)))
@@ -332,7 +332,7 @@ func (p AltairSpec) GetAttInclusionSlot(valIdx uint64) int64 {
 
 func (p AltairSpec) GetBaseReward(valIdx uint64) float64 {
 	effectiveBalanceInc := p.WrappedState.BState.Altair.Validators[valIdx].EffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
-	totalEffBalance := p.GetTotalActiveEffBalance()
+	totalEffBalance := p.WrappedState.TotalActiveBalance
 	return GetBaseRewardPerInc(totalEffBalance) * float64(effectiveBalanceInc)
 }
 
