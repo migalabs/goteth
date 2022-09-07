@@ -359,7 +359,8 @@ func (p *Phase0Spec) TrackMissingBlocks() {
 
 		if res == 0 {
 			// both roots were the same ==> missed block
-			p.WrappedState.MissedBlocks = append(p.WrappedState.MissedBlocks, uint64(i))
+			slot := i - firstIndex + p.WrappedState.BState.Phase0.Slot - SLOTS_PER_EPOCH + 1
+			p.WrappedState.MissedBlocks = append(p.WrappedState.MissedBlocks, uint64(slot))
 		}
 	}
 }
