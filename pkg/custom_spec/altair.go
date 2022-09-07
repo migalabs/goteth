@@ -164,7 +164,7 @@ func (p AltairSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance uint6
 
 	valPubKey := p.WrappedState.BState.Altair.Validators[valIdx].PublicKey
 
-	syncCommitteePubKeys := p.WrappedState.BState.Altair.CurrentSyncCommittee
+	syncCommitteePubKeys := p.WrappedState.BState.Altair.NextSyncCommittee
 
 	for _, item := range syncCommitteePubKeys.Pubkeys {
 		if valPubKey == item {

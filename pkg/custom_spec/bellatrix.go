@@ -153,7 +153,7 @@ func (p BellatrixSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance ui
 
 	valPubKey := p.WrappedState.BState.Bellatrix.Validators[valIdx].PublicKey
 
-	syncCommitteePubKeys := p.WrappedState.BState.Bellatrix.CurrentSyncCommittee
+	syncCommitteePubKeys := p.WrappedState.BState.Bellatrix.NextSyncCommittee
 
 	for _, item := range syncCommitteePubKeys.Pubkeys {
 		if valPubKey == item {
