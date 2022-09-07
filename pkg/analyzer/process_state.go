@@ -98,8 +98,8 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 
 			epochDBRow.PrevNumAttestations = int(customBState.GetAttNum())
 			epochDBRow.PrevNumAttValidators = int(customBState.GetAttestingValNum())
-			epochDBRow.TotalBalance = int(customBState.GetTotalActiveBalance())
-			epochDBRow.TotalEffectiveBalance = int(customBState.GetTotalActiveEffBalance())
+			epochDBRow.TotalBalance = float32(customBState.GetTotalActiveBalance())
+			epochDBRow.TotalEffectiveBalance = float32(customBState.GetTotalActiveEffBalance())
 
 			epochDBRow.MissingSource = int(customBState.GetMissingFlag(int(altair.TimelySourceFlagIndex)))
 			epochDBRow.MissingTarget = int(customBState.GetMissingFlag(int(altair.TimelyTargetFlagIndex)))

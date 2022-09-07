@@ -9,7 +9,7 @@ var (
 		f_val_idx INT,
 		f_slot INT,
 		f_epoch INT,
-		f_balance_eth INT,
+		f_balance_eth REAL,
 		f_reward INT,
 		f_max_reward INT,
 		f_max_att_reward INT,
@@ -58,7 +58,7 @@ type ValidatorRewards struct {
 	ValidatorIndex       uint64
 	Slot                 int
 	Epoch                int
-	ValidatorBalance     int
+	ValidatorBalance     float32
 	Reward               int
 	MaxReward            int
 	AttestationReward    int
@@ -95,7 +95,7 @@ func NewValidatorRewards(
 		ValidatorIndex:       iValIdx,
 		Slot:                 int(iSlot),
 		Epoch:                int(iEpoch),
-		ValidatorBalance:     int(iValBal / custom_spec.EFFECTIVE_BALANCE_INCREMENT),
+		ValidatorBalance:     float32(iValBal / custom_spec.EFFECTIVE_BALANCE_INCREMENT),
 		Reward:               int(iReward),
 		MaxReward:            int(iMaxReward),
 		AttestationReward:    int(iMaxAttReward),
