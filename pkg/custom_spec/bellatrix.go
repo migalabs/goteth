@@ -205,15 +205,15 @@ func (p BellatrixSpec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 
 	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, baseReward, uint64(valEffectiveBalance), totalEffectiveBalance)
 
-	syncComMaxReward := p.GetMaxSyncComReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
+	// syncComMaxReward := p.GetMaxSyncComReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
 
-	maxReward := flagIndexMaxReward + syncComMaxReward
+	maxReward := flagIndexMaxReward //+ syncComMaxReward
 
 	result := ValidatorSepRewards{
 		Attestation:    0,
 		InclusionDelay: 0,
 		FlagIndex:      flagIndexMaxReward,
-		SyncCommittee:  syncComMaxReward,
+		SyncCommittee:  0,
 		MaxReward:      maxReward,
 		BaseReward:     baseReward,
 	}
