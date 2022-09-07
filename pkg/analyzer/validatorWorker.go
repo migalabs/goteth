@@ -59,8 +59,8 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 				// create a model to be inserted into the db
 				validatorDBRow := model.NewValidatorRewards(
 					valIdx,
-					customBState.CurrentSlot(),
-					customBState.CurrentEpoch(),
+					customBState.CurrentSlot()+uint64(EPOCH_SLOTS),
+					customBState.CurrentEpoch()+1,
 					balance,
 					0, // reward is written after state transition
 					maxRewards.MaxReward,
@@ -93,9 +93,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					validatorDBRow.MissingTarget,
 					validatorDBRow.MissingHead)
 
-				rewardSlot := int(customBState.PrevStateSlot())
-				rewardEpoch := int(customBState.PrevStateEpoch())
-				if rewardSlot >= 31 {
+				if customBState.CurrentSlot() >= 63 {
 					reward := customBState.PrevEpochReward(valIdx)
 
 					// log.Debugf("Slot %d Validator %d Reward: %d", rewardSlot, valIdx, reward)
@@ -104,8 +102,8 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					// after state_transition
 					// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
 					validatorDBRow = model.NewValidatorRewards(valIdx,
-						uint64(rewardSlot),
-						uint64(rewardEpoch),
+						customBState.CurrentSlot(),
+						customBState.CurrentEpoch(),
 						0, // balance: was already filled in the last epoch
 						reward,
 						0, // maxReward: was already calculated in the previous epoch
