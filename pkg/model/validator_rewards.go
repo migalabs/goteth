@@ -1,5 +1,7 @@
 package model
 
+import "github.com/cortze/eth2-state-analyzer/pkg/custom_spec"
+
 // Postgres intregration variables
 var (
 	CreateValidatorRewardsTable = `
@@ -7,16 +9,16 @@ var (
 		f_val_idx INT,
 		f_slot INT,
 		f_epoch INT,
-		f_balance BIGINT,
-		f_reward NUMERIC,
-		f_max_reward NUMERIC,
-		f_max_att_reward NUMERIC,
-		f_max_incl_delay_reward NUMERIC,
-		f_max_flag_index_reward NUMERIC,
-		f_max_sync_committee_reward NUMERIC,
-		f_att_slot BIGINT,
-		f_att_inclusion_slot BIGINT,
-		f_base_reward NUMERIC,
+		f_balance_eth INT,
+		f_reward INT,
+		f_max_reward INT,
+		f_max_att_reward INT,
+		f_max_incl_delay_reward INT,
+		f_max_flag_index_reward INT,
+		f_max_sync_committee_reward INT,
+		f_att_slot INT,
+		f_att_inclusion_slot INT,
+		f_base_reward INT,
 		f_missing_source BOOL,
 		f_missing_target BOOL, 
 		f_missing_head BOOL,
@@ -54,18 +56,18 @@ var (
 
 type ValidatorRewards struct {
 	ValidatorIndex       uint64
-	Slot                 uint64
-	Epoch                uint64
-	ValidatorBalance     uint64
-	Reward               int64
-	MaxReward            float64
-	AttestationReward    float64
-	InclusionDelayReward float64
-	FlagIndexReward      float64
-	SyncCommitteeReward  float64
-	BaseReward           float64
-	AttSlot              int64
-	InclusionDelay       int64
+	Slot                 int
+	Epoch                int
+	ValidatorBalance     int
+	Reward               int
+	MaxReward            int
+	AttestationReward    int
+	InclusionDelayReward int
+	FlagIndexReward      int
+	SyncCommitteeReward  int
+	BaseReward           int
+	AttSlot              int
+	InclusionDelay       int
 
 	MissingSource bool
 	MissingTarget bool
@@ -91,18 +93,18 @@ func NewValidatorRewards(
 	iMissingHead bool) ValidatorRewards {
 	return ValidatorRewards{
 		ValidatorIndex:       iValIdx,
-		Slot:                 iSlot,
-		Epoch:                iEpoch,
-		ValidatorBalance:     iValBal,
-		Reward:               iReward,
-		MaxReward:            iMaxReward,
-		AttestationReward:    iMaxAttReward,
-		InclusionDelayReward: iMaxInDelayReward,
-		FlagIndexReward:      iMaxFlagReward,
-		SyncCommitteeReward:  iMaxSyncComReward,
-		AttSlot:              iAttSlot,
-		InclusionDelay:       iInclusionDelay,
-		BaseReward:           iBaseReward,
+		Slot:                 int(iSlot),
+		Epoch:                int(iEpoch),
+		ValidatorBalance:     int(iValBal / custom_spec.EFFECTIVE_BALANCE_INCREMENT),
+		Reward:               int(iReward),
+		MaxReward:            int(iMaxReward),
+		AttestationReward:    int(iMaxAttReward),
+		InclusionDelayReward: int(iMaxInDelayReward),
+		FlagIndexReward:      int(iMaxFlagReward),
+		SyncCommitteeReward:  int(iMaxSyncComReward),
+		AttSlot:              int(iAttSlot),
+		InclusionDelay:       int(iInclusionDelay),
+		BaseReward:           int(iBaseReward),
 		MissingSource:        iMissingSource,
 		MissingTarget:        iMissingTarget,
 		MissingHead:          iMissingHead,

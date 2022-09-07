@@ -81,7 +81,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				0,
 				0,
 				0,
-				uint64(len(customBState.GetMissedBlocks())))
+				customBState.GetMissedBlocks())
 
 			epochBatch.Queue(model.InsertNewEpochLineTable,
 				epochDBRow.Epoch,
@@ -96,14 +96,14 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				epochDBRow.MissingHead,
 				epochDBRow.MissedBlocks)
 
-			epochDBRow.PrevNumAttestations = customBState.GetAttNum()
-			epochDBRow.PrevNumAttValidators = customBState.GetAttestingValNum()
-			epochDBRow.TotalBalance = customBState.GetTotalActiveBalance()
-			epochDBRow.TotalEffectiveBalance = customBState.GetTotalActiveEffBalance()
+			epochDBRow.PrevNumAttestations = int(customBState.GetAttNum())
+			epochDBRow.PrevNumAttValidators = int(customBState.GetAttestingValNum())
+			epochDBRow.TotalBalance = int(customBState.GetTotalActiveBalance())
+			epochDBRow.TotalEffectiveBalance = int(customBState.GetTotalActiveEffBalance())
 
-			epochDBRow.MissingSource = customBState.GetMissingFlag(int(altair.TimelySourceFlagIndex))
-			epochDBRow.MissingTarget = customBState.GetMissingFlag(int(altair.TimelyTargetFlagIndex))
-			epochDBRow.MissingHead = customBState.GetMissingFlag(int(altair.TimelyHeadFlagIndex))
+			epochDBRow.MissingSource = int(customBState.GetMissingFlag(int(altair.TimelySourceFlagIndex)))
+			epochDBRow.MissingTarget = int(customBState.GetMissingFlag(int(altair.TimelyTargetFlagIndex)))
+			epochDBRow.MissingHead = int(customBState.GetMissingFlag(int(altair.TimelyHeadFlagIndex)))
 
 			epochBatch.Queue(model.UpdateRow,
 				epochDBRow.Slot-utils.SlotBase,
