@@ -85,7 +85,7 @@ func NewEpochMetrics(iEpoch uint64,
 
 	missedBlocks := "["
 	for _, item := range iMissedBlocks {
-		missedBlocks += fmt.Sprintf("%d", item)
+		missedBlocks += fmt.Sprintf("%d", item) + ","
 	}
 	missedBlocks += "]"
 	return EpochMetrics{
