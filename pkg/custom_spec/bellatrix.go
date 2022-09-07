@@ -297,7 +297,7 @@ func (p BellatrixSpec) GetTotalActiveBalance() uint64 {
 func (p BellatrixSpec) GetAttestingValNum() uint64 {
 	result := 0
 
-	for i := 0; i < len(p.AttestingVals); i++ {
+	for i := 0; i < len(p.AttestingVals[altair.TimelySourceFlagIndex]); i++ {
 		sourceFlag := p.AttestingVals[altair.TimelySourceFlagIndex][i]
 		targetFlag := p.AttestingVals[altair.TimelyTargetFlagIndex][i]
 		headFlag := p.AttestingVals[altair.TimelyHeadFlagIndex][i]
