@@ -29,7 +29,7 @@ var (
 		f_val_idx, 
 		f_slot, 
 		f_epoch, 
-		f_balance, 
+		f_balance_eth, 
 		f_reward, 
 		f_max_reward, 
 		f_max_att_reward,
