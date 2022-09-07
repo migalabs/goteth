@@ -95,7 +95,7 @@ func NewValidatorRewards(
 		ValidatorIndex:       iValIdx,
 		Slot:                 int(iSlot),
 		Epoch:                int(iEpoch),
-		ValidatorBalance:     float32(iValBal / custom_spec.EFFECTIVE_BALANCE_INCREMENT),
+		ValidatorBalance:     float32(iValBal) / float32(custom_spec.EFFECTIVE_BALANCE_INCREMENT),
 		Reward:               int(iReward),
 		MaxReward:            int(iMaxReward),
 		AttestationReward:    int(iMaxAttReward),
