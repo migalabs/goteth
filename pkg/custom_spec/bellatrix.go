@@ -51,6 +51,7 @@ func NewBellatrixSpec(nextBstate *spec.VersionedBeaconState, bstate spec.Version
 	// calculate attesting vals only once
 	BellatrixObj.CalculatePreviousAttestingVals()
 	BellatrixObj.WrappedState.TotalActiveBalance = BellatrixObj.GetTotalActiveEffBalance()
+	BellatrixObj.WrappedState.NextTotalActiveBalance = BellatrixObj.GetNextTotalActiveEffBalance()
 	// leave attestingBalance already calculated
 	for i := range BellatrixObj.AttestingBalance {
 		BellatrixObj.AttestingBalance[i] = BellatrixObj.ValsEffectiveBalance(BellatrixObj.AttestingVals[i])
@@ -133,6 +134,29 @@ func (p BellatrixSpec) GetTotalActiveEffBalance() uint64 {
 	}
 
 	return p.ValsEffectiveBalance(val_array)
+}
+
+// This method returns the Effective Balance of all active validators
+func (p BellatrixSpec) GetNextTotalActiveEffBalance() uint64 {
+
+	all_vals := p.WrappedState.NextState.Bellatrix.Validators
+	val_array := make([]uint64, len(all_vals))
+
+	for idx := range val_array {
+		if IsActive(*all_vals[idx], phase0.Epoch(p.CurrentEpoch()+1)) {
+			val_array[idx] += 1
+		}
+
+	}
+
+	result := uint64(0)
+	for valIdx, count := range val_array { // loop over validators
+		if count > 0 {
+			result += uint64(p.WrappedState.NextState.Bellatrix.Validators[valIdx].EffectiveBalance)
+		}
+	}
+
+	return result
 }
 
 func (p BellatrixSpec) GetMaxProposerAttReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) (float64, int64) {
