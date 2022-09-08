@@ -135,9 +135,19 @@ func (p BellatrixSpec) GetTotalActiveEffBalance() uint64 {
 	return p.ValsEffectiveBalance(val_array)
 }
 
-func (p BellatrixSpec) GetMaxProposerAttReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
+func (p BellatrixSpec) GetMaxProposerAttReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) (float64, int64) {
 
-	return 0
+	proposerSlot := -1
+	reward := 0
+	duties := p.WrappedState.NextEpochStructs.ProposerDuties
+	for _, duty := range duties {
+		if duty.ValidatorIndex == phase0.ValidatorIndex(valIdx) {
+			proposerSlot = int(duty.Slot)
+			break
+		}
+	}
+
+	return float64(reward), int64(proposerSlot)
 
 }
 
@@ -153,7 +163,7 @@ func (p BellatrixSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance ui
 
 	inCommittee := false
 
-	valPubKey := p.WrappedState.BState.Bellatrix.Validators[valIdx].PublicKey
+	valPubKey := p.WrappedState.NextState.Bellatrix.Validators[valIdx].PublicKey
 
 	syncCommitteePubKeys := p.WrappedState.BState.Bellatrix.NextSyncCommittee
 
@@ -169,8 +179,8 @@ func (p BellatrixSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance ui
 
 	// at this point we know the validator was inside the sync committee
 
-	totalActiveInc := totalEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
-	totalBaseRewards := GetBaseRewardPerInc(totalEffectiveBalance) * float64(totalActiveInc)
+	totalActiveInc := p.WrappedState.NextTotalActiveBalance / EFFECTIVE_BALANCE_INCREMENT
+	totalBaseRewards := GetBaseRewardPerInc(p.WrappedState.NextTotalActiveBalance) * float64(totalActiveInc)
 	maxParticipantRewards := totalBaseRewards * float64(SYNC_REWARD_WEIGHT) / float64(WEIGHT_DENOMINATOR) / SLOTS_PER_EPOCH
 	participantReward := maxParticipantRewards / float64(SYNC_COMMITTEE_SIZE) // this is the participantReward for a single slot
 
@@ -207,9 +217,19 @@ func (p BellatrixSpec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 
 	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, baseReward, uint64(valEffectiveBalance), totalEffectiveBalance)
 
-	// syncComMaxReward := p.GetMaxSyncComReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
+	syncComMaxReward := p.GetMaxSyncComReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
+	inSyncCommitte := false
+	if syncComMaxReward > 0 {
+		inSyncCommitte = true
+	}
 
-	maxReward := flagIndexMaxReward //+ syncComMaxReward
+	_, proposerSlot := p.GetMaxProposerAttReward(
+		valIdx,
+		p.WrappedState.NextState.Altair.Validators[valIdx].PublicKey,
+		uint64(p.WrappedState.NextState.Altair.Validators[valIdx].EffectiveBalance),
+		totalEffectiveBalance)
+
+	maxReward := flagIndexMaxReward + syncComMaxReward
 
 	result := ValidatorSepRewards{
 		Attestation:     0,
@@ -218,8 +238,8 @@ func (p BellatrixSpec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 		SyncCommittee:   0,
 		MaxReward:       maxReward,
 		BaseReward:      baseReward,
-		ProposerSlot:    -1,
-		InSyncCommittee: false,
+		ProposerSlot:    proposerSlot,
+		InSyncCommittee: inSyncCommitte,
 	}
 	return result, nil
 

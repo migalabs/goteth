@@ -62,6 +62,7 @@ func NewAltairSpec(nextBstate *spec.VersionedBeaconState, bstate spec.VersionedB
 	// calculate attesting vals only once
 	altairObj.CalculatePreviousAttestingVals()
 	altairObj.WrappedState.TotalActiveBalance = altairObj.GetTotalActiveEffBalance()
+	altairObj.WrappedState.NextTotalActiveBalance = altairObj.GetNextTotalActiveEffBalance()
 	// leave attestingBalance already calculated
 	for i := range altairObj.AttestingBalance {
 		altairObj.AttestingBalance[i] = altairObj.ValsEffectiveBalance(altairObj.AttestingVals[i])
@@ -146,9 +147,42 @@ func (p AltairSpec) GetTotalActiveEffBalance() uint64 {
 	return p.ValsEffectiveBalance(val_array)
 }
 
-func (p AltairSpec) GetMaxProposerAttReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
+// This method returns the Effective Balance of all active validators
+func (p AltairSpec) GetNextTotalActiveEffBalance() uint64 {
 
-	return 0
+	all_vals := p.WrappedState.NextState.Altair.Validators
+	val_array := make([]uint64, len(all_vals))
+
+	for idx := range val_array {
+		if IsActive(*all_vals[idx], phase0.Epoch(p.CurrentEpoch()+1)) {
+			val_array[idx] += 1
+		}
+
+	}
+
+	result := uint64(0)
+	for valIdx, count := range val_array { // loop over validators
+		if count > 0 {
+			result += uint64(p.WrappedState.NextState.Altair.Validators[valIdx].EffectiveBalance)
+		}
+	}
+
+	return result
+}
+
+func (p AltairSpec) GetMaxProposerAttReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) (float64, int64) {
+
+	proposerSlot := -1
+	reward := 0
+	duties := p.WrappedState.NextEpochStructs.ProposerDuties
+	for _, duty := range duties {
+		if duty.ValidatorIndex == phase0.ValidatorIndex(valIdx) {
+			proposerSlot = int(duty.Slot)
+			break
+		}
+	}
+
+	return float64(reward), int64(proposerSlot)
 
 }
 
@@ -164,9 +198,9 @@ func (p AltairSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance uint6
 
 	inCommittee := false
 
-	valPubKey := p.WrappedState.BState.Altair.Validators[valIdx].PublicKey
+	valPubKey := p.WrappedState.NextState.Altair.Validators[valIdx].PublicKey
 
-	syncCommitteePubKeys := p.WrappedState.BState.Altair.NextSyncCommittee
+	syncCommitteePubKeys := p.WrappedState.NextState.Altair.CurrentSyncCommittee
 
 	for _, item := range syncCommitteePubKeys.Pubkeys {
 		if valPubKey == item {
@@ -180,8 +214,8 @@ func (p AltairSpec) GetMaxSyncComReward(valIdx uint64, valEffectiveBalance uint6
 
 	// at this point we know the validator was inside the sync committee
 
-	totalActiveInc := totalEffectiveBalance / EFFECTIVE_BALANCE_INCREMENT
-	totalBaseRewards := GetBaseRewardPerInc(totalEffectiveBalance) * float64(totalActiveInc)
+	totalActiveInc := p.WrappedState.NextTotalActiveBalance / EFFECTIVE_BALANCE_INCREMENT
+	totalBaseRewards := GetBaseRewardPerInc(p.WrappedState.NextTotalActiveBalance) * float64(totalActiveInc)
 	maxParticipantRewards := totalBaseRewards * float64(SYNC_REWARD_WEIGHT) / float64(WEIGHT_DENOMINATOR) / SLOTS_PER_EPOCH
 	participantReward := maxParticipantRewards / float64(SYNC_COMMITTEE_SIZE) // this is the participantReward for a single slot
 
@@ -218,9 +252,20 @@ func (p AltairSpec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 
 	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, baseReward, uint64(valEffectiveBalance), totalEffectiveBalance)
 
-	// syncComMaxReward := p.GetMaxSyncComReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
+	syncComMaxReward := p.GetMaxSyncComReward(valIdx, uint64(valEffectiveBalance), totalEffectiveBalance)
 
-	maxReward := flagIndexMaxReward // + syncComMaxReward
+	inSyncCommitte := false
+	if syncComMaxReward > 0 {
+		inSyncCommitte = true
+	}
+
+	_, proposerSlot := p.GetMaxProposerAttReward(
+		valIdx,
+		p.WrappedState.NextState.Altair.Validators[valIdx].PublicKey,
+		uint64(p.WrappedState.NextState.Altair.Validators[valIdx].EffectiveBalance),
+		totalEffectiveBalance)
+
+	maxReward := flagIndexMaxReward + syncComMaxReward
 
 	result := ValidatorSepRewards{
 		Attestation:     0,
@@ -229,8 +274,8 @@ func (p AltairSpec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 		SyncCommittee:   0,
 		MaxReward:       maxReward,
 		BaseReward:      baseReward,
-		ProposerSlot:    -1,
-		InSyncCommittee: false,
+		ProposerSlot:    proposerSlot,
+		InSyncCommittee: inSyncCommitte,
 	}
 	return result, nil
 

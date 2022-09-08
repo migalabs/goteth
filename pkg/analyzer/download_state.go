@@ -60,7 +60,6 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 
 			// s.MonitorMetrics.AddDownload(time.Since(snapshot).Seconds())
 			if !firstIteration && !secondIteration {
-				fmt.Printf("%d, %d, %d", prevBState.Bellatrix.Slot, bstate.Bellatrix.Slot, nextBstate.Bellatrix.Slot)
 				// only execute tasks if it is not the first iteration
 
 				// we now only compose one single task that contains a list of validator indexes
