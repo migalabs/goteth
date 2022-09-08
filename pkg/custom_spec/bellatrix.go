@@ -225,8 +225,8 @@ func (p BellatrixSpec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 
 	_, proposerSlot := p.GetMaxProposerAttReward(
 		valIdx,
-		p.WrappedState.NextState.Altair.Validators[valIdx].PublicKey,
-		uint64(p.WrappedState.NextState.Altair.Validators[valIdx].EffectiveBalance),
+		p.WrappedState.NextState.Bellatrix.Validators[valIdx].PublicKey,
+		uint64(p.WrappedState.NextState.Bellatrix.Validators[valIdx].EffectiveBalance),
 		totalEffectiveBalance)
 
 	maxReward := flagIndexMaxReward + syncComMaxReward

@@ -109,11 +109,11 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			log.Infof("requesting Beacon State from endpoint: finalized")
 			if bstate != nil { // in case we already had a bstate (only false the first time)
 				prevBState = *bstate
-				secondIteration = false
+				firstIteration = false
 			}
 			if nextBstate != nil { // in case we already had a nextBstate (only false the first time)
 				*bstate = *nextBstate
-				firstIteration = false
+				secondIteration = false
 			}
 			// snapshot := time.Now()
 			header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "finalized")
