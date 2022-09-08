@@ -25,20 +25,22 @@ type Phase0Spec struct {
 	AttestedValsPerSlot        map[uint64][]uint64
 }
 
-func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) Phase0Spec {
+func NewPhase0Spec(nextBstate *spec.VersionedBeaconState, bstate spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) Phase0Spec {
 	// func NewPhase0Spec(bstate *spec.VersionedBeaconState, iCli *clientapi.APIClient) Phase0Spec {
 
 	if prevBstate.Phase0 == nil {
-		prevBstate = *bstate
+		prevBstate = bstate
 	}
 
 	phase0Obj := Phase0Spec{
 		WrappedState: ForkStateContent{
-			BState:           *bstate,
+			NextState:        *nextBstate,
+			BState:           bstate,
 			PrevBState:       prevBstate,
 			Api:              iApi,
 			PrevEpochStructs: NewEpochData(iApi, prevBstate.Phase0.Slot),
 			EpochStructs:     NewEpochData(iApi, bstate.Phase0.Slot),
+			NextEpochStructs: NewEpochData(iApi, nextBstate.Phase0.Slot),
 		},
 
 		PreviousEpochAttestingVals: make([]uint64, len(prevBstate.Phase0.Validators)),
@@ -192,7 +194,7 @@ func (p Phase0Spec) PrevEpochReward(valIdx uint64) int64 {
 	return int64(p.WrappedState.BState.Phase0.Balances[valIdx] - p.WrappedState.PrevBState.Phase0.Balances[valIdx])
 }
 
-func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
+func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) (float64, int64) {
 
 	isProposer := false
 	proposerSlot := 0
@@ -216,12 +218,14 @@ func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint
 				}
 			}
 		}
+		if votesIncluded > 0 {
+			baseReward := GetBaseReward(valEffectiveBalance, totalEffectiveBalance)
+			return (baseReward / PROPOSER_REWARD_QUOTIENT) * float64(votesIncluded), int64(proposerSlot)
+		}
 
-		baseReward := GetBaseReward(valEffectiveBalance, totalEffectiveBalance)
-		return (baseReward / PROPOSER_REWARD_QUOTIENT) * float64(votesIncluded)
 	}
 
-	return 0
+	return 0, -1
 }
 
 func (p Phase0Spec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
@@ -254,17 +258,19 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 		inclusionDelayReward = baseReward * 7.0 / 8.0
 	}
 
-	// proposerReward := p.GetMaxProposerReward(valIdx, uint64(valEffectiveBalance), activeBalance)
-	proposerReward := float64(0)
-	maxReward := voteReward + inclusionDelayReward + proposerReward
+	_, proposerSlot := p.GetMaxProposerReward(valIdx, uint64(valEffectiveBalance), activeBalance)
+	// proposerReward := float64(0)
+	maxReward := voteReward + inclusionDelayReward // + proposerReward
 
 	result := ValidatorSepRewards{
-		Attestation:    voteReward,
-		InclusionDelay: inclusionDelayReward,
-		FlagIndex:      0,
-		SyncCommittee:  0,
-		MaxReward:      maxReward,
-		BaseReward:     baseReward,
+		Attestation:     voteReward,
+		InclusionDelay:  inclusionDelayReward,
+		FlagIndex:       0,
+		SyncCommittee:   0,
+		MaxReward:       maxReward,
+		BaseReward:      baseReward,
+		ProposerSlot:    proposerSlot,
+		InSyncCommittee: false,
 	}
 	return result, nil
 }

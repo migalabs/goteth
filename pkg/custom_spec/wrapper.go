@@ -7,10 +7,12 @@ import (
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type ForkStateContent struct {
+	NextState          spec.VersionedBeaconState
 	BState             spec.VersionedBeaconState
 	PrevBState         spec.VersionedBeaconState
 	PrevEpochStructs   EpochData
 	EpochStructs       EpochData
+	NextEpochStructs   EpochData
 	Api                *http.Service
 	TotalActiveBalance uint64   // effective balance
 	AttestingBalance   []uint64 // one attesting balance per flag

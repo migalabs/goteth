@@ -42,7 +42,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 
 			// snapshot := time.Now()
 			// returns the state in a custom struct for Phase0, Altair of Bellatrix
-			customBState, err := custom_spec.BStateByForkVersion(task.State, task.PrevState, s.cli.Api)
+			customBState, err := custom_spec.BStateByForkVersion(task.NextState, task.State, task.PrevState, s.cli.Api)
 			// s.MonitorMetrics.AddPreprocessTime(time.Since(snapshot).Seconds())
 
 			if err != nil {

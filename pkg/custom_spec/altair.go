@@ -29,10 +29,10 @@ type AltairSpec struct {
 	AttestingBalance []uint64   // one attesting balance per participation flag
 }
 
-func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) AltairSpec {
+func NewAltairSpec(nextBstate *spec.VersionedBeaconState, bstate spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) AltairSpec {
 
 	if prevBstate.Altair == nil {
-		prevBstate = *bstate
+		prevBstate = bstate
 	}
 
 	attestingVals := make([][]uint64, 3)
@@ -43,11 +43,13 @@ func NewAltairSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 
 	altairObj := AltairSpec{
 		WrappedState: ForkStateContent{
+			NextState:        *nextBstate,
 			PrevBState:       prevBstate,
-			BState:           *bstate,
+			BState:           bstate,
 			Api:              iApi,
 			EpochStructs:     NewEpochData(iApi, bstate.Altair.Slot),
 			PrevEpochStructs: NewEpochData(iApi, prevBstate.Altair.Slot),
+			NextEpochStructs: NewEpochData(iApi, nextBstate.Altair.Slot),
 		},
 
 		AttestingVals:    attestingVals,
@@ -221,12 +223,14 @@ func (p AltairSpec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 	maxReward := flagIndexMaxReward // + syncComMaxReward
 
 	result := ValidatorSepRewards{
-		Attestation:    0,
-		InclusionDelay: 0,
-		FlagIndex:      flagIndexMaxReward,
-		SyncCommittee:  0,
-		MaxReward:      maxReward,
-		BaseReward:     baseReward,
+		Attestation:     0,
+		InclusionDelay:  0,
+		FlagIndex:       flagIndexMaxReward,
+		SyncCommittee:   0,
+		MaxReward:       maxReward,
+		BaseReward:      baseReward,
+		ProposerSlot:    -1,
+		InSyncCommittee: false,
 	}
 	return result, nil
 

@@ -14,6 +14,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 	// loop over the list of slots that we need to analyze
 	var prevBState spec.VersionedBeaconState // to be checked, it may make calculation easier to store previous state
 	var bstate *spec.VersionedBeaconState
+	var nextBstate *spec.VersionedBeaconState
 	var err error
 	for _, slot := range s.SlotRanges {
 		ticker := time.NewTicker(minReqTime)
@@ -24,23 +25,42 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 			return
 
 		default:
-			firstIteration := false
+			firstIteration := true
+			secondIteration := true
 			// make the state query
 			log.Infof("requesting Beacon State from endpoint: slot %d", slot)
+
+			// We need three states to calculate both, rewards and maxRewards
+
 			if bstate != nil { // in case we already had a bstate (only false the first time)
 				prevBState = *bstate
-			} else {
-				firstIteration = true
+				firstIteration = false
+			}
+			if nextBstate != nil { // in case we already had a nextBstate (only false the first time)
+				*bstate = *nextBstate
+				secondIteration = false
 			}
 			// snapshot := time.Now()
-			bstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
-			if err != nil {
-				// close the channel (to tell other routines to stop processing and end)
-				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
-				return
+
+			if firstIteration {
+				bstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
+				if err != nil {
+					// close the channel (to tell other routines to stop processing and end)
+					log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
+					return
+				}
+			} else {
+				nextBstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
+				if err != nil {
+					// close the channel (to tell other routines to stop processing and end)
+					log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
+					return
+				}
 			}
+
 			// s.MonitorMetrics.AddDownload(time.Since(snapshot).Seconds())
-			if !firstIteration {
+			if !firstIteration && !secondIteration {
+				fmt.Printf("%d, %d, %d", prevBState.Bellatrix.Slot, bstate.Bellatrix.Slot, nextBstate.Bellatrix.Slot)
 				// only execute tasks if it is not the first iteration
 
 				// we now only compose one single task that contains a list of validator indexes
@@ -48,7 +68,8 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 				epochTask := &EpochTask{
 					ValIdxs:   s.ValidatorIndexes,
 					Slot:      slot,
-					State:     bstate,
+					NextState: nextBstate,
+					State:     *bstate,
 					PrevState: prevBState,
 				}
 
@@ -70,6 +91,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	// loop over the list of slots that we need to analyze
 	var prevBState spec.VersionedBeaconState // to be checked, it may make calculation easier to store previous state
 	var bstate *spec.VersionedBeaconState
+	var nextBstate *spec.VersionedBeaconState
 	finalizedSlot := 0
 	// epochSeconds := SLOT_SECONDS * EPOCH_SLOTS
 	timerCh := time.Tick(time.Second * 384)
@@ -82,13 +104,17 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			return
 		case <-timerCh:
 
-			firstIteration := false
+			firstIteration := true
+			secondIteration := true
 			// make the state query
 			log.Infof("requesting Beacon State from endpoint: finalized")
 			if bstate != nil { // in case we already had a bstate (only false the first time)
 				prevBState = *bstate
-			} else {
-				firstIteration = true
+				secondIteration = false
+			}
+			if nextBstate != nil { // in case we already had a nextBstate (only false the first time)
+				*bstate = *nextBstate
+				firstIteration = false
 			}
 			// snapshot := time.Now()
 			header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "finalized")
@@ -103,14 +129,23 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 
 			finalizedSlot = int(header.Header.Message.Slot) - 1
 			log.Infof("New finalized state at slot: %d", finalizedSlot)
-			bstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", finalizedSlot))
-			if err != nil {
-				// close the channel (to tell other routines to stop processing and end)
-				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
-				return
+			if firstIteration {
+				bstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", finalizedSlot))
+				if err != nil {
+					// close the channel (to tell other routines to stop processing and end)
+					log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
+					return
+				}
+			} else {
+				nextBstate, err = s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", finalizedSlot))
+				if err != nil {
+					// close the channel (to tell other routines to stop processing and end)
+					log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
+					return
+				}
 			}
 			// s.MonitorMetrics.AddDownload(time.Since(snapshot).Seconds())
-			if !firstIteration {
+			if !firstIteration && !secondIteration {
 				// only execute tasks if it is not the first iteration
 
 				// we now only compose one single task that contains a list of validator indexes
@@ -118,7 +153,8 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 				epochTask := &EpochTask{
 					ValIdxs:   s.ValidatorIndexes,
 					Slot:      uint64(finalizedSlot),
-					State:     bstate,
+					NextState: nextBstate,
+					State:     *bstate,
 					PrevState: prevBState,
 				}
 

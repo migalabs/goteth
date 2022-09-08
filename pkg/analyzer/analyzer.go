@@ -191,7 +191,8 @@ func (s *StateAnalyzer) Run(coworkers int) {
 type EpochTask struct {
 	ValIdxs     []uint64
 	Slot        uint64
-	State       *spec.VersionedBeaconState
+	NextState   *spec.VersionedBeaconState
+	State       spec.VersionedBeaconState
 	PrevState   spec.VersionedBeaconState
 	OnlyPrevAtt bool
 }

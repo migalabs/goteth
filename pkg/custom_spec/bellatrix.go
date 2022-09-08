@@ -18,10 +18,10 @@ type BellatrixSpec struct {
 	AttestingBalance []uint64   // one attesting balance per participation flag
 }
 
-func NewBellatrixSpec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) BellatrixSpec {
+func NewBellatrixSpec(nextBstate *spec.VersionedBeaconState, bstate spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) BellatrixSpec {
 
 	if prevBstate.Bellatrix == nil {
-		prevBstate = *bstate
+		prevBstate = bstate
 	}
 
 	attestingVals := make([][]uint64, 3)
@@ -32,11 +32,13 @@ func NewBellatrixSpec(bstate *spec.VersionedBeaconState, prevBstate spec.Version
 
 	BellatrixObj := BellatrixSpec{
 		WrappedState: ForkStateContent{
+			NextState:        *nextBstate,
 			PrevBState:       prevBstate,
-			BState:           *bstate,
+			BState:           bstate,
 			Api:              iApi,
 			EpochStructs:     NewEpochData(iApi, bstate.Bellatrix.Slot),
 			PrevEpochStructs: NewEpochData(iApi, prevBstate.Bellatrix.Slot),
+			NextEpochStructs: NewEpochData(iApi, nextBstate.Bellatrix.Slot),
 		},
 
 		AttestingVals:    attestingVals,
@@ -210,12 +212,14 @@ func (p BellatrixSpec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 	maxReward := flagIndexMaxReward //+ syncComMaxReward
 
 	result := ValidatorSepRewards{
-		Attestation:    0,
-		InclusionDelay: 0,
-		FlagIndex:      flagIndexMaxReward,
-		SyncCommittee:  0,
-		MaxReward:      maxReward,
-		BaseReward:     baseReward,
+		Attestation:     0,
+		InclusionDelay:  0,
+		FlagIndex:       flagIndexMaxReward,
+		SyncCommittee:   0,
+		MaxReward:       maxReward,
+		BaseReward:      baseReward,
+		ProposerSlot:    -1,
+		InSyncCommittee: false,
 	}
 	return result, nil
 
