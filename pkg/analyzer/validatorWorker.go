@@ -71,6 +71,8 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					customBState.GetAttSlot(valIdx),
 					customBState.GetAttInclusionSlot(valIdx),
 					maxRewards.BaseReward,
+					maxRewards.InSyncCommittee,
+					float64(maxRewards.ProposerSlot),
 					flags[altair.TimelySourceFlagIndex],
 					flags[altair.TimelyTargetFlagIndex],
 					flags[altair.TimelyHeadFlagIndex])
@@ -82,21 +84,17 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					validatorDBRow.ValidatorBalance,
 					validatorDBRow.Reward,
 					validatorDBRow.MaxReward,
-					validatorDBRow.AttestationReward,
-					validatorDBRow.InclusionDelayReward,
-					validatorDBRow.FlagIndexReward,
-					validatorDBRow.SyncCommitteeReward,
 					validatorDBRow.AttSlot,
 					validatorDBRow.InclusionDelay,
 					validatorDBRow.BaseReward,
+					validatorDBRow.InSyncCommittee,
+					validatorDBRow.ProposerSlot,
 					validatorDBRow.MissingSource,
 					validatorDBRow.MissingTarget,
 					validatorDBRow.MissingHead)
 
 				if customBState.CurrentSlot() >= 63 {
 					reward := customBState.PrevEpochReward(valIdx)
-
-					// log.Debugf("Slot %d Validator %d Reward: %d", rewardSlot, valIdx, reward)
 
 					// keep in mind that rewards for epoch 10 can be seen at beginning of epoch 12,
 					// after state_transition
@@ -114,6 +112,8 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 						0,
 						0,
 						0,
+						false,
+						-1,
 						false,
 						false,
 						false)
