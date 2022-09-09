@@ -64,9 +64,15 @@ func NewAltairSpec(nextBstate *spec.VersionedBeaconState, bstate spec.VersionedB
 	altairObj.WrappedState.TotalActiveBalance = altairObj.GetTotalActiveEffBalance()
 	altairObj.WrappedState.NextTotalActiveBalance = altairObj.GetNextTotalActiveEffBalance()
 	// leave attestingBalance already calculated
+	// TODO: user WrappedState object
+	max := uint64(0)
 	for i := range altairObj.AttestingBalance {
 		altairObj.AttestingBalance[i] = altairObj.ValsEffectiveBalance(altairObj.AttestingVals[i])
+		if altairObj.AttestingBalance[i] > max {
+			max = altairObj.AttestingBalance[i]
+		}
 	}
+	altairObj.WrappedState.PreviousAttBalance = max
 	altairObj.TrackMissingBlocks()
 
 	return altairObj
@@ -425,4 +431,8 @@ func (p AltairSpec) MissingFlags(valIdx uint64) []bool {
 
 	}
 	return result
+}
+
+func (p AltairSpec) GetAttEffBalance() uint64 {
+	return p.WrappedState.PreviousAttBalance
 }

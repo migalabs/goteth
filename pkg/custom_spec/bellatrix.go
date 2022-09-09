@@ -53,9 +53,15 @@ func NewBellatrixSpec(nextBstate *spec.VersionedBeaconState, bstate spec.Version
 	BellatrixObj.WrappedState.TotalActiveBalance = BellatrixObj.GetTotalActiveEffBalance()
 	BellatrixObj.WrappedState.NextTotalActiveBalance = BellatrixObj.GetNextTotalActiveEffBalance()
 	// leave attestingBalance already calculated
+	max := uint64(0)
+	// TODO: user WrappedState object
 	for i := range BellatrixObj.AttestingBalance {
 		BellatrixObj.AttestingBalance[i] = BellatrixObj.ValsEffectiveBalance(BellatrixObj.AttestingVals[i])
+		if BellatrixObj.AttestingBalance[i] > max {
+			max = BellatrixObj.AttestingBalance[i]
+		}
 	}
+	BellatrixObj.WrappedState.PreviousAttBalance = max
 	BellatrixObj.TrackMissingBlocks()
 
 	return BellatrixObj
@@ -413,4 +419,8 @@ func (p BellatrixSpec) MissingFlags(valIdx uint64) []bool {
 
 	}
 	return result
+}
+
+func (p BellatrixSpec) GetAttEffBalance() uint64 {
+	return p.WrappedState.PreviousAttBalance
 }

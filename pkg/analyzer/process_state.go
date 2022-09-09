@@ -81,6 +81,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				0,
 				0,
 				0,
+				0,
 				customBState.GetMissedBlocks())
 
 			epochBatch.Queue(model.InsertNewEpochLineTable,
@@ -90,6 +91,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				epochDBRow.PrevNumAttValidators,
 				epochDBRow.PrevNumValidators,
 				epochDBRow.TotalBalance,
+				epochDBRow.AttEffectiveBalance,
 				epochDBRow.TotalEffectiveBalance,
 				epochDBRow.MissingSource,
 				epochDBRow.MissingTarget,
@@ -99,6 +101,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 			epochDBRow.PrevNumAttestations = int(customBState.GetAttNum())
 			epochDBRow.PrevNumAttValidators = int(customBState.GetAttestingValNum())
 			epochDBRow.TotalBalance = float32(customBState.GetTotalActiveBalance())
+			epochDBRow.AttEffectiveBalance = float32(customBState.GetAttEffBalance())
 			epochDBRow.TotalEffectiveBalance = float32(customBState.GetTotalActiveEffBalance())
 
 			epochDBRow.MissingSource = int(customBState.GetMissingFlag(int(altair.TimelySourceFlagIndex)))
@@ -110,6 +113,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				epochDBRow.PrevNumAttestations,
 				epochDBRow.PrevNumAttValidators,
 				epochDBRow.TotalBalance,
+				epochDBRow.AttEffectiveBalance,
 				epochDBRow.TotalEffectiveBalance,
 				epochDBRow.MissingSource,
 				epochDBRow.MissingTarget,

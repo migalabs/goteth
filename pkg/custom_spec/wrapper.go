@@ -14,6 +14,7 @@ type ForkStateContent struct {
 	EpochStructs           EpochData
 	NextEpochStructs       EpochData
 	Api                    *http.Service
+	PreviousAttBalance     uint64   // effective balance
 	TotalActiveBalance     uint64   // effective balance
 	NextTotalActiveBalance uint64   // effective balance
 	AttestingBalance       []uint64 // one attesting balance per flag

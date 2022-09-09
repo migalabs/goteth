@@ -16,6 +16,7 @@ var (
 		f_num_att_vals INT,
 		f_num_vals INT,
 		f_total_balance_eth REAL,
+		f_att_effective_balance_eth REAL,
 		f_total_effective_balance_eth REAL,
 		f_missing_source INT, 
 		f_missing_target INT,
@@ -30,7 +31,8 @@ var (
 		f_num_att, 
 		f_num_att_vals, 
 		f_num_vals, 
-		f_total_balance_eth, 
+		f_total_balance_eth,
+		f_att_effective_balance_eth,  
 		f_total_effective_balance_eth, 
 		f_missing_source, 
 		f_missing_target, 
@@ -45,10 +47,11 @@ var (
 		f_num_att = $2, 
 		f_num_att_vals = $3, 
 		f_total_balance_eth = $4, 
-		f_total_effective_balance_eth = $5, 
-		f_missing_source = $6, 
-		f_missing_target = $7, 
-		f_missing_head = $8
+		f_att_effective_balance_eth = $5, 
+		f_total_effective_balance_eth = $6, 
+		f_missing_source = $7, 
+		f_missing_target = $8, 
+		f_missing_head = $9
 	WHERE f_slot=$1;
 	`
 
@@ -62,6 +65,7 @@ type EpochMetrics struct {
 	PrevNumAttValidators  int
 	PrevNumValidators     int
 	TotalBalance          float32
+	AttEffectiveBalance   float32
 	TotalEffectiveBalance float32
 
 	MissingSource int
@@ -77,6 +81,7 @@ func NewEpochMetrics(iEpoch uint64,
 	iNumAttVals uint64,
 	iNumVals uint64,
 	iTotBal uint64,
+	iAttEfBal uint64,
 	iTotEfBal uint64,
 	iMissingSource uint64,
 	iMissingTarget uint64,
@@ -95,6 +100,7 @@ func NewEpochMetrics(iEpoch uint64,
 		PrevNumAttValidators:  int(iNumVals),
 		PrevNumValidators:     int(iNumVals),
 		TotalBalance:          float32(iTotBal) / float32(custom_spec.EFFECTIVE_BALANCE_INCREMENT),
+		AttEffectiveBalance:   float32(iAttEfBal) / float32(custom_spec.EFFECTIVE_BALANCE_INCREMENT),
 		TotalEffectiveBalance: float32(iTotEfBal) / float32(custom_spec.EFFECTIVE_BALANCE_INCREMENT),
 		MissingSource:         int(iMissingSource),
 		MissingTarget:         int(iMissingTarget),

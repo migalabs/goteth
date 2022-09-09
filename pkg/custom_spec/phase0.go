@@ -432,9 +432,14 @@ func (p Phase0Spec) GetNumVals() uint64 {
 }
 
 func (p *Phase0Spec) CalculateAttBalance() {
+	max := uint64(0)
 	for i, item := range p.WrappedState.CorrectFlags {
 		p.WrappedState.AttestingBalance[i] = p.ValsEffectiveBalance(utils.BoolToUint(item))
+		if p.WrappedState.AttestingBalance[i] > max {
+			max = p.WrappedState.AttestingBalance[i]
+		}
 	}
+	p.WrappedState.PreviousAttBalance = max
 }
 
 func (p Phase0Spec) GetPrevValList() []uint64 {
@@ -458,4 +463,8 @@ func (p Phase0Spec) MissingFlags(valIdx uint64) []bool {
 
 	}
 	return result
+}
+
+func (p Phase0Spec) GetAttEffBalance() uint64 {
+	return p.WrappedState.PreviousAttBalance
 }
