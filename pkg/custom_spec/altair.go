@@ -315,8 +315,8 @@ func (p AltairSpec) PrevStateEpoch() uint64 {
 // Argument: 0 for source, 1 for target and 2 for head
 func (p AltairSpec) GetMissingFlag(flagIndex int) uint64 {
 	result := uint64(0)
-	for _, item := range p.WrappedState.CorrectFlags[flagIndex] {
-		if !item {
+	for idx, item := range p.WrappedState.CorrectFlags[flagIndex] {
+		if !item && IsActive(*p.WrappedState.PrevBState.Bellatrix.Validators[idx], phase0.Epoch(p.PrevStateEpoch())) {
 			result += 1
 		}
 	}
