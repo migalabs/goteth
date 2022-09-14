@@ -316,7 +316,8 @@ func (p AltairSpec) PrevStateEpoch() uint64 {
 func (p AltairSpec) GetMissingFlag(flagIndex int) uint64 {
 	result := uint64(0)
 	for idx, item := range p.WrappedState.CorrectFlags[flagIndex] {
-		if !item && IsActive(*p.WrappedState.PrevBState.Altair.Validators[idx], phase0.Epoch(p.PrevStateEpoch())) {
+		// TODO: check length of array of previous participation
+		if !item && IsActive(*p.WrappedState.BState.Altair.Validators[idx], phase0.Epoch(p.PrevStateEpoch())) {
 			result += 1
 		}
 	}

@@ -304,7 +304,7 @@ func (p BellatrixSpec) PrevStateEpoch() uint64 {
 func (p BellatrixSpec) GetMissingFlag(flagIndex int) uint64 {
 	result := uint64(0)
 	for idx, item := range p.WrappedState.CorrectFlags[flagIndex] {
-		if !item && IsActive(*p.WrappedState.PrevBState.Bellatrix.Validators[idx], phase0.Epoch(p.PrevStateEpoch())) {
+		if !item && IsActive(*p.WrappedState.BState.Bellatrix.Validators[idx], phase0.Epoch(p.PrevStateEpoch())) {
 			result += 1
 		}
 	}
