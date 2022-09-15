@@ -68,33 +68,36 @@ type CustomBeaconState interface {
 	CurrentSlot() uint64
 	PrevStateEpoch() uint64
 	PrevStateSlot() uint64
-	GetMaxReward(valIdx uint64) (uint64, error)
+	GetMaxReward(valIdx uint64) (ValidatorSepRewards, error)
 	PrevEpochReward(valIdx uint64) int64
 	GetMissingFlag(flagIndex int) uint64
 	GetMissedBlocks() []uint64
+	GetAttEffBalance() uint64
 	GetTotalActiveEffBalance() uint64
 	GetTotalActiveBalance() uint64
 	GetAttestingValNum() uint64
-	GetNumvals() uint64
+	GetNumVals() uint64
 	GetAttNum() uint64
 	GetAttSlot(valIdx uint64) int64
 	GetAttInclusionSlot(valIdx uint64) int64
 	GetBaseReward(valIdx uint64) float64
+	GetPrevValList() []uint64
+	MissingFlags(valIdx uint64) []bool
 }
 
-func BStateByForkVersion(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) (CustomBeaconState, error) {
+func BStateByForkVersion(nextBstate *spec.VersionedBeaconState, bstate spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) (CustomBeaconState, error) {
 	switch bstate.Version {
 
 	case spec.DataVersionPhase0:
-		return NewPhase0Spec(bstate, prevBstate, iApi), nil
+		return NewPhase0Spec(nextBstate, bstate, prevBstate, iApi), nil
 
 	case spec.DataVersionAltair:
-		return NewAltairSpec(bstate, prevBstate, iApi), nil
+		return NewAltairSpec(nextBstate, bstate, prevBstate, iApi), nil
 
-	// case spec.DataVersionBellatrix:
-	// 	return NewBellatrixSpec(bstate, iApi), nil
+	case spec.DataVersionBellatrix:
+		return NewBellatrixSpec(nextBstate, bstate, prevBstate, iApi), nil
 	default:
-		return nil, fmt.Errorf("could not figure out the Beacon State Fork Version")
+		return nil, fmt.Errorf("could not figure out the Beacon State Fork Version: %s", bstate.Version)
 	}
 }
 
@@ -205,4 +208,15 @@ func (p EpochData) GetValList(slot uint64, committeeIndex uint64) []phase0.Valid
 
 func GetEffectiveBalance(balance float64) float64 {
 	return math.Min(MAX_EFFECTIVE_INCREMENTS*EFFECTIVE_BALANCE_INCREMENT, balance)
+}
+
+type ValidatorSepRewards struct {
+	Attestation     float64
+	InclusionDelay  float64
+	FlagIndex       float64
+	SyncCommittee   float64
+	MaxReward       float64
+	BaseReward      float64
+	InSyncCommittee bool
+	ProposerSlot    int64
 }

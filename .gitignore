@@ -1,2 +1,4 @@
 results/
 eth2-state-analyzer
+.vscode/**
+test*.json

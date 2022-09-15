@@ -44,6 +44,10 @@ var RewardsCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:  "db-url",
 			Usage: "example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_kiln",
+		},
+		&cli.StringFlag{
+			Name:  "workers-num",
+			Usage: "example: 50",
 		}},
 }
 
@@ -55,6 +59,7 @@ var QueryTimeout = 90 * time.Second
 
 // CrawlAction is the function that is called when running `eth2`.
 func LaunchRewardsCalculator(c *cli.Context) error {
+	coworkers := 1
 	logRewardsRewards.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
@@ -78,10 +83,14 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	if !c.IsSet("db-url") {
 		return errors.New("db-url not provided")
 	}
+	if !c.IsSet("workers-num") {
+		logRewardsRewards.Infof("workers-num flag not provided, default: 1")
+	}
 	bnEndpoint := c.String("bn-endpoint")
 	initSlot := uint64(c.Int("init-slot"))
 	finalSlot := uint64(c.Int("final-slot"))
 	dbUrl := c.String("db-url")
+	coworkers = c.Int("workers-num")
 
 	validatorIndexes, err := utils.GetValIndexesFromJson(c.String("validator-indexes"))
 	if err != nil {
@@ -99,6 +108,6 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 		return err
 	}
 
-	stateAnalyzer.Run()
+	stateAnalyzer.Run(coworkers)
 	return nil
 }

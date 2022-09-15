@@ -1,5 +1,7 @@
 package model
 
+import "github.com/cortze/eth2-state-analyzer/pkg/custom_spec"
+
 // Postgres intregration variables
 var (
 	CreateValidatorRewardsTable = `
@@ -7,12 +9,14 @@ var (
 		f_val_idx INT,
 		f_slot INT,
 		f_epoch INT,
-		f_balance BIGINT,
-		f_reward BIGINT,
-		f_max_reward BIGINT,
-		f_att_slot BIGINT,
-		f_att_inclusion_slot BIGINT,
-		f_base_reward FLOAT,
+		f_balance_eth REAL,
+		f_reward INT,
+		f_max_reward INT,
+		f_att_slot INT,
+		f_att_inclusion_slot INT,
+		f_base_reward INT,
+		f_in_sync_committee BOOL,
+		f_proposer_slot INT,
 		f_missing_source BOOL,
 		f_missing_target BOOL, 
 		f_missing_head BOOL,
@@ -23,16 +27,18 @@ var (
 		f_val_idx, 
 		f_slot, 
 		f_epoch, 
-		f_balance, 
+		f_balance_eth, 
 		f_reward, 
 		f_max_reward, 
 		f_att_slot, 
 		f_att_inclusion_slot, 
 		f_base_reward,
+		f_in_sync_committee,
+		f_proposer_slot,
 		f_missing_source,
 		f_missing_target,
 		f_missing_head)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
 	`
 
 	UpdateValidatorLineTable = `
@@ -41,27 +47,28 @@ var (
 	WHERE f_val_idx=$1 AND f_slot=$2
 	`
 
-	SelectByValSlot = `
-	SELECT f_val_idx, f_slot, f_epoch, f_balance, f_reward, f_max_reward, f_att_slot, f_att_inclusion_slot, f_base_reward
-	FROM t_validator_rewards_summary
-	WHERE f_val_idx=$1 AND f_slot=$2;
-	`
+	VALIDATOR_QUERIES = [...]string{InsertNewEpochLineTable, UpdateValidatorLineTable}
 )
 
 type ValidatorRewards struct {
-	ValidatorIndex   uint64
-	Slot             uint64
-	Epoch            uint64
-	ValidatorBalance uint64
-	Reward           int64
-	MaxReward        uint64
-	AttSlot          int64
-	InclusionDelay   int64
-	BaseReward       uint64
-
-	MissingSource bool
-	MissingTarget bool
-	MissingHead   bool
+	ValidatorIndex       uint64
+	Slot                 int
+	Epoch                int
+	ValidatorBalance     float32
+	Reward               int
+	MaxReward            int
+	AttestationReward    int
+	InclusionDelayReward int
+	FlagIndexReward      int
+	SyncCommitteeReward  int
+	BaseReward           int
+	AttSlot              int
+	InclusionDelay       int
+	InSyncCommittee      bool
+	ProposerSlot         int
+	MissingSource        bool
+	MissingTarget        bool
+	MissingHead          bool
 }
 
 func NewValidatorRewards(
@@ -70,26 +77,38 @@ func NewValidatorRewards(
 	iEpoch uint64,
 	iValBal uint64,
 	iReward int64,
-	iMaxReward uint64,
+	iMaxReward float64,
+	iMaxAttReward float64,
+	iMaxInDelayReward float64,
+	iMaxFlagReward float64,
+	iMaxSyncComReward float64,
 	iAttSlot int64,
 	iInclusionDelay int64,
-	iBaseReward uint64,
+	iBaseReward float64,
+	iSyncCommittee bool,
+	iProposerSlot float64,
 	iMissingSource bool,
 	iMissingTarget bool,
 	iMissingHead bool) ValidatorRewards {
 	return ValidatorRewards{
-		ValidatorIndex:   iValIdx,
-		Slot:             iSlot,
-		Epoch:            iEpoch,
-		ValidatorBalance: iValBal,
-		Reward:           iReward,
-		MaxReward:        iMaxReward,
-		AttSlot:          iAttSlot,
-		InclusionDelay:   iInclusionDelay,
-		BaseReward:       iBaseReward,
-		MissingSource:    iMissingSource,
-		MissingTarget:    iMissingTarget,
-		MissingHead:      iMissingHead,
+		ValidatorIndex:       iValIdx,
+		Slot:                 int(iSlot),
+		Epoch:                int(iEpoch),
+		ValidatorBalance:     float32(iValBal) / float32(custom_spec.EFFECTIVE_BALANCE_INCREMENT),
+		Reward:               int(iReward),
+		MaxReward:            int(iMaxReward),
+		AttestationReward:    int(iMaxAttReward),
+		InclusionDelayReward: int(iMaxInDelayReward),
+		FlagIndexReward:      int(iMaxFlagReward),
+		SyncCommitteeReward:  int(iMaxSyncComReward),
+		AttSlot:              int(iAttSlot),
+		InclusionDelay:       int(iInclusionDelay),
+		BaseReward:           int(iBaseReward),
+		InSyncCommittee:      iSyncCommittee,
+		ProposerSlot:         int(iProposerSlot),
+		MissingSource:        iMissingSource,
+		MissingTarget:        iMissingTarget,
+		MissingHead:          iMissingHead,
 	}
 }
 

@@ -19,33 +19,33 @@ var (
 )
 
 type Phase0Spec struct {
-	WrappedState                  ForkStateContent
-	PreviousEpochAttestingVals    []uint64
-	PreviousEpochAttestingBalance uint64
-	ValAttestationInclusion       map[uint64]ValVote // key is valID
-	AttestedValsPerSlot           map[uint64][]uint64
+	WrappedState               ForkStateContent
+	PreviousEpochAttestingVals []uint64
+	ValAttestationInclusion    map[uint64]ValVote // key is valID
+	AttestedValsPerSlot        map[uint64][]uint64
 }
 
-func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) Phase0Spec {
+func NewPhase0Spec(nextBstate *spec.VersionedBeaconState, bstate spec.VersionedBeaconState, prevBstate spec.VersionedBeaconState, iApi *http.Service) Phase0Spec {
 	// func NewPhase0Spec(bstate *spec.VersionedBeaconState, iCli *clientapi.APIClient) Phase0Spec {
 
 	if prevBstate.Phase0 == nil {
-		prevBstate = *bstate
+		prevBstate = bstate
 	}
 
 	phase0Obj := Phase0Spec{
 		WrappedState: ForkStateContent{
-			BState:           *bstate,
+			NextState:        *nextBstate,
+			BState:           bstate,
 			PrevBState:       prevBstate,
 			Api:              iApi,
 			PrevEpochStructs: NewEpochData(iApi, prevBstate.Phase0.Slot),
 			EpochStructs:     NewEpochData(iApi, bstate.Phase0.Slot),
+			NextEpochStructs: NewEpochData(iApi, nextBstate.Phase0.Slot),
 		},
 
-		PreviousEpochAttestingVals:    make([]uint64, len(prevBstate.Phase0.Validators)),
-		PreviousEpochAttestingBalance: 0,
-		ValAttestationInclusion:       make(map[uint64]ValVote),
-		AttestedValsPerSlot:           make(map[uint64][]uint64),
+		PreviousEpochAttestingVals: make([]uint64, len(prevBstate.Phase0.Validators)),
+		ValAttestationInclusion:    make(map[uint64]ValVote),
+		AttestedValsPerSlot:        make(map[uint64][]uint64),
 		// the maximum inclusionDelay is 32, and we are counting aggregations from the current Epoch
 	}
 
@@ -61,7 +61,7 @@ func NewPhase0Spec(bstate *spec.VersionedBeaconState, prevBstate spec.VersionedB
 	}
 
 	phase0Obj.PreviousEpochAttestingVals = phase0Obj.CalculateAttestingVals(attestations, uint64(len(prevBstate.Phase0.Validators)))
-	phase0Obj.PreviousEpochAttestingBalance = phase0Obj.ValsEffectiveBalance(phase0Obj.PreviousEpochAttestingVals)
+	phase0Obj.CalculateAttBalance()
 	phase0Obj.WrappedState.TotalActiveBalance = phase0Obj.GetTotalActiveEffBalance()
 	phase0Obj.CalculateValAttestationInclusion()
 	phase0Obj.TrackMissingBlocks()
@@ -194,7 +194,7 @@ func (p Phase0Spec) PrevEpochReward(valIdx uint64) int64 {
 	return int64(p.WrappedState.BState.Phase0.Balances[valIdx] - p.WrappedState.PrevBState.Phase0.Balances[valIdx])
 }
 
-func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) float64 {
+func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint64, totalEffectiveBalance uint64) (float64, int64) {
 
 	isProposer := false
 	proposerSlot := 0
@@ -218,32 +218,30 @@ func (p Phase0Spec) GetMaxProposerReward(valIdx uint64, valEffectiveBalance uint
 				}
 			}
 		}
+		if votesIncluded > 0 {
+			baseReward := GetBaseReward(valEffectiveBalance, totalEffectiveBalance)
+			return (baseReward / PROPOSER_REWARD_QUOTIENT) * float64(votesIncluded), int64(proposerSlot)
+		}
 
-		baseReward := GetBaseReward(valEffectiveBalance, totalEffectiveBalance)
-		return (baseReward / PROPOSER_REWARD_QUOTIENT) * float64(votesIncluded)
 	}
 
-	return 0
+	return 0, -1
 }
 
-func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
+func (p Phase0Spec) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 
 	if p.CurrentEpoch() == GENESIS_EPOCH { // No rewards are applied at genesis
-		return 0, nil
+		return ValidatorSepRewards{}, nil
 	}
 	valEffectiveBalance := p.WrappedState.PrevBState.Phase0.Validators[valIdx].EffectiveBalance
-	activeBalance := p.GetTotalActiveEffBalance()
+	activeBalance := p.WrappedState.TotalActiveBalance
 	baseReward := GetBaseReward(uint64(valEffectiveBalance), activeBalance)
 	voteReward := float64(0)
 	inclusionDelayReward := float64(0)
 
-	for _, item := range p.WrappedState.CorrectFlags {
+	for i := range p.WrappedState.CorrectFlags {
 
-		if !item[valIdx] { // if this validators vote was not in an attestation with correct flag, dont sum
-			continue
-		}
-
-		previousAttestedBalance := p.ValsEffectiveBalance(utils.BoolToUint(item))
+		previousAttestedBalance := p.WrappedState.AttestingBalance[i]
 
 		participationRate := float64(previousAttestedBalance) / float64(activeBalance)
 
@@ -260,11 +258,21 @@ func (p Phase0Spec) GetMaxReward(valIdx uint64) (uint64, error) {
 		inclusionDelayReward = baseReward * 7.0 / 8.0
 	}
 
-	proposerReward := p.GetMaxProposerReward(valIdx, uint64(valEffectiveBalance), activeBalance)
+	_, proposerSlot := p.GetMaxProposerReward(valIdx, uint64(valEffectiveBalance), activeBalance)
+	// proposerReward := float64(0)
+	maxReward := voteReward + inclusionDelayReward // + proposerReward
 
-	maxReward := voteReward + inclusionDelayReward + proposerReward
-
-	return uint64(maxReward), nil
+	result := ValidatorSepRewards{
+		Attestation:     voteReward,
+		InclusionDelay:  inclusionDelayReward,
+		FlagIndex:       0,
+		SyncCommittee:   0,
+		MaxReward:       maxReward,
+		BaseReward:      baseReward,
+		ProposerSlot:    proposerSlot,
+		InSyncCommittee: false,
+	}
+	return result, nil
 }
 
 func (p Phase0Spec) GetAttSlot(valIdx uint64) int64 {
@@ -344,8 +352,8 @@ func (p Phase0Spec) GetMissedBlocks() []uint64 {
 }
 
 func (p *Phase0Spec) TrackMissingBlocks() {
-	firstIndex := p.WrappedState.BState.Phase0.Slot - SLOTS_PER_EPOCH + 1
-	lastIndex := p.WrappedState.BState.Phase0.Slot
+	firstIndex := (p.WrappedState.BState.Phase0.Slot - SLOTS_PER_EPOCH + 1) % SLOTS_PER_HISTORICAL_ROOT
+	lastIndex := (p.WrappedState.BState.Phase0.Slot) % SLOTS_PER_HISTORICAL_ROOT
 
 	for i := firstIndex; i <= lastIndex; i++ {
 		if i == 0 {
@@ -357,7 +365,8 @@ func (p *Phase0Spec) TrackMissingBlocks() {
 
 		if res == 0 {
 			// both roots were the same ==> missed block
-			p.WrappedState.MissedBlocks = append(p.WrappedState.MissedBlocks, uint64(i))
+			slot := i - firstIndex + p.WrappedState.BState.Phase0.Slot - SLOTS_PER_EPOCH + 1
+			p.WrappedState.MissedBlocks = append(p.WrappedState.MissedBlocks, uint64(slot))
 		}
 	}
 }
@@ -410,7 +419,7 @@ func (p Phase0Spec) GetBaseReward(valIdx uint64) float64 {
 	return GetBaseReward(uint64(effectiveBalance), totalEffBalance)
 }
 
-func (p Phase0Spec) GetNumvals() uint64 {
+func (p Phase0Spec) GetNumVals() uint64 {
 	result := uint64(0)
 
 	for _, val := range p.WrappedState.BState.Phase0.Validators {
@@ -420,4 +429,42 @@ func (p Phase0Spec) GetNumvals() uint64 {
 
 	}
 	return result
+}
+
+func (p *Phase0Spec) CalculateAttBalance() {
+	max := uint64(0)
+	for i, item := range p.WrappedState.CorrectFlags {
+		p.WrappedState.AttestingBalance[i] = p.ValsEffectiveBalance(utils.BoolToUint(item))
+		if p.WrappedState.AttestingBalance[i] > max {
+			max = p.WrappedState.AttestingBalance[i]
+		}
+	}
+	p.WrappedState.PreviousAttBalance = max
+}
+
+func (p Phase0Spec) GetPrevValList() []uint64 {
+	result := []uint64{}
+
+	for i, item := range p.WrappedState.PrevBState.Phase0.Validators {
+		epoch := utils.GetEpochFromSlot(p.WrappedState.PrevBState.Phase0.Slot)
+		if IsActive(*item, phase0.Epoch(epoch)) {
+			result = append(result, uint64(i))
+		}
+
+	}
+	return result
+}
+
+func (p Phase0Spec) MissingFlags(valIdx uint64) []bool {
+	result := []bool{false, false, false}
+
+	for i, item := range p.WrappedState.CorrectFlags {
+		result[i] = !item[valIdx]
+
+	}
+	return result
+}
+
+func (p Phase0Spec) GetAttEffBalance() uint64 {
+	return p.WrappedState.PreviousAttBalance
 }
