@@ -38,7 +38,7 @@ func NewAltairSpec(nextBstate *spec.VersionedBeaconState, bstate spec.VersionedB
 	attestingVals := make([][]uint64, 3)
 
 	for i := range attestingVals {
-		attestingVals[i] = make([]uint64, len(prevBstate.Altair.Validators))
+		attestingVals[i] = make([]uint64, len(bstate.Altair.Validators))
 	}
 
 	altairObj := AltairSpec{

@@ -27,7 +27,7 @@ func NewBellatrixSpec(nextBstate *spec.VersionedBeaconState, bstate spec.Version
 	attestingVals := make([][]uint64, 3)
 
 	for i := range attestingVals {
-		attestingVals[i] = make([]uint64, len(prevBstate.Bellatrix.Validators))
+		attestingVals[i] = make([]uint64, len(bstate.Bellatrix.Validators))
 	}
 
 	BellatrixObj := BellatrixSpec{
