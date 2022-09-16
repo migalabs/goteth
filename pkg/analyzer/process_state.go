@@ -88,7 +88,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				uint64(stateMetrics.GetMetricsBase().CurrentState.NumAttestingVals),
 				uint64(stateMetrics.GetMetricsBase().PrevState.NumActiveVals),
 				uint64(stateMetrics.GetMetricsBase().PrevState.TotalActiveRealBalance),
-				uint64(stateMetrics.GetMetricsBase().CurrentState.MaxAttestingBalance),
+				uint64(stateMetrics.GetMetricsBase().CurrentState.AttestingBalance[altair.TimelyTargetFlagIndex]), // as per BEaconcha.in
 				uint64(stateMetrics.GetMetricsBase().PrevState.TotalActiveBalance),
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
