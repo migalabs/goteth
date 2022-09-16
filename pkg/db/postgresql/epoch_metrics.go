@@ -9,7 +9,7 @@ This file together with the model, has all the needed methods to interact with t
 import (
 	"context"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/model"
+	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql/model"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"

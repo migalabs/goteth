@@ -3,7 +3,7 @@ package postgresql
 import (
 	"context"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/model"
+	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql/model"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"

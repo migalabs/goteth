@@ -3,7 +3,7 @@ package model
 import (
 	"fmt"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/custom_spec"
+	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
 )
 
 // Postgres intregration variables
@@ -99,9 +99,9 @@ func NewEpochMetrics(iEpoch uint64,
 		PrevNumAttestations:   int(iNumAtt),
 		PrevNumAttValidators:  int(iNumVals),
 		PrevNumValidators:     int(iNumVals),
-		TotalBalance:          float32(iTotBal) / float32(custom_spec.EFFECTIVE_BALANCE_INCREMENT),
-		AttEffectiveBalance:   float32(iAttEfBal) / float32(custom_spec.EFFECTIVE_BALANCE_INCREMENT),
-		TotalEffectiveBalance: float32(iTotEfBal) / float32(custom_spec.EFFECTIVE_BALANCE_INCREMENT),
+		TotalBalance:          float32(iTotBal) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
+		AttEffectiveBalance:   float32(iAttEfBal) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
+		TotalEffectiveBalance: float32(iTotEfBal) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
 		MissingSource:         int(iMissingSource),
 		MissingTarget:         int(iMissingTarget),
 		MissingHead:           int(iMissingHead),

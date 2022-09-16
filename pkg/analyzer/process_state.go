@@ -7,9 +7,9 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql/model"
 	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics"
 	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
-	"github.com/cortze/eth2-state-analyzer/pkg/model"
 	"github.com/jackc/pgx/v4"
 )
 

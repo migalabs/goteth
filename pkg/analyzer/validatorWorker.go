@@ -6,7 +6,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
-	"github.com/cortze/eth2-state-analyzer/pkg/model"
+	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql/model"
 	"github.com/jackc/pgx/v4"
 	"github.com/sirupsen/logrus"
 )
