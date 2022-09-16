@@ -107,7 +107,8 @@ func (p ForkStateContentBase) Balance(valIdx uint64) (uint64, error) {
 	return balance, nil
 }
 
-func (p ForkStateContentBase) GetTotalActiveEffBalance() uint64 {
+// Edit NumActiveVals
+func (p *ForkStateContentBase) GetTotalActiveEffBalance() uint64 {
 
 	val_array := make([]uint64, len(p.Validators))
 	p.NumActiveVals = 0 // any time we calculate total effective balance, the number of active vals is refreshed and recalculated

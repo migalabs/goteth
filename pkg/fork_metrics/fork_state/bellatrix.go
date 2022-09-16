@@ -10,12 +10,14 @@ import (
 func NewBellatrixState(bstate spec.VersionedBeaconState, iApi *http.Service) ForkStateContentBase {
 
 	bellatrixObj := ForkStateContentBase{
-		Balances:     bstate.Bellatrix.Balances,
-		Validators:   bstate.Bellatrix.Validators,
-		EpochStructs: NewEpochData(iApi, bstate.Bellatrix.Slot),
-		Epoch:        utils.GetEpochFromSlot(bstate.Bellatrix.Slot),
-		Slot:         bstate.Bellatrix.Slot,
-		BlockRoots:   bstate.Bellatrix.StateRoots,
+		Version:       bstate.Version,
+		Balances:      bstate.Bellatrix.Balances,
+		Validators:    bstate.Bellatrix.Validators,
+		EpochStructs:  NewEpochData(iApi, bstate.Bellatrix.Slot),
+		Epoch:         utils.GetEpochFromSlot(bstate.Bellatrix.Slot),
+		Slot:          bstate.Bellatrix.Slot,
+		BlockRoots:    bstate.Bellatrix.StateRoots,
+		SyncCommittee: *bstate.Bellatrix.CurrentSyncCommittee,
 	}
 
 	bellatrixObj.Setup()

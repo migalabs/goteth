@@ -24,13 +24,14 @@ var ( // spec weight constants
 func NewAltairState(bstate spec.VersionedBeaconState, iApi *http.Service) ForkStateContentBase {
 
 	altairObj := ForkStateContentBase{
-		Version:      bstate.Version,
-		Balances:     bstate.Altair.Balances,
-		Validators:   bstate.Altair.Validators,
-		EpochStructs: NewEpochData(iApi, bstate.Altair.Slot),
-		Epoch:        utils.GetEpochFromSlot(bstate.Altair.Slot),
-		Slot:         bstate.Altair.Slot,
-		BlockRoots:   bstate.Altair.StateRoots,
+		Version:       bstate.Version,
+		Balances:      bstate.Altair.Balances,
+		Validators:    bstate.Altair.Validators,
+		EpochStructs:  NewEpochData(iApi, bstate.Altair.Slot),
+		Epoch:         utils.GetEpochFromSlot(bstate.Altair.Slot),
+		Slot:          bstate.Altair.Slot,
+		BlockRoots:    bstate.Altair.StateRoots,
+		SyncCommittee: *bstate.Altair.CurrentSyncCommittee,
 	}
 
 	altairObj.Setup()
@@ -63,14 +64,10 @@ func ProcessAttestations(customState *ForkStateContentBase, participation []alta
 				// we sum the attesting balance in the corresponding flag index
 				customState.AttestingBalance[participatingFlag] += uint64(customState.Validators[valIndex].EffectiveBalance)
 
-				// we recalculate the max attesting balance
-				if customState.AttestingBalance[participatingFlag] > customState.MaxAttestingBalance {
-					customState.MaxAttestingBalance = customState.AttestingBalance[participatingFlag]
-				}
-
 				// if this validator was not counted as attesting before, count it now
 				if !customState.AttestingVals[valIndex] {
 					customState.NumAttestingVals++
+					customState.MaxAttestingBalance = uint64(customState.Validators[valIndex].EffectiveBalance)
 				}
 				customState.AttestingVals[valIndex] = true
 			}
