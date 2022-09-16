@@ -38,7 +38,6 @@ func (p StateMetricsBase) GetAttInclusionSlot(valIdx uint64) int64 {
 type StateMetrics interface {
 	GetMetricsBase() StateMetricsBase
 	GetMaxReward(valIdx uint64) (ValidatorSepRewards, error)
-	// GetBaseReward(valIdx uint64) float64
 }
 
 func StateMetricsByForkVersion(nextBstate fork_state.ForkStateContentBase, bstate fork_state.ForkStateContentBase, prevBstate fork_state.ForkStateContentBase, iApi *http.Service) (StateMetrics, error) {

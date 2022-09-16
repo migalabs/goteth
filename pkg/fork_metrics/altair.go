@@ -7,17 +7,6 @@ import (
 	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
 )
 
-var ( // spec weight constants
-	TIMELY_SOURCE_WEIGHT       = 14
-	TIMELY_TARGET_WEIGHT       = 26
-	TIMELY_HEAD_WEIGHT         = 14
-	PARTICIPATING_FLAGS_WEIGHT = []int{TIMELY_SOURCE_WEIGHT, TIMELY_TARGET_WEIGHT, TIMELY_HEAD_WEIGHT}
-	SYNC_REWARD_WEIGHT         = 2
-	PROPOSER_WEIGHT            = 8
-	WEIGHT_DENOMINATOR         = 64
-	SYNC_COMMITTEE_SIZE        = 512
-)
-
 type AltairMetrics struct {
 	StateMetricsBase
 }
@@ -87,8 +76,8 @@ func (p AltairMetrics) GetMaxSyncComReward(valIdx uint64) float64 {
 
 	totalActiveInc := p.NextState.TotalActiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT
 	totalBaseRewards := p.GetBaseRewardPerInc() * float64(totalActiveInc)
-	maxParticipantRewards := totalBaseRewards * float64(SYNC_REWARD_WEIGHT) / float64(WEIGHT_DENOMINATOR) / fork_state.SLOTS_PER_EPOCH
-	participantReward := maxParticipantRewards / float64(SYNC_COMMITTEE_SIZE) // this is the participantReward for a single slot
+	maxParticipantRewards := totalBaseRewards * float64(fork_state.SYNC_REWARD_WEIGHT) / float64(fork_state.WEIGHT_DENOMINATOR) / fork_state.SLOTS_PER_EPOCH
+	participantReward := maxParticipantRewards / float64(fork_state.SYNC_COMMITTEE_SIZE) // this is the participantReward for a single slot
 
 	return participantReward * fork_state.SLOTS_PER_EPOCH
 
@@ -108,8 +97,8 @@ func (p AltairMetrics) GetMaxAttestationReward(valIdx uint64, baseReward float64
 			// apply formula
 			attestingBalanceInc := p.CurrentState.AttestingBalance[i] / fork_state.EFFECTIVE_BALANCE_INCREMENT
 
-			flagReward := float64(PARTICIPATING_FLAGS_WEIGHT[i]) * baseReward * float64(attestingBalanceInc)
-			flagReward = flagReward / ((float64(p.CurrentState.TotalActiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT)) * float64(WEIGHT_DENOMINATOR))
+			flagReward := float64(fork_state.PARTICIPATING_FLAGS_WEIGHT[i]) * baseReward * float64(attestingBalanceInc)
+			flagReward = flagReward / ((float64(p.CurrentState.TotalActiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT)) * float64(fork_state.WEIGHT_DENOMINATOR))
 			maxFlagsReward += flagReward
 		}
 	}
