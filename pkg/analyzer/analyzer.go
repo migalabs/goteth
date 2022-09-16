@@ -9,11 +9,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/attestantio/go-eth2-client/spec"
-
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth2-state-analyzer/pkg/custom_spec"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics"
+	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
 	"github.com/cortze/eth2-state-analyzer/pkg/metrics"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
@@ -76,17 +75,17 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 
 	// minimum slot is 31
 	// force to be in the previous epoch than select by user
-	initSlot = uint64(math.Max(31, float64(int(initSlot-custom_spec.SLOTS_PER_EPOCH))))
+	initSlot = uint64(math.Max(31, float64(int(initSlot-fork_state.SLOTS_PER_EPOCH))))
 	initEpoch := int(initSlot / 32)
 	// force to be on the last slot of the init epoch
 	// epoch 0 ==> (0+1) * 32 - 1
-	initSlot = uint64((initEpoch+1)*custom_spec.SLOTS_PER_EPOCH - 1)
+	initSlot = uint64((initEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1)
 
 	finalSlot = uint64(math.Max(31, float64(finalSlot)))
 	finalEpoch := int(finalSlot / 32)
 	// for the finalSlot go the last slot of the next epoch
 	// remember rewards are calculated post epoch
-	finalSlot = uint64((finalEpoch+1)*custom_spec.SLOTS_PER_EPOCH - 1)
+	finalSlot = uint64((finalEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1)
 
 	for i := initSlot; i <= (finalSlot); i += utils.SlotBase {
 		slotRanges = append(slotRanges, i)
@@ -190,22 +189,19 @@ func (s *StateAnalyzer) Run(coworkers int) {
 //
 type EpochTask struct {
 	ValIdxs     []uint64
-	Slot        uint64
-	NextState   *spec.VersionedBeaconState
-	State       spec.VersionedBeaconState
-	PrevState   spec.VersionedBeaconState
+	NextState   fork_state.ForkStateContentBase
+	State       fork_state.ForkStateContentBase
+	PrevState   fork_state.ForkStateContentBase
 	OnlyPrevAtt bool
 }
 
 type ValTask struct {
-	ValIdxs     []uint64
-	CustomState custom_spec.CustomBeaconState
-	OnlyPrevAtt bool
+	ValIdxs         []uint64
+	StateMetricsObj fork_metrics.StateMetrics
+	OnlyPrevAtt     bool
 }
 
 type MonitorTasks struct {
 	ValIdxs []uint64
 	Slot    uint64
 }
-
-// Exporter Functions
