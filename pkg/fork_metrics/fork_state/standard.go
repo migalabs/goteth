@@ -188,9 +188,9 @@ func (p ForkStateContentBase) MissingFlags(valIdx uint64) []bool {
 	}
 
 	for i, item := range p.CorrectFlags {
-		if item[valIdx] == 0 {
-			// missing flag
-			result[i] = true
+		if item[valIdx] > 0 {
+			// no missing flag
+			result[i] = false
 		}
 
 	}
