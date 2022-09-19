@@ -54,7 +54,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 
 				flags := stateMetrics.GetMetricsBase().CurrentState.MissingFlags(valIdx)
 
-				// create a model to be inserted into the db
+				// create a model to be inserted into the db in the next epoch
 				validatorDBRow := model.NewValidatorRewards(
 					valIdx,
 					stateMetrics.GetMetricsBase().NextState.Slot,

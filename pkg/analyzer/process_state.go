@@ -57,7 +57,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				finalValidxs := make([]uint64, 0)
 				for _, item := range task.ValIdxs {
 					// check that validator number does not exceed the number of validators
-					if int(item) >= len(stateMetrics.GetMetricsBase().PrevState.Validators) {
+					if int(item) >= len(stateMetrics.GetMetricsBase().NextState.Validators) {
 						continue
 					}
 					// in case no validators provided, do all the active ones in the next epoch, take into account proposer and sync committee rewards
@@ -109,6 +109,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				epochDBRow.MissingHead,
 				epochDBRow.MissedBlocks)
 
+			// Flush the database batches
 			if epochBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE || (*downloadFinishedFlag && len(s.EpochTaskChan) == 0) {
 				s.dbClient.WriteChan <- epochBatch
 				epochBatch = pgx.Batch{}

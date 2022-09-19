@@ -44,13 +44,13 @@ func StateMetricsByForkVersion(nextBstate fork_state.ForkStateContentBase, bstat
 	switch bstate.Version {
 
 	case spec.DataVersionPhase0:
-		return NewPhase0Spec(nextBstate, bstate, prevBstate), nil
+		return NewPhase0Metrics(nextBstate, bstate, prevBstate), nil
 
 	case spec.DataVersionAltair:
-		return NewAltairSpec(nextBstate, bstate, prevBstate), nil
+		return NewAltairMetrics(nextBstate, bstate, prevBstate), nil
 
 	case spec.DataVersionBellatrix:
-		return NewAltairSpec(nextBstate, bstate, prevBstate), nil
+		return NewAltairMetrics(nextBstate, bstate, prevBstate), nil
 	default:
 		return nil, fmt.Errorf("could not figure out the Beacon State Fork Version: %s", bstate.Version)
 	}

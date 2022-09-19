@@ -12,9 +12,12 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon State Requester")
 	// loop over the list of slots that we need to analyze
+
+	// We need three consecutive states to compute max rewards easier
 	prevBState := fork_state.ForkStateContentBase{}
 	bstate := fork_state.ForkStateContentBase{}
 	nextBstate := fork_state.ForkStateContentBase{}
+
 	for _, slot := range s.SlotRanges {
 		ticker := time.NewTicker(minReqTime)
 		select {
@@ -35,7 +38,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 				prevBState = bstate
 				firstIteration = false
 			}
-			if nextBstate.AttestingBalance != nil { // in case we already had a nextBstate (only false the first time)
+			if nextBstate.AttestingBalance != nil { // in case we already had a nextBstate (only false the first and second time)
 				bstate = nextBstate
 				secondIteration = false
 			}
@@ -62,10 +65,8 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 			}
 
 			if !firstIteration && !secondIteration {
-				// only execute tasks if it is not the first iteration
+				// only execute tasks if it is not the first or second iteration iteration ==> we have three states
 
-				// we now only compose one single task that contains a list of validator indexes
-				// compose the next task
 				epochTask := &EpochTask{
 					ValIdxs:   s.ValidatorIndexes,
 					NextState: nextBstate,
@@ -73,7 +74,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 					PrevState: prevBState,
 				}
 
-				log.Debugf("sending task for slot: %d", slot)
+				log.Debugf("sending task for slot: %d", epochTask.State.Slot)
 				s.EpochTaskChan <- epochTask
 			}
 			// check if the min Request time has been completed (to avoid spaming the API)
@@ -163,7 +164,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 					PrevState: prevBState,
 				}
 
-				log.Debugf("sending task for slot: %d", finalizedSlot)
+				log.Debugf("sending task for slot: %d", epochTask.State.Slot)
 				s.EpochTaskChan <- epochTask
 			}
 			<-ticker.C

@@ -31,26 +31,21 @@ var (
 )
 
 type StateAnalyzer struct {
-	ctx              context.Context
-	InitSlot         uint64
-	FinalSlot        uint64
-	ValidatorIndexes []uint64
-	//ValidatorPubkeys []
-	// map of [validatorIndexes]RewardMetrics
+	ctx                context.Context
+	InitSlot           uint64
+	FinalSlot          uint64
+	ValidatorIndexes   []uint64
 	Metrics            sync.Map
 	SlotRanges         []uint64
 	MonitorSlotProcess map[uint64]uint64
-	//
-	EpochTaskChan  chan *EpochTask
-	ValTaskChan    chan *ValTask
-	MonitoringChan chan struct{}
-	MonitorMetrics *metrics.Monitor
+	EpochTaskChan      chan *EpochTask
+	ValTaskChan        chan *ValTask
+	MonitoringChan     chan struct{}
+	MonitorMetrics     *metrics.Monitor
 
-	// http CLient
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
 
-	//
 	initTime time.Time
 }
 
@@ -65,8 +60,7 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	// check if valIdx where given
 	if len(valIdxs) < 1 {
 		log.Infof("No validator indexes provided: running all validators")
-		valLength = VAL_LEN
-		// return nil, errors.New("no validator indexes where provided")
+		valLength = VAL_LEN // estimation to declare channels
 	}
 
 	// calculate the list of slots that we will analyze
@@ -85,7 +79,7 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 	finalEpoch := int(finalSlot / 32)
 	// for the finalSlot go the last slot of the next epoch
 	// remember rewards are calculated post epoch
-	finalSlot = uint64((finalEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1)
+	finalSlot = uint64((finalEpoch+2)*fork_state.SLOTS_PER_EPOCH - 1)
 
 	for i := initSlot; i <= (finalSlot); i += utils.SlotBase {
 		slotRanges = append(slotRanges, i)
@@ -131,9 +125,11 @@ func (s *StateAnalyzer) Run(coworkers int) {
 	var wgDownload sync.WaitGroup
 	downloadFinishedFlag := false
 
+	// Rewards per process
 	var wgProcess sync.WaitGroup
 	processFinishedFlag := false
 
+	// Workers to process each validator rewards
 	var wgWorkers sync.WaitGroup
 
 	totalTime := int64(0)
@@ -143,6 +139,7 @@ func (s *StateAnalyzer) Run(coworkers int) {
 	wgDownload.Add(1)
 	go s.runDownloadStates(&wgDownload)
 
+	// State requester in finalized slots
 	wgDownload.Add(1)
 	go s.runDownloadStatesFinalized(&wgDownload)
 
@@ -178,11 +175,13 @@ func (s *StateAnalyzer) Run(coworkers int) {
 	analysisDuration := time.Since(s.initTime).Seconds()
 	log.Info("State Analyzer finished in ", analysisDuration)
 
-	log.Info("-------- Stats --------")
-	log.Infof("Download Time: %f", s.MonitorMetrics.DownloadTime)
-	log.Infof("Preprocess Time: %f", s.MonitorMetrics.PreprocessTime)
-	log.Infof("Batching Time: %f", s.MonitorMetrics.BatchingTime)
-	log.Infof("DBWrite Time: %f", s.MonitorMetrics.DBWriteTime)
+	// Not using metrics for the moment
+
+	// log.Info("-------- Stats --------")
+	// log.Infof("Download Time: %f", s.MonitorMetrics.DownloadTime)
+	// log.Infof("Preprocess Time: %f", s.MonitorMetrics.PreprocessTime)
+	// log.Infof("Batching Time: %f", s.MonitorMetrics.BatchingTime)
+	// log.Infof("DBWrite Time: %f", s.MonitorMetrics.DBWriteTime)
 
 }
 

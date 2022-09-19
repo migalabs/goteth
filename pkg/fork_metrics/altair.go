@@ -11,7 +11,7 @@ type AltairMetrics struct {
 	StateMetricsBase
 }
 
-func NewAltairSpec(nextBstate fork_state.ForkStateContentBase, bstate fork_state.ForkStateContentBase, prevBstate fork_state.ForkStateContentBase) AltairMetrics {
+func NewAltairMetrics(nextBstate fork_state.ForkStateContentBase, bstate fork_state.ForkStateContentBase, prevBstate fork_state.ForkStateContentBase) AltairMetrics {
 
 	altairObj := AltairMetrics{}
 	altairObj.CurrentState = bstate
@@ -79,7 +79,7 @@ func (p AltairMetrics) GetMaxSyncComReward(valIdx uint64) float64 {
 	maxParticipantRewards := totalBaseRewards * float64(fork_state.SYNC_REWARD_WEIGHT) / float64(fork_state.WEIGHT_DENOMINATOR) / fork_state.SLOTS_PER_EPOCH
 	participantReward := maxParticipantRewards / float64(fork_state.SYNC_COMMITTEE_SIZE) // this is the participantReward for a single slot
 
-	return participantReward * fork_state.SLOTS_PER_EPOCH
+	return participantReward * fork_state.SLOTS_PER_EPOCH // max reward would be 32 perfect slots
 
 }
 

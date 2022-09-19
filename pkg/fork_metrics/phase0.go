@@ -19,7 +19,7 @@ type Phase0Metrics struct {
 	StateMetricsBase
 }
 
-func NewPhase0Spec(nextBstate fork_state.ForkStateContentBase, currentState fork_state.ForkStateContentBase, prevState fork_state.ForkStateContentBase) Phase0Metrics {
+func NewPhase0Metrics(nextBstate fork_state.ForkStateContentBase, currentState fork_state.ForkStateContentBase, prevState fork_state.ForkStateContentBase) Phase0Metrics {
 
 	phase0Obj := Phase0Metrics{}
 	phase0Obj.NextState = nextBstate
@@ -89,6 +89,7 @@ func (p *Phase0Metrics) CalculateAttestingVals() {
 	}
 }
 
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#components-of-attestation-deltas
 func (p Phase0Metrics) GetMaxProposerReward(valIdx uint64, baseReward float64) (float64, int64) {
 
 	isProposer := false
@@ -123,6 +124,8 @@ func (p Phase0Metrics) GetMaxProposerReward(valIdx uint64, baseReward float64) (
 	return 0, -1
 }
 
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#rewards-and-penalties-1
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#components-of-attestation-deltas
 func (p Phase0Metrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 
 	if p.CurrentState.Epoch == fork_state.GENESIS_EPOCH { // No rewards are applied at genesis
