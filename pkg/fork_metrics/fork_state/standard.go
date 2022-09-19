@@ -77,6 +77,7 @@ func (p *ForkStateContentBase) Setup() error {
 	}
 
 	p.TotalActiveBalance = p.GetTotalActiveEffBalance()
+	p.TotalActiveRealBalance = p.GetTotalActiveRealBalance()
 	p.TrackMissingBlocks()
 	return nil
 }

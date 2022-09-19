@@ -43,6 +43,10 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 				secondIteration = false
 			}
 			newState, err := s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
+			if newState == nil {
+				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. Nil State")
+				return
+			}
 			if err != nil {
 				// close the channel (to tell other routines to stop processing and end)
 				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
@@ -95,17 +99,16 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	bstate := fork_state.ForkStateContentBase{}
 	nextBstate := fork_state.ForkStateContentBase{}
 	finalizedSlot := 0
-
+	timerCh := time.NewTicker(time.Second * 384) // epoch seconds = 384
 	for {
 
-		timerCh := time.Tick(time.Second * 384) // epoch seconds = 384
 		select {
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state requester routine")
 			close(s.EpochTaskChan)
 			return
 
-		case <-timerCh:
+		case <-timerCh.C:
 			ticker := time.NewTicker(minReqTime)
 			firstIteration := true
 			secondIteration := true
@@ -132,9 +135,13 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			finalizedSlot = int(header.Header.Message.Slot) - 1
 			log.Infof("New finalized state at slot: %d", finalizedSlot)
 			newState, err := s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", finalizedSlot))
+			if newState == nil {
+				log.Errorf("Unable to retrieve Finalized Beacon State from the beacon node, closing requester routine. Nil State")
+				return
+			}
 			if err != nil {
 				// close the channel (to tell other routines to stop processing and end)
-				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
+				log.Errorf("Unable to retrieve Finalized Beacon State from the beacon node, closing requester routine. %s", err.Error())
 				return
 			}
 			if firstIteration {
