@@ -17,9 +17,9 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 	prevBState := fork_state.ForkStateContentBase{}
 	bstate := fork_state.ForkStateContentBase{}
 	nextBstate := fork_state.ForkStateContentBase{}
-
+	ticker := time.NewTicker(minReqTime)
 	for _, slot := range s.SlotRanges {
-		ticker := time.NewTicker(minReqTime)
+
 		select {
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state requester routine")
@@ -27,6 +27,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 			return
 
 		default:
+			ticker.Reset(minReqTime)
 			firstIteration := true
 			secondIteration := true
 			// make the state query
@@ -100,6 +101,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	nextBstate := fork_state.ForkStateContentBase{}
 	finalizedSlot := 0
 	timerCh := time.NewTicker(time.Second * 384) // epoch seconds = 384
+	ticker := time.NewTicker(minReqTime)
 	for {
 
 		select {
@@ -109,7 +111,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			return
 
 		case <-timerCh.C:
-			ticker := time.NewTicker(minReqTime)
+			ticker.Reset(minReqTime)
 			firstIteration := true
 			secondIteration := true
 			// make the state query
