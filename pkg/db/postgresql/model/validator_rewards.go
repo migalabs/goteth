@@ -12,6 +12,8 @@ var (
 		f_balance_eth REAL,
 		f_reward INT,
 		f_max_reward INT,
+		f_max_att_reward INT,
+		f_max_sync_reward INT,
 		f_att_slot INT,
 		f_att_inclusion_slot INT,
 		f_base_reward INT,
@@ -30,6 +32,8 @@ var (
 		f_balance_eth, 
 		f_reward, 
 		f_max_reward, 
+		f_max_att_reward,
+		f_max_sync_reward,
 		f_att_slot, 
 		f_att_inclusion_slot, 
 		f_base_reward,
@@ -38,7 +42,7 @@ var (
 		f_missing_source,
 		f_missing_target,
 		f_missing_head)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
 	`
 
 	UpdateValidatorLineTable = `

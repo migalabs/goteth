@@ -136,7 +136,7 @@ func (p AltairMetrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 		Attestation:     0,
 		InclusionDelay:  0,
 		FlagIndex:       flagIndexMaxReward,
-		SyncCommittee:   0,
+		SyncCommittee:   syncComMaxReward,
 		MaxReward:       maxReward,
 		BaseReward:      baseReward,
 		ProposerSlot:    proposerSlot,
