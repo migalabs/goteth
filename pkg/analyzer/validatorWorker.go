@@ -6,7 +6,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
-	"github.com/cortze/eth2-state-analyzer/pkg/model"
+	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql/model"
 	"github.com/jackc/pgx/v4"
 	"github.com/sirupsen/logrus"
 )
@@ -30,14 +30,14 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 				return
 			}
 
-			customBState := valTask.CustomState
-			wlog.Debugf("task received for val %d - %d in slot %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.CustomState.CurrentSlot())
+			stateMetrics := valTask.StateMetricsObj
+			wlog.Debugf("task received for val %d - %d in slot %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], stateMetrics.GetMetricsBase().CurrentState.Slot)
 			// Proccess State
 			snapshot := time.Now()
 			for _, valIdx := range valTask.ValIdxs {
 
 				// get max reward at given epoch using the formulas
-				maxRewards, err := customBState.GetMaxReward(valIdx)
+				maxRewards, err := stateMetrics.GetMaxReward(valIdx)
 
 				if err != nil {
 					log.Errorf("Error obtaining max reward: ", err.Error())
@@ -45,22 +45,20 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 				}
 
 				// calculate the current balance of validator
-				balance, err := customBState.Balance(valIdx)
+				balance := stateMetrics.GetMetricsBase().CurrentState.Balances[valIdx]
 
 				if err != nil {
 					log.Errorf("Error obtaining validator balance: ", err.Error())
 					continue
 				}
 
-				flags := customBState.MissingFlags(valIdx)
+				flags := stateMetrics.GetMetricsBase().CurrentState.MissingFlags(valIdx)
 
-				//TODO: Added specific flag missing support for validators
-				// TODO: But pending for optimizations before further processing
-				// create a model to be inserted into the db
+				// create a model to be inserted into the db in the next epoch
 				validatorDBRow := model.NewValidatorRewards(
 					valIdx,
-					customBState.CurrentSlot()+uint64(EPOCH_SLOTS),
-					customBState.CurrentEpoch()+1,
+					stateMetrics.GetMetricsBase().NextState.Slot,
+					stateMetrics.GetMetricsBase().NextState.Epoch,
 					balance,
 					0, // reward is written after state transition
 					maxRewards.MaxReward,
@@ -68,8 +66,8 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					maxRewards.InclusionDelay,
 					maxRewards.FlagIndex,
 					maxRewards.SyncCommittee,
-					customBState.GetAttSlot(valIdx),
-					customBState.GetAttInclusionSlot(valIdx),
+					stateMetrics.GetMetricsBase().GetAttSlot(valIdx),
+					stateMetrics.GetMetricsBase().GetAttInclusionSlot(valIdx),
 					maxRewards.BaseReward,
 					maxRewards.InSyncCommittee,
 					float64(maxRewards.ProposerSlot),
@@ -93,30 +91,15 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					validatorDBRow.MissingTarget,
 					validatorDBRow.MissingHead)
 
-				if customBState.CurrentSlot() >= 63 {
-					reward := customBState.PrevEpochReward(valIdx)
+				if stateMetrics.GetMetricsBase().CurrentState.Slot >= 63 {
+					reward := stateMetrics.GetMetricsBase().PrevEpochReward(valIdx)
 
-					// keep in mind that rewards for epoch 10 can be seen at beginning of epoch 12,
+					// keep in mind that att rewards for epoch 10 can be seen at beginning of epoch 12,
 					// after state_transition
 					// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
-					validatorDBRow = model.NewValidatorRewards(valIdx,
-						customBState.CurrentSlot(),
-						customBState.CurrentEpoch(),
-						0, // balance: was already filled in the last epoch
-						reward,
-						0, // maxReward: was already calculated in the previous epoch
-						0,
-						0,
-						0,
-						0,
-						0,
-						0,
-						0,
-						false,
-						-1,
-						false,
-						false,
-						false)
+
+					validatorDBRow.Reward = int(reward)
+					validatorDBRow.Slot = int(stateMetrics.GetMetricsBase().CurrentState.Slot)
 
 					batch.Queue(model.UpdateValidatorLineTable,
 						validatorDBRow.ValidatorIndex,
