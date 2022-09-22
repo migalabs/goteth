@@ -28,7 +28,7 @@ func NewPhase0State(bstate spec.VersionedBeaconState, iApi *http.Service) ForkSt
 		EpochStructs:     NewEpochData(iApi, bstate.Phase0.Slot),
 		Epoch:            utils.GetEpochFromSlot(bstate.Phase0.Slot),
 		Slot:             bstate.Phase0.Slot,
-		BlockRoots:       bstate.Phase0.StateRoots,
+		BlockRoots:       bstate.Phase0.BlockRoots,
 		PrevAttestations: bstate.Phase0.PreviousEpochAttestations,
 	}
 

@@ -16,7 +16,7 @@ func NewBellatrixState(bstate spec.VersionedBeaconState, iApi *http.Service) For
 		EpochStructs:  NewEpochData(iApi, bstate.Bellatrix.Slot),
 		Epoch:         utils.GetEpochFromSlot(bstate.Bellatrix.Slot),
 		Slot:          bstate.Bellatrix.Slot,
-		BlockRoots:    bstate.Bellatrix.StateRoots,
+		BlockRoots:    bstate.Bellatrix.BlockRoots,
 		SyncCommittee: *bstate.Bellatrix.CurrentSyncCommittee,
 	}
 

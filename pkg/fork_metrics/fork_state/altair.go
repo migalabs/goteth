@@ -30,7 +30,7 @@ func NewAltairState(bstate spec.VersionedBeaconState, iApi *http.Service) ForkSt
 		EpochStructs:  NewEpochData(iApi, bstate.Altair.Slot),
 		Epoch:         utils.GetEpochFromSlot(bstate.Altair.Slot),
 		Slot:          bstate.Altair.Slot,
-		BlockRoots:    bstate.Altair.StateRoots,
+		BlockRoots:    bstate.Altair.BlockRoots,
 		SyncCommittee: *bstate.Altair.CurrentSyncCommittee,
 	}
 
