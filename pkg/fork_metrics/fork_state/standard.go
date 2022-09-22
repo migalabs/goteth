@@ -182,16 +182,18 @@ func (p ForkStateContentBase) GetActiveVals() []uint64 {
 
 // Returns a list of missing flags for the corresponding valIdx
 func (p ForkStateContentBase) MissingFlags(valIdx uint64) []bool {
-	result := []bool{true, true, true}
+	result := []bool{false, false, false}
 
 	if int(valIdx) >= len(p.CorrectFlags[0]) {
 		return result
 	}
 
 	for i, item := range p.CorrectFlags {
-		if item[valIdx] > 0 {
-			// no missing flag
-			result[i] = false
+		if IsActive(*p.Validators[valIdx], phase0.Epoch(p.Epoch-1)) && item[valIdx] == 0 {
+			if item[valIdx] == 0 {
+				// no missing flag
+				result[i] = true
+			}
 		}
 
 	}
