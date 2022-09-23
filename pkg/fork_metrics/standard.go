@@ -15,7 +15,7 @@ type StateMetricsBase struct {
 }
 
 func (p StateMetricsBase) PrevEpochReward(valIdx uint64) int64 {
-	return int64(p.CurrentState.Balances[valIdx] - p.PrevState.Balances[valIdx])
+	return int64(p.CurrentState.Balances[valIdx]) - int64(p.PrevState.Balances[valIdx])
 }
 
 func (p StateMetricsBase) GetAttSlot(valIdx uint64) int64 {
