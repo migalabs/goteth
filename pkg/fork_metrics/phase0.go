@@ -54,17 +54,17 @@ func (p *Phase0Metrics) CalculateAttestingVals() {
 			p.CurrentState.AttestingVals[attestingValIdx] = true
 
 			// add correct flags and balances
-			if p.IsCorrectSource() {
+			if p.IsCorrectSource() && p.CurrentState.CorrectFlags[altair.TimelySourceFlagIndex][attestingValIdx] == 0 {
 				p.CurrentState.CorrectFlags[altair.TimelySourceFlagIndex][attestingValIdx] += 1
 				p.CurrentState.AttestingBalance[altair.TimelySourceFlagIndex] += uint64(p.CurrentState.Validators[attestingValIdx].EffectiveBalance)
 			}
 
-			if p.IsCorrectTarget(*item) {
+			if p.IsCorrectTarget(*item) && p.CurrentState.CorrectFlags[altair.TimelyTargetFlagIndex][attestingValIdx] == 0 {
 				p.CurrentState.CorrectFlags[altair.TimelyTargetFlagIndex][attestingValIdx] += 1
 				p.CurrentState.AttestingBalance[altair.TimelyTargetFlagIndex] += uint64(p.CurrentState.Validators[attestingValIdx].EffectiveBalance)
 			}
 
-			if p.IsCorrectHead(*item) {
+			if p.IsCorrectHead(*item) && p.CurrentState.CorrectFlags[altair.TimelyHeadFlagIndex][attestingValIdx] == 0 {
 				p.CurrentState.CorrectFlags[altair.TimelyHeadFlagIndex][attestingValIdx] += 1
 				p.CurrentState.AttestingBalance[altair.TimelyHeadFlagIndex] += uint64(p.CurrentState.Validators[attestingValIdx].EffectiveBalance)
 			}
@@ -151,11 +151,8 @@ func (p Phase0Metrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 			voteReward += baseReward * participationRate
 		}
 
-		// TODO: remove this as we are calculating max reward
-		if p.CurrentState.CorrectFlags[altair.TimelySourceFlagIndex][valIdx] > 0 {
-			// only add it when there was an attestation (correct source)
-			inclusionDelayReward = baseReward * 7.0 / 8.0
-		}
+		// only add it when there was an attestation (correct source)
+		inclusionDelayReward = baseReward * 7.0 / 8.0
 	}
 
 	_, proposerSlot = p.GetMaxProposerReward(valIdx, baseReward)
