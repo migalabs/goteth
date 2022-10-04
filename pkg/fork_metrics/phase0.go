@@ -146,14 +146,15 @@ func (p Phase0Metrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 
 			// participationRate per flag
 			// participationRate := int64(previousAttestedBalance) / int64(p.CurrentState.TotalActiveBalance)
-			singleReward := baseReward * int64(previousAttestedBalance)
+			singleReward := baseReward * (int64(previousAttestedBalance) / fork_state.EFFECTIVE_BALANCE_INCREMENT)
 
 			// for each flag, we add baseReward * participationRate
-			voteReward += singleReward / int64(p.CurrentState.TotalActiveBalance)
+			voteReward += singleReward / (int64(p.CurrentState.TotalActiveBalance) / fork_state.EFFECTIVE_BALANCE_INCREMENT)
 		}
 
+		proposerReward := baseReward / fork_state.PROPOSER_REWARD_QUOTIENT
 		// only add it when there was an attestation (correct source)
-		inclusionDelayReward = baseReward * 7.0 / 8.0
+		inclusionDelayReward = baseReward - proposerReward
 	}
 
 	_, proposerSlot = p.GetMaxProposerReward(valIdx, baseReward)
