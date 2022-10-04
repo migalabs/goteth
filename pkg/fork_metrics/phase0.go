@@ -145,10 +145,11 @@ func (p Phase0Metrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 			previousAttestedBalance := p.CurrentState.AttestingBalance[i]
 
 			// participationRate per flag
-			participationRate := int64(previousAttestedBalance) / int64(p.CurrentState.TotalActiveBalance)
+			// participationRate := int64(previousAttestedBalance) / int64(p.CurrentState.TotalActiveBalance)
+			singleReward := baseReward * int64(previousAttestedBalance)
 
 			// for each flag, we add baseReward * participationRate
-			voteReward += baseReward * participationRate
+			voteReward += singleReward / int64(p.CurrentState.TotalActiveBalance)
 		}
 
 		// only add it when there was an attestation (correct source)
