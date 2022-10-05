@@ -70,7 +70,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					stateMetrics.GetMetricsBase().GetAttInclusionSlot(valIdx),
 					maxRewards.BaseReward,
 					maxRewards.InSyncCommittee,
-					float64(maxRewards.ProposerSlot),
+					maxRewards.ProposerSlot,
 					flags[altair.TimelySourceFlagIndex],
 					flags[altair.TimelyTargetFlagIndex],
 					flags[altair.TimelyHeadFlagIndex])
@@ -100,7 +100,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					// after state_transition
 					// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
 
-					validatorDBRow.Reward = int(reward)
+					validatorDBRow.Reward = reward
 					validatorDBRow.Slot = int(stateMetrics.GetMetricsBase().CurrentState.Slot)
 
 					batch.Queue(model.UpdateValidatorLineTable,

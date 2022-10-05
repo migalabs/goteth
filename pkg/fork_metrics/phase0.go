@@ -54,17 +54,17 @@ func (p *Phase0Metrics) CalculateAttestingVals() {
 			p.CurrentState.AttestingVals[attestingValIdx] = true
 
 			// add correct flags and balances
-			if p.IsCorrectSource() {
+			if p.IsCorrectSource() && p.CurrentState.CorrectFlags[altair.TimelySourceFlagIndex][attestingValIdx] == 0 {
 				p.CurrentState.CorrectFlags[altair.TimelySourceFlagIndex][attestingValIdx] += 1
 				p.CurrentState.AttestingBalance[altair.TimelySourceFlagIndex] += uint64(p.CurrentState.Validators[attestingValIdx].EffectiveBalance)
 			}
 
-			if p.IsCorrectTarget(*item) {
+			if p.IsCorrectTarget(*item) && p.CurrentState.CorrectFlags[altair.TimelyTargetFlagIndex][attestingValIdx] == 0 {
 				p.CurrentState.CorrectFlags[altair.TimelyTargetFlagIndex][attestingValIdx] += 1
 				p.CurrentState.AttestingBalance[altair.TimelyTargetFlagIndex] += uint64(p.CurrentState.Validators[attestingValIdx].EffectiveBalance)
 			}
 
-			if p.IsCorrectHead(*item) {
+			if p.IsCorrectHead(*item) && p.CurrentState.CorrectFlags[altair.TimelyHeadFlagIndex][attestingValIdx] == 0 {
 				p.CurrentState.CorrectFlags[altair.TimelyHeadFlagIndex][attestingValIdx] += 1
 				p.CurrentState.AttestingBalance[altair.TimelyHeadFlagIndex] += uint64(p.CurrentState.Validators[attestingValIdx].EffectiveBalance)
 			}
@@ -90,7 +90,7 @@ func (p *Phase0Metrics) CalculateAttestingVals() {
 }
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#components-of-attestation-deltas
-func (p Phase0Metrics) GetMaxProposerReward(valIdx uint64, baseReward float64) (float64, int64) {
+func (p Phase0Metrics) GetMaxProposerReward(valIdx uint64, baseReward uint64) (uint64, int64) {
 
 	isProposer := false
 	proposerSlot := 0
@@ -116,7 +116,7 @@ func (p Phase0Metrics) GetMaxProposerReward(valIdx uint64, baseReward float64) (
 			}
 		}
 		if votesIncluded > 0 {
-			return (baseReward / fork_state.PROPOSER_REWARD_QUOTIENT) * float64(votesIncluded), int64(proposerSlot)
+			return (baseReward / fork_state.PROPOSER_REWARD_QUOTIENT) * uint64(votesIncluded), int64(proposerSlot)
 		}
 
 	}
@@ -132,11 +132,11 @@ func (p Phase0Metrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 		return ValidatorSepRewards{}, nil
 	}
 	baseReward := p.GetBaseReward(uint64(p.CurrentState.Validators[valIdx].EffectiveBalance))
-	voteReward := float64(0)
-	proposerReward := float64(0)
+	voteReward := uint64(0)
+	proposerReward := uint64(0)
 	proposerSlot := int64(-1)
-	maxReward := float64(0)
-	inclusionDelayReward := float64(0)
+	maxReward := uint64(0)
+	inclusionDelayReward := uint64(0)
 
 	if fork_state.IsActive(*p.NextState.Validators[valIdx], phase0.Epoch(p.PrevState.Epoch)) {
 		// only consider attestations rewards in case the validator was active in the previous epoch
@@ -144,18 +144,16 @@ func (p Phase0Metrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 
 			previousAttestedBalance := p.CurrentState.AttestingBalance[i]
 
-			// participationRate per flag
-			participationRate := float64(previousAttestedBalance) / float64(p.CurrentState.TotalActiveBalance)
+			// participationRate per flag ==> previousAttestBalance / TotalActiveBalance
+			singleReward := baseReward * (uint64(previousAttestedBalance) / fork_state.EFFECTIVE_BALANCE_INCREMENT)
 
 			// for each flag, we add baseReward * participationRate
-			voteReward += baseReward * participationRate
+			voteReward += singleReward / (uint64(p.CurrentState.TotalActiveBalance) / fork_state.EFFECTIVE_BALANCE_INCREMENT)
 		}
 
-		// TODO: remove this as we are calculating max reward
-		if p.CurrentState.CorrectFlags[altair.TimelySourceFlagIndex][valIdx] > 0 {
-			// only add it when there was an attestation (correct source)
-			inclusionDelayReward = baseReward * 7.0 / 8.0
-		}
+		proposerReward := baseReward / fork_state.PROPOSER_REWARD_QUOTIENT
+		// only add it when there was an attestation (correct source)
+		inclusionDelayReward = baseReward - proposerReward
 	}
 
 	_, proposerSlot = p.GetMaxProposerReward(valIdx, baseReward)
@@ -209,15 +207,15 @@ func (p Phase0Metrics) IsCorrectHead(attestation phase0.PendingAttestation) bool
 
 // BaseReward = ( effectiveBalance * (BaseRewardFactor)/(BaseRewardsPerEpoch * sqrt(activeBalance)) )
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#helpers
-func (p Phase0Metrics) GetBaseReward(valEffectiveBalance uint64) float64 {
+func (p Phase0Metrics) GetBaseReward(valEffectiveBalance uint64) uint64 {
 
-	var baseReward float64
+	var baseReward uint64
 
 	sqrt := uint64(math.Sqrt(float64(p.CurrentState.TotalActiveBalance)))
 
-	denom := float64(fork_state.BASE_REWARD_PER_EPOCH * sqrt)
+	denom := uint64(fork_state.BASE_REWARD_PER_EPOCH * sqrt)
 
-	num := (float64(valEffectiveBalance) * fork_state.BASE_REWARD_FACTOR)
+	num := (uint64(valEffectiveBalance) * fork_state.BASE_REWARD_FACTOR)
 	baseReward = num / denom
 
 	return baseReward

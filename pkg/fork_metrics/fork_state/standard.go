@@ -71,6 +71,8 @@ func (p *ForkStateContentBase) Setup() error {
 	p.AttestingVals = make([]bool, arrayLen)
 	p.CorrectFlags = make([][]uint64, 3)
 	p.MissedBlocks = make([]uint64, 0)
+	p.ValAttestationInclusion = make(map[uint64]ValVote)
+	p.AttestedValsPerSlot = make(map[uint64][]uint64)
 
 	for i := range p.CorrectFlags {
 		p.CorrectFlags[i] = make([]uint64, arrayLen)

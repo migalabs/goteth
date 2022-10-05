@@ -59,17 +59,17 @@ type ValidatorRewards struct {
 	Slot                 int
 	Epoch                int
 	ValidatorBalance     float32
-	Reward               int
-	MaxReward            int
-	AttestationReward    int
-	InclusionDelayReward int
-	FlagIndexReward      int
-	SyncCommitteeReward  int
-	BaseReward           int
-	AttSlot              int
-	InclusionDelay       int
+	Reward               int64
+	MaxReward            uint64
+	AttestationReward    uint64
+	InclusionDelayReward uint64
+	FlagIndexReward      uint64
+	SyncCommitteeReward  uint64
+	BaseReward           uint64
+	AttSlot              uint64
+	InclusionDelay       int64
 	InSyncCommittee      bool
-	ProposerSlot         int
+	ProposerSlot         int64
 	MissingSource        bool
 	MissingTarget        bool
 	MissingHead          bool
@@ -81,16 +81,16 @@ func NewValidatorRewards(
 	iEpoch uint64,
 	iValBal uint64,
 	iReward int64,
-	iMaxReward float64,
-	iMaxAttReward float64,
-	iMaxInDelayReward float64,
-	iMaxFlagReward float64,
-	iMaxSyncComReward float64,
-	iAttSlot int64,
+	iMaxReward uint64,
+	iMaxAttReward uint64,
+	iMaxInDelayReward uint64,
+	iMaxFlagReward uint64,
+	iMaxSyncComReward uint64,
+	iAttSlot uint64,
 	iInclusionDelay int64,
-	iBaseReward float64,
+	iBaseReward uint64,
 	iSyncCommittee bool,
-	iProposerSlot float64,
+	iProposerSlot int64,
 	iMissingSource bool,
 	iMissingTarget bool,
 	iMissingHead bool) ValidatorRewards {
@@ -99,17 +99,17 @@ func NewValidatorRewards(
 		Slot:                 int(iSlot),
 		Epoch:                int(iEpoch),
 		ValidatorBalance:     float32(iValBal) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
-		Reward:               int(iReward),
-		MaxReward:            int(iMaxReward),
-		AttestationReward:    int(iMaxAttReward),
-		InclusionDelayReward: int(iMaxInDelayReward),
-		FlagIndexReward:      int(iMaxFlagReward),
-		SyncCommitteeReward:  int(iMaxSyncComReward),
-		AttSlot:              int(iAttSlot),
-		InclusionDelay:       int(iInclusionDelay),
-		BaseReward:           int(iBaseReward),
+		Reward:               iReward,
+		MaxReward:            iMaxReward,
+		AttestationReward:    iMaxAttReward,
+		InclusionDelayReward: iMaxInDelayReward,
+		FlagIndexReward:      iMaxFlagReward,
+		SyncCommitteeReward:  iMaxSyncComReward,
+		AttSlot:              iAttSlot,
+		InclusionDelay:       iInclusionDelay,
+		BaseReward:           iBaseReward,
 		InSyncCommittee:      iSyncCommittee,
-		ProposerSlot:         int(iProposerSlot),
+		ProposerSlot:         iProposerSlot,
 		MissingSource:        iMissingSource,
 		MissingTarget:        iMissingTarget,
 		MissingHead:          iMissingHead,
