@@ -79,7 +79,7 @@ func (p AltairMetrics) GetMaxSyncComReward(valIdx uint64) int64 {
 	maxParticipantRewards := totalBaseRewards * int64(fork_state.SYNC_REWARD_WEIGHT) / int64(fork_state.WEIGHT_DENOMINATOR) / fork_state.SLOTS_PER_EPOCH
 	participantReward := maxParticipantRewards / int64(fork_state.SYNC_COMMITTEE_SIZE) // this is the participantReward for a single slot
 
-	return participantReward * fork_state.SLOTS_PER_EPOCH // max reward would be 32 perfect slots
+	return participantReward * int64(fork_state.SLOTS_PER_EPOCH-len(p.NextState.MissedBlocks)) // max reward would be 32 perfect slots
 
 }
 
