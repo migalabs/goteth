@@ -18,9 +18,9 @@ func (p StateMetricsBase) PrevEpochReward(valIdx uint64) int64 {
 	return int64(p.CurrentState.Balances[valIdx]) - int64(p.PrevState.Balances[valIdx])
 }
 
-func (p StateMetricsBase) GetAttSlot(valIdx uint64) int64 {
+func (p StateMetricsBase) GetAttSlot(valIdx uint64) uint64 {
 
-	return int64(p.PrevState.EpochStructs.ValidatorAttSlot[valIdx])
+	return p.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
 }
 
 func (p StateMetricsBase) GetAttInclusionSlot(valIdx uint64) int64 {
@@ -32,7 +32,7 @@ func (p StateMetricsBase) GetAttInclusionSlot(valIdx uint64) int64 {
 			return int64(p.CurrentState.ValAttestationInclusion[valIdx].InclusionSlot[i])
 		}
 	}
-	return -1
+	return int64(-1)
 }
 
 type StateMetrics interface {
@@ -57,12 +57,12 @@ func StateMetricsByForkVersion(nextBstate fork_state.ForkStateContentBase, bstat
 }
 
 type ValidatorSepRewards struct {
-	Attestation     float64
-	InclusionDelay  float64
-	FlagIndex       float64
-	SyncCommittee   float64
-	MaxReward       float64
-	BaseReward      float64
+	Attestation     uint64
+	InclusionDelay  uint64
+	FlagIndex       uint64
+	SyncCommittee   uint64
+	MaxReward       uint64
+	BaseReward      uint64
 	InSyncCommittee bool
 	ProposerSlot    int64
 }
