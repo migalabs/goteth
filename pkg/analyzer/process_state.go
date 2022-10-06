@@ -93,7 +93,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
-				stateMetrics.GetMetricsBase().CurrentState.MissedBlocks)
+				stateMetrics.GetMetricsBase().PrevState.MissedBlocks)
 
 			epochBatch.Queue(model.InsertNewEpochLineTable,
 				epochDBRow.Epoch,

@@ -18,6 +18,10 @@ func (p StateMetricsBase) PrevEpochReward(valIdx uint64) int64 {
 	return int64(p.CurrentState.Balances[valIdx]) - int64(p.PrevState.Balances[valIdx])
 }
 
+func (p StateMetricsBase) EpochReward(valIdx uint64) int64 {
+	return int64(p.NextState.Balances[valIdx]) - int64(p.CurrentState.Balances[valIdx])
+}
+
 func (p StateMetricsBase) GetAttSlot(valIdx uint64) uint64 {
 
 	return p.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
