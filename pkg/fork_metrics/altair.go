@@ -75,7 +75,7 @@ func (p AltairMetrics) GetMaxSyncComReward(valIdx uint64) uint64 {
 	// at this point we know the validator was inside the sync committee and, therefore, active at that point
 
 	totalActiveInc := p.NextState.TotalActiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT
-	totalBaseRewards := p.GetBaseRewardPerInc() * uint64(totalActiveInc)
+	totalBaseRewards := p.GetBaseRewardPerInc(p.NextState.TotalActiveBalance) * uint64(totalActiveInc)
 	maxParticipantRewards := totalBaseRewards * uint64(fork_state.SYNC_REWARD_WEIGHT) / uint64(fork_state.WEIGHT_DENOMINATOR) / fork_state.SLOTS_PER_EPOCH
 	participantReward := maxParticipantRewards / uint64(fork_state.SYNC_COMMITTEE_SIZE) // this is the participantReward for a single slot
 
@@ -116,7 +116,7 @@ func (p AltairMetrics) GetMaxAttestationReward(valIdx uint64, baseReward uint64)
 
 func (p AltairMetrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 
-	baseReward := p.GetBaseReward(valIdx)
+	baseReward := p.GetBaseReward(valIdx, p.CurrentState.TotalActiveBalance)
 
 	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, baseReward)
 
@@ -146,16 +146,16 @@ func (p AltairMetrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 
 }
 
-func (p AltairMetrics) GetBaseReward(valIdx uint64) uint64 {
+func (p AltairMetrics) GetBaseReward(valIdx uint64, totalEffectiveBalance uint64) uint64 {
 	effectiveBalanceInc := p.CurrentState.Validators[valIdx].EffectiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT
-	return p.GetBaseRewardPerInc() * uint64(effectiveBalanceInc)
+	return p.GetBaseRewardPerInc(totalEffectiveBalance) * uint64(effectiveBalanceInc)
 }
 
-func (p AltairMetrics) GetBaseRewardPerInc() uint64 {
+func (p AltairMetrics) GetBaseRewardPerInc(totalEffectiveBalance uint64) uint64 {
 
 	var baseReward uint64
 
-	sqrt := uint64(math.Sqrt(float64(p.CurrentState.TotalActiveBalance)))
+	sqrt := uint64(math.Sqrt(float64(totalEffectiveBalance)))
 
 	num := fork_state.EFFECTIVE_BALANCE_INCREMENT * fork_state.BASE_REWARD_FACTOR
 	baseReward = uint64(num) / uint64(sqrt)
