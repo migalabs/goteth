@@ -238,7 +238,7 @@ func (p ForkStateContentBase) GetValStatus(valIdx uint64) string {
 		return "slashed"
 	}
 
-	if p.Validators[valIdx].ActivationEpoch >= phase0.Epoch(p.Epoch) {
+	if p.Validators[valIdx].ActivationEpoch <= phase0.Epoch(p.Epoch) {
 		return "active"
 	}
 
