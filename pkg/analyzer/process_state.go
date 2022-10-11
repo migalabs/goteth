@@ -52,7 +52,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 
 			if len(task.ValIdxs) == 0 {
 				// in case no validators provided, do all the active ones in the next epoch, take into account proposer and sync committee rewards
-				task.ValIdxs = stateMetrics.GetMetricsBase().NextState.GetActiveVals()
+				task.ValIdxs = stateMetrics.GetMetricsBase().NextState.GetAllVals()
 			} else {
 				finalValidxs := make([]uint64, 0)
 				for _, item := range task.ValIdxs {

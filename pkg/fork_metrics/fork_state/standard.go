@@ -182,6 +182,18 @@ func (p ForkStateContentBase) GetActiveVals() []uint64 {
 	return result
 }
 
+// List of validators that were in the epoch of the state
+// Lenght of the list is variable, each position containing the valIdx
+func (p ForkStateContentBase) GetAllVals() []uint64 {
+	result := make([]uint64, 0)
+
+	for i := range p.Validators {
+		result = append(result, uint64(i))
+
+	}
+	return result
+}
+
 // Returns a list of missing flags for the corresponding valIdx
 func (p ForkStateContentBase) MissingFlags(valIdx uint64) []bool {
 	result := []bool{false, false, false}
