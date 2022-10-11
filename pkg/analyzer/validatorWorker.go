@@ -73,7 +73,8 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					maxRewards.ProposerSlot,
 					flags[altair.TimelySourceFlagIndex],
 					flags[altair.TimelyTargetFlagIndex],
-					flags[altair.TimelyHeadFlagIndex])
+					flags[altair.TimelyHeadFlagIndex],
+					stateMetrics.GetMetricsBase().NextState.GetValStatus(valIdx))
 
 				batch.Queue(model.InsertNewValidatorLineTable,
 					validatorDBRow.ValidatorIndex,
@@ -91,24 +92,8 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					validatorDBRow.ProposerSlot,
 					validatorDBRow.MissingSource,
 					validatorDBRow.MissingTarget,
-					validatorDBRow.MissingHead)
-
-				// if stateMetrics.GetMetricsBase().CurrentState.Slot >= 63 {
-				// 	reward := stateMetrics.GetMetricsBase().PrevEpochReward(valIdx)
-
-				// 	// keep in mind that att rewards for epoch 10 can be seen at beginning of epoch 12,
-				// 	// after state_transition
-				// 	// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
-
-				// 	validatorDBRow.Reward = reward
-				// 	validatorDBRow.Slot = int(stateMetrics.GetMetricsBase().CurrentState.Slot)
-
-				// 	batch.Queue(model.UpdateValidatorLineTable,
-				// 		validatorDBRow.ValidatorIndex,
-				// 		validatorDBRow.Slot,
-				// 		validatorDBRow.Reward)
-
-				// }
+					validatorDBRow.MissingHead,
+					validatorDBRow.Status)
 
 				if batch.Len() > postgresql.MAX_BATCH_QUEUE || (*processFinishedFlag && len(s.ValTaskChan) == 0) {
 					wlog.Debugf("Sending batch to be stored...")

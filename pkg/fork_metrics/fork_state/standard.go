@@ -215,3 +215,21 @@ func (p ForkStateContentBase) GetMissingFlagCount(flagIndex int) uint64 {
 
 	return result
 }
+
+func (p ForkStateContentBase) GetValStatus(valIdx uint64) string {
+
+	if p.Validators[valIdx].ExitEpoch <= phase0.Epoch(p.Epoch) {
+		return "exit"
+	}
+
+	if p.Validators[valIdx].Slashed {
+		return "slashed"
+	}
+
+	if p.Validators[valIdx].ActivationEpoch >= phase0.Epoch(p.Epoch) {
+		return "active"
+	}
+
+	return "in queue to activation"
+
+}
