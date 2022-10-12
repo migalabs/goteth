@@ -84,12 +84,13 @@ func (p AltairMetrics) GetMaxSyncComReward(valIdx uint64) uint64 {
 }
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#get_flag_index_deltas
-func (p AltairMetrics) GetMaxAttestationReward(valIdx uint64, baseReward uint64) uint64 {
+func (p AltairMetrics) GetMaxAttestationReward(valIdx uint64) uint64 {
 
 	maxFlagsReward := uint64(0)
 	// the maxReward would be each flag_index_weight * base_reward * (attesting_balance_inc / total_active_balance_inc) / WEIGHT_DENOMINATOR
 
 	if fork_state.IsActive(*p.NextState.Validators[valIdx], phase0.Epoch(p.PrevState.Epoch)) {
+		baseReward := p.GetBaseReward(valIdx, uint64(p.CurrentState.Validators[valIdx].EffectiveBalance), p.CurrentState.TotalActiveBalance)
 		// only consider flag Index rewards if the validator was active in the previous epoch
 
 		for i := range p.CurrentState.AttestingBalance {
@@ -116,9 +117,9 @@ func (p AltairMetrics) GetMaxAttestationReward(valIdx uint64, baseReward uint64)
 
 func (p AltairMetrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 
-	baseReward := p.GetBaseReward(valIdx, p.CurrentState.TotalActiveBalance)
+	baseReward := p.GetBaseReward(valIdx, uint64(p.NextState.Validators[valIdx].EffectiveBalance), p.NextState.TotalActiveBalance)
 
-	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, baseReward)
+	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx)
 
 	syncComMaxReward := p.GetMaxSyncComReward(valIdx)
 
@@ -146,8 +147,8 @@ func (p AltairMetrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 
 }
 
-func (p AltairMetrics) GetBaseReward(valIdx uint64, totalEffectiveBalance uint64) uint64 {
-	effectiveBalanceInc := p.CurrentState.Validators[valIdx].EffectiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT
+func (p AltairMetrics) GetBaseReward(valIdx uint64, effectiveBalance uint64, totalEffectiveBalance uint64) uint64 {
+	effectiveBalanceInc := effectiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT
 	return p.GetBaseRewardPerInc(totalEffectiveBalance) * uint64(effectiveBalanceInc)
 }
 
