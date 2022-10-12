@@ -45,7 +45,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 				}
 
 				// calculate the current balance of validator
-				balance := stateMetrics.GetMetricsBase().CurrentState.Balances[valIdx]
+				balance := stateMetrics.GetMetricsBase().NextState.Balances[valIdx]
 
 				if err != nil {
 					log.Errorf("Error obtaining validator balance: ", err.Error())
