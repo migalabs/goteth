@@ -22,7 +22,8 @@ var (
 		"module", PsqlType,
 	)
 	MAX_BATCH_QUEUE       = 300
-	MAX_EPOCH_BATCH_QUEUE = 5
+	MAX_EPOCH_BATCH_QUEUE = 1
+	DB_WORKERS            = 10
 )
 
 type PostgresDBService struct {
@@ -105,7 +106,7 @@ func (p *PostgresDBService) runWriters(workersNum int) {
 	var wgDBWriters sync.WaitGroup
 	finished := int32(0)
 	wlog.Info("Launching Beacon State Writers")
-	for i := 0; i < workersNum; i++ {
+	for i := 0; i < DB_WORKERS; i++ {
 		wgDBWriters.Add(1)
 		go func(dbWriterID int) {
 			defer wgDBWriters.Done()
