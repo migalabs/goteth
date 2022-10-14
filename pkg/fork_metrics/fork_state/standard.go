@@ -147,6 +147,23 @@ func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
 	return false
 }
 
+func (p ForkStateContentBase) TrackPrevMissingBlock() uint64 {
+	firstIndex := (p.Slot - SLOTS_PER_EPOCH + 1) % SLOTS_PER_HISTORICAL_ROOT
+
+	lastItem := p.BlockRoots[firstIndex-1]
+	item := p.BlockRoots[firstIndex]
+	res := bytes.Compare(lastItem, item)
+
+	if res == 0 {
+		// both consecutive roots were the same ==> missed block
+		slot := p.Slot - SLOTS_PER_EPOCH
+		return slot
+	}
+
+	return 0
+
+}
+
 // We use blockroots to track missed blocks. When there is a missed block, the block root is repeated
 func (p *ForkStateContentBase) TrackMissingBlocks() {
 	firstIndex := (p.Slot - SLOTS_PER_EPOCH + 1) % SLOTS_PER_HISTORICAL_ROOT

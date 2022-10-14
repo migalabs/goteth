@@ -80,6 +80,13 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 			}
 
 			log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
+
+			missedBlocks := stateMetrics.GetMetricsBase().PrevState.MissedBlocks
+			// take into accoutn epoch transition
+			nextMissedBlock := stateMetrics.GetMetricsBase().CurrentState.TrackPrevMissingBlock()
+			if nextMissedBlock != 0 {
+				missedBlocks = append(missedBlocks, nextMissedBlock)
+			}
 			// create a model to be inserted into the db, we only insert previous epoch metrics
 			epochDBRow := model.NewEpochMetrics(
 				stateMetrics.GetMetricsBase().PrevState.Epoch,
@@ -93,7 +100,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
-				stateMetrics.GetMetricsBase().PrevState.MissedBlocks)
+				missedBlocks)
 
 			epochBatch.Queue(model.InsertNewEpochLineTable,
 				epochDBRow.Epoch,
