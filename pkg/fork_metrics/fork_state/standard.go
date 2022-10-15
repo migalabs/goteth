@@ -147,8 +147,9 @@ func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
 	return false
 }
 
+// check if there was a missed block at last slot of previous epoch
 func (p ForkStateContentBase) TrackPrevMissingBlock() uint64 {
-	firstIndex := (p.Slot - SLOTS_PER_EPOCH + 1) % SLOTS_PER_HISTORICAL_ROOT
+	firstIndex := (p.Slot - SLOTS_PER_EPOCH) % SLOTS_PER_HISTORICAL_ROOT
 
 	lastItem := p.BlockRoots[firstIndex-1]
 	item := p.BlockRoots[firstIndex]
