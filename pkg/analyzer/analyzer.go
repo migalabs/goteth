@@ -140,8 +140,8 @@ func (s *StateAnalyzer) Run(coworkers int) {
 	go s.runDownloadStates(&wgDownload)
 
 	// State requester in finalized slots
-	wgDownload.Add(1)
-	go s.runDownloadStatesFinalized(&wgDownload)
+	// wgDownload.Add(1)
+	// go s.runDownloadStatesFinalized(&wgDownload)
 
 	wgProcess.Add(1)
 	go s.runProcessState(&wgProcess, &downloadFinishedFlag, coworkers)
