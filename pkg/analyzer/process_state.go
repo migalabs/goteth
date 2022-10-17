@@ -58,7 +58,7 @@ loop:
 
 			if len(task.ValIdxs) == 0 {
 				// in case no validators provided, do all the active ones in the next epoch, take into account proposer and sync committee rewards
-				task.ValIdxs = stateMetrics.GetMetricsBase().NextState.GetActiveVals()
+				task.ValIdxs = stateMetrics.GetMetricsBase().NextState.GetAllVals()
 			} else {
 				finalValidxs := make([]uint64, 0)
 				for _, item := range task.ValIdxs {
@@ -75,6 +75,7 @@ loop:
 			}
 
 			stepSize := int(math.Min(float64(MAX_VAL_BATCH_SIZE), float64(len(task.ValIdxs)/s.validatorWorkerNum)))
+			stepSize = int(math.Max(float64(1), float64(stepSize))) // in case it is 0, at least set to 1
 			for i := 0; i < len(task.ValIdxs); i += stepSize {
 				endIndex := int(math.Min(float64(len(task.ValIdxs)), float64(i+stepSize)))
 				// subslice does not include the endIndex
@@ -87,6 +88,7 @@ loop:
 
 			log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
 			// create a model to be inserted into the db, we only insert previous epoch metrics
+
 			epochDBRow := model.NewEpochMetrics(
 				stateMetrics.GetMetricsBase().PrevState.Epoch,
 				stateMetrics.GetMetricsBase().PrevState.Slot,
@@ -116,7 +118,7 @@ loop:
 				epochDBRow.MissedBlocks)
 
 			// Flush the database batches
-			if epochBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE || (*downloadFinishedFlag && len(s.EpochTaskChan) == 0) {
+			if epochBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE {
 				s.dbClient.WriteChan <- epochBatch
 				epochBatch = pgx.Batch{}
 			}

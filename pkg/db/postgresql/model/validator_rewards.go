@@ -22,6 +22,7 @@ var (
 		f_missing_source BOOL,
 		f_missing_target BOOL, 
 		f_missing_head BOOL,
+		f_status TEXT,
 		CONSTRAINT PK_ValidatorSlot PRIMARY KEY (f_val_idx,f_slot));`
 
 	InsertNewValidatorLineTable = `
@@ -41,17 +42,10 @@ var (
 		f_proposer_slot,
 		f_missing_source,
 		f_missing_target,
-		f_missing_head)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
+		f_missing_head,
+		f_status)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
 	`
-
-	UpdateValidatorLineTable = `
-	UPDATE t_validator_rewards_summary
-	SET f_reward=$3
-	WHERE f_val_idx=$1 AND f_slot=$2
-	`
-
-	VALIDATOR_QUERIES = [...]string{InsertNewEpochLineTable, UpdateValidatorLineTable}
 )
 
 type ValidatorRewards struct {
@@ -73,6 +67,7 @@ type ValidatorRewards struct {
 	MissingSource        bool
 	MissingTarget        bool
 	MissingHead          bool
+	Status               string
 }
 
 func NewValidatorRewards(
@@ -93,7 +88,8 @@ func NewValidatorRewards(
 	iProposerSlot int64,
 	iMissingSource bool,
 	iMissingTarget bool,
-	iMissingHead bool) ValidatorRewards {
+	iMissingHead bool,
+	iStatus string) ValidatorRewards {
 	return ValidatorRewards{
 		ValidatorIndex:       iValIdx,
 		Slot:                 int(iSlot),
@@ -113,6 +109,7 @@ func NewValidatorRewards(
 		MissingSource:        iMissingSource,
 		MissingTarget:        iMissingTarget,
 		MissingHead:          iMissingHead,
+		Status:               iStatus,
 	}
 }
 
