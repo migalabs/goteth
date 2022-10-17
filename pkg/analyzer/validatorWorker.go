@@ -15,11 +15,19 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 	defer wgWorkers.Done()
 	batch := pgx.Batch{}
 	// keep iterating until the channel is closed due to finishing
+loop:
 	for {
 
-		if *processFinishedFlag && len(s.ValTaskChan) == 0 && batch.Len() == 0 {
+		if *processFinishedFlag && len(s.ValTaskChan) == 0 {
 			wlog.Warn("the task channel has been closed, finishing worker routine")
-			return
+			if batch.Len() > 0 {
+
+				wlog.Debugf("Sending last validator batch to be stored...")
+				s.dbClient.WriteChan <- batch
+				batch = pgx.Batch{}
+
+			}
+			break loop
 		}
 
 		select {
@@ -122,8 +130,9 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state processer routine")
 			return
-
+		default:
 		}
 
 	}
+	wlog.Infof("Validator worker finished, no mroe tasks to process")
 }

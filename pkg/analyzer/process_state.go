@@ -18,12 +18,18 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 
 	epochBatch := pgx.Batch{}
 	log.Info("Launching Beacon State Pre-Processer")
-
+loop:
 	for {
 		// in case the downloads have finished, and there are no more tasks to execute
-		if *downloadFinishedFlag && len(s.EpochTaskChan) == 0 && epochBatch.Len() == 0 {
+		if *downloadFinishedFlag && len(s.EpochTaskChan) == 0 {
 			log.Warn("the task channel has been closed, finishing epoch routine")
-			return
+			if epochBatch.Len() == 0 {
+				log.Debugf("Sending last epoch batch to be stored...")
+				s.dbClient.WriteChan <- epochBatch
+				epochBatch = pgx.Batch{}
+			}
+
+			break loop
 		}
 
 		select {
@@ -114,7 +120,9 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				s.dbClient.WriteChan <- epochBatch
 				epochBatch = pgx.Batch{}
 			}
+		default:
 		}
 
 	}
+	log.Infof("Pre process routine finished...")
 }
