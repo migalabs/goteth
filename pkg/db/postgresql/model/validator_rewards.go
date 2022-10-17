@@ -46,14 +46,6 @@ var (
 		f_status)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
 	`
-
-	UpdateValidatorLineTable = `
-	UPDATE t_validator_rewards_summary
-	SET f_reward=$3
-	WHERE f_val_idx=$1 AND f_slot=$2
-	`
-
-	VALIDATOR_QUERIES = [...]string{InsertNewEpochLineTable, UpdateValidatorLineTable}
 )
 
 type ValidatorRewards struct {

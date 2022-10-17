@@ -96,7 +96,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					validatorDBRow.Status)
 
 				if batch.Len() > postgresql.MAX_BATCH_QUEUE || (*processFinishedFlag && len(s.ValTaskChan) == 0) {
-					wlog.Debugf("Sending batch to be stored...")
+					wlog.Debugf("Sending validator batch to be stored...")
 					s.dbClient.WriteChan <- batch
 					batch = pgx.Batch{}
 				}

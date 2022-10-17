@@ -24,7 +24,7 @@ var (
 		f_missed_blocks TEXT,
 		CONSTRAINT PK_Epoch PRIMARY KEY (f_slot));`
 
-	InsertNewEpochLineTable = `
+	InsertUpdateEpoch = `
 	INSERT INTO t_epoch_metrics_summary (
 		f_epoch, 
 		f_slot, 
@@ -55,22 +55,6 @@ var (
 			f_missed_blocks = $11
 		WHERE f_slot=$1;
 	`
-
-	UpdateRow = `
-	UPDATE t_epoch_metrics_summary 
-	SET 
-		f_num_att = $2, 
-		f_num_att_vals = $3, 
-		f_total_balance_eth = $4, 
-		f_att_effective_balance_eth = $5, 
-		f_total_effective_balance_eth = $6, 
-		f_missing_source = $7, 
-		f_missing_target = $8, 
-		f_missing_head = $9
-	WHERE f_slot=$1;
-	`
-
-	EPOCH_QUERIES = [...]string{InsertNewEpochLineTable, UpdateRow}
 )
 
 type EpochMetrics struct {

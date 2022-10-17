@@ -66,17 +66,18 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 					}
 				}
 				task.ValIdxs = finalValidxs
-			}
 
-			stepSize := int(math.Min(float64(MAX_VAL_BATCH_SIZE), float64(len(task.ValIdxs)/coworkers)))
-			for i := 0; i < len(task.ValIdxs); i += stepSize {
-				endIndex := int(math.Min(float64(len(task.ValIdxs)), float64(i+stepSize)))
-				// subslice does not include the endIndex
-				valTask := &ValTask{
-					ValIdxs:         task.ValIdxs[i:endIndex],
-					StateMetricsObj: stateMetrics,
+				stepSize := int(math.Min(float64(MAX_VAL_BATCH_SIZE), float64(len(task.ValIdxs)/coworkers)))
+				stepSize = int(math.Max(float64(1), float64(stepSize))) // in case it is 0, at least set to 1
+				for i := 0; i < len(task.ValIdxs); i += stepSize {
+					endIndex := int(math.Min(float64(len(task.ValIdxs)), float64(i+stepSize)))
+					// subslice does not include the endIndex
+					valTask := &ValTask{
+						ValIdxs:         task.ValIdxs[i:endIndex],
+						StateMetricsObj: stateMetrics,
+					}
+					s.ValTaskChan <- valTask
 				}
-				s.ValTaskChan <- valTask
 			}
 
 			log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
@@ -102,7 +103,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
 				missedBlocks)
 
-			epochBatch.Queue(model.InsertNewEpochLineTable,
+			epochBatch.Queue(model.InsertUpdateEpoch,
 				epochDBRow.Epoch,
 				epochDBRow.Slot,
 				epochDBRow.PrevNumAttestations,
@@ -118,6 +119,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 
 			// Flush the database batches
 			if epochBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE || (*downloadFinishedFlag && len(s.EpochTaskChan) == 0) {
+				log.Debugf("Sending epoch batch to be stored...")
 				s.dbClient.WriteChan <- epochBatch
 				epochBatch = pgx.Batch{}
 			}
