@@ -10,7 +10,6 @@ import (
 	"context"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql/model"
-	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
 )
@@ -23,51 +22,4 @@ func (p *PostgresDBService) createEpochMetricsTable(ctx context.Context, pool *p
 		return errors.Wrap(err, "error creating epoch metrics table")
 	}
 	return nil
-}
-
-func (p *PostgresDBService) InsertNewEpochRow(iEpochObj model.EpochMetrics) error {
-
-	_, err := p.psqlPool.Exec(p.ctx, model.InsertNewEpochLineTable,
-		iEpochObj.Epoch,
-		iEpochObj.Slot,
-		iEpochObj.PrevNumAttestations,
-		iEpochObj.PrevNumAttValidators,
-		iEpochObj.PrevNumValidators,
-		iEpochObj.TotalBalance,
-		iEpochObj.TotalEffectiveBalance,
-		iEpochObj.MissingSource,
-		iEpochObj.MissingTarget,
-		iEpochObj.MissingHead,
-		iEpochObj.MissedBlocks)
-
-	if err != nil {
-		return errors.Wrap(err, "error inserting row in epoch metrics table")
-	}
-	return nil
-}
-
-// to be checked if we need it
-func (p *PostgresDBService) UpdatePrevEpochMetrics(iEpochObj model.EpochMetrics) error {
-
-	if iEpochObj.Slot > utils.SlotBase {
-		wlog.Debugf("updating row %d from epoch metrics", iEpochObj.Slot-utils.SlotBase)
-		_, err := p.psqlPool.Exec(p.ctx, model.UpdateRow,
-			iEpochObj.Slot-utils.SlotBase,
-			iEpochObj.PrevNumAttestations,
-			iEpochObj.PrevNumAttValidators,
-			iEpochObj.PrevNumValidators,
-			iEpochObj.TotalBalance,
-			iEpochObj.TotalEffectiveBalance,
-			iEpochObj.MissingSource,
-			iEpochObj.MissingTarget,
-			iEpochObj.MissingHead)
-		if err != nil {
-			return errors.Wrap(err, "error updating row in epoch metrics table")
-		}
-		return nil
-	} else {
-		wlog.Debugf("not updating row as we are in the first epoch")
-		return nil
-	}
-
 }
