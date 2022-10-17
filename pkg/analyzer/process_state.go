@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool, coworkers int) {
+func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool) {
 	defer wgProcess.Done()
 
 	epochBatch := pgx.Batch{}
@@ -68,7 +68,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				task.ValIdxs = finalValidxs
 			}
 
-			stepSize := int(math.Min(float64(MAX_VAL_BATCH_SIZE), float64(len(task.ValIdxs)/coworkers)))
+			stepSize := int(math.Min(float64(MAX_VAL_BATCH_SIZE), float64(len(task.ValIdxs)/s.validatorWorkerNum)))
 			for i := 0; i < len(task.ValIdxs); i += stepSize {
 				endIndex := int(math.Min(float64(len(task.ValIdxs)), float64(i+stepSize)))
 				// subslice does not include the endIndex
