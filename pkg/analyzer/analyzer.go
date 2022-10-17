@@ -13,7 +13,6 @@ import (
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics"
 	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
-	"github.com/cortze/eth2-state-analyzer/pkg/metrics"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
 
@@ -40,8 +39,7 @@ type StateAnalyzer struct {
 	MonitorSlotProcess map[uint64]uint64
 	EpochTaskChan      chan *EpochTask
 	ValTaskChan        chan *ValTask
-	MonitoringChan     chan struct{}
-	MonitorMetrics     *metrics.Monitor
+	validatorWorkerNum int
 
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
@@ -49,7 +47,15 @@ type StateAnalyzer struct {
 	initTime time.Time
 }
 
-func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlot uint64, finalSlot uint64, valIdxs []uint64, idbUrl string) (*StateAnalyzer, error) {
+func NewStateAnalyzer(
+	ctx context.Context,
+	httpCli *clientapi.APIClient,
+	initSlot uint64,
+	finalSlot uint64,
+	valIdxs []uint64,
+	idbUrl string,
+	workerNum int,
+	dbWorkerNum int) (*StateAnalyzer, error) {
 	log.Infof("generating new State Analzyer from slots %d:%d, for validators %v", initSlot, finalSlot, valIdxs)
 	// Check if the range of slots is valid
 	if !utils.IsValidRangeuint64(initSlot, finalSlot) {
@@ -89,10 +95,7 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 
 	var metricsMap sync.Map
 
-	monitorChan := make(chan struct{}, valLength*maxWorkers)
-	monitorMetrics := metrics.NewMonitorMetrics(valLength)
-
-	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, valLength*maxWorkers, &monitorMetrics)
+	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, valLength*maxWorkers, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -106,11 +109,10 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		Metrics:            metricsMap,
 		EpochTaskChan:      make(chan *EpochTask, 10),
 		ValTaskChan:        make(chan *ValTask, valLength*maxWorkers),
-		MonitoringChan:     monitorChan,
 		MonitorSlotProcess: make(map[uint64]uint64),
-		MonitorMetrics:     &monitorMetrics,
 		cli:                httpCli,
 		dbClient:           i_dbClient,
+		validatorWorkerNum: workerNum,
 	}, nil
 }
 
@@ -174,14 +176,6 @@ func (s *StateAnalyzer) Run(coworkers int) {
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
 	log.Info("State Analyzer finished in ", analysisDuration)
-
-	// Not using metrics for the moment
-
-	// log.Info("-------- Stats --------")
-	// log.Infof("Download Time: %f", s.MonitorMetrics.DownloadTime)
-	// log.Infof("Preprocess Time: %f", s.MonitorMetrics.PreprocessTime)
-	// log.Infof("Batching Time: %f", s.MonitorMetrics.BatchingTime)
-	// log.Infof("DBWrite Time: %f", s.MonitorMetrics.DBWriteTime)
 
 }
 

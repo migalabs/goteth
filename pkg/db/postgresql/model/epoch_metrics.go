@@ -38,7 +38,22 @@ var (
 		f_missing_target, 
 		f_missing_head, 
 		f_missed_blocks)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	ON CONFLICT ON CONSTRAINT PK_Epoch
+	DO 
+   		UPDATE
+		   	SET 
+			f_num_att = $2, 
+			f_num_att_vals = $3, 
+			f_num_vals = $4, 
+			f_total_balance_eth = $5,
+			f_att_effective_balance_eth = $6,  
+			f_total_effective_balance_eth = $7, 
+			f_missing_source = $8, 
+			f_missing_target = $9, 
+			f_missing_head = $10, 
+			f_missed_blocks = $11
+		WHERE f_slot=$1;
 	`
 
 	UpdateRow = `

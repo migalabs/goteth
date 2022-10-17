@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/metrics"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
@@ -37,13 +36,13 @@ type PostgresDBService struct {
 	doneTasks        chan interface{}
 	endProcess       int32
 	FinishSignalChan chan struct{}
-	MonitorStruct    *metrics.Monitor
+	workerNum        int
 	// Network DB Model
 }
 
 // Connect to the PostgreSQL Database and get the multithread-proof connection
 // from the given url-composed credentials
-func ConnectToDB(ctx context.Context, url string, chanLength int, monitor *metrics.Monitor) (*PostgresDBService, error) {
+func ConnectToDB(ctx context.Context, url string, chanLength int, workers int) (*PostgresDBService, error) {
 	mainCtx, cancel := context.WithCancel(ctx)
 	// spliting the url to don't share any confidential information on wlogs
 	wlog.Infof("Conneting to postgres DB %s", url)
@@ -68,7 +67,7 @@ func ConnectToDB(ctx context.Context, url string, chanLength int, monitor *metri
 		doneTasks:        make(chan interface{}, 1),
 		endProcess:       0,
 		FinishSignalChan: make(chan struct{}, 1),
-		MonitorStruct:    monitor,
+		workerNum:        workers,
 	}
 	// init the psql db
 	err = psqlDB.init(ctx, psqlDB.psqlPool)
@@ -106,7 +105,7 @@ func (p *PostgresDBService) runWriters(workersNum int) {
 	var wgDBWriters sync.WaitGroup
 	finished := int32(0)
 	wlog.Info("Launching Beacon State Writers")
-	for i := 0; i < DB_WORKERS; i++ {
+	for i := 0; i < p.workerNum; i++ {
 		wgDBWriters.Add(1)
 		go func(dbWriterID int) {
 			defer wgDBWriters.Done()
