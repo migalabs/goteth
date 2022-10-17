@@ -129,6 +129,7 @@ loop:
 				s.dbClient.WriteChan <- epochBatch
 				epochBatch = pgx.Batch{}
 			}
+		default:
 		}
 
 	}
