@@ -104,12 +104,13 @@ func (p PostgresDBService) DoneTasks() {
 func (p *PostgresDBService) runWriters(workersNum int) {
 	var wgDBWriters sync.WaitGroup
 	finished := int32(0)
-	wlog.Info("Launching Beacon State Writers")
+	wlog.Infof("Launching %d Beacon State Writers", p.workerNum)
 	for i := 0; i < p.workerNum; i++ {
 		wgDBWriters.Add(1)
 		go func(dbWriterID int) {
 			defer wgDBWriters.Done()
 			wlogWriter := wlog.WithField("DBWriter", dbWriterID)
+			wlogWriter.Debugf("Writer running...")
 		loop:
 			for {
 
