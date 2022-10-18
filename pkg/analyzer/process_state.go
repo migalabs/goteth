@@ -89,6 +89,12 @@ loop:
 			log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
 			// create a model to be inserted into the db, we only insert previous epoch metrics
 
+			missedBlocks := stateMetrics.GetMetricsBase().PrevState.MissedBlocks
+			// take into accoutn epoch transition
+			nextMissedBlock := stateMetrics.GetMetricsBase().CurrentState.TrackPrevMissingBlock()
+			if nextMissedBlock != 0 {
+				missedBlocks = append(missedBlocks, nextMissedBlock)
+			}
 			epochDBRow := model.NewEpochMetrics(
 				stateMetrics.GetMetricsBase().PrevState.Epoch,
 				stateMetrics.GetMetricsBase().PrevState.Slot,
@@ -101,7 +107,7 @@ loop:
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
-				stateMetrics.GetMetricsBase().CurrentState.MissedBlocks)
+				missedBlocks)
 
 			epochBatch.Queue(model.InsertUpdateEpoch,
 				epochDBRow.Epoch,

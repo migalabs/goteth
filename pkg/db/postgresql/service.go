@@ -21,7 +21,7 @@ var (
 		"module", PsqlType,
 	)
 	MAX_BATCH_QUEUE       = 300
-	MAX_EPOCH_BATCH_QUEUE = 5
+	MAX_EPOCH_BATCH_QUEUE = 1
 )
 
 type PostgresDBService struct {
