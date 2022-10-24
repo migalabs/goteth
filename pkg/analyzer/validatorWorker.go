@@ -88,7 +88,7 @@ loop:
 					flags[altair.TimelyHeadFlagIndex],
 					stateMetrics.GetMetricsBase().NextState.GetValStatus(valIdx))
 
-				batch.Queue(model.InsertNewValidatorLineTable,
+				batch.Queue(model.UpsertValidator,
 					validatorDBRow.ValidatorIndex,
 					validatorDBRow.Slot,
 					validatorDBRow.Epoch,

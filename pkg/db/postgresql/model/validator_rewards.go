@@ -25,7 +25,7 @@ var (
 		f_status TEXT,
 		CONSTRAINT PK_ValidatorSlot PRIMARY KEY (f_val_idx,f_slot));`
 
-	InsertNewValidatorLineTable = `
+	UpsertValidator = `
 	INSERT INTO t_validator_rewards_summary (	
 		f_val_idx, 
 		f_slot, 

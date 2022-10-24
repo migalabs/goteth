@@ -101,13 +101,13 @@ func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error 
 	return nil
 }
 
-func (p PostgresDBService) DoneTasks() {
-	p.doneTasks <- struct{}{}
+func (p *PostgresDBService) DoneTasks() {
+	atomic.AddInt32(&p.endProcess, int32(1))
+	wlog.Infof("Received finish signal")
 }
 
 func (p *PostgresDBService) runWriters() {
 	var wgDBWriters sync.WaitGroup
-	finished := int32(0)
 	wlog.Info("Launching Beacon State Writers")
 	wlog.Infof("Launching %d Beacon State Writers", p.workerNum)
 	for i := 0; i < p.workerNum; i++ {
@@ -119,14 +119,8 @@ func (p *PostgresDBService) runWriters() {
 			for {
 
 				if p.endProcess >= 1 && len(p.WriteChan) == 0 {
-					atomic.AddInt32(&finished, int32(1))
-					break loop
-				}
-				select {
-				case <-p.doneTasks:
 					wlogWriter.Info("finish detected, closing persister")
-					atomic.AddInt32(&p.endProcess, int32(1))
-				default:
+					break loop
 				}
 
 				select {

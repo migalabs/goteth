@@ -24,7 +24,7 @@ var (
 		f_missed_blocks TEXT,
 		CONSTRAINT PK_Epoch PRIMARY KEY (f_slot));`
 
-	InsertUpdateEpoch = `
+	UpsertEpoch = `
 	INSERT INTO t_epoch_metrics_summary (
 		f_epoch, 
 		f_slot, 

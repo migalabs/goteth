@@ -12,8 +12,10 @@ var (
 	INSERT INTO t_proposer_duties (
 		f_val_idx, 
 		f_proposer_slot)
-		VALUES ($1, $2);
+		VALUES ($1, $2)
+		ON CONFLICT DO NOTHING;
 	`
+	// if there is a confilct the line already exists
 )
 
 type ProposerDuties struct {

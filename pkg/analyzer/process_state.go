@@ -109,7 +109,7 @@ loop:
 				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
 				missedBlocks)
 
-			epochBatch.Queue(model.InsertUpdateEpoch,
+			epochBatch.Queue(model.UpsertEpoch,
 				epochDBRow.Epoch,
 				epochDBRow.Slot,
 				epochDBRow.PrevNumAttestations,
