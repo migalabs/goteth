@@ -82,7 +82,7 @@ loop:
 					stateMetrics.GetMetricsBase().GetAttInclusionSlot(valIdx),
 					maxRewards.BaseReward,
 					maxRewards.InSyncCommittee,
-					maxRewards.ProposerSlot,
+					maxRewards.ProposerSlot, // TODO: there can be several proposer slots, deprecate
 					flags[altair.TimelySourceFlagIndex],
 					flags[altair.TimelyTargetFlagIndex],
 					flags[altair.TimelyHeadFlagIndex],

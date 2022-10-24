@@ -123,6 +123,15 @@ loop:
 				epochDBRow.MissingHead,
 				epochDBRow.MissedBlocks)
 
+			// Proposer Duties
+
+			for _, item := range stateMetrics.GetMetricsBase().PrevState.EpochStructs.ProposerDuties {
+				newDuty := model.NewProposerDuties(uint64(item.ValidatorIndex), uint64(item.Slot))
+				epochBatch.Queue(model.InsertProposerDuty,
+					newDuty.ValIdx,
+					newDuty.ProposerSlot)
+			}
+
 			// Flush the database batches
 			if epochBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE {
 				s.dbClient.WriteChan <- epochBatch

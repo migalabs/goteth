@@ -93,6 +93,11 @@ func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error 
 		return err
 	}
 
+	err = p.createProposerDutiesTable(ctx, pool)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
