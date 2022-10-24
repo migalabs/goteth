@@ -2,7 +2,6 @@ package analyzer
 
 import (
 	"context"
-	"math"
 	"sync"
 	"time"
 
@@ -74,19 +73,14 @@ func NewStateAnalyzer(
 
 	// minimum slot is 31
 	// force to be in the previous epoch than select by user
-	initSlot = uint64(math.Max(31, float64(int(initSlot-fork_state.SLOTS_PER_EPOCH))))
-	initEpoch := int(initSlot / 32)
-	// force to be on the last slot of the init epoch
-	// epoch 0 ==> (0+1) * 32 - 1
-	initSlot = uint64((initEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1)
+	initEpoch := uint64(initSlot) / 32
+	finalEpoch := uint64(finalSlot / 32)
 
-	finalSlot = uint64(math.Max(31, float64(finalSlot)))
-	finalEpoch := int(finalSlot / 32)
-	// for the finalSlot go the last slot of the next epoch
-	// remember rewards are calculated post epoch
-	finalSlot = uint64((finalEpoch+2)*fork_state.SLOTS_PER_EPOCH - 1)
+	initSlot = (initEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1   // take last slot of init Epoch
+	finalSlot = (finalEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1 // take last slot of final Epoch
 
-	for i := initSlot; i <= (finalSlot); i += utils.SlotBase {
+	// start two epochs before and end two epochs after
+	for i := initSlot - (fork_state.SLOTS_PER_EPOCH * 2); i <= (finalSlot + fork_state.SLOTS_PER_EPOCH*2); i += utils.SlotBase {
 		slotRanges = append(slotRanges, i)
 		epochRange++
 	}
