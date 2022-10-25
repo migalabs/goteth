@@ -45,8 +45,12 @@ var RewardsCommand = &cli.Command{
 			Name:  "db-url",
 			Usage: "example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_kiln",
 		},
-		&cli.StringFlag{
+		&cli.IntFlag{
 			Name:  "workers-num",
+			Usage: "example: 50",
+		},
+		&cli.IntFlag{
+			Name:  "db-workers-num",
 			Usage: "example: 50",
 		}},
 }
@@ -60,6 +64,7 @@ var QueryTimeout = 90 * time.Second
 // CrawlAction is the function that is called when running `eth2`.
 func LaunchRewardsCalculator(c *cli.Context) error {
 	coworkers := 1
+	dbWorkers := 1
 	logRewardsRewards.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
@@ -85,12 +90,18 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 	if !c.IsSet("workers-num") {
 		logRewardsRewards.Infof("workers-num flag not provided, default: 1")
+	} else {
+		coworkers = c.Int("workers-num")
+	}
+	if !c.IsSet("db-workers-num") {
+		logRewardsRewards.Infof("db-workers-num flag not provided, default: 1")
+	} else {
+		dbWorkers = c.Int("db-workers-num")
 	}
 	bnEndpoint := c.String("bn-endpoint")
 	initSlot := uint64(c.Int("init-slot"))
 	finalSlot := uint64(c.Int("final-slot"))
 	dbUrl := c.String("db-url")
-	coworkers = c.Int("workers-num")
 
 	validatorIndexes, err := utils.GetValIndexesFromJson(c.String("validator-indexes"))
 	if err != nil {
@@ -103,11 +114,11 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 		return err
 	}
 	// generate the state analyzer
-	stateAnalyzer, err := analyzer.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl)
+	stateAnalyzer, err := analyzer.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers)
 	if err != nil {
 		return err
 	}
 
-	stateAnalyzer.Run(coworkers)
+	stateAnalyzer.Run()
 	return nil
 }

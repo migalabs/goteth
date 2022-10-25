@@ -2,7 +2,6 @@ package analyzer
 
 import (
 	"context"
-	"math"
 	"sync"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics"
 	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
-	"github.com/cortze/eth2-state-analyzer/pkg/metrics"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
 
@@ -35,13 +33,11 @@ type StateAnalyzer struct {
 	InitSlot           uint64
 	FinalSlot          uint64
 	ValidatorIndexes   []uint64
-	Metrics            sync.Map
 	SlotRanges         []uint64
 	MonitorSlotProcess map[uint64]uint64
 	EpochTaskChan      chan *EpochTask
 	ValTaskChan        chan *ValTask
-	MonitoringChan     chan struct{}
-	MonitorMetrics     *metrics.Monitor
+	validatorWorkerNum int
 
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
@@ -49,7 +45,15 @@ type StateAnalyzer struct {
 	initTime time.Time
 }
 
-func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlot uint64, finalSlot uint64, valIdxs []uint64, idbUrl string) (*StateAnalyzer, error) {
+func NewStateAnalyzer(
+	ctx context.Context,
+	httpCli *clientapi.APIClient,
+	initSlot uint64,
+	finalSlot uint64,
+	valIdxs []uint64,
+	idbUrl string,
+	workerNum int,
+	dbWorkerNum int) (*StateAnalyzer, error) {
 	log.Infof("generating new State Analzyer from slots %d:%d, for validators %v", initSlot, finalSlot, valIdxs)
 	// Check if the range of slots is valid
 	if !utils.IsValidRangeuint64(initSlot, finalSlot) {
@@ -69,30 +73,20 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 
 	// minimum slot is 31
 	// force to be in the previous epoch than select by user
-	initSlot = uint64(math.Max(31, float64(int(initSlot-fork_state.SLOTS_PER_EPOCH))))
-	initEpoch := int(initSlot / 32)
-	// force to be on the last slot of the init epoch
-	// epoch 0 ==> (0+1) * 32 - 1
-	initSlot = uint64((initEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1)
+	initEpoch := uint64(initSlot) / 32
+	finalEpoch := uint64(finalSlot / 32)
 
-	finalSlot = uint64(math.Max(31, float64(finalSlot)))
-	finalEpoch := int(finalSlot / 32)
-	// for the finalSlot go the last slot of the next epoch
-	// remember rewards are calculated post epoch
-	finalSlot = uint64((finalEpoch+2)*fork_state.SLOTS_PER_EPOCH - 1)
+	initSlot = (initEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1   // take last slot of init Epoch
+	finalSlot = (finalEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1 // take last slot of final Epoch
 
-	for i := initSlot; i <= (finalSlot); i += utils.SlotBase {
+	// start two epochs before and end two epochs after
+	for i := initSlot - (fork_state.SLOTS_PER_EPOCH * 2); i <= (finalSlot + fork_state.SLOTS_PER_EPOCH*2); i += utils.SlotBase {
 		slotRanges = append(slotRanges, i)
 		epochRange++
 	}
 	log.Debug("slotRanges are:", slotRanges)
 
-	var metricsMap sync.Map
-
-	monitorChan := make(chan struct{}, valLength*maxWorkers)
-	monitorMetrics := metrics.NewMonitorMetrics(valLength)
-
-	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, valLength*maxWorkers, &monitorMetrics)
+	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, valLength*maxWorkers, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -103,18 +97,16 @@ func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlo
 		FinalSlot:          finalSlot,
 		ValidatorIndexes:   valIdxs,
 		SlotRanges:         slotRanges,
-		Metrics:            metricsMap,
 		EpochTaskChan:      make(chan *EpochTask, 10),
 		ValTaskChan:        make(chan *ValTask, valLength*maxWorkers),
-		MonitoringChan:     monitorChan,
 		MonitorSlotProcess: make(map[uint64]uint64),
-		MonitorMetrics:     &monitorMetrics,
 		cli:                httpCli,
 		dbClient:           i_dbClient,
+		validatorWorkerNum: workerNum,
 	}, nil
 }
 
-func (s *StateAnalyzer) Run(coworkers int) {
+func (s *StateAnalyzer) Run() {
 
 	// Get init time
 	s.initTime = time.Now()
@@ -139,14 +131,14 @@ func (s *StateAnalyzer) Run(coworkers int) {
 	wgDownload.Add(1)
 	go s.runDownloadStates(&wgDownload)
 
-	// State requester in finalized slots
-	wgDownload.Add(1)
-	go s.runDownloadStatesFinalized(&wgDownload)
+	// State requester in finalized slots, not used for now
+	// wgDownload.Add(1)
+	// go s.runDownloadStatesFinalized(&wgDownload)
 
 	wgProcess.Add(1)
-	go s.runProcessState(&wgProcess, &downloadFinishedFlag, coworkers)
+	go s.runProcessState(&wgProcess, &downloadFinishedFlag)
 
-	for i := 0; i < coworkers; i++ {
+	for i := 0; i < s.validatorWorkerNum; i++ {
 		// state workers, receiving State and valIdx to measure performance
 		wlog := logrus.WithField(
 			"worker", i,
@@ -174,15 +166,6 @@ func (s *StateAnalyzer) Run(coworkers int) {
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
 	log.Info("State Analyzer finished in ", analysisDuration)
-
-	// Not using metrics for the moment
-
-	// log.Info("-------- Stats --------")
-	// log.Infof("Download Time: %f", s.MonitorMetrics.DownloadTime)
-	// log.Infof("Preprocess Time: %f", s.MonitorMetrics.PreprocessTime)
-	// log.Infof("Batching Time: %f", s.MonitorMetrics.BatchingTime)
-	// log.Infof("DBWrite Time: %f", s.MonitorMetrics.DBWriteTime)
-
 }
 
 //

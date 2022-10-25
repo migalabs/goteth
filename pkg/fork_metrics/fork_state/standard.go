@@ -147,6 +147,24 @@ func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
 	return false
 }
 
+// check if there was a missed block at last slot of previous epoch
+func (p ForkStateContentBase) TrackPrevMissingBlock() uint64 {
+	firstIndex := (p.Slot - SLOTS_PER_EPOCH) % SLOTS_PER_HISTORICAL_ROOT
+
+	lastItem := p.BlockRoots[firstIndex-1]
+	item := p.BlockRoots[firstIndex]
+	res := bytes.Compare(lastItem, item)
+
+	if res == 0 {
+		// both consecutive roots were the same ==> missed block
+		slot := p.Slot - SLOTS_PER_EPOCH
+		return slot
+	}
+
+	return 0
+
+}
+
 // We use blockroots to track missed blocks. When there is a missed block, the block root is repeated
 func (p *ForkStateContentBase) TrackMissingBlocks() {
 	firstIndex := (p.Slot - SLOTS_PER_EPOCH + 1) % SLOTS_PER_HISTORICAL_ROOT
@@ -177,6 +195,18 @@ func (p ForkStateContentBase) GetActiveVals() []uint64 {
 		if IsActive(*val, phase0.Epoch(p.Epoch)) {
 			result = append(result, uint64(i))
 		}
+
+	}
+	return result
+}
+
+// List of validators that were in the epoch of the state
+// Length of the list is variable, each position containing the valIdx
+func (p ForkStateContentBase) GetAllVals() []uint64 {
+	result := make([]uint64, 0)
+
+	for i := range p.Validators {
+		result = append(result, uint64(i))
 
 	}
 	return result
@@ -214,4 +244,22 @@ func (p ForkStateContentBase) GetMissingFlagCount(flagIndex int) uint64 {
 	}
 
 	return result
+}
+
+func (p ForkStateContentBase) GetValStatus(valIdx uint64) string {
+
+	if p.Validators[valIdx].ExitEpoch <= phase0.Epoch(p.Epoch) {
+		return "exit"
+	}
+
+	if p.Validators[valIdx].Slashed {
+		return "slashed"
+	}
+
+	if p.Validators[valIdx].ActivationEpoch <= phase0.Epoch(p.Epoch) {
+		return "active"
+	}
+
+	return "in queue to activation"
+
 }

@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/metrics"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
@@ -22,7 +21,7 @@ var (
 		"module", PsqlType,
 	)
 	MAX_BATCH_QUEUE       = 300
-	MAX_EPOCH_BATCH_QUEUE = 5
+	MAX_EPOCH_BATCH_QUEUE = 1
 )
 
 type PostgresDBService struct {
@@ -36,13 +35,13 @@ type PostgresDBService struct {
 	doneTasks        chan interface{}
 	endProcess       int32
 	FinishSignalChan chan struct{}
-	MonitorStruct    *metrics.Monitor
+	workerNum        int
 	// Network DB Model
 }
 
 // Connect to the PostgreSQL Database and get the multithread-proof connection
 // from the given url-composed credentials
-func ConnectToDB(ctx context.Context, url string, chanLength int, monitor *metrics.Monitor) (*PostgresDBService, error) {
+func ConnectToDB(ctx context.Context, url string, chanLength int, workerNum int) (*PostgresDBService, error) {
 	mainCtx, cancel := context.WithCancel(ctx)
 	// spliting the url to don't share any confidential information on wlogs
 	wlog.Infof("Conneting to postgres DB %s", url)
@@ -67,14 +66,14 @@ func ConnectToDB(ctx context.Context, url string, chanLength int, monitor *metri
 		doneTasks:        make(chan interface{}, 1),
 		endProcess:       0,
 		FinishSignalChan: make(chan struct{}, 1),
-		MonitorStruct:    monitor,
+		workerNum:        workerNum,
 	}
 	// init the psql db
 	err = psqlDB.init(ctx, psqlDB.psqlPool)
 	if err != nil {
 		return psqlDB, errors.Wrap(err, "error initializing the tables of the psqldb")
 	}
-	go psqlDB.runWriters(100)
+	go psqlDB.runWriters()
 	return psqlDB, err
 }
 
@@ -94,18 +93,24 @@ func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error 
 		return err
 	}
 
+	err = p.createProposerDutiesTable(ctx, pool)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (p PostgresDBService) DoneTasks() {
-	p.doneTasks <- struct{}{}
+func (p *PostgresDBService) DoneTasks() {
+	atomic.AddInt32(&p.endProcess, int32(1))
+	wlog.Infof("Received finish signal")
 }
 
-func (p *PostgresDBService) runWriters(workersNum int) {
+func (p *PostgresDBService) runWriters() {
 	var wgDBWriters sync.WaitGroup
-	finished := int32(0)
 	wlog.Info("Launching Beacon State Writers")
-	for i := 0; i < workersNum; i++ {
+	wlog.Infof("Launching %d Beacon State Writers", p.workerNum)
+	for i := 0; i < p.workerNum; i++ {
 		wgDBWriters.Add(1)
 		go func(dbWriterID int) {
 			defer wgDBWriters.Done()
@@ -114,14 +119,8 @@ func (p *PostgresDBService) runWriters(workersNum int) {
 			for {
 
 				if p.endProcess >= 1 && len(p.WriteChan) == 0 {
-					atomic.AddInt32(&finished, int32(1))
-					break loop
-				}
-				select {
-				case <-p.doneTasks:
 					wlogWriter.Info("finish detected, closing persister")
-					atomic.AddInt32(&p.endProcess, int32(1))
-				default:
+					break loop
 				}
 
 				select {

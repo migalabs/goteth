@@ -22,9 +22,10 @@ var (
 		f_missing_source BOOL,
 		f_missing_target BOOL, 
 		f_missing_head BOOL,
+		f_status TEXT,
 		CONSTRAINT PK_ValidatorSlot PRIMARY KEY (f_val_idx,f_slot));`
 
-	InsertNewValidatorLineTable = `
+	UpsertValidator = `
 	INSERT INTO t_validator_rewards_summary (	
 		f_val_idx, 
 		f_slot, 
@@ -41,17 +42,28 @@ var (
 		f_proposer_slot,
 		f_missing_source,
 		f_missing_target,
-		f_missing_head)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
+		f_missing_head,
+		f_status)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+	ON CONFLICT ON CONSTRAINT PK_ValidatorSlot
+		DO 
+			UPDATE SET 
+				f_epoch = excluded.f_epoch, 
+				f_balance_eth = excluded.f_balance_eth,
+				f_reward = excluded.f_reward,
+				f_max_reward = excluded.f_max_reward,
+				f_max_att_reward = excluded.f_max_att_reward,
+				f_max_sync_reward = excluded.f_max_sync_reward,
+				f_att_slot = excluded.f_att_slot,
+				f_att_inclusion_slot = excluded.f_att_inclusion_slot,
+				f_base_reward = excluded.f_base_reward,
+				f_in_sync_committee = excluded.f_in_sync_committee, 
+				f_proposer_slot = excluded.f_proposer_slot,
+				f_missing_source = excluded.f_missing_source,
+				f_missing_target = excluded.f_missing_target,
+				f_missing_head = excluded.f_missing_head,
+				f_status = excluded.f_status;
 	`
-
-	UpdateValidatorLineTable = `
-	UPDATE t_validator_rewards_summary
-	SET f_reward=$3
-	WHERE f_val_idx=$1 AND f_slot=$2
-	`
-
-	VALIDATOR_QUERIES = [...]string{InsertNewEpochLineTable, UpdateValidatorLineTable}
 )
 
 type ValidatorRewards struct {
@@ -73,6 +85,7 @@ type ValidatorRewards struct {
 	MissingSource        bool
 	MissingTarget        bool
 	MissingHead          bool
+	Status               string
 }
 
 func NewValidatorRewards(
@@ -93,7 +106,8 @@ func NewValidatorRewards(
 	iProposerSlot int64,
 	iMissingSource bool,
 	iMissingTarget bool,
-	iMissingHead bool) ValidatorRewards {
+	iMissingHead bool,
+	iStatus string) ValidatorRewards {
 	return ValidatorRewards{
 		ValidatorIndex:       iValIdx,
 		Slot:                 int(iSlot),
@@ -113,6 +127,7 @@ func NewValidatorRewards(
 		MissingSource:        iMissingSource,
 		MissingTarget:        iMissingTarget,
 		MissingHead:          iMissingHead,
+		Status:               iStatus,
 	}
 }
 

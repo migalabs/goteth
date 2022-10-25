@@ -15,11 +15,19 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 	defer wgWorkers.Done()
 	batch := pgx.Batch{}
 	// keep iterating until the channel is closed due to finishing
+loop:
 	for {
 
-		if *processFinishedFlag && len(s.ValTaskChan) == 0 && batch.Len() == 0 {
+		if *processFinishedFlag && len(s.ValTaskChan) == 0 {
 			wlog.Warn("the task channel has been closed, finishing worker routine")
-			return
+			if batch.Len() > 0 {
+
+				wlog.Debugf("Sending last validator batch to be stored...")
+				s.dbClient.WriteChan <- batch
+				batch = pgx.Batch{}
+
+			}
+			break loop
 		}
 
 		select {
@@ -45,12 +53,16 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 				}
 
 				// calculate the current balance of validator
-				balance := stateMetrics.GetMetricsBase().CurrentState.Balances[valIdx]
+				balance := stateMetrics.GetMetricsBase().NextState.Balances[valIdx]
 
 				if err != nil {
 					log.Errorf("Error obtaining validator balance: ", err.Error())
 					continue
 				}
+
+				// keep in mind that att rewards for epoch 10 can be seen at beginning of epoch 12,
+				// after state_transition
+				// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
 
 				flags := stateMetrics.GetMetricsBase().CurrentState.MissingFlags(valIdx)
 
@@ -60,7 +72,7 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					stateMetrics.GetMetricsBase().NextState.Slot,
 					stateMetrics.GetMetricsBase().NextState.Epoch,
 					balance,
-					0, // reward is written after state transition
+					stateMetrics.GetMetricsBase().EpochReward(valIdx), // reward is written after state transition
 					maxRewards.MaxReward,
 					maxRewards.Attestation,
 					maxRewards.InclusionDelay,
@@ -70,12 +82,13 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					stateMetrics.GetMetricsBase().GetAttInclusionSlot(valIdx),
 					maxRewards.BaseReward,
 					maxRewards.InSyncCommittee,
-					maxRewards.ProposerSlot,
+					maxRewards.ProposerSlot, // TODO: there can be several proposer slots, deprecate
 					flags[altair.TimelySourceFlagIndex],
 					flags[altair.TimelyTargetFlagIndex],
-					flags[altair.TimelyHeadFlagIndex])
+					flags[altair.TimelyHeadFlagIndex],
+					stateMetrics.GetMetricsBase().NextState.GetValStatus(valIdx))
 
-				batch.Queue(model.InsertNewValidatorLineTable,
+				batch.Queue(model.UpsertValidator,
 					validatorDBRow.ValidatorIndex,
 					validatorDBRow.Slot,
 					validatorDBRow.Epoch,
@@ -91,28 +104,13 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 					validatorDBRow.ProposerSlot,
 					validatorDBRow.MissingSource,
 					validatorDBRow.MissingTarget,
-					validatorDBRow.MissingHead)
+					validatorDBRow.MissingHead,
+					validatorDBRow.Status)
 
-				if stateMetrics.GetMetricsBase().CurrentState.Slot >= 63 {
-					reward := stateMetrics.GetMetricsBase().PrevEpochReward(valIdx)
-
-					// keep in mind that att rewards for epoch 10 can be seen at beginning of epoch 12,
-					// after state_transition
-					// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
-
-					validatorDBRow.Reward = reward
-					validatorDBRow.Slot = int(stateMetrics.GetMetricsBase().CurrentState.Slot)
-
-					batch.Queue(model.UpdateValidatorLineTable,
-						validatorDBRow.ValidatorIndex,
-						validatorDBRow.Slot,
-						validatorDBRow.Reward)
-
-					if batch.Len() > postgresql.MAX_BATCH_QUEUE || (*processFinishedFlag && len(s.ValTaskChan) == 0) {
-						wlog.Debugf("Sending batch to be stored...")
-						s.dbClient.WriteChan <- batch
-						batch = pgx.Batch{}
-					}
+				if batch.Len() > postgresql.MAX_BATCH_QUEUE {
+					wlog.Debugf("Sending batch to be stored...")
+					s.dbClient.WriteChan <- batch
+					batch = pgx.Batch{}
 				}
 
 			}
@@ -122,8 +120,9 @@ func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup,
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state processer routine")
 			return
-
+		default:
 		}
 
 	}
+	wlog.Infof("Validator worker finished, no mroe tasks to process")
 }

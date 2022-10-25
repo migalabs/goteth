@@ -13,17 +13,23 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool, coworkers int) {
+func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool) {
 	defer wgProcess.Done()
 
 	epochBatch := pgx.Batch{}
 	log.Info("Launching Beacon State Pre-Processer")
-
+loop:
 	for {
 		// in case the downloads have finished, and there are no more tasks to execute
-		if *downloadFinishedFlag && len(s.EpochTaskChan) == 0 && epochBatch.Len() == 0 {
+		if *downloadFinishedFlag && len(s.EpochTaskChan) == 0 {
 			log.Warn("the task channel has been closed, finishing epoch routine")
-			return
+			if epochBatch.Len() == 0 {
+				log.Debugf("Sending last epoch batch to be stored...")
+				s.dbClient.WriteChan <- epochBatch
+				epochBatch = pgx.Batch{}
+			}
+
+			break loop
 		}
 
 		select {
@@ -52,7 +58,7 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 
 			if len(task.ValIdxs) == 0 {
 				// in case no validators provided, do all the active ones in the next epoch, take into account proposer and sync committee rewards
-				task.ValIdxs = stateMetrics.GetMetricsBase().NextState.GetActiveVals()
+				task.ValIdxs = stateMetrics.GetMetricsBase().NextState.GetAllVals()
 			} else {
 				finalValidxs := make([]uint64, 0)
 				for _, item := range task.ValIdxs {
@@ -67,54 +73,77 @@ func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinis
 				}
 				task.ValIdxs = finalValidxs
 			}
+			if task.NextState.Slot <= s.FinalSlot {
 
-			stepSize := int(math.Min(float64(MAX_VAL_BATCH_SIZE), float64(len(task.ValIdxs)/coworkers)))
-			for i := 0; i < len(task.ValIdxs); i += stepSize {
-				endIndex := int(math.Min(float64(len(task.ValIdxs)), float64(i+stepSize)))
-				// subslice does not include the endIndex
-				valTask := &ValTask{
-					ValIdxs:         task.ValIdxs[i:endIndex],
-					StateMetricsObj: stateMetrics,
+				stepSize := int(math.Min(float64(MAX_VAL_BATCH_SIZE), float64(len(task.ValIdxs)/s.validatorWorkerNum)))
+				stepSize = int(math.Max(float64(1), float64(stepSize))) // in case it is 0, at least set to 1
+				for i := 0; i < len(task.ValIdxs); i += stepSize {
+					endIndex := int(math.Min(float64(len(task.ValIdxs)), float64(i+stepSize)))
+					// subslice does not include the endIndex
+					valTask := &ValTask{
+						ValIdxs:         task.ValIdxs[i:endIndex],
+						StateMetricsObj: stateMetrics,
+					}
+					s.ValTaskChan <- valTask
 				}
-				s.ValTaskChan <- valTask
+			}
+			if task.PrevState.Slot >= s.InitSlot { // only write epoch metrics inside the defined range
+
+				log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
+				// create a model to be inserted into the db, we only insert previous epoch metrics
+
+				missedBlocks := stateMetrics.GetMetricsBase().PrevState.MissedBlocks
+				// take into accoutn epoch transition
+				nextMissedBlock := stateMetrics.GetMetricsBase().CurrentState.TrackPrevMissingBlock()
+				if nextMissedBlock != 0 {
+					missedBlocks = append(missedBlocks, nextMissedBlock)
+				}
+				epochDBRow := model.NewEpochMetrics(
+					stateMetrics.GetMetricsBase().PrevState.Epoch,
+					stateMetrics.GetMetricsBase().PrevState.Slot,
+					uint64(len(stateMetrics.GetMetricsBase().CurrentState.PrevAttestations)),
+					uint64(stateMetrics.GetMetricsBase().CurrentState.NumAttestingVals),
+					uint64(stateMetrics.GetMetricsBase().PrevState.NumActiveVals),
+					uint64(stateMetrics.GetMetricsBase().PrevState.TotalActiveRealBalance),
+					uint64(stateMetrics.GetMetricsBase().CurrentState.AttestingBalance[altair.TimelyTargetFlagIndex]), // as per BEaconcha.in
+					uint64(stateMetrics.GetMetricsBase().PrevState.TotalActiveBalance),
+					uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
+					uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
+					uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
+					missedBlocks)
+
+				epochBatch.Queue(model.UpsertEpoch,
+					epochDBRow.Epoch,
+					epochDBRow.Slot,
+					epochDBRow.PrevNumAttestations,
+					epochDBRow.PrevNumAttValidators,
+					epochDBRow.PrevNumValidators,
+					epochDBRow.TotalBalance,
+					epochDBRow.AttEffectiveBalance,
+					epochDBRow.TotalEffectiveBalance,
+					epochDBRow.MissingSource,
+					epochDBRow.MissingTarget,
+					epochDBRow.MissingHead,
+					epochDBRow.MissedBlocks)
+
+				// Proposer Duties
+
+				for _, item := range stateMetrics.GetMetricsBase().PrevState.EpochStructs.ProposerDuties {
+					newDuty := model.NewProposerDuties(uint64(item.ValidatorIndex), uint64(item.Slot))
+					epochBatch.Queue(model.InsertProposerDuty,
+						newDuty.ValIdx,
+						newDuty.ProposerSlot)
+				}
 			}
 
-			log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
-			// create a model to be inserted into the db, we only insert previous epoch metrics
-			epochDBRow := model.NewEpochMetrics(
-				stateMetrics.GetMetricsBase().PrevState.Epoch,
-				stateMetrics.GetMetricsBase().PrevState.Slot,
-				uint64(len(stateMetrics.GetMetricsBase().CurrentState.PrevAttestations)),
-				uint64(stateMetrics.GetMetricsBase().CurrentState.NumAttestingVals),
-				uint64(stateMetrics.GetMetricsBase().PrevState.NumActiveVals),
-				uint64(stateMetrics.GetMetricsBase().PrevState.TotalActiveRealBalance),
-				uint64(stateMetrics.GetMetricsBase().CurrentState.AttestingBalance[altair.TimelyTargetFlagIndex]), // as per BEaconcha.in
-				uint64(stateMetrics.GetMetricsBase().PrevState.TotalActiveBalance),
-				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
-				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
-				uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
-				stateMetrics.GetMetricsBase().CurrentState.MissedBlocks)
-
-			epochBatch.Queue(model.InsertNewEpochLineTable,
-				epochDBRow.Epoch,
-				epochDBRow.Slot,
-				epochDBRow.PrevNumAttestations,
-				epochDBRow.PrevNumAttValidators,
-				epochDBRow.PrevNumValidators,
-				epochDBRow.TotalBalance,
-				epochDBRow.AttEffectiveBalance,
-				epochDBRow.TotalEffectiveBalance,
-				epochDBRow.MissingSource,
-				epochDBRow.MissingTarget,
-				epochDBRow.MissingHead,
-				epochDBRow.MissedBlocks)
-
 			// Flush the database batches
-			if epochBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE || (*downloadFinishedFlag && len(s.EpochTaskChan) == 0) {
+			if epochBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE {
 				s.dbClient.WriteChan <- epochBatch
 				epochBatch = pgx.Batch{}
 			}
+		default:
 		}
 
 	}
+	log.Infof("Pre process routine finished...")
 }

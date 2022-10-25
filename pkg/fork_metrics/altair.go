@@ -75,7 +75,7 @@ func (p AltairMetrics) GetMaxSyncComReward(valIdx uint64) uint64 {
 	// at this point we know the validator was inside the sync committee and, therefore, active at that point
 
 	totalActiveInc := p.NextState.TotalActiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT
-	totalBaseRewards := p.GetBaseRewardPerInc() * uint64(totalActiveInc)
+	totalBaseRewards := p.GetBaseRewardPerInc(p.NextState.TotalActiveBalance) * uint64(totalActiveInc)
 	maxParticipantRewards := totalBaseRewards * uint64(fork_state.SYNC_REWARD_WEIGHT) / uint64(fork_state.WEIGHT_DENOMINATOR) / fork_state.SLOTS_PER_EPOCH
 	participantReward := maxParticipantRewards / uint64(fork_state.SYNC_COMMITTEE_SIZE) // this is the participantReward for a single slot
 
@@ -84,12 +84,13 @@ func (p AltairMetrics) GetMaxSyncComReward(valIdx uint64) uint64 {
 }
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#get_flag_index_deltas
-func (p AltairMetrics) GetMaxAttestationReward(valIdx uint64, baseReward uint64) uint64 {
+func (p AltairMetrics) GetMaxAttestationReward(valIdx uint64) uint64 {
 
 	maxFlagsReward := uint64(0)
 	// the maxReward would be each flag_index_weight * base_reward * (attesting_balance_inc / total_active_balance_inc) / WEIGHT_DENOMINATOR
 
 	if fork_state.IsActive(*p.NextState.Validators[valIdx], phase0.Epoch(p.PrevState.Epoch)) {
+		baseReward := p.GetBaseReward(valIdx, uint64(p.CurrentState.Validators[valIdx].EffectiveBalance), p.CurrentState.TotalActiveBalance)
 		// only consider flag Index rewards if the validator was active in the previous epoch
 
 		for i := range p.CurrentState.AttestingBalance {
@@ -116,9 +117,9 @@ func (p AltairMetrics) GetMaxAttestationReward(valIdx uint64, baseReward uint64)
 
 func (p AltairMetrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) {
 
-	baseReward := p.GetBaseReward(valIdx)
+	baseReward := p.GetBaseReward(valIdx, uint64(p.NextState.Validators[valIdx].EffectiveBalance), p.NextState.TotalActiveBalance)
 
-	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx, baseReward)
+	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx)
 
 	syncComMaxReward := p.GetMaxSyncComReward(valIdx)
 
@@ -146,16 +147,16 @@ func (p AltairMetrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 
 }
 
-func (p AltairMetrics) GetBaseReward(valIdx uint64) uint64 {
-	effectiveBalanceInc := p.CurrentState.Validators[valIdx].EffectiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT
-	return p.GetBaseRewardPerInc() * uint64(effectiveBalanceInc)
+func (p AltairMetrics) GetBaseReward(valIdx uint64, effectiveBalance uint64, totalEffectiveBalance uint64) uint64 {
+	effectiveBalanceInc := effectiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT
+	return p.GetBaseRewardPerInc(totalEffectiveBalance) * uint64(effectiveBalanceInc)
 }
 
-func (p AltairMetrics) GetBaseRewardPerInc() uint64 {
+func (p AltairMetrics) GetBaseRewardPerInc(totalEffectiveBalance uint64) uint64 {
 
 	var baseReward uint64
 
-	sqrt := uint64(math.Sqrt(float64(p.CurrentState.TotalActiveBalance)))
+	sqrt := uint64(math.Sqrt(float64(totalEffectiveBalance)))
 
 	num := fork_state.EFFECTIVE_BALANCE_INCREMENT * fork_state.BASE_REWARD_FACTOR
 	baseReward = uint64(num) / uint64(sqrt)

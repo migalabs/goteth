@@ -15,11 +15,11 @@ import (
 )
 
 // in case the table did not exist
-func (p *PostgresDBService) createEpochMetricsTable(ctx context.Context, pool *pgxpool.Pool) error {
+func (p *PostgresDBService) createProposerDutiesTable(ctx context.Context, pool *pgxpool.Pool) error {
 	// create the tables
-	_, err := pool.Exec(ctx, model.CreateEpochMetricsTable)
+	_, err := pool.Exec(ctx, model.CreateProposerDutiesTable)
 	if err != nil {
-		return errors.Wrap(err, "error creating epoch metrics table")
+		return errors.Wrap(err, "error creating proposer duties table")
 	}
 	return nil
 }
