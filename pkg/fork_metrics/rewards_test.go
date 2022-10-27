@@ -1,6 +1,7 @@
 package fork_metrics
 
 import (
+	"math"
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
@@ -72,18 +73,57 @@ func TestMaxAttestationReward(t *testing.T) {
 		state,
 		stateNext)
 
+	baseRewardPerInc := uint64(fork_state.EFFECTIVE_BALANCE_INCREMENT * fork_state.BASE_REWARD_FACTOR)
+	baseRewardPerInc = baseRewardPerInc / uint64(math.Sqrt(float64(rewardsObj.CurrentState.TotalActiveBalance)))
 	require.Equal(t,
 		rewardsObj.GetBaseRewardPerInc(rewardsObj.CurrentState.TotalActiveBalance),
-		uint64(254982))
+		uint64(baseRewardPerInc))
 
 	require.Equal(t,
-		rewardsObj.GetBaseReward(1, uint64(validator1.EffectiveBalance), rewardsObj.CurrentState.TotalActiveBalance),
-		uint64(254982*32))
+		rewardsObj.GetBaseReward(0, uint64(validator1.EffectiveBalance), rewardsObj.CurrentState.TotalActiveBalance),
+		uint64(baseRewardPerInc*32))
+
+	require.Equal(t,
+		rewardsObj.GetBaseReward(1, uint64(validator2.EffectiveBalance), rewardsObj.CurrentState.TotalActiveBalance),
+		uint64(baseRewardPerInc*31))
+
+	attReward := 0
+
+	// Source
+	reward := uint64(14) * baseRewardPerInc * 31 * uint64(rewardsObj.CurrentState.AttestingBalance[0]/1000000000)
+	reward = reward / (uint64(rewardsObj.CurrentState.TotalActiveBalance / 1000000000)) / 64
+	attReward += int(reward)
+
+	// Target
+	reward = uint64(26) * baseRewardPerInc * 31 * uint64(rewardsObj.CurrentState.AttestingBalance[1]/1000000000)
+	reward = reward / (uint64(rewardsObj.CurrentState.TotalActiveBalance / 1000000000)) / 64
+	attReward += int(reward)
+
+	// Head
+	reward = uint64(14) * baseRewardPerInc * 31 * uint64(rewardsObj.CurrentState.AttestingBalance[2]/1000000000)
+	reward = reward / (uint64(rewardsObj.CurrentState.TotalActiveBalance / 1000000000)) / 64
+	attReward += int(reward)
 
 	require.Equal(t,
 		rewardsObj.GetMaxAttestationReward(1),
-		uint64(2509346))
+		uint64(attReward))
 
+	attReward = 0
+
+	// Source
+	reward = uint64(14) * baseRewardPerInc * 32 * uint64(rewardsObj.CurrentState.AttestingBalance[0]/1000000000)
+	reward = reward / (uint64(rewardsObj.CurrentState.TotalActiveBalance / 1000000000)) / 64
+	attReward += int(reward)
+
+	// Target
+	reward = uint64(26) * baseRewardPerInc * 32 * uint64(rewardsObj.CurrentState.AttestingBalance[1]/1000000000)
+	reward = reward / (uint64(rewardsObj.CurrentState.TotalActiveBalance / 1000000000)) / 64
+	attReward += int(reward)
+
+	// Head
+	reward = uint64(14) * baseRewardPerInc * 32 * uint64(rewardsObj.CurrentState.AttestingBalance[2]/1000000000)
+	reward = reward / (uint64(rewardsObj.CurrentState.TotalActiveBalance / 1000000000)) / 64
+	attReward += int(reward)
 	require.Equal(t,
 		rewardsObj.GetMaxAttestationReward(0),
 		uint64(2590292))
@@ -137,18 +177,25 @@ func TestMaxSyncCommitteeReward(t *testing.T) {
 		fork_state.ForkStateContentBase{},
 		fork_state.ForkStateContentBase{})
 
+	baseRewardPerInc := uint64(fork_state.EFFECTIVE_BALANCE_INCREMENT * fork_state.BASE_REWARD_FACTOR)
+	baseRewardPerInc = baseRewardPerInc / uint64(math.Sqrt(float64(rewardsObj.NextState.TotalActiveBalance)))
+
+	participantReward := uint64(rewardsObj.NextState.TotalActiveBalance / 1000000000)
+	participantReward = participantReward * baseRewardPerInc
+	participantReward = participantReward * 2 / 64 / 32
+	participantReward = participantReward / 512
 	require.Equal(t,
 		rewardsObj.GetMaxSyncComReward(0),
-		uint64(30*32))
+		uint64(participantReward*32))
 
 	require.Equal(t,
 		rewardsObj.GetMaxSyncComReward(1),
-		uint64(0*32))
+		uint64(0)) // not in sync committee
 
 	rewardsObj.NextState.MissedBlocks = append(rewardsObj.NextState.MissedBlocks, 1)
 
 	require.Equal(t,
 		rewardsObj.GetMaxSyncComReward(0),
-		uint64(30*31))
+		uint64(participantReward*31)) // one missed block
 
 }
