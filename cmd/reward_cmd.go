@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -113,12 +116,33 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	// generate the state analyzer
 	stateAnalyzer, err := analyzer.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers)
 	if err != nil {
 		return err
 	}
 
-	stateAnalyzer.Run()
+	procDoneC := make(chan struct{})
+	sigtermC := make(chan os.Signal)
+
+	signal.Notify(sigtermC, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		stateAnalyzer.Run()
+		procDoneC <- struct{}{}
+	}()
+
+	select {
+	case <-sigtermC:
+		logRewardsRewards.Info("Sudden shutdown detected, controlled shutdown of the cli triggered")
+		stateAnalyzer.Close()
+
+	case <-procDoneC:
+		logRewardsRewards.Info("Process successfully finish!")
+	}
+	close(sigtermC)
+	close(procDoneC)
+
 	return nil
 }
