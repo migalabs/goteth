@@ -27,6 +27,11 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 			return
 
 		default:
+			if s.finishDownload {
+				log.Info("sudden shutdown detected, state downloader routine")
+				close(s.EpochTaskChan)
+				return
+			}
 			ticker.Reset(minReqTime)
 			firstIteration := true
 			secondIteration := true

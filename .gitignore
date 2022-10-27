@@ -4,3 +4,4 @@ eth2-state-analyzer
 test*.json
 .ipynb_checkpoints/**
 metrika/**
+.config

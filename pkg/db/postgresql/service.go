@@ -133,7 +133,6 @@ func (p *PostgresDBService) runWriters() {
 
 				case <-p.ctx.Done():
 					wlogWriter.Info("shutdown detected, closing persister")
-					break loop
 				default:
 				}
 

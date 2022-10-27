@@ -30,6 +30,7 @@ var (
 
 type StateAnalyzer struct {
 	ctx                context.Context
+	cancel             context.CancelFunc
 	InitSlot           uint64
 	FinalSlot          uint64
 	ValidatorIndexes   []uint64
@@ -42,11 +43,15 @@ type StateAnalyzer struct {
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
 
+	// Control Variables
+	finishDownload bool
+	routineClosed  chan struct{}
+
 	initTime time.Time
 }
 
 func NewStateAnalyzer(
-	ctx context.Context,
+	pCtx context.Context,
 	httpCli *clientapi.APIClient,
 	initSlot uint64,
 	finalSlot uint64,
@@ -55,6 +60,9 @@ func NewStateAnalyzer(
 	workerNum int,
 	dbWorkerNum int) (*StateAnalyzer, error) {
 	log.Infof("generating new State Analzyer from slots %d:%d, for validators %v", initSlot, finalSlot, valIdxs)
+	// gen new ctx from parent
+	ctx, cancel := context.WithCancel(pCtx)
+
 	// Check if the range of slots is valid
 	if !utils.IsValidRangeuint64(initSlot, finalSlot) {
 		return nil, errors.New("provided slot range isn't valid")
@@ -93,6 +101,7 @@ func NewStateAnalyzer(
 
 	return &StateAnalyzer{
 		ctx:                ctx,
+		cancel:             cancel,
 		InitSlot:           initSlot,
 		FinalSlot:          finalSlot,
 		ValidatorIndexes:   valIdxs,
@@ -103,11 +112,12 @@ func NewStateAnalyzer(
 		cli:                httpCli,
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
+		routineClosed:      make(chan struct{}),
 	}, nil
 }
 
 func (s *StateAnalyzer) Run() {
-
+	defer s.cancel()
 	// Get init time
 	s.initTime = time.Now()
 
@@ -155,17 +165,27 @@ func (s *StateAnalyzer) Run() {
 
 	wgProcess.Wait()
 	processFinishedFlag = true
-	close(s.EpochTaskChan)
 	log.Info("Beacon State Processing finished")
 
 	wgWorkers.Wait()
-	close(s.ValTaskChan)
 	log.Info("All validator workers finished")
 	s.dbClient.DoneTasks()
 	<-s.dbClient.FinishSignalChan
+
+	close(s.ValTaskChan)
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
 	log.Info("State Analyzer finished in ", analysisDuration)
+	if s.finishDownload {
+		s.routineClosed <- struct{}{}
+	}
+}
+
+func (s *StateAnalyzer) Close() {
+	log.Info("Sudden closed detected, closing StateAnalyzer")
+	s.finishDownload = true
+	<-s.routineClosed
+	s.cancel()
 }
 
 //

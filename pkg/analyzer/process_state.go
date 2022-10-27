@@ -16,12 +16,13 @@ import (
 func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool) {
 	defer wgProcess.Done()
 
+	var suddenShutDown bool = false
 	epochBatch := pgx.Batch{}
 	log.Info("Launching Beacon State Pre-Processer")
 loop:
 	for {
 		// in case the downloads have finished, and there are no more tasks to execute
-		if *downloadFinishedFlag && len(s.EpochTaskChan) == 0 {
+		if (*downloadFinishedFlag && len(s.EpochTaskChan) == 0) || (suddenShutDown && len(s.EpochTaskChan) == 0) {
 			log.Warn("the task channel has been closed, finishing epoch routine")
 			if epochBatch.Len() == 0 {
 				log.Debugf("Sending last epoch batch to be stored...")
@@ -35,7 +36,7 @@ loop:
 		select {
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state processer routine")
-			return
+			suddenShutDown = true
 
 		case task, ok := <-s.EpochTaskChan:
 

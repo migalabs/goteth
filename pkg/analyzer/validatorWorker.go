@@ -118,11 +118,11 @@ loop:
 			wlog.Debugf("Validator group processed, worker freed for next group. Took %f seconds", time.Since(snapshot).Seconds())
 
 		case <-s.ctx.Done():
-			log.Info("context has died, closing state processer routine")
+			log.Info("context has died, closing state Worker routine")
 			return
 		default:
 		}
 
 	}
-	wlog.Infof("Validator worker finished, no mroe tasks to process")
+	wlog.Infof("Validator worker finished, no more tasks to process")
 }
