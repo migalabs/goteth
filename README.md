@@ -1,2 +1,1 @@
-# api-benchmark
-Little client that measures API's response times
+# Eth2 State Analyzer

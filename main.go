@@ -21,7 +21,7 @@ var (
 )
 
 func main() {
-	fmt.Println(CliName, Version, "\n")
+	fmt.Println(CliName, Version)
 
 	//ctx, cancel := context.WithCancel(context.Background())
 

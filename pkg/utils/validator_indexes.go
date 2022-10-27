@@ -15,8 +15,23 @@ func GetValIndexesFromJson(filePath string) ([]uint64, error) {
 	}
 	err = json.Unmarshal(fbytes, &validatorIndex)
 
+	if err != nil {
+		log.Errorf("Error unmarshalling val list", err.Error())
+	}
+
 	log.Infof("Readed %d validators", len(validatorIndex))
 
 	return validatorIndex, nil
 
+}
+
+func BoolToUint(input []bool) []uint64 {
+	result := make([]uint64, len(input))
+
+	for i, item := range input {
+		if item {
+			result[i] += 1
+		}
+	}
+	return result
 }

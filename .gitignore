@@ -1,1 +1,7 @@
 results/
+eth2-state-analyzer
+.vscode/**
+test*.json
+.ipynb_checkpoints/**
+metrika/**
+.config

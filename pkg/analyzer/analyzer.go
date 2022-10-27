@@ -2,19 +2,16 @@ package analyzer
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	api "github.com/attestantio/go-eth2-client/api/v1"
-	"github.com/attestantio/go-eth2-client/spec"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
-
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics"
+	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
 
@@ -23,290 +20,190 @@ var (
 	log     = logrus.WithField(
 		"module", modName,
 	)
-	maxWorkers = 10
-	minReqTime = 10 * time.Second
+	maxWorkers         = 50
+	minReqTime         = 10 * time.Second
+	MAX_VAL_BATCH_SIZE = 20000
+	VAL_LEN            = 400000
+	SLOT_SECONDS       = 12
+	EPOCH_SLOTS        = 32
 )
 
 type StateAnalyzer struct {
-	ctx              context.Context
-	InitSlot         uint64
-	FinalSlot        uint64
-	ValidatorIndexes []uint64
-	// map of [validatorIndexes]RewardMetrics
-	Metrics    sync.Map
-	SlotRanges []uint64
-	//
-	ValidatorTaskChan chan *ValidatorTask
-	// http CLient
-	cli *clientapi.APIClient
+	ctx                context.Context
+	cancel             context.CancelFunc
+	InitSlot           uint64
+	FinalSlot          uint64
+	ValidatorIndexes   []uint64
+	SlotRanges         []uint64
+	MonitorSlotProcess map[uint64]uint64
+	EpochTaskChan      chan *EpochTask
+	ValTaskChan        chan *ValTask
+	validatorWorkerNum int
 
-	//
+	cli      *clientapi.APIClient
+	dbClient *postgresql.PostgresDBService
+
+	// Control Variables
+	finishDownload bool
+	routineClosed  chan struct{}
+
 	initTime time.Time
 }
 
-func NewStateAnalyzer(ctx context.Context, httpCli *clientapi.APIClient, initSlot uint64, finalSlot uint64, valIdxs []uint64) (*StateAnalyzer, error) {
+func NewStateAnalyzer(
+	pCtx context.Context,
+	httpCli *clientapi.APIClient,
+	initSlot uint64,
+	finalSlot uint64,
+	valIdxs []uint64,
+	idbUrl string,
+	workerNum int,
+	dbWorkerNum int) (*StateAnalyzer, error) {
 	log.Infof("generating new State Analzyer from slots %d:%d, for validators %v", initSlot, finalSlot, valIdxs)
+	// gen new ctx from parent
+	ctx, cancel := context.WithCancel(pCtx)
+
 	// Check if the range of slots is valid
 	if !utils.IsValidRangeuint64(initSlot, finalSlot) {
 		return nil, errors.New("provided slot range isn't valid")
 	}
 
+	valLength := len(valIdxs)
 	// check if valIdx where given
 	if len(valIdxs) < 1 {
-		return nil, errors.New("no validator indexes where provided")
+		log.Infof("No validator indexes provided: running all validators")
+		valLength = VAL_LEN // estimation to declare channels
 	}
 
 	// calculate the list of slots that we will analyze
 	slotRanges := make([]uint64, 0)
 	epochRange := uint64(0)
-	for i := initSlot; i < (finalSlot + utils.SlotBase); i += utils.SlotBase {
+
+	// minimum slot is 31
+	// force to be in the previous epoch than select by user
+	initEpoch := uint64(initSlot) / 32
+	finalEpoch := uint64(finalSlot / 32)
+
+	initSlot = (initEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1   // take last slot of init Epoch
+	finalSlot = (finalEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1 // take last slot of final Epoch
+
+	// start two epochs before and end two epochs after
+	for i := initSlot - (fork_state.SLOTS_PER_EPOCH * 2); i <= (finalSlot + fork_state.SLOTS_PER_EPOCH*2); i += utils.SlotBase {
 		slotRanges = append(slotRanges, i)
 		epochRange++
 	}
 	log.Debug("slotRanges are:", slotRanges)
 
-	var metrics sync.Map
-	// Compose the metrics array with each of the RewardMetrics
-	for _, val := range valIdxs {
-		mets, err := NewRewardMetrics(initSlot, epochRange, val)
-		if err != nil {
-			return nil, errors.Wrap(err, "unable to generate RewarMetrics.")
-		}
-		metrics.Store(val, mets)
+	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, valLength*maxWorkers, dbWorkerNum)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
 
 	return &StateAnalyzer{
-		ctx:               ctx,
-		InitSlot:          initSlot,
-		FinalSlot:         finalSlot,
-		ValidatorIndexes:  valIdxs,
-		SlotRanges:        slotRanges,
-		Metrics:           metrics,
-		ValidatorTaskChan: make(chan *ValidatorTask, len(valIdxs)),
-		cli:               httpCli,
+		ctx:                ctx,
+		cancel:             cancel,
+		InitSlot:           initSlot,
+		FinalSlot:          finalSlot,
+		ValidatorIndexes:   valIdxs,
+		SlotRanges:         slotRanges,
+		EpochTaskChan:      make(chan *EpochTask, 10),
+		ValTaskChan:        make(chan *ValTask, valLength*maxWorkers),
+		MonitorSlotProcess: make(map[uint64]uint64),
+		cli:                httpCli,
+		dbClient:           i_dbClient,
+		validatorWorkerNum: workerNum,
+		routineClosed:      make(chan struct{}),
 	}, nil
 }
 
 func (s *StateAnalyzer) Run() {
+	defer s.cancel()
+	// Get init time
+	s.initTime = time.Now()
+
+	log.Info("State Analyzer initialized at ", s.initTime)
+
 	// State requester
-	var wg sync.WaitGroup
+	var wgDownload sync.WaitGroup
+	downloadFinishedFlag := false
 
-	wg.Add(1)
+	// Rewards per process
+	var wgProcess sync.WaitGroup
+	processFinishedFlag := false
+
+	// Workers to process each validator rewards
+	var wgWorkers sync.WaitGroup
+
+	totalTime := int64(0)
+	start := time.Now()
+
 	// State requester + Task generator
-	go func() {
-		defer wg.Done()
-		log.Info("Launching Beacon State Requester")
-		// loop over the list of slots that we need to analyze
-		for _, slot := range s.SlotRanges {
-			ticker := time.NewTicker(minReqTime)
-			select {
-			case <-s.ctx.Done():
-				log.Info("context has died, closing state requester routine")
-				close(s.ValidatorTaskChan)
-				return
+	wgDownload.Add(1)
+	go s.runDownloadStates(&wgDownload)
 
-			default:
-				// make the state query
-				log.Debug("requesting Beacon State from endpoint")
-				bstate, err := s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
-				if err != nil {
-					// close the channel (to tell other routines to stop processing and end)
-					log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
-					close(s.ValidatorTaskChan)
-					return
-				}
+	// State requester in finalized slots, not used for now
+	// wgDownload.Add(1)
+	// go s.runDownloadStatesFinalized(&wgDownload)
 
-				log.Debug("requesting Validator list from endpoint")
-				validatorFilter := make([]phase0.ValidatorIndex, 0)
-				activeValidators, err := s.cli.Api.Validators(s.ctx, fmt.Sprintf("%d", slot), validatorFilter)
-				if err != nil {
-					// close the channel (to tell other routines to stop processing and end)
-					log.Errorf("Unable to retrieve Validators from the beacon node, closing requester routine. %s", err.Error())
-					close(s.ValidatorTaskChan)
-					return
-				}
+	wgProcess.Add(1)
+	go s.runProcessState(&wgProcess, &downloadFinishedFlag)
 
-				var totalActiveBalance uint64 = 0
-				var totalEffectiveBalance uint64 = 0
-
-				for _, val := range activeValidators {
-					// only count active validators
-					if !val.Status.IsActive() {
-						continue
-					}
-					// since it's active
-					totalActiveBalance += uint64(val.Balance)
-					totalEffectiveBalance += uint64(val.Validator.EffectiveBalance)
-
-				}
-
-				// Once the state has been downloaded, loop over the validator
-				for _, val := range s.ValidatorIndexes {
-					// compose the next task
-					valTask := &ValidatorTask{
-						ValIdx:                val,
-						Slot:                  slot,
-						State:                 bstate,
-						TotalValidatorStatus:  &activeValidators,
-						TotalEffectiveBalance: totalEffectiveBalance,
-						TotalActiveBalance:    totalActiveBalance,
-					}
-
-					log.Debugf("sending task for slot %d and validator %d", slot, val)
-					s.ValidatorTaskChan <- valTask
-				}
-			}
-			// check if the min Request time has been completed (to avoid spaming the API)
-			<-ticker.C
-		}
-		log.Infof("All states for the slot ranges has been successfully retrieved, clossing go routine")
-		close(s.ValidatorTaskChan)
-	}()
-
-	// generate workers, validator tasks consumers
-	coworkers := len(s.ValidatorIndexes)
-	if coworkers > maxWorkers {
-		coworkers = maxWorkers
-	}
-	for i := 0; i < coworkers; i++ {
+	for i := 0; i < s.validatorWorkerNum; i++ {
 		// state workers, receiving State and valIdx to measure performance
 		wlog := logrus.WithField(
 			"worker", i,
 		)
 
-		wlog.Info("Launching Task Worker")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			// keep iterrating until the channel is closed due to finishing
-			for {
-				// cehck if the channel has been closed
-				task, ok := <-s.ValidatorTaskChan
-				if !ok {
-					wlog.Warn("the task channel has been closed, finishing worker routine")
-					return
-				}
-				wlog.Debugf("task received for slot %d and val %d", task.Slot, task.ValIdx)
-				// Proccess State
-				wlog.Debug("analyzing the receved state")
-
-				// TODO: Analyze rewards for the given Validator
-
-				// check if there is a metrics already
-				metInterface, ok := s.Metrics.Load(task.ValIdx)
-				if !ok {
-					log.Errorf("Validator %d not found in list of tracked validators", task.ValIdx)
-				}
-				// met is already the pointer to the metrics, we don't need to store it again
-				met := metInterface.(*RewardMetrics)
-				log.Debug("Calculating the performance of the validator")
-				err := met.CalculateEpochPerformance(task.State, task.TotalValidatorStatus, task.TotalEffectiveBalance)
-				if err != nil {
-					log.Errorf("unable to calculate the performance for validator %d on slot %d. %s", task.ValIdx, task.Slot, err.Error())
-				}
-				// save the calculated rewards on the the list of items
-				fmt.Println(met)
-				s.Metrics.Store(task.ValIdx, met)
-			}
-
-		}()
+		wlog.Tracef("Launching Task Worker")
+		wgWorkers.Add(1)
+		go s.runWorker(wlog, &wgWorkers, &processFinishedFlag)
 	}
 
-	// Get init time
-	s.initTime = time.Now()
+	wgDownload.Wait()
+	downloadFinishedFlag = true
+	log.Info("Beacon State Downloads finished")
 
-	log.Info("State Analyzer initialized at", s.initTime)
-	wg.Wait()
+	wgProcess.Wait()
+	processFinishedFlag = true
+	log.Info("Beacon State Processing finished")
 
-	analysisDuration := time.Since(s.initTime)
+	wgWorkers.Wait()
+	log.Info("All validator workers finished")
+	s.dbClient.DoneTasks()
+	<-s.dbClient.FinishSignalChan
+
+	close(s.ValTaskChan)
+	totalTime += int64(time.Since(start).Seconds())
+	analysisDuration := time.Since(s.initTime).Seconds()
 	log.Info("State Analyzer finished in ", analysisDuration)
+	if s.finishDownload {
+		s.routineClosed <- struct{}{}
+	}
+}
 
+func (s *StateAnalyzer) Close() {
+	log.Info("Sudden closed detected, closing StateAnalyzer")
+	s.finishDownload = true
+	<-s.routineClosed
+	s.cancel()
 }
 
 //
-type ValidatorTask struct {
-	ValIdx                uint64
-	Slot                  uint64
-	State                 *spec.VersionedBeaconState
-	TotalValidatorStatus  *map[phase0.ValidatorIndex]*api.Validator
-	TotalEffectiveBalance uint64
-	TotalActiveBalance    uint64
+type EpochTask struct {
+	ValIdxs     []uint64
+	NextState   fork_state.ForkStateContentBase
+	State       fork_state.ForkStateContentBase
+	PrevState   fork_state.ForkStateContentBase
+	OnlyPrevAtt bool
 }
 
-// Exporter Functions
+type ValTask struct {
+	ValIdxs         []uint64
+	StateMetricsObj fork_metrics.StateMetrics
+	OnlyPrevAtt     bool
+}
 
-func (s *StateAnalyzer) ExportToCsv(outputFolder string) error {
-	// check if the folder exists
-	csvRewardsFile, err := os.Create(outputFolder + "/validator_rewards.csv")
-	if err != nil {
-		return err
-	}
-	csvMaxRewardFile, err := os.Create(outputFolder + "/validator_max_rewards.csv")
-	if err != nil {
-		return err
-	}
-	csvPercentageFile, err := os.Create(outputFolder + "/validator_rewards_percentage.csv")
-	if err != nil {
-		return err
-	}
-	// write headers on the csvs
-	headers := "slot,total"
-	for _, val := range s.ValidatorIndexes {
-		headers += "," + fmt.Sprintf("%d", val)
-	}
-	csvRewardsFile.WriteString(headers + "\n")
-	csvMaxRewardFile.WriteString(headers + "\n")
-	csvPercentageFile.WriteString(headers + "\n")
-
-	for _, slot := range s.SlotRanges {
-		rowRewards := fmt.Sprintf("%d", slot)
-		rowMaxRewards := fmt.Sprintf("%d", slot)
-		rowRewardsPerc := fmt.Sprintf("%d", slot)
-
-		auxRowRewards := ""
-		auxRowMaxRewards := ""
-		auxRowRewardsPerc := ""
-
-		var totRewards uint64
-		var totMaxRewards uint64
-		var totPerc float64
-
-		// iter through the validator results
-		for _, val := range s.ValidatorIndexes {
-
-			m, ok := s.Metrics.Load(val)
-			if !ok {
-				log.Errorf("validator %d has no metrics", val)
-			}
-			met := m.(*RewardMetrics)
-			valMetrics, err := met.GetEpochMetrics(slot)
-			if err != nil {
-				return err
-			}
-			totRewards += valMetrics.Reward
-			totMaxRewards += valMetrics.MaxReward
-			totPerc += valMetrics.RewardPercentage
-
-			auxRowRewards += "," + fmt.Sprintf("%d", valMetrics.Reward)
-			auxRowMaxRewards += "," + fmt.Sprintf("%d", valMetrics.MaxReward)
-			auxRowRewardsPerc += "," + fmt.Sprintf("%.3f", valMetrics.RewardPercentage)
-
-		}
-
-		rowRewards += fmt.Sprintf(",%d", totRewards) + auxRowRewards
-		rowMaxRewards += fmt.Sprintf(",%d", totMaxRewards) + auxRowMaxRewards
-		rowRewardsPerc += fmt.Sprintf(",%.3f", totPerc/float64(len(s.ValidatorIndexes))) + auxRowRewardsPerc
-
-		// end up with the line
-		csvRewardsFile.WriteString(rowRewards + "\n")
-		csvMaxRewardFile.WriteString(rowMaxRewards + "\n")
-		csvPercentageFile.WriteString(rowRewardsPerc + "\n")
-	}
-
-	csvRewardsFile.Close()
-	csvMaxRewardFile.Close()
-	csvPercentageFile.Close()
-
-	return nil
+type MonitorTasks struct {
+	ValIdxs []uint64
+	Slot    uint64
 }
