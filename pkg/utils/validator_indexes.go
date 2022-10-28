@@ -16,7 +16,7 @@ func GetValIndexesFromJson(filePath string) ([]uint64, error) {
 	err = json.Unmarshal(fbytes, &validatorIndex)
 
 	if err != nil {
-		log.Errorf("Error unmarshalling val list", err.Error())
+		log.Errorf("Error unmarshalling val list: %s", err.Error())
 	}
 
 	log.Infof("Readed %d validators", len(validatorIndex))
