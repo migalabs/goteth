@@ -20,7 +20,6 @@ run:
 	$(BIN) $(STATE_ANALYZER_CMD) \
         --log-level=${STATE_ANALYZER_LOG_LEVEL} \
         --bn-endpoint=${STATE_ANALYZER_BN_ENDPOINT} \
-        --outfolder=${STATE_ANALYZER_OUTFOLDER} \
         --init-slot=${STATE_ANALYZER_INIT_SLOT} \
         --final-slot=${STATE_ANALYZER_FINAL_SLOT} \
         --validator-indexes=${STATE_ANALYZER_VALIDATOR_INDEXES} \
