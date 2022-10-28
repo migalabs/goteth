@@ -24,10 +24,6 @@ var RewardsCommand = &cli.Command{
 			Name:  "bn-endpoint",
 			Usage: "beacon node endpoint (to request the BeaconStates)",
 		},
-		&cli.StringFlag{
-			Name:  "outfolder",
-			Usage: "output result folder",
-		},
 		&cli.IntFlag{
 			Name:  "init-slot",
 			Usage: "init slot from where to start",
@@ -72,9 +68,6 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
 		return errors.New("bn endpoint not provided")
-	}
-	if !c.IsSet("outfolder") {
-		return errors.New("outputfolder no provided")
 	}
 	if !c.IsSet("init-slot") {
 		return errors.New("final slot not provided")

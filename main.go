@@ -33,11 +33,14 @@ func main() {
 	app := &cli.App{
 		Name:      CliName,
 		Usage:     "Tinny client that requests and processes the Beacon State for the slot range defined.",
-		UsageText: "state-analyzer [commands] [arguments...]",
+		UsageText: "eth2-state-analyzer [commands] [arguments...]",
 		Authors: []*cli.Author{
 			{
 				Name:  "Cortze",
 				Email: "cortze@protonmail.com",
+			}, {
+				Name:  "Tdahar",
+				Email: "tarsuno@gmail.com",
 			},
 		},
 		EnableBashCompletion: true,
