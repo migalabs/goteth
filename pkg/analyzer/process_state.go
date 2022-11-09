@@ -129,10 +129,16 @@ loop:
 				// Proposer Duties
 
 				for _, item := range stateMetrics.GetMetricsBase().PrevState.EpochStructs.ProposerDuties {
-					newDuty := model.NewProposerDuties(uint64(item.ValidatorIndex), uint64(item.Slot))
+					newDuty := model.NewProposerDuties(uint64(item.ValidatorIndex), uint64(item.Slot), true)
+					for _, item := range missedBlocks {
+						if newDuty.ProposerSlot == item { // we found the proposer slot in the missed blocks
+							newDuty.Proposed = false
+						}
+					}
 					epochBatch.Queue(model.InsertProposerDuty,
 						newDuty.ValIdx,
-						newDuty.ProposerSlot)
+						newDuty.ProposerSlot,
+						newDuty.Proposed)
 				}
 			}
 
