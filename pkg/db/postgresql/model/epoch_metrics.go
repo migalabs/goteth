@@ -21,7 +21,6 @@ var (
 		f_missing_source INT, 
 		f_missing_target INT,
 		f_missing_head INT,
-		f_missed_blocks TEXT,
 		CONSTRAINT PK_Epoch PRIMARY KEY (f_slot));`
 
 	UpsertEpoch = `
@@ -36,8 +35,7 @@ var (
 		f_total_effective_balance_eth, 
 		f_missing_source, 
 		f_missing_target, 
-		f_missing_head, 
-		f_missed_blocks)
+		f_missing_head)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		ON CONFLICT ON CONSTRAINT PK_Epoch
 		DO 
@@ -50,8 +48,7 @@ var (
 				f_total_effective_balance_eth = excluded.f_total_effective_balance_eth,
 				f_missing_source = excluded.f_missing_source,
 				f_missing_target = excluded.f_missing_target,
-				f_missing_head = excluded.f_missing_head,
-				f_missed_blocks = excluded.f_missed_blocks;
+				f_missing_head = excluded.f_missing_head;
 	`
 )
 

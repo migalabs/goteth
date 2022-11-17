@@ -123,8 +123,7 @@ loop:
 					epochDBRow.TotalEffectiveBalance,
 					epochDBRow.MissingSource,
 					epochDBRow.MissingTarget,
-					epochDBRow.MissingHead,
-					epochDBRow.MissedBlocks)
+					epochDBRow.MissingHead)
 
 				// Proposer Duties
 
