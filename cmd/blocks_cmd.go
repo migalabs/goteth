@@ -21,7 +21,7 @@ var BlocksCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "bn-endpoint",
-			Usage: "beacon node endpoint (to request the BeaconStates)",
+			Usage: "beacon node endpoint (to request the Beacon Blocks)",
 		},
 		&cli.IntFlag{
 			Name:  "init-slot",
@@ -37,7 +37,7 @@ var BlocksCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "db-url",
-			Usage: "example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_kiln",
+			Usage: "example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states",
 		},
 		&cli.IntFlag{
 			Name:  "workers-num",
