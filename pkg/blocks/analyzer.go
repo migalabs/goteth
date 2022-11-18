@@ -18,7 +18,7 @@ var (
 		"module", modName,
 	)
 	maxWorkers         = 50
-	minReqTime         = 10 * time.Second
+	minReqTime         = 1 * time.Second / 10
 	MAX_VAL_BATCH_SIZE = 20000
 	VAL_LEN            = 400000
 	SLOT_SECONDS       = 12
@@ -105,11 +105,11 @@ func (s *BlockAnalyzer) Run() {
 	totalTime := int64(0)
 	start := time.Now()
 
-	// State requester + Task generator
+	// Block requester + Task generator
 	wgDownload.Add(1)
 	go s.runDownloadBlocks(&wgDownload)
 
-	// State requester in finalized slots, not used for now
+	// Block requester in finalized slots, not used for now
 	// wgDownload.Add(1)
 	// go s.runDownloadBlocksFinalized(&wgDownload)
 

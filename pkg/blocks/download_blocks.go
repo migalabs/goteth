@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// This routine is able to download block by block in the slot range
 func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
@@ -28,14 +29,12 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 			}
 			ticker.Reset(minReqTime)
 
-			// make the state query
 			log.Infof("requesting Beacon Block from endpoint: slot %d", slot)
 
-			// We need three states to calculate both, rewards and maxRewards
-
+			// make the state query
 			newBlock, err := s.cli.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
 
-			if newBlock == nil {
+			if newBlock == nil { // if the block was not found, no error and nil block
 				log.Errorf("the Beacon Block is unavailable, nil block")
 				return
 			}
@@ -45,6 +44,7 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 				return
 			}
 
+			// send task to be processed
 			blockTask := &BlockTask{
 				Block: *newBlock,
 				Slot:  slot,

@@ -10,7 +10,7 @@ import (
 func (s *BlockAnalyzer) runProcessBlock(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool) {
 	defer wgProcess.Done()
 
-	blockBatch := pgx.Batch{}
+	blockBatch := pgx.Batch{} // we will place all the database queries here
 	log.Info("Launching Beacon Block Processor")
 loop:
 	for {
@@ -49,5 +49,5 @@ loop:
 		}
 
 	}
-	log.Infof("Pre process routine finished...")
+	log.Infof("Block process routine finished...")
 }
