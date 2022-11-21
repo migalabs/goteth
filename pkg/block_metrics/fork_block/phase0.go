@@ -1,6 +1,8 @@
 package fork_block
 
-import "github.com/attestantio/go-eth2-client/spec"
+import (
+	"github.com/attestantio/go-eth2-client/spec"
+)
 
 func NewPhase0Block(block spec.VersionedSignedBeaconBlock) ForkBlockContentBase {
 	return ForkBlockContentBase{

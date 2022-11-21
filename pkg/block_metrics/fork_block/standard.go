@@ -39,6 +39,4 @@ func GetCustomBlock(block spec.VersionedSignedBeaconBlock, iApi *http.Service) (
 	default:
 		return ForkBlockContentBase{}, fmt.Errorf("could not figure out the Beacon Block Fork Version: %s", block.Version)
 	}
-
-	return ForkBlockContentBase{}, nil
 }

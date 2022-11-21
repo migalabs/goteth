@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/cortze/eth2-state-analyzer/pkg/block_metrics/fork_block"
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
 	"github.com/pkg/errors"
@@ -144,6 +144,6 @@ func (s *BlockAnalyzer) Close() {
 
 //
 type BlockTask struct {
-	Block spec.VersionedSignedBeaconBlock
+	Block fork_block.ForkBlockContentBase
 	Slot  uint64
 }

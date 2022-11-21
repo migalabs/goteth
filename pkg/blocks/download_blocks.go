@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/cortze/eth2-state-analyzer/pkg/block_metrics/fork_block"
 )
 
 // This routine is able to download block by block in the slot range
@@ -44,9 +46,14 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 				return
 			}
 
+			customBlock, err := fork_block.GetCustomBlock(*newBlock, s.cli.Api)
+			if err != nil {
+				log.Errorf("could not determine the fork of block %d", slot, err)
+			}
+
 			// send task to be processed
 			blockTask := &BlockTask{
-				Block: *newBlock,
+				Block: customBlock,
 				Slot:  slot,
 			}
 			log.Debugf("sending a new task for block %d", slot)
@@ -107,8 +114,14 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 				return
 			}
 
+			customBlock, err := fork_block.GetCustomBlock(*newBlock, s.cli.Api)
+			if err != nil {
+				log.Errorf("could not determine the fork of block %d", finalizedSlot, err)
+			}
+
+			// send task to be processed
 			blockTask := &BlockTask{
-				Block: *newBlock,
+				Block: customBlock,
 				Slot:  uint64(finalizedSlot),
 			}
 			log.Debugf("sending a new task for slot %d", finalizedSlot)
