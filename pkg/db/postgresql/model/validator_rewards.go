@@ -1,6 +1,6 @@
 package model
 
-import "github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
+import "github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
 
 // Postgres intregration variables
 var (
@@ -40,7 +40,7 @@ var (
 		f_missing_target,
 		f_missing_head,
 		f_status)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 	ON CONFLICT ON CONSTRAINT PK_ValidatorSlot
 		DO 
 			UPDATE SET 

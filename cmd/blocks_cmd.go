@@ -4,25 +4,24 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
+	"github.com/cortze/eth2-state-analyzer/pkg/blocks"
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth2-state-analyzer/pkg/state"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
 
-var RewardsCommand = &cli.Command{
-	Name:   "rewards",
-	Usage:  "analyze the Beacon State of a given slot range",
-	Action: LaunchRewardsCalculator,
+var BlocksCommand = &cli.Command{
+	Name:   "blocks",
+	Usage:  "analyze the Beacon Block of a given slot range",
+	Action: LaunchBlockMetrics,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "bn-endpoint",
-			Usage: "beacon node endpoint (to request the BeaconStates)",
+			Usage: "beacon node endpoint (to request the Beacon Blocks)",
 		},
 		&cli.IntFlag{
 			Name:  "init-slot",
@@ -33,16 +32,12 @@ var RewardsCommand = &cli.Command{
 			Usage: "init slot from where to finish",
 		},
 		&cli.StringFlag{
-			Name:  "validator-indexes",
-			Usage: "json file including the list of validator indexes",
-		},
-		&cli.StringFlag{
 			Name:  "log-level",
 			Usage: "log level: debug, warn, info, error",
 		},
 		&cli.StringFlag{
 			Name:  "db-url",
-			Usage: "example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_kiln",
+			Usage: "example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states",
 		},
 		&cli.IntFlag{
 			Name:  "workers-num",
@@ -54,14 +49,12 @@ var RewardsCommand = &cli.Command{
 		}},
 }
 
-var logRewardsRewards = logrus.WithField(
-	"module", "RewardsCommand",
+var logBlocks = logrus.WithField(
+	"module", "BlocksCommand",
 )
 
-var QueryTimeout = 90 * time.Second
-
 // CrawlAction is the function that is called when running `eth2`.
-func LaunchRewardsCalculator(c *cli.Context) error {
+func LaunchBlockMetrics(c *cli.Context) error {
 	coworkers := 1
 	dbWorkers := 1
 	logRewardsRewards.Info("parsing flags")
@@ -74,9 +67,6 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 	if !c.IsSet("final-slot") {
 		return errors.New("final slot not provided")
-	}
-	if !c.IsSet("validator-indexes") {
-		return errors.New("validator indexes not provided")
 	}
 	if c.IsSet("log-level") {
 		logrus.SetLevel(utils.ParseLogLevel(c.String("log-level")))
@@ -99,19 +89,14 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	finalSlot := uint64(c.Int("final-slot"))
 	dbUrl := c.String("db-url")
 
-	validatorIndexes, err := utils.GetValIndexesFromJson(c.String("validator-indexes"))
-	if err != nil {
-		return err
-	}
-
 	// generate the httpAPI client
 	cli, err := clientapi.NewAPIClient(c.Context, bnEndpoint, QueryTimeout)
 	if err != nil {
 		return err
 	}
 
-	// generate the state analyzer
-	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers)
+	// generate the block analyzer
+	blockAnalyzer, err := blocks.NewBlockAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers)
 	if err != nil {
 		return err
 	}
@@ -122,17 +107,17 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	signal.Notify(sigtermC, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		stateAnalyzer.Run()
+		blockAnalyzer.Run()
 		procDoneC <- struct{}{}
 	}()
 
 	select {
 	case <-sigtermC:
-		logRewardsRewards.Info("Sudden shutdown detected, controlled shutdown of the cli triggered")
-		stateAnalyzer.Close()
+		logBlocks.Info("Sudden shutdown detected, controlled shutdown of the cli triggered")
+		blockAnalyzer.Close()
 
 	case <-procDoneC:
-		logRewardsRewards.Info("Process successfully finish!")
+		logBlocks.Info("Process successfully finish!")
 	}
 	close(sigtermC)
 	close(procDoneC)

@@ -46,6 +46,7 @@ func main() {
 		EnableBashCompletion: true,
 		Commands: []*cli.Command{
 			cmd.RewardsCommand,
+			cmd.BlocksCommand,
 		},
 	}
 

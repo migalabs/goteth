@@ -3,7 +3,7 @@ package model
 import (
 	"fmt"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
+	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
 )
 
 // Postgres intregration variables
@@ -36,7 +36,7 @@ var (
 		f_missing_source, 
 		f_missing_target, 
 		f_missing_head)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT ON CONSTRAINT PK_Epoch
 		DO 
 			UPDATE SET 
