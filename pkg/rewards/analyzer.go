@@ -21,7 +21,7 @@ var (
 		"module", modName,
 	)
 	maxWorkers         = 50
-	minReqTime         = 10 * time.Second
+	minReqTime         = 1 * time.Second / 10
 	MAX_VAL_BATCH_SIZE = 20000
 	VAL_LEN            = 400000
 	SLOT_SECONDS       = 12
