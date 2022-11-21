@@ -1,6 +1,6 @@
 package model
 
-import "github.com/cortze/eth2-state-analyzer/pkg/reward_metrics/fork_state"
+import "github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
 
 // Postgres intregration variables
 var (

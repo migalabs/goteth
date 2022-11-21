@@ -1,11 +1,11 @@
-package reward_metrics
+package state_metrics
 
 import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
-	"github.com/cortze/eth2-state-analyzer/pkg/reward_metrics/fork_state"
+	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
 )
 
 type StateMetricsBase struct {

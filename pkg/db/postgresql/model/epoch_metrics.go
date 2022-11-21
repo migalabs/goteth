@@ -3,7 +3,7 @@ package model
 import (
 	"fmt"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/reward_metrics/fork_state"
+	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
 )
 
 // Postgres intregration variables

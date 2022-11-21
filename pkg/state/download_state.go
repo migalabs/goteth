@@ -1,11 +1,11 @@
-package rewards
+package state
 
 import (
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/reward_metrics/fork_state"
+	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
 )
 
 func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {

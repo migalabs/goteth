@@ -1,4 +1,4 @@
-package rewards
+package state
 
 import (
 	"math"
@@ -8,8 +8,8 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql/model"
-	"github.com/cortze/eth2-state-analyzer/pkg/reward_metrics"
-	"github.com/cortze/eth2-state-analyzer/pkg/reward_metrics/fork_state"
+	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics"
+	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -47,7 +47,7 @@ loop:
 			log.Infof("epoch task received for slot %d, analyzing...", task.State.Slot)
 
 			// returns the state in a custom struct for Phase0, Altair of Bellatrix
-			stateMetrics, err := reward_metrics.StateMetricsByForkVersion(task.NextState, task.State, task.PrevState, s.cli.Api)
+			stateMetrics, err := state_metrics.StateMetricsByForkVersion(task.NextState, task.State, task.PrevState, s.cli.Api)
 
 			if err != nil {
 				log.Errorf(err.Error())

@@ -1,4 +1,4 @@
-package rewards
+package state
 
 import (
 	"sync"

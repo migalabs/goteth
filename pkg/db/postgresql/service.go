@@ -20,7 +20,7 @@ var (
 	wlog     = logrus.WithField(
 		"module", PsqlType,
 	)
-	MAX_BATCH_QUEUE       = 300
+	MAX_BATCH_QUEUE       = 700
 	MAX_EPOCH_BATCH_QUEUE = 1
 )
 

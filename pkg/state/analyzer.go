@@ -1,4 +1,4 @@
-package rewards
+package state
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
-	"github.com/cortze/eth2-state-analyzer/pkg/reward_metrics"
-	"github.com/cortze/eth2-state-analyzer/pkg/reward_metrics/fork_state"
+	reward_metrics "github.com/cortze/eth2-state-analyzer/pkg/state_metrics"
+	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
 

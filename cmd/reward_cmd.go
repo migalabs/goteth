@@ -11,7 +11,7 @@ import (
 	cli "github.com/urfave/cli/v2"
 
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth2-state-analyzer/pkg/rewards"
+	"github.com/cortze/eth2-state-analyzer/pkg/state"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
 )
 
@@ -111,7 +111,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 
 	// generate the state analyzer
-	stateAnalyzer, err := rewards.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers)
+	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers)
 	if err != nil {
 		return err
 	}
