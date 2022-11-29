@@ -144,6 +144,7 @@ func (s *BlockAnalyzer) Close() {
 
 //
 type BlockTask struct {
-	Block fork_block.ForkBlockContentBase
-	Slot  uint64
+	Block    fork_block.ForkBlockContentBase
+	Slot     uint64
+	Proposed bool
 }

@@ -38,7 +38,21 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 
 			if newBlock == nil { // if the block was not found, no error and nil block
 				log.Errorf("the Beacon Block is unavailable, nil block")
-				return
+				blockTask := &BlockTask{
+					Block: fork_block.ForkBlockContentBase{
+						Slot:          uint64(slot),
+						ProposerIndex: 0,
+						Graffiti:      []byte(""),
+						Attestations:  nil,
+						Deposits:      nil,
+					},
+					Slot:     uint64(slot),
+					Proposed: false,
+				}
+				log.Debugf("sending a new missed task for slot %d", slot)
+				s.BlockTaskChan <- blockTask
+				continue
+
 			}
 			if err != nil {
 				// close the channel (to tell other routines to stop processing and end)
@@ -53,8 +67,9 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 
 			// send task to be processed
 			blockTask := &BlockTask{
-				Block: customBlock,
-				Slot:  slot,
+				Block:    customBlock,
+				Slot:     slot,
+				Proposed: true,
 			}
 			log.Debugf("sending a new task for block %d", slot)
 			s.BlockTaskChan <- blockTask
@@ -87,7 +102,6 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 
 		case <-timerCh.C:
 			ticker.Reset(minReqTime)
-
 			// make the block query
 			log.Infof("requesting Beacon State from endpoint: finalized")
 
@@ -106,7 +120,21 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			newBlock, err := s.cli.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", finalizedSlot))
 			if newBlock == nil {
 				log.Errorf("the Beacon Block is unavailable, nil block")
-				return
+				// send task to be processed
+				blockTask := &BlockTask{
+					Block: fork_block.ForkBlockContentBase{
+						Slot:          uint64(finalizedSlot),
+						ProposerIndex: 0,
+						Graffiti:      []byte(""),
+						Attestations:  nil,
+						Deposits:      nil,
+					},
+					Slot:     uint64(finalizedSlot),
+					Proposed: false,
+				}
+				log.Debugf("sending a new missed task for slot %d", finalizedSlot)
+				s.BlockTaskChan <- blockTask
+				continue
 			}
 			if err != nil {
 				// close the channel (to tell other routines to stop processing and end)
@@ -121,8 +149,9 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 
 			// send task to be processed
 			blockTask := &BlockTask{
-				Block: customBlock,
-				Slot:  uint64(finalizedSlot),
+				Block:    customBlock,
+				Slot:     uint64(finalizedSlot),
+				Proposed: true,
 			}
 			log.Debugf("sending a new task for slot %d", finalizedSlot)
 			s.BlockTaskChan <- blockTask
