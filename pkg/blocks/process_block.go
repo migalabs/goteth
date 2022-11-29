@@ -41,15 +41,18 @@ loop:
 			}
 			log.Infof("block task received for slot %d, analyzing...", task.Slot)
 
-			blockMetrics := model.BlockMetrics{
-				Epoch:    task.Slot / uint64(EPOCH_SLOTS),
-				Slot:     task.Slot,
-				Graffiti: task.Block.Graffiti,
-			}
+			blockMetrics := model.NewBlockMetrics(
+				task.Slot/uint64(EPOCH_SLOTS),
+				task.Slot,
+				task.Block.Graffiti,
+				task.Block.ProposerIndex,
+			)
 
 			blockBatch.Queue(model.UpsertBlock,
 				blockMetrics.Epoch,
-				blockMetrics.Slot)
+				blockMetrics.Slot,
+				blockMetrics.Graffiti,
+				blockMetrics.ProposerIndex)
 			// Flush the database batches
 			if blockBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE {
 				s.dbClient.WriteChan <- blockBatch
