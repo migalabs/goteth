@@ -6,7 +6,7 @@ func NewBellatrixBlock(block spec.VersionedSignedBeaconBlock) ForkBlockContentBa
 	return ForkBlockContentBase{
 		Slot:          uint64(block.Bellatrix.Message.Slot),
 		ProposerIndex: uint64(block.Bellatrix.Message.ProposerIndex),
-		Graffiti:      string(block.Bellatrix.Message.Body.Graffiti),
+		Graffiti:      block.Bellatrix.Message.Body.Graffiti,
 		Attestations:  block.Bellatrix.Message.Body.Attestations,
 		Deposits:      block.Bellatrix.Message.Body.Deposits,
 	}
