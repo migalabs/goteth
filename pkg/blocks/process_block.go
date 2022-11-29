@@ -46,13 +46,14 @@ loop:
 				task.Slot,
 				task.Block.Graffiti,
 				task.Block.ProposerIndex,
-			)
+				task.Proposed)
 
 			blockBatch.Queue(model.UpsertBlock,
 				blockMetrics.Epoch,
 				blockMetrics.Slot,
 				blockMetrics.Graffiti,
-				blockMetrics.ProposerIndex)
+				blockMetrics.ProposerIndex,
+				blockMetrics.Proposed)
 			// Flush the database batches
 			if blockBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE {
 				s.dbClient.WriteChan <- blockBatch
