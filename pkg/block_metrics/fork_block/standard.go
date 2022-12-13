@@ -11,7 +11,7 @@ import (
 
 var (
 	log = logrus.WithField(
-		"module", "FoskBlockContent",
+		"module", "ForkBlockContent",
 	)
 )
 
@@ -19,7 +19,7 @@ var (
 type ForkBlockContentBase struct {
 	Slot          uint64
 	ProposerIndex uint64
-	Graffiti      string
+	Graffiti      []byte
 
 	Attestations []*phase0.Attestation
 	Deposits     []*phase0.Deposit
@@ -39,6 +39,4 @@ func GetCustomBlock(block spec.VersionedSignedBeaconBlock, iApi *http.Service) (
 	default:
 		return ForkBlockContentBase{}, fmt.Errorf("could not figure out the Beacon Block Fork Version: %s", block.Version)
 	}
-
-	return ForkBlockContentBase{}, nil
 }
