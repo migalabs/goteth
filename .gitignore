@@ -5,3 +5,4 @@ test*.json
 .ipynb_checkpoints/**
 metrika/**
 .config
+*.csv

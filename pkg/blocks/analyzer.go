@@ -110,8 +110,8 @@ func (s *BlockAnalyzer) Run() {
 	go s.runDownloadBlocks(&wgDownload)
 
 	// Block requester in finalized slots, not used for now
-	// wgDownload.Add(1)
-	// go s.runDownloadBlocksFinalized(&wgDownload)
+	wgDownload.Add(1)
+	go s.runDownloadBlocksFinalized(&wgDownload)
 
 	wgProcess.Add(1)
 	go s.runProcessBlock(&wgProcess, &downloadFinishedFlag)
