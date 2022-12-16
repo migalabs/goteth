@@ -100,7 +100,7 @@ func (s *BlockAnalyzer) Run() {
 	// Get init time
 	s.initTime = time.Now()
 
-	log.Info("State Analyzer initialized at ", s.initTime)
+	log.Info("Blocks Analyzer initialized at ", s.initTime)
 
 	// Block requester
 	var wgDownload sync.WaitGroup
@@ -135,18 +135,18 @@ func (s *BlockAnalyzer) Run() {
 
 	wgDownload.Wait()
 	downloadFinishedFlag = true
-	log.Info("Beacon State Downloads finished")
+	log.Info("Beacon Blocks Downloads finished")
 
 	wgProcess.Wait()
 	// processFinishedFlag = true
-	log.Info("Beacon State Processing finished")
+	log.Info("Beacon Blocks Processing finished")
 
 	s.dbClient.DoneTasks()
 	<-s.dbClient.FinishSignalChan
 
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
-	log.Info("State Analyzer finished in ", analysisDuration)
+	log.Info("Blocks Analyzer finished in ", analysisDuration)
 	if s.finishDownload {
 		s.routineClosed <- struct{}{}
 	}

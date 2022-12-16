@@ -182,14 +182,16 @@ func (s *StateAnalyzer) Run() {
 	log.Info("All validator workers finished")
 	s.dbClient.DoneTasks()
 	<-s.dbClient.FinishSignalChan
-
+	log.Info("All database workers finished")
 	close(s.ValTaskChan)
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
-	log.Info("State Analyzer finished in ", analysisDuration)
+
 	if s.finishDownload {
 		s.routineClosed <- struct{}{}
 	}
+	log.Info("State Analyzer finished in ", analysisDuration)
+
 }
 
 func (s *StateAnalyzer) Close() {
