@@ -94,6 +94,12 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	for {
 
 		select {
+		default:
+			if s.finishDownload {
+				log.Info("sudden shutdown detected, block downloader routine")
+				close(s.BlockTaskChan)
+				return
+			}
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
 			close(s.BlockTaskChan)
@@ -157,7 +163,6 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 
 			<-ticker.C
 			// check if the min Request time has been completed (to avoid spaming the API)
-		default:
 
 		}
 
