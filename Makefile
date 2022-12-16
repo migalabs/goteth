@@ -6,7 +6,7 @@ MKDIR_P=mkdir -p
 BIN_PATH=./build
 BIN="./build/eth2-state-analyzer"
 
-include $(env_file)
+
 
 .PHONY: check build install run clean
 
@@ -16,6 +16,12 @@ build:
 install:
 	$(GOCC) install
 
+
+ifndef env_file
+env_file=.env # default
+endif
+
+include $(env_file)
 ifeq ($(STATE_ANALYZER_CMD),"rewards")
 run: 
 		$(BIN) $(STATE_ANALYZER_CMD) \
