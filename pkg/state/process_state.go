@@ -73,7 +73,7 @@ loop:
 				}
 				task.ValIdxs = finalValidxs
 			}
-			if task.NextState.Slot <= s.FinalSlot {
+			if task.NextState.Slot <= s.FinalSlot || task.Finalized {
 
 				stepSize := int(math.Min(float64(MAX_VAL_BATCH_SIZE), float64(len(task.ValIdxs)/s.validatorWorkerNum)))
 				stepSize = int(math.Max(float64(1), float64(stepSize))) // in case it is 0, at least set to 1
@@ -87,7 +87,7 @@ loop:
 					s.ValTaskChan <- valTask
 				}
 			}
-			if task.PrevState.Slot >= s.InitSlot { // only write epoch metrics inside the defined range
+			if task.PrevState.Slot >= s.InitSlot || task.Finalized { // only write epoch metrics inside the defined range
 
 				log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
 				// create a model to be inserted into the db, we only insert previous epoch metrics

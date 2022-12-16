@@ -203,11 +203,11 @@ func (s *StateAnalyzer) Close() {
 
 //
 type EpochTask struct {
-	ValIdxs     []uint64
-	NextState   fork_state.ForkStateContentBase
-	State       fork_state.ForkStateContentBase
-	PrevState   fork_state.ForkStateContentBase
-	OnlyPrevAtt bool
+	ValIdxs   []uint64
+	NextState fork_state.ForkStateContentBase
+	State     fork_state.ForkStateContentBase
+	PrevState fork_state.ForkStateContentBase
+	Finalized bool
 }
 
 type ValTask struct {

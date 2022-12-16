@@ -82,6 +82,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 					NextState: nextBstate,
 					State:     bstate,
 					PrevState: prevBState,
+					Finalized: false,
 				}
 
 				log.Debugf("sending task for slot: %d", epochTask.State.Slot)
@@ -185,6 +186,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 					NextState: nextBstate,
 					State:     bstate,
 					PrevState: prevBState,
+					Finalized: true,
 				}
 
 				log.Debugf("sending task for slot: %d", epochTask.State.Slot)
