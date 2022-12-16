@@ -46,6 +46,10 @@ var BlocksCommand = &cli.Command{
 		&cli.IntFlag{
 			Name:  "db-workers-num",
 			Usage: "example: 50",
+		},
+		&cli.StringFlag{
+			Name:  "download-mode",
+			Usage: "example: hybrid,historical,finalized. Default: hybrid",
 		}},
 }
 
@@ -57,7 +61,8 @@ var logBlocks = logrus.WithField(
 func LaunchBlockMetrics(c *cli.Context) error {
 	coworkers := 1
 	dbWorkers := 1
-	logRewardsRewards.Info("parsing flags")
+	downloadMode := "hybrid"
+	logBlocks.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
 		return errors.New("bn endpoint not provided")
@@ -74,13 +79,18 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	if !c.IsSet("db-url") {
 		return errors.New("db-url not provided")
 	}
+	if !c.IsSet("download-mode") {
+		logRewardsRewards.Infof("download mode flag not provided, default: hybrid")
+	} else {
+		downloadMode = c.String("download-mode")
+	}
 	if !c.IsSet("workers-num") {
-		logRewardsRewards.Infof("workers-num flag not provided, default: 1")
+		logBlocks.Infof("workers-num flag not provided, default: 1")
 	} else {
 		coworkers = c.Int("workers-num")
 	}
 	if !c.IsSet("db-workers-num") {
-		logRewardsRewards.Infof("db-workers-num flag not provided, default: 1")
+		logBlocks.Infof("db-workers-num flag not provided, default: 1")
 	} else {
 		dbWorkers = c.Int("db-workers-num")
 	}
@@ -96,7 +106,7 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	}
 
 	// generate the block analyzer
-	blockAnalyzer, err := blocks.NewBlockAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers)
+	blockAnalyzer, err := blocks.NewBlockAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode)
 	if err != nil {
 		return err
 	}
