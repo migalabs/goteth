@@ -38,6 +38,7 @@ type BlockAnalyzer struct {
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
 
+	downloadMode string
 	// Control Variables
 	finishDownload bool
 	routineClosed  chan struct{}
@@ -52,22 +53,26 @@ func NewBlockAnalyzer(
 	finalSlot uint64,
 	idbUrl string,
 	workerNum int,
-	dbWorkerNum int) (*BlockAnalyzer, error) {
+	dbWorkerNum int,
+	downloadMode string) (*BlockAnalyzer, error) {
 	log.Infof("generating new Block Analzyer from slots %d:%d", initSlot, finalSlot)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
 
 	// calculate the list of slots that we will analyze
 	slotRanges := make([]uint64, 0)
-	epochRange := uint64(0)
 
-	// start two epochs before and end two epochs after
-	for i := initSlot; i <= finalSlot; i += 1 {
-		slotRanges = append(slotRanges, i)
-		epochRange++
+	if downloadMode == "hybrid" || downloadMode == "historical" {
+
+		epochRange := uint64(0)
+
+		// start two epochs before and end two epochs after
+		for i := initSlot; i <= finalSlot; i += 1 {
+			slotRanges = append(slotRanges, i)
+			epochRange++
+		}
+		log.Debug("slotRanges are:", slotRanges)
 	}
-	log.Debug("slotRanges are:", slotRanges)
-
 	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
@@ -84,6 +89,7 @@ func NewBlockAnalyzer(
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
 		routineClosed:      make(chan struct{}),
+		downloadMode:       downloadMode,
 	}, nil
 }
 
@@ -105,14 +111,17 @@ func (s *BlockAnalyzer) Run() {
 	totalTime := int64(0)
 	start := time.Now()
 
-	// Block requester + Task generator
-	wgDownload.Add(1)
-	go s.runDownloadBlocks(&wgDownload)
+	if s.downloadMode == "hybrid" || s.downloadMode == "historical" {
+		// Block requester + Task generator
+		wgDownload.Add(1)
+		go s.runDownloadBlocks(&wgDownload)
+	}
 
-	// Block requester in finalized slots, not used for now
-	wgDownload.Add(1)
-	go s.runDownloadBlocksFinalized(&wgDownload)
-
+	if s.downloadMode == "hybrid" || s.downloadMode == "finalized" {
+		// Block requester in finalized slots, not used for now
+		wgDownload.Add(1)
+		go s.runDownloadBlocksFinalized(&wgDownload)
+	}
 	wgProcess.Add(1)
 	go s.runProcessBlock(&wgProcess, &downloadFinishedFlag)
 
