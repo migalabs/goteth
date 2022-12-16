@@ -103,9 +103,9 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 		case <-timerCh.C:
 			ticker.Reset(minReqTime)
 			// make the block query
-			log.Infof("requesting Beacon State from endpoint: finalized")
+			log.Infof("requesting Beacon State from endpoint: head")
 
-			header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "finalized")
+			header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "head")
 			if err != nil {
 				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing finalized requester routine. %s", err.Error())
 				return
