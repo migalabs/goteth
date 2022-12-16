@@ -6,7 +6,7 @@ MKDIR_P=mkdir -p
 BIN_PATH=./build
 BIN="./build/eth2-state-analyzer"
 
-include .env
+include $(env_file)
 
 .PHONY: check build install run clean
 
