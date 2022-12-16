@@ -90,7 +90,6 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	// loop over the list of slots that we need to analyze
 
 	finalizedSlot := 0
-	timerCh := time.NewTicker(time.Second * 12) // each slot = 12 seconds
 	ticker := time.NewTicker(minReqTime)
 	for {
 
@@ -100,7 +99,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			close(s.BlockTaskChan)
 			return
 
-		case <-timerCh.C:
+		case <-s.chNewHead: // wait for new head event
 			ticker.Reset(minReqTime)
 			// make the block query
 			log.Infof("requesting Beacon State from endpoint: head")

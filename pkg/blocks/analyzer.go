@@ -42,6 +42,7 @@ type BlockAnalyzer struct {
 	// Control Variables
 	finishDownload bool
 	routineClosed  chan struct{}
+	chNewHead      chan struct{}
 
 	initTime time.Time
 }
@@ -89,6 +90,7 @@ func NewBlockAnalyzer(
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
 		routineClosed:      make(chan struct{}),
+		chNewHead:          make(chan struct{}),
 		downloadMode:       downloadMode,
 	}, nil
 }
@@ -121,6 +123,12 @@ func (s *BlockAnalyzer) Run() {
 		// Block requester in finalized slots, not used for now
 		wgDownload.Add(1)
 		go s.runDownloadBlocksFinalized(&wgDownload)
+
+		// subscribe to head event
+		err := s.cli.Api.Events(s.ctx, []string{"head"}, s.HandleHeadEvent) // every new head
+		if err != nil {
+			log.Panicf("failed to subscribe to head events: %s", err)
+		}
 	}
 	wgProcess.Add(1)
 	go s.runProcessBlock(&wgProcess, &downloadFinishedFlag)
