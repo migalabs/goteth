@@ -42,7 +42,7 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 					Block: fork_block.ForkBlockContentBase{
 						Slot:          uint64(slot),
 						ProposerIndex: 0,
-						Graffiti:      []byte(""),
+						Graffiti:      [32]byte{},
 						Attestations:  nil,
 						Deposits:      nil,
 					},
@@ -125,7 +125,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 					Block: fork_block.ForkBlockContentBase{
 						Slot:          uint64(finalizedSlot),
 						ProposerIndex: 0,
-						Graffiti:      []byte(""),
+						Graffiti:      [32]byte{},
 						Attestations:  nil,
 						Deposits:      nil,
 					},

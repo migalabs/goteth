@@ -25,12 +25,12 @@ func NewAltairState(bstate spec.VersionedBeaconState, iApi *http.Service) ForkSt
 
 	altairObj := ForkStateContentBase{
 		Version:       bstate.Version,
-		Balances:      bstate.Altair.Balances,
+		Balances:      GweiToUint64(bstate.Altair.Balances),
 		Validators:    bstate.Altair.Validators,
-		EpochStructs:  NewEpochData(iApi, bstate.Altair.Slot),
-		Epoch:         utils.GetEpochFromSlot(bstate.Altair.Slot),
-		Slot:          bstate.Altair.Slot,
-		BlockRoots:    bstate.Altair.BlockRoots,
+		EpochStructs:  NewEpochData(iApi, uint64(bstate.Altair.Slot)),
+		Epoch:         utils.GetEpochFromSlot(uint64(bstate.Altair.Slot)),
+		Slot:          uint64(bstate.Altair.Slot),
+		BlockRoots:    RootToByte(bstate.Altair.BlockRoots),
 		SyncCommittee: *bstate.Altair.CurrentSyncCommittee,
 	}
 

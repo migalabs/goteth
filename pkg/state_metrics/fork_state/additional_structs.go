@@ -101,3 +101,21 @@ func (p *ValVote) AddNewAtt(attestedSlot uint64, inclusionSlot uint64) {
 	p.InclusionSlot = append(p.InclusionSlot, inclusionSlot)
 
 }
+
+func GweiToUint64(iArray []phase0.Gwei) []uint64 {
+	result := make([]uint64, 0)
+
+	for _, item := range iArray {
+		result = append(result, uint64(item))
+	}
+	return result
+}
+
+func RootToByte(iArray []phase0.Root) [][]byte {
+	result := make([][]byte, 0)
+
+	for _, item := range iArray {
+		result = append(result, item[:])
+	}
+	return result
+}

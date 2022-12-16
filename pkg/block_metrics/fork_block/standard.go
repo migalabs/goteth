@@ -19,7 +19,7 @@ var (
 type ForkBlockContentBase struct {
 	Slot          uint64
 	ProposerIndex uint64
-	Graffiti      []byte
+	Graffiti      [32]byte
 
 	Attestations []*phase0.Attestation
 	Deposits     []*phase0.Deposit
