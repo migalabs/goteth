@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth2-state-analyzer/pkg/block_metrics/fork_block"
 )
 
@@ -113,32 +114,46 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "head")
 			if err != nil {
 				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing finalized requester routine. %s", err.Error())
-				return
+				continue
 			}
 			if int(header.Header.Message.Slot) == finalizedSlot {
 				log.Infof("No new finalized state yet")
 				continue
 			}
+			if finalizedSlot > 0 {
+				for i := finalizedSlot + 1; i < int(header.Header.Message.Slot); i++ {
+					duties, err := s.cli.Api.ProposerDuties(s.ctx, phase0.Epoch(i/32), []phase0.ValidatorIndex{})
+					proposerValIdx := 0
+					if err != nil {
+						log.Errorf("could not request proposer duty: %s", err)
+					} else {
+						for _, duty := range duties {
+							if duty.Slot == phase0.Slot(i) {
+								proposerValIdx = int(duty.ValidatorIndex)
+							}
+						}
+					}
 
+					blockTask := &BlockTask{
+						Block: fork_block.ForkBlockContentBase{
+							Slot:          uint64(i),
+							ProposerIndex: uint64(proposerValIdx),
+							Graffiti:      [32]byte{},
+							Attestations:  nil,
+							Deposits:      nil,
+						},
+						Slot:     uint64(i),
+						Proposed: false,
+					}
+					log.Debugf("sending a new missed task for slot %d", i)
+					s.BlockTaskChan <- blockTask
+				}
+			}
 			finalizedSlot = int(header.Header.Message.Slot)
-			log.Infof("New finalized state at slot: %d", finalizedSlot)
+			log.Infof("New head block at slot: %d", finalizedSlot)
 			newBlock, err := s.cli.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", finalizedSlot))
 			if newBlock == nil {
 				log.Errorf("the Beacon Block is unavailable, nil block")
-				// send task to be processed
-				blockTask := &BlockTask{
-					Block: fork_block.ForkBlockContentBase{
-						Slot:          uint64(finalizedSlot),
-						ProposerIndex: 0,
-						Graffiti:      [32]byte{},
-						Attestations:  nil,
-						Deposits:      nil,
-					},
-					Slot:     uint64(finalizedSlot),
-					Proposed: false,
-				}
-				log.Debugf("sending a new missed task for slot %d", finalizedSlot)
-				s.BlockTaskChan <- blockTask
 				continue
 			}
 			if err != nil {
