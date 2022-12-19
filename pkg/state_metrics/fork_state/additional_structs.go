@@ -112,10 +112,11 @@ func GweiToUint64(iArray []phase0.Gwei) []uint64 {
 }
 
 func RootToByte(iArray []phase0.Root) [][]byte {
-	result := make([][]byte, 0)
+	result := make([][]byte, len(iArray))
 
-	for _, item := range iArray {
-		result = append(result, item[:])
+	for i, item := range iArray {
+		result[i] = make([]byte, len(item))
+		copy(result[i], item[:])
 	}
 	return result
 }
