@@ -8,6 +8,7 @@ import (
 	"github.com/cortze/eth2-state-analyzer/pkg/block_metrics/fork_block"
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth2-state-analyzer/pkg/events"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -42,7 +43,7 @@ type BlockAnalyzer struct {
 	// Control Variables
 	finishDownload bool
 	routineClosed  chan struct{}
-	chNewHead      chan struct{}
+	eventsObj      events.Events
 
 	initTime time.Time
 }
@@ -90,7 +91,7 @@ func NewBlockAnalyzer(
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
 		routineClosed:      make(chan struct{}),
-		chNewHead:          make(chan struct{}),
+		eventsObj:          events.NewEventsObj(ctx, httpCli),
 		downloadMode:       downloadMode,
 	}, nil
 }
@@ -124,11 +125,7 @@ func (s *BlockAnalyzer) Run() {
 		wgDownload.Add(1)
 		go s.runDownloadBlocksFinalized(&wgDownload)
 
-		// subscribe to head event
-		err := s.cli.Api.Events(s.ctx, []string{"head"}, s.HandleHeadEvent) // every new head
-		if err != nil {
-			log.Panicf("failed to subscribe to head events: %s", err)
-		}
+		s.eventsObj.SubscribeToHeadEvents()
 	}
 	wgProcess.Add(1)
 	go s.runProcessBlock(&wgProcess, &downloadFinishedFlag)

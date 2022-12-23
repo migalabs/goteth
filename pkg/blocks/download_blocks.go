@@ -106,7 +106,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			close(s.BlockTaskChan)
 			return
 
-		case <-s.chNewHead: // wait for new head event
+		case <-s.eventsObj.HeadChan: // wait for new head event
 			ticker.Reset(minReqTime)
 			// make the block query
 			log.Infof("requesting Beacon State from endpoint: head")
