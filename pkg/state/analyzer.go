@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	modName = "Analyzer"
+	modName = "State"
 	log     = logrus.WithField(
 		"module", modName,
 	)
