@@ -10,6 +10,7 @@ import (
 
 	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth2-state-analyzer/pkg/events"
 	reward_metrics "github.com/cortze/eth2-state-analyzer/pkg/state_metrics"
 	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
 	"github.com/cortze/eth2-state-analyzer/pkg/utils"
@@ -48,6 +49,7 @@ type StateAnalyzer struct {
 	// Control Variables
 	finishDownload bool
 	routineClosed  chan struct{}
+	eventsObj      events.Events
 
 	initTime time.Time
 }
@@ -121,6 +123,7 @@ func NewStateAnalyzer(
 		validatorWorkerNum: workerNum,
 		routineClosed:      make(chan struct{}),
 		downloadMode:       downloadMode,
+		eventsObj:          events.NewEventsObj(ctx, httpCli),
 	}, nil
 }
 
@@ -155,6 +158,7 @@ func (s *StateAnalyzer) Run() {
 		// State requester in finalized slots, not used for now
 		wgDownload.Add(1)
 		go s.runDownloadStatesFinalized(&wgDownload)
+		s.eventsObj.SubscribeToHeadEvents()
 	}
 	wgProcess.Add(1)
 	go s.runProcessState(&wgProcess, &downloadFinishedFlag)
