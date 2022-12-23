@@ -51,6 +51,10 @@ var RewardsCommand = &cli.Command{
 		&cli.IntFlag{
 			Name:  "db-workers-num",
 			Usage: "example: 50",
+		},
+		&cli.StringFlag{
+			Name:  "download-mode",
+			Usage: "example: hybrid,historical,finalized. Default: hybrid",
 		}},
 }
 
@@ -64,6 +68,7 @@ var QueryTimeout = 90 * time.Second
 func LaunchRewardsCalculator(c *cli.Context) error {
 	coworkers := 1
 	dbWorkers := 1
+	downloadMode := "hybrid"
 	logRewardsRewards.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
@@ -83,6 +88,11 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 	if !c.IsSet("db-url") {
 		return errors.New("db-url not provided")
+	}
+	if !c.IsSet("download-mode") {
+		logRewardsRewards.Infof("download mode flag not provided, default: hybrid")
+	} else {
+		downloadMode = c.String("download-mode")
 	}
 	if !c.IsSet("workers-num") {
 		logRewardsRewards.Infof("workers-num flag not provided, default: 1")
@@ -111,7 +121,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 
 	// generate the state analyzer
-	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers)
+	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers, downloadMode)
 	if err != nil {
 		return err
 	}

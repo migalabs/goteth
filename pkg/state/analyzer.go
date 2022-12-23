@@ -43,6 +43,8 @@ type StateAnalyzer struct {
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
 
+	downloadMode string
+
 	// Control Variables
 	finishDownload bool
 	routineClosed  chan struct{}
@@ -58,15 +60,11 @@ func NewStateAnalyzer(
 	valIdxs []uint64,
 	idbUrl string,
 	workerNum int,
-	dbWorkerNum int) (*StateAnalyzer, error) {
+	dbWorkerNum int,
+	downloadMode string) (*StateAnalyzer, error) {
 	log.Infof("generating new State Analzyer from slots %d:%d, for validators %v", initSlot, finalSlot, valIdxs)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
-
-	// Check if the range of slots is valid
-	if !utils.IsValidRangeuint64(initSlot, finalSlot) {
-		return nil, errors.New("provided slot range isn't valid")
-	}
 
 	valLength := len(valIdxs)
 	// check if valIdx where given
@@ -75,25 +73,34 @@ func NewStateAnalyzer(
 		valLength = VAL_LEN // estimation to declare channels
 	}
 
-	// calculate the list of slots that we will analyze
 	slotRanges := make([]uint64, 0)
-	epochRange := uint64(0)
 
-	// minimum slot is 31
-	// force to be in the previous epoch than select by user
-	initEpoch := uint64(initSlot) / 32
-	finalEpoch := uint64(finalSlot / 32)
+	// if historical is active
+	if downloadMode == "hybrid" || downloadMode == "historical" {
 
-	initSlot = (initEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1   // take last slot of init Epoch
-	finalSlot = (finalEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1 // take last slot of final Epoch
+		// Check if the range of slots is valid
+		if !utils.IsValidRangeuint64(initSlot, finalSlot) {
+			return nil, errors.New("provided slot range isn't valid")
+		}
+		// calculate the list of slots that we will analyze
 
-	// start two epochs before and end two epochs after
-	for i := initSlot - (fork_state.SLOTS_PER_EPOCH * 2); i <= (finalSlot + fork_state.SLOTS_PER_EPOCH*2); i += utils.SlotBase {
-		slotRanges = append(slotRanges, i)
-		epochRange++
+		epochRange := uint64(0)
+
+		// minimum slot is 31
+		// force to be in the previous epoch than select by user
+		initEpoch := uint64(initSlot) / 32
+		finalEpoch := uint64(finalSlot / 32)
+
+		initSlot = (initEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1   // take last slot of init Epoch
+		finalSlot = (finalEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1 // take last slot of final Epoch
+
+		// start two epochs before and end two epochs after
+		for i := initSlot - (fork_state.SLOTS_PER_EPOCH * 2); i <= (finalSlot + fork_state.SLOTS_PER_EPOCH*2); i += utils.SlotBase {
+			slotRanges = append(slotRanges, i)
+			epochRange++
+		}
+		log.Debug("slotRanges are:", slotRanges)
 	}
-	log.Debug("slotRanges are:", slotRanges)
-
 	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, valLength*maxWorkers, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
@@ -113,6 +120,7 @@ func NewStateAnalyzer(
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
 		routineClosed:      make(chan struct{}),
+		downloadMode:       downloadMode,
 	}, nil
 }
 
@@ -137,14 +145,17 @@ func (s *StateAnalyzer) Run() {
 	totalTime := int64(0)
 	start := time.Now()
 
-	// State requester + Task generator
-	wgDownload.Add(1)
-	go s.runDownloadStates(&wgDownload)
+	if s.downloadMode == "hybrid" || s.downloadMode == "historical" {
+		// State requester + Task generator
+		wgDownload.Add(1)
+		go s.runDownloadStates(&wgDownload)
+	}
 
-	// State requester in finalized slots, not used for now
-	// wgDownload.Add(1)
-	// go s.runDownloadStatesFinalized(&wgDownload)
-
+	if s.downloadMode == "hybrid" || s.downloadMode == "finalized" {
+		// State requester in finalized slots, not used for now
+		wgDownload.Add(1)
+		go s.runDownloadStatesFinalized(&wgDownload)
+	}
 	wgProcess.Add(1)
 	go s.runProcessState(&wgProcess, &downloadFinishedFlag)
 
@@ -171,14 +182,16 @@ func (s *StateAnalyzer) Run() {
 	log.Info("All validator workers finished")
 	s.dbClient.DoneTasks()
 	<-s.dbClient.FinishSignalChan
-
+	log.Info("All database workers finished")
 	close(s.ValTaskChan)
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
-	log.Info("State Analyzer finished in ", analysisDuration)
+
 	if s.finishDownload {
 		s.routineClosed <- struct{}{}
 	}
+	log.Info("State Analyzer finished in ", analysisDuration)
+
 }
 
 func (s *StateAnalyzer) Close() {
@@ -190,11 +203,11 @@ func (s *StateAnalyzer) Close() {
 
 //
 type EpochTask struct {
-	ValIdxs     []uint64
-	NextState   fork_state.ForkStateContentBase
-	State       fork_state.ForkStateContentBase
-	PrevState   fork_state.ForkStateContentBase
-	OnlyPrevAtt bool
+	ValIdxs   []uint64
+	NextState fork_state.ForkStateContentBase
+	State     fork_state.ForkStateContentBase
+	PrevState fork_state.ForkStateContentBase
+	Finalized bool
 }
 
 type ValTask struct {

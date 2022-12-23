@@ -41,11 +41,11 @@ type BlockMetrics struct {
 
 func NewBlockMetrics(iEpoch uint64,
 	iSlot uint64,
-	iGraffiti []byte,
+	iGraffiti [32]byte,
 	iProposerIndex uint64,
 	iProposed bool) BlockMetrics {
 
-	graffiti := strings.ReplaceAll(string(iGraffiti), "\u0000", "")
+	graffiti := strings.ReplaceAll(string(iGraffiti[:]), "\u0000", "")
 
 	return BlockMetrics{
 		Epoch:         iEpoch,

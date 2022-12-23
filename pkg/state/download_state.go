@@ -82,6 +82,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 					NextState: nextBstate,
 					State:     bstate,
 					PrevState: prevBState,
+					Finalized: false,
 				}
 
 				log.Debugf("sending task for slot: %d", epochTask.State.Slot)
@@ -105,17 +106,26 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	bstate := fork_state.ForkStateContentBase{}
 	nextBstate := fork_state.ForkStateContentBase{}
 	finalizedSlot := 0
-	timerCh := time.NewTicker(time.Second * 384) // epoch seconds = 384
+	// tick every epoch, 384 seconds
+	epochTicker := time.After(384 * time.Second)
 	ticker := time.NewTicker(minReqTime)
 	for {
 
 		select {
+		default:
+
+			if s.finishDownload {
+				log.Info("sudden shutdown detected, state downloader routine")
+				close(s.EpochTaskChan)
+				return
+			}
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state requester routine")
 			close(s.EpochTaskChan)
 			return
 
-		case <-timerCh.C:
+		case <-epochTicker:
+			epochTicker = time.After(384 * time.Second)
 			ticker.Reset(minReqTime)
 			firstIteration := true
 			secondIteration := true
@@ -132,7 +142,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "finalized")
 			if err != nil {
 				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing finalized requester routine. %s", err.Error())
-				return
+				continue
 			}
 			if int(header.Header.Message.Slot) == finalizedSlot {
 				log.Infof("No new finalized state yet")
@@ -144,12 +154,12 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			newState, err := s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", finalizedSlot))
 			if newState == nil {
 				log.Errorf("Unable to retrieve Finalized Beacon State from the beacon node, closing requester routine. Nil State")
-				return
+				continue
 			}
 			if err != nil {
 				// close the channel (to tell other routines to stop processing and end)
 				log.Errorf("Unable to retrieve Finalized Beacon State from the beacon node, closing requester routine. %s", err.Error())
-				return
+				continue
 			}
 			if firstIteration {
 
@@ -176,6 +186,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 					NextState: nextBstate,
 					State:     bstate,
 					PrevState: prevBState,
+					Finalized: true,
 				}
 
 				log.Debugf("sending task for slot: %d", epochTask.State.Slot)
@@ -183,7 +194,6 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			}
 			<-ticker.C
 			// check if the min Request time has been completed (to avoid spaming the API)
-		default:
 
 		}
 
