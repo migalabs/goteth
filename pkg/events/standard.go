@@ -17,7 +17,7 @@ type Events struct {
 	ctx            context.Context
 	cli            *clientapi.APIClient
 	SubscribedHead bool
-	HeadChan       chan struct{}
+	HeadChan       chan int
 }
 
 func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
@@ -25,6 +25,6 @@ func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
 		ctx:            iCtx,
 		cli:            iCli,
 		SubscribedHead: false,
-		HeadChan:       make(chan struct{}),
+		HeadChan:       make(chan int),
 	}
 }
