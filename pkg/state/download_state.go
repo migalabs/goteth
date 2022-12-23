@@ -52,7 +52,43 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	prevBState := fork_state.ForkStateContentBase{}
 	bstate := fork_state.ForkStateContentBase{}
 	nextBstate := fork_state.ForkStateContentBase{}
-	lastRequestSlot := 0
+
+	// ------ fill from last epoch in database to current head -------
+
+	// obtain last epoch in database
+	lastRequestEpoch, err := s.dbClient.ObtainLastEpoch()
+	if err != nil {
+		log.Errorf("could not obtain last epoch in database")
+	}
+
+	// obtain current head
+	headSlot := -1
+	header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "head")
+	if err != nil {
+		log.Errorf("could not obtain current head to fill historical")
+	} else {
+		headSlot = int(header.Header.Message.Slot)
+	}
+
+	// it means we could obtain both
+	if lastRequestEpoch > 0 && headSlot > 0 {
+		headEpoch := int(headSlot / EPOCH_SLOTS)
+		lastRequestEpoch = lastRequestEpoch - 4 // start 4 epochs before for safety
+		for (lastRequestEpoch) < headEpoch {
+			log.Infof("filling missing epochs: %d", lastRequestEpoch)
+			slot := (lastRequestEpoch * EPOCH_SLOTS) + 31 // last slot of the epoch
+			lastRequestEpoch = lastRequestEpoch + 1
+
+			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot)
+			if err != nil {
+				log.Errorf("error downloading state at slot %d", slot, err)
+				continue
+			}
+		}
+
+	}
+
+	// -----------------------------------------------------------------------------------
 
 	for {
 
@@ -70,18 +106,16 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			return
 
 		case newHead := <-s.eventsObj.HeadChan:
-			if newHead%EPOCH_SLOTS != 0 { // only process if we enter a new epoch
-				continue
-			}
-
 			// new epoch
 			headEpoch := int(newHead / EPOCH_SLOTS)
 			// reqEpoch => headEpoch - 1
-			slot := (headEpoch * EPOCH_SLOTS) - 1
 
-			if slot == lastRequestSlot {
+			if (headEpoch - 1) == lastRequestEpoch {
 				continue // this epoch was already requested
 			}
+
+			slot := ((lastRequestEpoch + 1) * EPOCH_SLOTS) + 31 // last slot of the epoch
+			lastRequestEpoch = lastRequestEpoch + 1
 
 			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot)
 			if err != nil {
