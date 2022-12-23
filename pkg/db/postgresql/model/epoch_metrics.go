@@ -50,6 +50,11 @@ var (
 				f_missing_target = excluded.f_missing_target,
 				f_missing_head = excluded.f_missing_head;
 	`
+	SelectLastEpoch = `
+		SELECT f_epoch
+		FROM t_epoch_metrics_summary
+		ORDER BY f_epoch DESC
+		LIMIT 1`
 )
 
 type EpochMetrics struct {
