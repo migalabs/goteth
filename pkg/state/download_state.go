@@ -18,7 +18,6 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 	prevBState := fork_state.ForkStateContentBase{}
 	bstate := fork_state.ForkStateContentBase{}
 	nextBstate := fork_state.ForkStateContentBase{}
-	ticker := time.NewTicker(minReqTime)
 	for _, slot := range s.SlotRanges {
 
 		select {
@@ -33,46 +32,12 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 				close(s.EpochTaskChan)
 				return
 			}
-			ticker.Reset(minReqTime)
-			log.Infof("requesting Beacon State from endpoint: slot %d", slot)
 
-			// We need three states to calculate both, rewards and maxRewards
-
-			if bstate.AttestingBalance != nil { // in case we already had a bstate
-				prevBState = bstate
-			}
-			if nextBstate.AttestingBalance != nil { // in case we already had a nextBstate
-				bstate = nextBstate
-			}
-			newState, err := s.RequestBeaconState(int(slot))
+			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, int(slot))
 			if err != nil {
-				// close the channel (to tell other routines to stop processing and end)
-				log.Errorf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
+				log.Errorf("error downloading state at slot %d", slot, err)
 				return
 			}
-			nextBstate, err = fork_state.GetCustomState(*newState, s.cli.Api)
-			if err != nil {
-				// close the channel (to tell other routines to stop processing and end)
-				log.Errorf("unable to open beacon state, closing requester routine. %s", err.Error())
-				return
-			}
-
-			if prevBState.AttestingBalance != nil {
-				// only execute tasks if prevBState is something (we have state and nextState in this case)
-
-				epochTask := &EpochTask{
-					ValIdxs:   s.ValidatorIndexes,
-					NextState: nextBstate,
-					State:     bstate,
-					PrevState: prevBState,
-					Finalized: false,
-				}
-
-				log.Debugf("sending task for slot: %d", epochTask.State.Slot)
-				s.EpochTaskChan <- epochTask
-			}
-			// check if the min Request time has been completed (to avoid spaming the API)
-			<-ticker.C
 
 		}
 
@@ -87,10 +52,8 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	prevBState := fork_state.ForkStateContentBase{}
 	bstate := fork_state.ForkStateContentBase{}
 	nextBstate := fork_state.ForkStateContentBase{}
-	finalizedSlot := 0
-	// tick every epoch, 384 seconds
-	epochTicker := time.After(384 * time.Second)
-	ticker := time.NewTicker(minReqTime)
+	lastRequestSlot := 0
+
 	for {
 
 		select {
@@ -106,54 +69,25 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			close(s.EpochTaskChan)
 			return
 
-		case <-epochTicker:
-			epochTicker = time.After(384 * time.Second)
-			ticker.Reset(minReqTime)
-			log.Infof("requesting Beacon State from endpoint: finalized")
-			if bstate.AttestingBalance != nil { // in case we already had a bstate
-				prevBState = bstate
+		case newHead := <-s.eventsObj.HeadChan:
+			if newHead%EPOCH_SLOTS != 0 { // only process if we enter a new epoch
+				continue
 			}
-			if nextBstate.AttestingBalance != nil { // in case we already had a nextBstate
-				bstate = nextBstate
+
+			// new epoch
+			headEpoch := int(newHead / EPOCH_SLOTS)
+			// reqEpoch => headEpoch - 1
+			slot := (headEpoch * EPOCH_SLOTS) - 1
+
+			if slot == lastRequestSlot {
+				continue // this epoch was already requested
 			}
-			header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "finalized")
+
+			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot)
 			if err != nil {
-				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing finalized requester routine. %s", err.Error())
+				log.Errorf("error downloading state at slot %d", slot, err)
 				continue
 			}
-			if int(header.Header.Message.Slot) == finalizedSlot {
-				log.Infof("No new finalized state yet")
-				continue
-			}
-
-			finalizedSlot = int(header.Header.Message.Slot) - 1
-			log.Infof("New finalized state at slot: %d", finalizedSlot)
-			newState, err := s.RequestBeaconState(finalizedSlot)
-			if err != nil {
-				log.Errorf("Unable to retrieve Finalized Beacon State from the beacon node. %s", err.Error())
-				continue
-			}
-
-			nextBstate, err = fork_state.GetCustomState(*newState, s.cli.Api)
-			if err != nil {
-				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing requester routine. %s", err.Error())
-				continue
-			}
-
-			if prevBState.AttestingBalance != nil {
-				epochTask := &EpochTask{
-					ValIdxs:   s.ValidatorIndexes,
-					NextState: nextBstate,
-					State:     bstate,
-					PrevState: prevBState,
-					Finalized: true,
-				}
-
-				log.Debugf("sending task for slot: %d", epochTask.State.Slot)
-				s.EpochTaskChan <- epochTask
-			}
-			<-ticker.C
-			// check if the min Request time has been completed (to avoid spaming the API)
 
 		}
 
@@ -171,4 +105,52 @@ func (s StateAnalyzer) RequestBeaconState(slot int) (*spec.VersionedBeaconState,
 
 	}
 	return newState, nil
+}
+
+func (s *StateAnalyzer) DownloadNewState(
+	prevBState *fork_state.ForkStateContentBase,
+	bstate *fork_state.ForkStateContentBase,
+	nextBstate *fork_state.ForkStateContentBase,
+	slot int) error {
+
+	log := log.WithField("routine", "download")
+	ticker := time.NewTicker(minReqTime)
+	// We need three states to calculate both, rewards and maxRewards
+
+	if bstate.AttestingBalance != nil { // in case we already had a bstate
+		*prevBState = *bstate
+	}
+	if nextBstate.AttestingBalance != nil { // in case we already had a nextBstate
+		*bstate = *nextBstate
+	}
+	log.Infof("requesting Beacon State from endpoint: slot %d", slot)
+	newState, err := s.RequestBeaconState(slot)
+	if err != nil {
+		// close the channel (to tell other routines to stop processing and end)
+		return fmt.Errorf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
+
+	}
+	*nextBstate, err = fork_state.GetCustomState(*newState, s.cli.Api)
+	if err != nil {
+		// close the channel (to tell other routines to stop processing and end)
+		return fmt.Errorf("unable to open beacon state, closing requester routine. %s", err.Error())
+	}
+
+	if prevBState.AttestingBalance != nil {
+		// only execute tasks if prevBState is something (we have state and nextState in this case)
+
+		epochTask := &EpochTask{
+			ValIdxs:   s.ValidatorIndexes,
+			NextState: *nextBstate,
+			State:     *bstate,
+			PrevState: *prevBState,
+			Finalized: false,
+		}
+
+		log.Debugf("sending task for slot: %d", epochTask.State.Slot)
+		s.EpochTaskChan <- epochTask
+	}
+	// check if the min Request time has been completed (to avoid spaming the API)
+	<-ticker.C
+	return nil
 }
