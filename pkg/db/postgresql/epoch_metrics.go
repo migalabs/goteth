@@ -28,7 +28,8 @@ func (p *PostgresDBService) ObtainLastEpoch() (int, error) {
 	if err != nil {
 		return -1, errors.Wrap(err, "error creating epoch metrics table")
 	}
-	var epoch int
-	rows.Scan(epoch)
+	epoch := -1
+	rows.Next()
+	rows.Scan(&epoch)
 	return epoch, nil
 }
