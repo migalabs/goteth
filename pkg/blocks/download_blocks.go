@@ -113,7 +113,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			if lastRequestSlot < 0 {
 				lastRequestSlot = headSlot
 			}
-			for lastRequestSlot <= headSlot {
+			for lastRequestSlot < headSlot {
 				lastRequestSlot = lastRequestSlot + 1
 				err := s.DownloadNewBlock(lastRequestSlot)
 
