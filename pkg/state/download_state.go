@@ -89,7 +89,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	}
 
 	// -----------------------------------------------------------------------------------
-
+	s.eventsObj.SubscribeToHeadEvents()
 	for {
 
 		select {
@@ -109,9 +109,11 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			// new epoch
 			headEpoch := int(newHead / EPOCH_SLOTS)
 			// reqEpoch => headEpoch - 1
+			log.Infof("Head Epoch: %d; Last Requested Epoch: %d", headEpoch, lastRequestEpoch)
+			log.Infof("Pending slots for new epoch: %d", ((headEpoch+1)*EPOCH_SLOTS)-newHead)
 
-			if (headEpoch - 1) == lastRequestEpoch {
-				continue // this epoch was already requested
+			if (lastRequestEpoch + 1) >= headEpoch {
+				continue // wait for new epoch to arrive
 			}
 
 			slot := ((lastRequestEpoch + 1) * EPOCH_SLOTS) + 31 // last slot of the epoch

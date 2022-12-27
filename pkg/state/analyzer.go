@@ -158,7 +158,6 @@ func (s *StateAnalyzer) Run() {
 		// State requester in finalized slots, not used for now
 		wgDownload.Add(1)
 		go s.runDownloadStatesFinalized(&wgDownload)
-		s.eventsObj.SubscribeToHeadEvents()
 	}
 	wgProcess.Add(1)
 	go s.runProcessState(&wgProcess, &downloadFinishedFlag)
