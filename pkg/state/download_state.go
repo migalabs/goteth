@@ -75,8 +75,8 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 		headEpoch := int(headSlot / EPOCH_SLOTS)
 		lastRequestEpoch = lastRequestEpoch - 4 // start 4 epochs before for safety
 		for (lastRequestEpoch) < (headEpoch - 1) {
-			log.Infof("filling missing epochs: %d", lastRequestEpoch)
 			lastRequestEpoch = lastRequestEpoch + 1
+			log.Infof("filling missing epochs: %d", lastRequestEpoch)
 			slot := (lastRequestEpoch * EPOCH_SLOTS) + 31 // last slot of the epoch
 
 			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot)
