@@ -92,24 +92,24 @@ loop:
 				log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
 				// create a model to be inserted into the db, we only insert previous epoch metrics
 
-				missedBlocks := stateMetrics.GetMetricsBase().PrevState.MissedBlocks
+				missedBlocks := stateMetrics.GetMetricsBase().CurrentState.MissedBlocks
 				// take into accoutn epoch transition
-				nextMissedBlock := stateMetrics.GetMetricsBase().CurrentState.TrackPrevMissingBlock()
+				nextMissedBlock := stateMetrics.GetMetricsBase().NextState.TrackPrevMissingBlock()
 				if nextMissedBlock != 0 {
 					missedBlocks = append(missedBlocks, nextMissedBlock)
 				}
 				epochDBRow := model.NewEpochMetrics(
-					stateMetrics.GetMetricsBase().PrevState.Epoch,
-					stateMetrics.GetMetricsBase().PrevState.Slot,
-					uint64(len(stateMetrics.GetMetricsBase().CurrentState.PrevAttestations)),
-					uint64(stateMetrics.GetMetricsBase().CurrentState.NumAttestingVals),
-					uint64(stateMetrics.GetMetricsBase().PrevState.NumActiveVals),
-					uint64(stateMetrics.GetMetricsBase().PrevState.TotalActiveRealBalance),
-					uint64(stateMetrics.GetMetricsBase().CurrentState.AttestingBalance[altair.TimelyTargetFlagIndex]), // as per BEaconcha.in
-					uint64(stateMetrics.GetMetricsBase().PrevState.TotalActiveBalance),
-					uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
-					uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
-					uint64(stateMetrics.GetMetricsBase().CurrentState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
+					stateMetrics.GetMetricsBase().CurrentState.Epoch,
+					stateMetrics.GetMetricsBase().CurrentState.Slot,
+					uint64(len(stateMetrics.GetMetricsBase().NextState.PrevAttestations)),
+					uint64(stateMetrics.GetMetricsBase().NextState.NumAttestingVals),
+					uint64(stateMetrics.GetMetricsBase().CurrentState.NumActiveVals),
+					uint64(stateMetrics.GetMetricsBase().CurrentState.TotalActiveRealBalance),
+					uint64(stateMetrics.GetMetricsBase().NextState.AttestingBalance[altair.TimelyTargetFlagIndex]), // as per BEaconcha.in
+					uint64(stateMetrics.GetMetricsBase().CurrentState.TotalActiveBalance),
+					uint64(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
+					uint64(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
+					uint64(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
 					missedBlocks)
 
 				epochBatch.Queue(model.UpsertEpoch,
@@ -127,7 +127,7 @@ loop:
 
 				// Proposer Duties
 
-				for _, item := range stateMetrics.GetMetricsBase().PrevState.EpochStructs.ProposerDuties {
+				for _, item := range stateMetrics.GetMetricsBase().CurrentState.EpochStructs.ProposerDuties {
 					newDuty := model.NewProposerDuties(uint64(item.ValidatorIndex), uint64(item.Slot), true)
 					for _, item := range missedBlocks {
 						if newDuty.ProposerSlot == item { // we found the proposer slot in the missed blocks
