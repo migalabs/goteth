@@ -33,7 +33,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 				return
 			}
 
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, int(slot))
+			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, int(slot), false)
 			if err != nil {
 				log.Errorf("error downloading state at slot %d", slot, err)
 				return
@@ -79,7 +79,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			log.Infof("filling missing epochs: %d", lastRequestEpoch)
 			slot := (lastRequestEpoch * EPOCH_SLOTS) + 31 // last slot of the epoch
 
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot)
+			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
 			if err != nil {
 				log.Errorf("error downloading state at slot %d", slot, err)
 				continue
@@ -122,7 +122,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			slot := ((lastRequestEpoch + 1) * EPOCH_SLOTS) + 31 // last slot of the epoch
 			lastRequestEpoch = lastRequestEpoch + 1
 
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot)
+			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
 			if err != nil {
 				log.Errorf("error downloading state at slot %d", slot, err)
 				continue
@@ -150,7 +150,8 @@ func (s *StateAnalyzer) DownloadNewState(
 	prevBState *fork_state.ForkStateContentBase,
 	bstate *fork_state.ForkStateContentBase,
 	nextBstate *fork_state.ForkStateContentBase,
-	slot int) error {
+	slot int,
+	finalized bool) error {
 
 	log := log.WithField("routine", "download")
 	ticker := time.NewTicker(minReqTime)
@@ -183,7 +184,7 @@ func (s *StateAnalyzer) DownloadNewState(
 			NextState: *nextBstate,
 			State:     *bstate,
 			PrevState: *prevBState,
-			Finalized: false,
+			Finalized: finalized,
 		}
 
 		log.Debugf("sending task for slot: %d", epochTask.State.Slot)
