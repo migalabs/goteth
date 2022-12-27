@@ -29,6 +29,11 @@ var (
 				f_proposer_index = excluded.f_proposer_index,
 				f_proposed = excluded.f_proposed;
 	`
+	SelectLastSlot = `
+	SELECT f_slot
+	FROM t_block_metrics
+	ORDER BY f_slot DESC
+	LIMIT 1`
 )
 
 type BlockMetrics struct {

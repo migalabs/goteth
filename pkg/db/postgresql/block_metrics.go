@@ -20,3 +20,16 @@ func (p *PostgresDBService) createBlockMetricsTable() error {
 	}
 	return nil
 }
+
+// in case the table did not exist
+func (p *PostgresDBService) ObtainLastSlot() (int, error) {
+	// create the tables
+	rows, err := p.psqlPool.Query(p.ctx, model.SelectLastSlot)
+	if err != nil {
+		return -1, errors.Wrap(err, "error obtianing last block from database")
+	}
+	slot := -1
+	rows.Next()
+	rows.Scan(&slot)
+	return slot, nil
+}

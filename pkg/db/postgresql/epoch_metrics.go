@@ -26,7 +26,7 @@ func (p *PostgresDBService) ObtainLastEpoch() (int, error) {
 	// create the tables
 	rows, err := p.psqlPool.Query(p.ctx, model.SelectLastEpoch)
 	if err != nil {
-		return -1, errors.Wrap(err, "error creating epoch metrics table")
+		return -1, errors.Wrap(err, "error obtaining last epoch from database")
 	}
 	epoch := -1
 	rows.Next()
