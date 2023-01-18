@@ -5,9 +5,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/block_metrics/fork_block"
-	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/block_metrics/fork_block"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -42,7 +44,7 @@ type BlockAnalyzer struct {
 	// Control Variables
 	finishDownload bool
 	routineClosed  chan struct{}
-	chNewHead      chan struct{}
+	eventsObj      events.Events
 
 	initTime time.Time
 }
@@ -90,7 +92,7 @@ func NewBlockAnalyzer(
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
 		routineClosed:      make(chan struct{}),
-		chNewHead:          make(chan struct{}),
+		eventsObj:          events.NewEventsObj(ctx, httpCli),
 		downloadMode:       downloadMode,
 	}, nil
 }
@@ -123,12 +125,6 @@ func (s *BlockAnalyzer) Run() {
 		// Block requester in finalized slots, not used for now
 		wgDownload.Add(1)
 		go s.runDownloadBlocksFinalized(&wgDownload)
-
-		// subscribe to head event
-		err := s.cli.Api.Events(s.ctx, []string{"head"}, s.HandleHeadEvent) // every new head
-		if err != nil {
-			log.Panicf("failed to subscribe to head events: %s", err)
-		}
 	}
 	wgProcess.Add(1)
 	go s.runProcessBlock(&wgProcess, &downloadFinishedFlag)
@@ -164,4 +160,26 @@ type BlockTask struct {
 	Block    fork_block.ForkBlockContentBase
 	Slot     uint64
 	Proposed bool
+}
+
+func (s BlockAnalyzer) CreateMissingBlock(slot int) fork_block.ForkBlockContentBase {
+	duties, err := s.cli.Api.ProposerDuties(s.ctx, phase0.Epoch(slot/32), []phase0.ValidatorIndex{})
+	proposerValIdx := 0
+	if err != nil {
+		log.Errorf("could not request proposer duty: %s", err)
+	} else {
+		for _, duty := range duties {
+			if duty.Slot == phase0.Slot(slot) {
+				proposerValIdx = int(duty.ValidatorIndex)
+			}
+		}
+	}
+
+	return fork_block.ForkBlockContentBase{
+		Slot:          uint64(slot),
+		ProposerIndex: uint64(proposerValIdx),
+		Graffiti:      [32]byte{},
+		Attestations:  nil,
+		Deposits:      nil,
+	}
 }

@@ -3,7 +3,6 @@ package fork_block
 import (
 	"fmt"
 
-	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/sirupsen/logrus"
@@ -25,7 +24,7 @@ type ForkBlockContentBase struct {
 	Deposits     []*phase0.Deposit
 }
 
-func GetCustomBlock(block spec.VersionedSignedBeaconBlock, iApi *http.Service) (ForkBlockContentBase, error) {
+func GetCustomBlock(block spec.VersionedSignedBeaconBlock) (ForkBlockContentBase, error) {
 	switch block.Version {
 
 	case spec.DataVersionPhase0:

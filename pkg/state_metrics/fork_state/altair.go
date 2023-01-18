@@ -6,7 +6,7 @@ import (
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
-	"github.com/cortze/eth2-state-analyzer/pkg/utils"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 var ( // spec weight constants

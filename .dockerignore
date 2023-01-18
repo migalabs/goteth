@@ -1,0 +1,8 @@
+.ipynb_checkpoints/**
+.pytest_cache/**
+.vscode/**
+blockprint/**
+metrika/**
+plot/**
+results/**
+tests/**

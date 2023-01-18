@@ -23,10 +23,12 @@ var (
 func main() {
 	fmt.Println(CliName, Version)
 
-	//ctx, cancel := context.WithCancel(context.Background())
+	customFormatter := new(logrus.TextFormatter)
+	customFormatter.FullTimestamp = true
 
 	// Set the general log configurations for the entire tool
-	logrus.SetFormatter(utils.ParseLogFormatter("text"))
+	// logrus.SetFormatter(utils.ParseLogFormatter("text"))
+	logrus.SetFormatter(customFormatter)
 	logrus.SetOutput(utils.ParseLogOutput("terminal"))
 	logrus.SetLevel(utils.ParseLogLevel("info"))
 

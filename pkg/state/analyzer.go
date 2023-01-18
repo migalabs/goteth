@@ -8,15 +8,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
-	reward_metrics "github.com/cortze/eth2-state-analyzer/pkg/state_metrics"
-	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
-	"github.com/cortze/eth2-state-analyzer/pkg/utils"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
+	reward_metrics "github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 var (
-	modName = "Analyzer"
+	modName = "State"
 	log     = logrus.WithField(
 		"module", modName,
 	)
@@ -48,6 +49,7 @@ type StateAnalyzer struct {
 	// Control Variables
 	finishDownload bool
 	routineClosed  chan struct{}
+	eventsObj      events.Events
 
 	initTime time.Time
 }
@@ -121,6 +123,7 @@ func NewStateAnalyzer(
 		validatorWorkerNum: workerNum,
 		routineClosed:      make(chan struct{}),
 		downloadMode:       downloadMode,
+		eventsObj:          events.NewEventsObj(ctx, httpCli),
 	}, nil
 }
 

@@ -83,22 +83,22 @@ func (p *PostgresDBService) Close() {
 
 func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error {
 	// create the tables
-	err := p.createRewardsTable(ctx, pool)
+	err := p.createRewardsTable()
 	if err != nil {
 		return err
 	}
 
-	err = p.createEpochMetricsTable(ctx, pool)
+	err = p.createEpochMetricsTable()
 	if err != nil {
 		return err
 	}
 
-	err = p.createProposerDutiesTable(ctx, pool)
+	err = p.createProposerDutiesTable()
 	if err != nil {
 		return err
 	}
 
-	err = p.createBlockMetricsTable(ctx, pool)
+	err = p.createBlockMetricsTable()
 	if err != nil {
 		return err
 	}

@@ -5,8 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth2-state-analyzer/pkg/block_metrics/fork_block"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/block_metrics/fork_block"
 )
 
 // This routine is able to download block by block in the slot range
@@ -33,50 +32,11 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 			ticker.Reset(minReqTime)
 
 			log.Infof("requesting Beacon Block from endpoint: slot %d", slot)
+			err := s.DownloadNewBlock(int(slot))
 
-			// make the state query
-			newBlock, err := s.cli.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
-
-			if newBlock == nil { // if the block was not found, no error and nil block
-				log.Errorf("the Beacon Block is unavailable, nil block")
-				blockTask := &BlockTask{
-					Block: fork_block.ForkBlockContentBase{
-						Slot:          uint64(slot),
-						ProposerIndex: 0,
-						Graffiti:      [32]byte{},
-						Attestations:  nil,
-						Deposits:      nil,
-					},
-					Slot:     uint64(slot),
-					Proposed: false,
-				}
-				log.Debugf("sending a new missed task for slot %d", slot)
-				s.BlockTaskChan <- blockTask
-				continue
-
-			}
 			if err != nil {
-				// close the channel (to tell other routines to stop processing and end)
-				log.Errorf("unable to retrieve the beacon block at slot %d. %s", slot, err.Error())
-				return
+				log.Errorf("error downloading block at slot %d: %s", slot, err)
 			}
-
-			customBlock, err := fork_block.GetCustomBlock(*newBlock, s.cli.Api)
-			if err != nil {
-				log.Errorf("could not determine the fork of block %d", slot, err)
-			}
-
-			// send task to be processed
-			blockTask := &BlockTask{
-				Block:    customBlock,
-				Slot:     slot,
-				Proposed: true,
-			}
-			log.Debugf("sending a new task for block %d", slot)
-			s.BlockTaskChan <- blockTask
-
-			// check if the min Request time has been completed (to avoid spaming the API)
-			<-ticker.C
 
 		}
 
@@ -88,10 +48,46 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Finalized Requester")
+
+	// ------ fill from last epoch in database to current head -------
+
+	// obtain last epoch in database
+	lastRequestSlot, err := s.dbClient.ObtainLastSlot()
+	if err != nil {
+		log.Errorf("could not obtain last slot in database: %s", err)
+	}
+
+	// obtain current head
+	headSlot := -1
+	header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "head")
+	if err != nil {
+		log.Errorf("could not obtain current head to fill historical")
+	} else {
+		headSlot = int(header.Header.Message.Slot)
+	}
+
+	// it means we could obtain both
+	if lastRequestSlot > 0 && headSlot > 0 {
+
+		for (lastRequestSlot) < (headSlot - 1) {
+			lastRequestSlot = lastRequestSlot + 1
+
+			log.Infof("filling missing blocks: %d", lastRequestSlot)
+
+			err := s.DownloadNewBlock(lastRequestSlot)
+
+			if err != nil {
+				log.Errorf("error downloading block at slot %d: %s", lastRequestSlot, err)
+			}
+		}
+
+	}
+
+	// -----------------------------------------------------------------------------------
+	s.eventsObj.SubscribeToHeadEvents()
+
 	// loop over the list of slots that we need to analyze
 
-	finalizedSlot := 0
-	ticker := time.NewTicker(minReqTime)
 	for {
 
 		select {
@@ -106,80 +102,70 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			close(s.BlockTaskChan)
 			return
 
-		case <-s.chNewHead: // wait for new head event
-			ticker.Reset(minReqTime)
+		case headSlot := <-s.eventsObj.HeadChan: // wait for new head event
 			// make the block query
-			log.Infof("requesting Beacon State from endpoint: head")
+			log.Infof("received new head signal: %d", headSlot)
 
-			header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "head")
-			if err != nil {
-				log.Errorf("Unable to retrieve Beacon State from the beacon node, closing finalized requester routine. %s", err.Error())
+			if lastRequestSlot >= headSlot {
+				log.Infof("No new head block yet")
 				continue
 			}
-			if int(header.Header.Message.Slot) == finalizedSlot {
-				log.Infof("No new finalized state yet")
-				continue
+			if lastRequestSlot < 0 {
+				lastRequestSlot = headSlot
 			}
-			if finalizedSlot > 0 {
-				for i := finalizedSlot + 1; i < int(header.Header.Message.Slot); i++ {
-					duties, err := s.cli.Api.ProposerDuties(s.ctx, phase0.Epoch(i/32), []phase0.ValidatorIndex{})
-					proposerValIdx := 0
-					if err != nil {
-						log.Errorf("could not request proposer duty: %s", err)
-					} else {
-						for _, duty := range duties {
-							if duty.Slot == phase0.Slot(i) {
-								proposerValIdx = int(duty.ValidatorIndex)
-							}
-						}
-					}
+			for lastRequestSlot < headSlot {
+				lastRequestSlot = lastRequestSlot + 1
+				err := s.DownloadNewBlock(lastRequestSlot)
 
-					blockTask := &BlockTask{
-						Block: fork_block.ForkBlockContentBase{
-							Slot:          uint64(i),
-							ProposerIndex: uint64(proposerValIdx),
-							Graffiti:      [32]byte{},
-							Attestations:  nil,
-							Deposits:      nil,
-						},
-						Slot:     uint64(i),
-						Proposed: false,
-					}
-					log.Debugf("sending a new missed task for slot %d", i)
-					s.BlockTaskChan <- blockTask
+				if err != nil {
+					log.Errorf("error downloading block at slot %d: %s", lastRequestSlot, err)
 				}
-			}
-			finalizedSlot = int(header.Header.Message.Slot)
-			log.Infof("New head block at slot: %d", finalizedSlot)
-			newBlock, err := s.cli.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", finalizedSlot))
-			if newBlock == nil {
-				log.Errorf("the Beacon Block is unavailable, nil block")
-				continue
-			}
-			if err != nil {
-				// close the channel (to tell other routines to stop processing and end)
-				log.Errorf("unable to retrieve the beacon block at slot %d. %s", finalizedSlot, err.Error())
-				return
-			}
 
-			customBlock, err := fork_block.GetCustomBlock(*newBlock, s.cli.Api)
-			if err != nil {
-				log.Errorf("could not determine the fork of block %d", finalizedSlot, err)
 			}
-
-			// send task to be processed
-			blockTask := &BlockTask{
-				Block:    customBlock,
-				Slot:     uint64(finalizedSlot),
-				Proposed: true,
-			}
-			log.Debugf("sending a new task for slot %d", finalizedSlot)
-			s.BlockTaskChan <- blockTask
-
-			<-ticker.C
-			// check if the min Request time has been completed (to avoid spaming the API)
 
 		}
 
 	}
+}
+
+func (s BlockAnalyzer) RequestBeaconBlock(slot int) (fork_block.ForkBlockContentBase, bool, error) {
+	newBlock, err := s.cli.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
+	if newBlock == nil {
+		log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
+		return s.CreateMissingBlock(slot), false, nil
+	}
+	if err != nil {
+		// close the channel (to tell other routines to stop processing and end)
+		return fork_block.ForkBlockContentBase{}, false, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
+	}
+
+	customBlock, err := fork_block.GetCustomBlock(*newBlock)
+
+	if err != nil {
+		// close the channel (to tell other routines to stop processing and end)
+		return fork_block.ForkBlockContentBase{}, false, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
+	}
+	return customBlock, true, nil
+}
+
+func (s BlockAnalyzer) DownloadNewBlock(slot int) error {
+
+	ticker := time.NewTicker(minReqTime)
+	newBlock, proposed, err := s.RequestBeaconBlock(slot)
+	if err != nil {
+		return fmt.Errorf("block error at slot %d: %s", slot, err)
+	}
+
+	// send task to be processed
+	blockTask := &BlockTask{
+		Block:    newBlock,
+		Slot:     uint64(slot),
+		Proposed: proposed,
+	}
+	log.Debugf("sending a new task for slot %d", slot)
+	s.BlockTaskChan <- blockTask
+
+	<-ticker.C
+	// check if the min Request time has been completed (to avoid spaming the API)
+	return nil
 }
