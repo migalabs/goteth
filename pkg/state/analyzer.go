@@ -8,12 +8,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
-	"github.com/cortze/eth2-state-analyzer/pkg/events"
-	reward_metrics "github.com/cortze/eth2-state-analyzer/pkg/state_metrics"
-	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
-	"github.com/cortze/eth2-state-analyzer/pkg/utils"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
+	reward_metrics "github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 var (

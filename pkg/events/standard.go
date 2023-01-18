@@ -3,7 +3,7 @@ package events
 import (
 	"context"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/sirupsen/logrus"
 )
 

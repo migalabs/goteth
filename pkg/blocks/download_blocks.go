@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/block_metrics/fork_block"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/block_metrics/fork_block"
 )
 
 // This routine is able to download block by block in the slot range

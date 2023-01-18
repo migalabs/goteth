@@ -1,4 +1,4 @@
-module github.com/cortze/eth2-state-analyzer
+module github.com/cortze/eth-cl-state-analyzer
 
 go 1.17
 

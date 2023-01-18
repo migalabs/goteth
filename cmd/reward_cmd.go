@@ -10,9 +10,9 @@ import (
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
-	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth2-state-analyzer/pkg/state"
-	"github.com/cortze/eth2-state-analyzer/pkg/utils"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 var RewardsCommand = &cli.Command{

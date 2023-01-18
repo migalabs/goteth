@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth2-state-analyzer/pkg/state_metrics/fork_state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 )
 
 type AltairMetrics struct {

@@ -7,7 +7,7 @@ This file together with the model, has all the needed methods to interact with t
 */
 
 import (
-	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql/model"
 	"github.com/pkg/errors"
 )
 

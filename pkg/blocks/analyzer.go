@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth2-state-analyzer/pkg/block_metrics/fork_block"
-	"github.com/cortze/eth2-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql"
-	"github.com/cortze/eth2-state-analyzer/pkg/events"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/block_metrics/fork_block"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
