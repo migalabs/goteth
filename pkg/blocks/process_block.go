@@ -46,14 +46,38 @@ loop:
 				task.Slot,
 				task.Block.Graffiti,
 				task.Block.ProposerIndex,
-				task.Proposed)
+				task.Proposed,
+				task.Block.Attestations,
+				task.Block.Deposits,
+				task.Block.ProposerSlashings,
+				task.Block.AttesterSlashings,
+				task.Block.VoluntaryExits,
+				task.Block.SyncAggregate,
+				task.Block.ExecutionPayload.FeeRecipient,
+				task.Block.ExecutionPayload.GasLimit,
+				task.Block.ExecutionPayload.GasUsed,
+				task.Block.ExecutionPayload.BaseFeePerGas,
+				task.Block.ExecutionPayload.BlockHash,
+				task.Block.ExecutionPayload.Transactions)
 
 			blockBatch.Queue(model.UpsertBlock,
 				blockMetrics.Epoch,
 				blockMetrics.Slot,
 				blockMetrics.Graffiti,
 				blockMetrics.ProposerIndex,
-				blockMetrics.Proposed)
+				blockMetrics.Proposed,
+				blockMetrics.Attestatons,
+				blockMetrics.Deposits,
+				blockMetrics.ProposerSlashings,
+				blockMetrics.AttSlashings,
+				blockMetrics.VoluntaryExits,
+				blockMetrics.SyncBits,
+				blockMetrics.ELFeeRecp,
+				blockMetrics.ELGasLimit,
+				blockMetrics.ELGasUsed,
+				blockMetrics.ELBaseFeePerGas,
+				blockMetrics.ELBlockHash,
+				blockMetrics.ELTransactions)
 			// Flush the database batches
 			if blockBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE {
 				s.dbClient.WriteChan <- blockBatch
