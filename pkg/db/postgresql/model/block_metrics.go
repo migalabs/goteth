@@ -33,8 +33,7 @@ var (
 
 	UPDATE t_block_metrics 
 	SET	f_proposed = $2
-	WHERE f_slot = $1
-	ON CONFLICT DO NOTHING;
+	WHERE f_slot = $1;
 	`
 	SelectLastSlot = `
 	SELECT f_slot
