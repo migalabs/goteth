@@ -8,6 +8,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+var (
+	FORK_CHOICE_SLOTS = uint64(64)
+)
+
 func (s *BlockAnalyzer) runProcessBlock(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool) {
 	defer wgProcess.Done()
 
@@ -47,6 +51,13 @@ loop:
 				task.Block.Graffiti,
 				task.Block.ProposerIndex,
 				task.Proposed)
+
+			_, proposed, err := s.RequestBeaconBlock(int(task.Slot - FORK_CHOICE_SLOTS))
+			if !proposed && err == nil {
+				blockBatch.Queue(model.UpdateBlock,
+					task.Slot-FORK_CHOICE_SLOTS,
+					proposed)
+			}
 
 			blockBatch.Queue(model.UpsertBlock,
 				blockMetrics.Epoch,

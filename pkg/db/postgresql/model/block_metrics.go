@@ -29,6 +29,13 @@ var (
 				f_proposer_index = excluded.f_proposer_index,
 				f_proposed = excluded.f_proposed;
 	`
+	UpdateBlock = `
+
+	UPDATE t_block_metrics 
+	SET	f_proposed = $2
+	WHERE f_slot = $1
+	ON CONFLICT DO NOTHING;
+	`
 	SelectLastSlot = `
 	SELECT f_slot
 	FROM t_block_metrics
