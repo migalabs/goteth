@@ -1,6 +1,13 @@
 package model
 
-import "strings"
+import (
+	"encoding/binary"
+	"strings"
+
+	"github.com/attestantio/go-eth2-client/spec/altair"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+)
 
 // Postgres intregration variables
 var (
@@ -75,27 +82,63 @@ var (
 )
 
 type BlockMetrics struct {
-	Epoch         uint64
-	Slot          uint64
-	Graffiti      string
-	ProposerIndex uint64
-	Proposed      bool
+	Epoch             uint64
+	Slot              uint64
+	Graffiti          string
+	ProposerIndex     uint64
+	Proposed          bool
+	Attestatons       uint64
+	Deposits          uint64
+	ProposerSlashings uint64
+	AttSlashings      uint64
+	VoluntaryExits    uint64
+	SyncBits          uint64
+	ELFeeRecp         string
+	ELGasLimit        uint64
+	ELGasUsed         uint64
+	ELBaseFeePerGas   uint64
+	ELBlockHash       string
+	ELTransactions    uint64
 }
 
 func NewBlockMetrics(iEpoch uint64,
 	iSlot uint64,
 	iGraffiti [32]byte,
 	iProposerIndex uint64,
-	iProposed bool) BlockMetrics {
+	iProposed bool,
+	iAttestatons []*phase0.Attestation,
+	iDeposits []*phase0.Deposit,
+	iProposerSlashings []*phase0.ProposerSlashing,
+	iAttSlashings []*phase0.AttesterSlashing,
+	iVoluntaryExits []*phase0.SignedVoluntaryExit,
+	iSyncBits *altair.SyncAggregate,
+	iELFeeRecp bellatrix.ExecutionAddress,
+	iELGasLimit uint64,
+	iELGasUsed uint64,
+	iELBaseFeePerGas [32]byte,
+	iELBlockHash phase0.Hash32,
+	iELTransactions []bellatrix.Transaction) BlockMetrics {
 
 	graffiti := strings.ReplaceAll(string(iGraffiti[:]), "\u0000", "")
 
 	return BlockMetrics{
-		Epoch:         iEpoch,
-		Slot:          iSlot,
-		Graffiti:      graffiti,
-		ProposerIndex: iProposerIndex,
-		Proposed:      iProposed,
+		Epoch:             iEpoch,
+		Slot:              iSlot,
+		Graffiti:          graffiti,
+		ProposerIndex:     iProposerIndex,
+		Proposed:          iProposed,
+		Attestatons:       uint64(len(iAttestatons)),
+		Deposits:          uint64(len(iDeposits)),
+		ProposerSlashings: uint64(len(iProposerSlashings)),
+		AttSlashings:      uint64(len(iAttSlashings)),
+		VoluntaryExits:    uint64(len(iVoluntaryExits)),
+		SyncBits:          iSyncBits.SyncCommitteeBits.Count(),
+		ELFeeRecp:         iELFeeRecp.String(),
+		ELGasLimit:        iELGasLimit,
+		ELGasUsed:         iELGasUsed,
+		ELBaseFeePerGas:   uint64(binary.BigEndian.Uint64(iELBaseFeePerGas[:])),
+		ELBlockHash:       iELBlockHash.String(),
+		ELTransactions:    uint64(len(iELTransactions)),
 	}
 }
 
