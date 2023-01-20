@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/binary"
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
@@ -82,6 +81,7 @@ var (
 )
 
 type BlockMetrics struct {
+	ELTimestamp       uint64
 	Epoch             uint64
 	Slot              uint64
 	Graffiti          string
@@ -101,7 +101,9 @@ type BlockMetrics struct {
 	ELTransactions    uint64
 }
 
-func NewBlockMetrics(iEpoch uint64,
+func NewBlockMetrics(
+	iELTimeStamp uint64,
+	iEpoch uint64,
 	iSlot uint64,
 	iGraffiti [32]byte,
 	iProposerIndex uint64,
@@ -122,6 +124,7 @@ func NewBlockMetrics(iEpoch uint64,
 	graffiti := strings.ReplaceAll(string(iGraffiti[:]), "\u0000", "")
 
 	return BlockMetrics{
+		ELTimestamp:       iELTimeStamp,
 		Epoch:             iEpoch,
 		Slot:              iSlot,
 		Graffiti:          graffiti,
@@ -136,7 +139,7 @@ func NewBlockMetrics(iEpoch uint64,
 		ELFeeRecp:         iELFeeRecp.String(),
 		ELGasLimit:        iELGasLimit,
 		ELGasUsed:         iELGasUsed,
-		ELBaseFeePerGas:   uint64(binary.BigEndian.Uint64(iELBaseFeePerGas[:])),
+		ELBaseFeePerGas:   0,
 		ELBlockHash:       iELBlockHash.String(),
 		ELTransactions:    uint64(len(iELTransactions)),
 	}

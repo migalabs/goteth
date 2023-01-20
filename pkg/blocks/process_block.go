@@ -42,6 +42,7 @@ loop:
 			log.Infof("block task received for slot %d, analyzing...", task.Slot)
 
 			blockMetrics := model.NewBlockMetrics(
+				task.Block.ExecutionPayload.Timestamp,
 				task.Slot/uint64(EPOCH_SLOTS),
 				task.Slot,
 				task.Block.Graffiti,
@@ -61,6 +62,7 @@ loop:
 				task.Block.ExecutionPayload.Transactions)
 
 			blockBatch.Queue(model.UpsertBlock,
+				blockMetrics.ELTimestamp,
 				blockMetrics.Epoch,
 				blockMetrics.Slot,
 				blockMetrics.Graffiti,
