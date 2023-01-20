@@ -5,12 +5,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/altair"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/block_metrics/fork_block"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
 	"github.com/pkg/errors"
+	"github.com/prysmaticlabs/go-bitfield"
 	"github.com/sirupsen/logrus"
 )
 
@@ -176,10 +179,25 @@ func (s BlockAnalyzer) CreateMissingBlock(slot int) fork_block.ForkBlockContentB
 	}
 
 	return fork_block.ForkBlockContentBase{
-		Slot:          uint64(slot),
-		ProposerIndex: uint64(proposerValIdx),
-		Graffiti:      [32]byte{},
-		Attestations:  nil,
-		Deposits:      nil,
+		Slot:              uint64(slot),
+		ProposerIndex:     uint64(proposerValIdx),
+		Graffiti:          [32]byte{},
+		Attestations:      make([]*phase0.Attestation, 0),
+		Deposits:          make([]*phase0.Deposit, 0),
+		ProposerSlashings: make([]*phase0.ProposerSlashing, 0),
+		AttesterSlashings: make([]*phase0.AttesterSlashing, 0),
+		VoluntaryExits:    make([]*phase0.SignedVoluntaryExit, 0),
+		SyncAggregate: &altair.SyncAggregate{
+			SyncCommitteeBits:      bitfield.NewBitvector512(),
+			SyncCommitteeSignature: phase0.BLSSignature{}},
+		ExecutionPayload: fork_block.ForkBlockPayloadBase{
+			FeeRecipient:  bellatrix.ExecutionAddress{},
+			GasLimit:      0,
+			GasUsed:       0,
+			Timestamp:     0,
+			BaseFeePerGas: [32]byte{},
+			BlockHash:     phase0.Hash32{},
+			Transactions:  make([]bellatrix.Transaction, 0),
+		},
 	}
 }
