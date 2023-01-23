@@ -95,7 +95,6 @@ loop:
 					validatorDBRow.ValidatorBalance,
 					validatorDBRow.Reward,
 					validatorDBRow.MaxReward,
-					validatorDBRow.AttSlot,
 					validatorDBRow.BaseReward,
 					validatorDBRow.InSyncCommittee,
 					validatorDBRow.MissingSource,
