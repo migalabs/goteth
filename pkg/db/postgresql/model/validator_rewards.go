@@ -20,7 +20,7 @@ var (
 		f_missing_source BOOL,
 		f_missing_target BOOL, 
 		f_missing_head BOOL,
-		f_status TEXT,
+		f_status SMALLINT,
 		CONSTRAINT PK_ValidatorSlot PRIMARY KEY (f_val_idx,f_slot));`
 
 	UpsertValidator = `
@@ -79,7 +79,7 @@ type ValidatorRewards struct {
 	MissingSource        bool
 	MissingTarget        bool
 	MissingHead          bool
-	Status               string
+	Status               int
 }
 
 func NewValidatorRewards(
@@ -101,7 +101,7 @@ func NewValidatorRewards(
 	iMissingSource bool,
 	iMissingTarget bool,
 	iMissingHead bool,
-	iStatus string) ValidatorRewards {
+	iStatus int) ValidatorRewards {
 	return ValidatorRewards{
 		ValidatorIndex:       iValIdx,
 		Slot:                 int(iSlot),
