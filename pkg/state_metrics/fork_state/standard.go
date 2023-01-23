@@ -15,6 +15,10 @@ var (
 	log = logrus.WithField(
 		"module", "FoskStateContent",
 	)
+	QUEUE_STATUS   = 0
+	ACTIVE_STATUS  = 1
+	EXIT_STATUS    = 2
+	SLASHED_STATUS = 3
 )
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
@@ -246,20 +250,20 @@ func (p ForkStateContentBase) GetMissingFlagCount(flagIndex int) uint64 {
 	return result
 }
 
-func (p ForkStateContentBase) GetValStatus(valIdx uint64) string {
+func (p ForkStateContentBase) GetValStatus(valIdx uint64) int {
 
 	if p.Validators[valIdx].ExitEpoch <= phase0.Epoch(p.Epoch) {
-		return "exit"
+		return EXIT_STATUS
 	}
 
 	if p.Validators[valIdx].Slashed {
-		return "slashed"
+		return SLASHED_STATUS
 	}
 
 	if p.Validators[valIdx].ActivationEpoch <= phase0.Epoch(p.Epoch) {
-		return "active"
+		return ACTIVE_STATUS
 	}
 
-	return "in queue to activation"
+	return QUEUE_STATUS
 
 }
