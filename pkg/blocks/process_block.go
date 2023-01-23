@@ -52,13 +52,15 @@ loop:
 				task.Block.ProposerIndex,
 				task.Proposed)
 
-			_, proposed, err := s.RequestBeaconBlock(int(task.Slot - FORK_CHOICE_SLOTS))
-			if !proposed && err == nil {
-				blockBatch.Queue(model.UpdateBlock,
-					task.Slot-FORK_CHOICE_SLOTS,
-					proposed)
-			}
+			if task.Slot > (s.HeadSlot - FORK_CHOICE_SLOTS) { // if we are close to head, then a correction might happen
 
+				_, proposed, err := s.RequestBeaconBlock(int(task.Slot - FORK_CHOICE_SLOTS))
+				if !proposed && err == nil {
+					blockBatch.Queue(model.UpdateBlock,
+						task.Slot-FORK_CHOICE_SLOTS,
+						proposed)
+				}
+			}
 			blockBatch.Queue(model.UpsertBlock,
 				blockMetrics.Epoch,
 				blockMetrics.Slot,

@@ -46,6 +46,8 @@ type BlockAnalyzer struct {
 	routineClosed  chan struct{}
 	eventsObj      events.Events
 
+	HeadSlot uint64
+
 	initTime time.Time
 }
 
@@ -94,6 +96,7 @@ func NewBlockAnalyzer(
 		routineClosed:      make(chan struct{}),
 		eventsObj:          events.NewEventsObj(ctx, httpCli),
 		downloadMode:       downloadMode,
+		HeadSlot:           0,
 	}, nil
 }
 

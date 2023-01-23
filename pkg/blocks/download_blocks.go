@@ -3,6 +3,7 @@ package blocks
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/block_metrics/fork_block"
@@ -13,6 +14,9 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
 	// loop over the list of slots that we need to analyze
+	if s.downloadMode == "historical" { // only if historical, otherwise finalized routine updates the value
+		s.eventsObj.SubscribeToHeadEvents() // follow head
+	}
 
 	ticker := time.NewTicker(minReqTime)
 	for _, slot := range s.SlotRanges {
@@ -22,7 +26,10 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 			log.Info("context has died, closing block requester routine")
 			close(s.BlockTaskChan)
 			return
-
+		case headSlot := <-s.eventsObj.HeadChan: // wait for new head event
+			if headSlot > 0 {
+				atomic.StoreUint64(&s.HeadSlot, uint64(headSlot))
+			}
 		default:
 			if s.finishDownload {
 				log.Info("sudden shutdown detected, block downloader routine")
@@ -105,7 +112,9 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 		case headSlot := <-s.eventsObj.HeadChan: // wait for new head event
 			// make the block query
 			log.Infof("received new head signal: %d", headSlot)
-
+			if headSlot > 0 {
+				atomic.StoreUint64(&s.HeadSlot, uint64(headSlot))
+			}
 			if lastRequestSlot >= headSlot {
 				log.Infof("No new head block yet")
 				continue
