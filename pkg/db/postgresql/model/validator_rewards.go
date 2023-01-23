@@ -30,9 +30,7 @@ var (
 		f_epoch, 
 		f_balance_eth, 
 		f_reward, 
-		f_max_reward, 
-		f_max_att_reward,
-		f_max_sync_reward,
+		f_max_reward,
 		f_att_slot,
 		f_base_reward,
 		f_in_sync_committee,
@@ -40,7 +38,7 @@ var (
 		f_missing_target,
 		f_missing_head,
 		f_status)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	ON CONFLICT ON CONSTRAINT PK_ValidatorSlot
 		DO 
 			UPDATE SET 
@@ -48,8 +46,6 @@ var (
 				f_balance_eth = excluded.f_balance_eth,
 				f_reward = excluded.f_reward,
 				f_max_reward = excluded.f_max_reward,
-				f_max_att_reward = excluded.f_max_att_reward,
-				f_max_sync_reward = excluded.f_max_sync_reward,
 				f_att_slot = excluded.f_att_slot,
 				f_base_reward = excluded.f_base_reward,
 				f_in_sync_committee = excluded.f_in_sync_committee,
