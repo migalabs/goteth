@@ -6,7 +6,7 @@ var (
 	CREATE TABLE IF NOT EXISTS t_status(
 		f_id INT,
 		f_status TEXT,
-		CONSTRAINT PK_Status PRIMARY KEY (f_status));`
+		PRIMARY KEY (f_status));`
 
 	UpsertStatus = `
 	INSERT INTO t_status (
