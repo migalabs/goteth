@@ -4,7 +4,7 @@ GOCC=go
 MKDIR_P=mkdir -p
 
 BIN_PATH=./build
-BIN="./build/eth2-state-analyzer"
+BIN="./build/eth-cl-state-analyzer"
 
 
 
