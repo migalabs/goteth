@@ -42,8 +42,23 @@ loop:
 			wlog.Debugf("task received for val %d - %d in slot %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], stateMetrics.GetMetricsBase().CurrentState.Slot)
 			// Proccess State
 			snapshot := time.Now()
+
+			// batch metrics
+
+			avgReward := float64(0)
+			avgMaxReward := float64(0)
+			avgBaseReward := float64(0)
+			avgAttMaxReward := float64(0)
+			avgSyncMaxReward := float64(0)
+			missingSource := uint64(0)
+			missingTarget := uint64(0)
+			missingHead := uint64(0)
+
 			for _, valIdx := range valTask.ValIdxs {
 
+				if valIdx >= uint64(len(stateMetrics.GetMetricsBase().NextState.Validators)) {
+					continue // validator is not in the chain yet
+				}
 				// get max reward at given epoch using the formulas
 				maxRewards, err := stateMetrics.GetMaxReward(valIdx)
 
@@ -54,11 +69,6 @@ loop:
 
 				// calculate the current balance of validator
 				balance := stateMetrics.GetMetricsBase().NextState.Balances[valIdx]
-
-				if err != nil {
-					log.Errorf("Error obtaining validator balance: ", err.Error())
-					continue
-				}
 
 				// keep in mind that att rewards for epoch 10 can be seen at beginning of epoch 12,
 				// after state_transition
@@ -87,6 +97,25 @@ loop:
 					flags[altair.TimelyTargetFlagIndex],
 					flags[altair.TimelyHeadFlagIndex],
 					stateMetrics.GetMetricsBase().NextState.GetValStatus(valIdx))
+
+				// process batch metrics
+				avgReward += float64(validatorDBRow.Reward)
+				avgMaxReward += float64(validatorDBRow.MaxReward)
+				avgBaseReward += float64(validatorDBRow.BaseReward)
+				avgAttMaxReward += float64(validatorDBRow.AttestationReward)
+				avgSyncMaxReward += float64(validatorDBRow.SyncCommitteeReward)
+
+				if validatorDBRow.MissingSource {
+					missingSource += 1
+				}
+
+				if validatorDBRow.MissingTarget {
+					missingTarget += 1
+				}
+
+				if validatorDBRow.MissingHead {
+					missingHead += 1
+				}
 
 				batch.Queue(model.UpsertValidator,
 					validatorDBRow.ValidatorIndex,
