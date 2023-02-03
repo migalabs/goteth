@@ -55,6 +55,10 @@ var RewardsCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:  "download-mode",
 			Usage: "example: hybrid,historical,finalized. Default: hybrid",
+		},
+		&cli.StringFlag{
+			Name:  "custom-pools",
+			Usage: "example: pools.csv. Columns: f_val_idx,pubkey,pool_name",
 		}},
 }
 
@@ -69,6 +73,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	coworkers := 1
 	dbWorkers := 1
 	downloadMode := "hybrid"
+	customPools := ""
 	logRewardsRewards.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
@@ -89,6 +94,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	if !c.IsSet("db-url") {
 		return errors.New("db-url not provided")
 	}
+
 	if !c.IsSet("download-mode") {
 		logRewardsRewards.Infof("download mode flag not provided, default: hybrid")
 	} else {
@@ -109,6 +115,10 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	finalSlot := uint64(c.Int("final-slot"))
 	dbUrl := c.String("db-url")
 
+	if c.IsSet("custom-pools") {
+		customPools = c.String("custom-pools")
+	}
+
 	validatorIndexes, err := utils.GetValIndexesFromJson(c.String("validator-indexes"))
 	if err != nil {
 		return err
@@ -121,7 +131,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 
 	// generate the state analyzer
-	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers, downloadMode)
+	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers, downloadMode, customPools)
 	if err != nil {
 		return err
 	}

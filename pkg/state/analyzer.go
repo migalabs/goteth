@@ -40,6 +40,7 @@ type StateAnalyzer struct {
 	EpochTaskChan      chan *EpochTask
 	ValTaskChan        chan *ValTask
 	validatorWorkerNum int
+	PoolValidators     []utils.PoolKeys
 
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
@@ -63,7 +64,8 @@ func NewStateAnalyzer(
 	idbUrl string,
 	workerNum int,
 	dbWorkerNum int,
-	downloadMode string) (*StateAnalyzer, error) {
+	downloadMode string,
+	customPoolsFile string) (*StateAnalyzer, error) {
 	log.Infof("generating new State Analzyer from slots %d:%d, for validators %v", initSlot, finalSlot, valIdxs)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
@@ -108,6 +110,14 @@ func NewStateAnalyzer(
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
 
+	poolValidators := make([]utils.PoolKeys, 0)
+	if customPoolsFile != "" {
+		poolValidators, err = utils.ReadCustomValidatorsFile(customPoolsFile)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to read custom pools file.")
+		}
+	}
+
 	return &StateAnalyzer{
 		ctx:                ctx,
 		cancel:             cancel,
@@ -124,6 +134,7 @@ func NewStateAnalyzer(
 		routineClosed:      make(chan struct{}),
 		downloadMode:       downloadMode,
 		eventsObj:          events.NewEventsObj(ctx, httpCli),
+		PoolValidators:     poolValidators,
 	}, nil
 }
 
