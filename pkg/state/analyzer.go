@@ -228,6 +228,7 @@ type ValTask struct {
 	ValIdxs         []uint64
 	StateMetricsObj reward_metrics.StateMetrics
 	OnlyPrevAtt     bool
+	PoolName        string
 }
 
 type MonitorTasks struct {
