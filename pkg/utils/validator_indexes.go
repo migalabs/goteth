@@ -68,7 +68,7 @@ func DivideValidatorsBatches(input []uint64, workers int) []PoolKeys {
 }
 
 func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeysByPool []PoolKeys, err error) {
-	log.Info("Reading validator keys from .txt: ", validatorKeysFile)
+	log.Info("Reading validator keys from: ", validatorKeysFile)
 	validatorKeysByPool = make([]PoolKeys, 0)
 
 	file, err := os.Open(validatorKeysFile)
