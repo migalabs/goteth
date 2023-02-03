@@ -1,7 +1,6 @@
 package state
 
 import (
-	"math"
 	"sync"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
@@ -10,6 +9,7 @@ import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -55,34 +55,40 @@ loop:
 			}
 
 			log.Debugf("Creating validator batches for slot %d...", task.State.Slot)
+			// divide number of validators into number of workers equally
 
-			if len(task.ValIdxs) == 0 {
-				// in case no validators provided, do all the active ones in the next epoch, take into account proposer and sync committee rewards
-				task.ValIdxs = stateMetrics.GetMetricsBase().NextState.GetAllVals()
+			validatorBatches := make([]utils.PoolKeys, 0)
+
+			if len(s.PoolValidators) > 0 { // in case someone introduces custom pools
+				validatorBatches = s.PoolValidators
 			} else {
-				finalValidxs := make([]uint64, 0)
-				for _, item := range task.ValIdxs {
-					// check that validator number does not exceed the number of validators
-					if int(item) >= len(stateMetrics.GetMetricsBase().NextState.Validators) {
-						continue
+				// in case no validators provided, do all the active ones in the next epoch
+				valIdxs := stateMetrics.GetMetricsBase().NextState.GetAllVals()
+				if len(task.ValIdxs) > 0 {
+
+					finalValidxs := make([]uint64, 0)
+					for _, item := range task.ValIdxs {
+						// check that validator number does not exceed the number of validators
+						if int(item) >= len(stateMetrics.GetMetricsBase().NextState.Validators) {
+							continue
+						}
+						// check it is active from 2 epochs before (attesting takes 2 epochs to see the rewards)
+						if fork_state.IsActive(*stateMetrics.GetMetricsBase().NextState.Validators[item], phase0.Epoch(stateMetrics.GetMetricsBase().PrevState.Epoch)) {
+							finalValidxs = append(finalValidxs, item)
+						}
 					}
-					// in case no validators provided, do all the active ones in the next epoch, take into account proposer and sync committee rewards
-					if fork_state.IsActive(*stateMetrics.GetMetricsBase().NextState.Validators[item], phase0.Epoch(stateMetrics.GetMetricsBase().PrevState.Epoch)) {
-						finalValidxs = append(finalValidxs, item)
-					}
+					valIdxs = finalValidxs
 				}
-				task.ValIdxs = finalValidxs
+				validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
 			}
+
 			if task.NextState.Slot <= s.FinalSlot || task.Finalized {
 
-				stepSize := int(math.Min(float64(MAX_VAL_BATCH_SIZE), float64(len(task.ValIdxs)/s.validatorWorkerNum)))
-				stepSize = int(math.Max(float64(1), float64(stepSize))) // in case it is 0, at least set to 1
-				for i := 0; i < len(task.ValIdxs); i += stepSize {
-					endIndex := int(math.Min(float64(len(task.ValIdxs)), float64(i+stepSize)))
-					// subslice does not include the endIndex
+				for _, item := range validatorBatches {
 					valTask := &ValTask{
-						ValIdxs:         task.ValIdxs[i:endIndex],
+						ValIdxs:         item.ValIdxs,
 						StateMetricsObj: stateMetrics,
+						PoolName:        item.PoolName,
 					}
 					s.ValTaskChan <- valTask
 				}
