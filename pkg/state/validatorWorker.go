@@ -53,6 +53,7 @@ loop:
 			missingSource := uint64(0)
 			missingTarget := uint64(0)
 			missingHead := uint64(0)
+			numVals := uint64(0)
 
 			for _, valIdx := range valTask.ValIdxs {
 
@@ -104,6 +105,7 @@ loop:
 				avgBaseReward += float64(validatorDBRow.BaseReward)
 				avgAttMaxReward += float64(validatorDBRow.AttestationReward)
 				avgSyncMaxReward += float64(validatorDBRow.SyncCommitteeReward)
+				numVals += 1
 
 				if validatorDBRow.MissingSource {
 					missingSource += 1
