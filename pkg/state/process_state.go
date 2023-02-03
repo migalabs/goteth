@@ -4,11 +4,9 @@ import (
 	"sync"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/jackc/pgx/v4"
 )
@@ -62,22 +60,12 @@ loop:
 			if len(s.PoolValidators) > 0 { // in case someone introduces custom pools
 				validatorBatches = s.PoolValidators
 			} else {
+
 				// in case no validators provided, do all the active ones in the next epoch
 				valIdxs := stateMetrics.GetMetricsBase().NextState.GetAllVals()
-				if len(task.ValIdxs) > 0 {
 
-					finalValidxs := make([]uint64, 0)
-					for _, item := range task.ValIdxs {
-						// check that validator number does not exceed the number of validators
-						if int(item) >= len(stateMetrics.GetMetricsBase().NextState.Validators) {
-							continue
-						}
-						// check it is active from 2 epochs before (attesting takes 2 epochs to see the rewards)
-						if fork_state.IsActive(*stateMetrics.GetMetricsBase().NextState.Validators[item], phase0.Epoch(stateMetrics.GetMetricsBase().PrevState.Epoch)) {
-							finalValidxs = append(finalValidxs, item)
-						}
-					}
-					valIdxs = finalValidxs
+				if len(task.ValIdxs) > 0 {
+					valIdxs = task.ValIdxs
 				}
 				validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
 			}
