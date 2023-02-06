@@ -55,6 +55,7 @@ loop:
 			missingHead := uint64(0)
 			numVals := uint64(0)
 			nonProposerVals := uint64(0)
+			syncCommitteeVals := uint64(0)
 			for _, valIdx := range valTask.ValIdxs {
 
 				if valIdx >= uint64(len(stateMetrics.GetMetricsBase().NextState.Validators)) {
@@ -109,8 +110,16 @@ loop:
 					nonProposerVals += 1
 				}
 				avgBaseReward += float64(validatorDBRow.BaseReward)
-				avgAttMaxReward += float64(validatorDBRow.AttestationReward)
-				avgSyncMaxReward += float64(validatorDBRow.SyncCommitteeReward)
+
+				// in case of Phase0 AttestationRewards and InlusionDelay is filled
+				// in case of Altair, only FlagIndexReward is filled
+				// TODO: we might need to do the same for single validator rewards
+				avgAttMaxReward += float64(validatorDBRow.FlagIndexReward + validatorDBRow.AttestationReward + validatorDBRow.InclusionDelayReward)
+				if validatorDBRow.InSyncCommittee {
+					syncCommitteeVals += 1
+					avgSyncMaxReward += float64(validatorDBRow.SyncCommitteeReward)
+				}
+
 				numVals += 1
 
 				if validatorDBRow.MissingSource {
@@ -159,7 +168,7 @@ loop:
 
 				avgBaseReward = avgBaseReward / float64(numVals)
 				avgAttMaxReward = avgAttMaxReward / float64(numVals)
-				avgSyncMaxReward = avgSyncMaxReward / float64(numVals)
+				avgSyncMaxReward = avgSyncMaxReward / float64(syncCommitteeVals)
 
 				summaryBatch := pgx.Batch{}
 				summaryBatch.Queue(model.UpsertPoolSummary,
