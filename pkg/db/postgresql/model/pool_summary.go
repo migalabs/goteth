@@ -11,15 +11,15 @@ var (
 		f_avg_max_att_reward INT,
 		f_avg_max_sync_reward INT,
 		f_avg_base_reward INT,
-		f_sum_missing_source BOOL,
-		f_sum_missing_target BOOL, 
-		f_sum_missing_head BOOL,
+		f_sum_missing_source INT,
+		f_sum_missing_target INT, 
+		f_sum_missing_head INT,
 		f_num_vals INT,
 		CONSTRAINT PK_EpochPool PRIMARY KEY (f_pool_name,f_epoch));`
 
 	UpsertPoolSummary = `
-	INSERT INTO t_validator_rewards_summary (
-		f_pool_name,	
+	INSERT INTO t_pool_summary (
+		f_pool_name,
 		f_epoch,
 		f_avg_reward,
 		f_avg_max_reward,
@@ -27,7 +27,7 @@ var (
 		f_avg_max_sync_reward,
 		f_avg_base_reward,
 		f_sum_missing_source,
-		f_sum_missing_target  
+		f_sum_missing_target,
 		f_sum_missing_head,
 		f_num_vals)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -40,9 +40,9 @@ var (
 			f_avg_max_sync_reward = excluded.f_avg_max_sync_reward,
 			f_avg_base_reward = excluded.f_avg_base_reward,
 			f_sum_missing_source = excluded.f_sum_missing_source,
-			f_sum_missing_target  = excluded.f_sum_missing_target  
+			f_sum_missing_target  = excluded.f_sum_missing_target,  
 			f_sum_missing_head = excluded.f_sum_missing_head,
-			f_num_vals = excluded.f_num_val;
+			f_num_vals = excluded.f_num_vals;
 	`
 )
 
