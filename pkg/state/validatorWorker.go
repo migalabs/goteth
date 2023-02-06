@@ -170,6 +170,20 @@ loop:
 				avgAttMaxReward = avgAttMaxReward / float64(numVals)
 				avgSyncMaxReward = avgSyncMaxReward / float64(syncCommitteeVals)
 
+				if numVals == 0 {
+					avgBaseReward = 0
+					avgAttMaxReward = 0
+				}
+
+				if nonProposerVals == 0 {
+					avgReward = 0
+					avgMaxReward = 0
+				}
+
+				if syncCommitteeVals == 0 {
+					avgSyncMaxReward = 0
+				}
+
 				summaryBatch := pgx.Batch{}
 				summaryBatch.Queue(model.UpsertPoolSummary,
 					valTask.PoolName,
