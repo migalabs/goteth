@@ -15,6 +15,7 @@ var (
 		f_sum_missing_target INT, 
 		f_sum_missing_head INT,
 		f_num_vals INT,
+		f_sync_vals INT,
 		CONSTRAINT PK_EpochPool PRIMARY KEY (f_pool_name,f_epoch));`
 
 	UpsertPoolSummary = `
@@ -29,8 +30,9 @@ var (
 		f_sum_missing_source,
 		f_sum_missing_target,
 		f_sum_missing_head,
-		f_num_vals)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		f_num_vals,
+		f_sync_vals)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	ON CONFLICT ON CONSTRAINT PK_EpochPool
 		DO 
 			UPDATE SET 
@@ -42,7 +44,8 @@ var (
 			f_sum_missing_source = excluded.f_sum_missing_source,
 			f_sum_missing_target  = excluded.f_sum_missing_target,  
 			f_sum_missing_head = excluded.f_sum_missing_head,
-			f_num_vals = excluded.f_num_vals;
+			f_num_vals = excluded.f_num_vals,
+			f_sync_vals = excluded.f_sync_vals;
 	`
 )
 

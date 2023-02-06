@@ -196,7 +196,8 @@ loop:
 					missingSource,
 					missingTarget,
 					missingHead,
-					numVals)
+					numVals,
+					syncCommitteeVals)
 
 				wlog.Debugf("Sending summary batch to be stored...")
 				s.dbClient.WriteChan <- summaryBatch
