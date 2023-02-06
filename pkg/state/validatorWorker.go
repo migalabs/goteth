@@ -134,7 +134,7 @@ loop:
 					missingHead += 1
 				}
 
-				if len(s.PoolValidators) == 0 { // otherwise pools are being processed
+				if s.Metrics.Validator {
 					batch.Queue(model.UpsertValidator,
 						validatorDBRow.ValidatorIndex,
 						validatorDBRow.Slot,

@@ -2,6 +2,8 @@ package state
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -41,6 +43,7 @@ type StateAnalyzer struct {
 	ValTaskChan        chan *ValTask
 	validatorWorkerNum int
 	PoolValidators     []utils.PoolKeys
+	Metrics            DBMetrics
 
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
@@ -65,7 +68,8 @@ func NewStateAnalyzer(
 	workerNum int,
 	dbWorkerNum int,
 	downloadMode string,
-	customPoolsFile string) (*StateAnalyzer, error) {
+	customPoolsFile string,
+	metrics string) (*StateAnalyzer, error) {
 	log.Infof("generating new State Analzyer from slots %d:%d, for validators %v", initSlot, finalSlot, valIdxs)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
@@ -118,6 +122,11 @@ func NewStateAnalyzer(
 		}
 	}
 
+	metricsObj, err := NewMetrics(metrics)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to read metric.")
+	}
+
 	return &StateAnalyzer{
 		ctx:                ctx,
 		cancel:             cancel,
@@ -135,6 +144,7 @@ func NewStateAnalyzer(
 		downloadMode:       downloadMode,
 		eventsObj:          events.NewEventsObj(ctx, httpCli),
 		PoolValidators:     poolValidators,
+		Metrics:            metricsObj,
 	}, nil
 }
 
@@ -234,4 +244,30 @@ type ValTask struct {
 type MonitorTasks struct {
 	ValIdxs []uint64
 	Slot    uint64
+}
+
+type DBMetrics struct {
+	Epoch     bool
+	Validator bool
+}
+
+func NewMetrics(input string) (DBMetrics, error) {
+	epoch := false
+	validator := false
+
+	for _, item := range strings.Split(input, ",") {
+
+		switch item {
+		case "epoch":
+			epoch = true
+		case "validator":
+			validator = true
+		default:
+			return DBMetrics{}, fmt.Errorf("could not parse metric: %s", item)
+		}
+	}
+	return DBMetrics{
+		Epoch:     epoch,
+		Validator: validator,
+	}, nil
 }
