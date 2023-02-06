@@ -54,7 +54,7 @@ loop:
 			missingTarget := uint64(0)
 			missingHead := uint64(0)
 			numVals := uint64(0)
-
+			nonProposerVals := uint64(0)
 			for _, valIdx := range valTask.ValIdxs {
 
 				if valIdx >= uint64(len(stateMetrics.GetMetricsBase().NextState.Validators)) {
@@ -106,6 +106,7 @@ loop:
 					// process batch metrics
 					avgReward += float64(validatorDBRow.Reward)
 					avgMaxReward += float64(validatorDBRow.MaxReward)
+					nonProposerVals += 1
 				}
 				avgBaseReward += float64(validatorDBRow.BaseReward)
 				avgAttMaxReward += float64(validatorDBRow.AttestationReward)
@@ -151,6 +152,14 @@ loop:
 			}
 
 			if len(s.PoolValidators) > 0 { // only send summary batch in case pools were introduced by the user
+
+				// calculate averages
+				avgReward = avgReward / float64(nonProposerVals)
+				avgMaxReward = avgMaxReward / float64(nonProposerVals)
+
+				avgBaseReward += avgBaseReward / float64(numVals)
+				avgAttMaxReward += avgAttMaxReward / float64(numVals)
+				avgSyncMaxReward += avgSyncMaxReward / float64(numVals)
 
 				summaryBatch := pgx.Batch{}
 				summaryBatch.Queue(model.UpsertPoolSummary,
