@@ -59,6 +59,10 @@ var RewardsCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:  "custom-pools",
 			Usage: "example: pools.csv. Columns: f_val_idx,pubkey,pool_name",
+		},
+		&cli.StringFlag{
+			Name:  "metrics",
+			Usage: "example: epoch,validator. Empty for all",
 		}},
 }
 
@@ -74,6 +78,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	dbWorkers := 1
 	downloadMode := "hybrid"
 	customPools := ""
+	metrics := ""
 	logRewardsRewards.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
@@ -118,6 +123,9 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	if c.IsSet("custom-pools") {
 		customPools = c.String("custom-pools")
 	}
+	if c.IsSet("metrics") {
+		metrics = c.String("metrics")
+	}
 
 	validatorIndexes, err := utils.GetValIndexesFromJson(c.String("validator-indexes"))
 	if err != nil {
@@ -131,7 +139,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 
 	// generate the state analyzer
-	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers, downloadMode, customPools)
+	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers, downloadMode, customPools, metrics)
 	if err != nil {
 		return err
 	}
