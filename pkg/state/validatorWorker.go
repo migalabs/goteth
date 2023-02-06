@@ -99,9 +99,14 @@ loop:
 					flags[altair.TimelyHeadFlagIndex],
 					stateMetrics.GetMetricsBase().NextState.GetValStatus(valIdx))
 
-				// process batch metrics
-				avgReward += float64(validatorDBRow.Reward)
-				avgMaxReward += float64(validatorDBRow.MaxReward)
+				if maxRewards.ProposerSlot == -1 {
+					// only do rewards statistics in case the validator is not a proposer
+					// right now we cannot measure the max reward for a proposer
+
+					// process batch metrics
+					avgReward += float64(validatorDBRow.Reward)
+					avgMaxReward += float64(validatorDBRow.MaxReward)
+				}
 				avgBaseReward += float64(validatorDBRow.BaseReward)
 				avgAttMaxReward += float64(validatorDBRow.AttestationReward)
 				avgSyncMaxReward += float64(validatorDBRow.SyncCommitteeReward)
@@ -119,30 +124,51 @@ loop:
 					missingHead += 1
 				}
 
-				batch.Queue(model.UpsertValidator,
-					validatorDBRow.ValidatorIndex,
-					validatorDBRow.Slot,
-					validatorDBRow.Epoch,
-					validatorDBRow.ValidatorBalance,
-					validatorDBRow.Reward,
-					validatorDBRow.MaxReward,
-					validatorDBRow.AttestationReward,
-					validatorDBRow.SyncCommitteeReward,
-					validatorDBRow.BaseReward,
-					validatorDBRow.InSyncCommittee,
-					validatorDBRow.MissingSource,
-					validatorDBRow.MissingTarget,
-					validatorDBRow.MissingHead,
-					validatorDBRow.Status)
+				if len(s.PoolValidators) == 0 { // otherwise pools are being processed
+					batch.Queue(model.UpsertValidator,
+						validatorDBRow.ValidatorIndex,
+						validatorDBRow.Slot,
+						validatorDBRow.Epoch,
+						validatorDBRow.ValidatorBalance,
+						validatorDBRow.Reward,
+						validatorDBRow.MaxReward,
+						validatorDBRow.AttestationReward,
+						validatorDBRow.SyncCommitteeReward,
+						validatorDBRow.BaseReward,
+						validatorDBRow.InSyncCommittee,
+						validatorDBRow.MissingSource,
+						validatorDBRow.MissingTarget,
+						validatorDBRow.MissingHead,
+						validatorDBRow.Status)
 
-				if batch.Len() > postgresql.MAX_BATCH_QUEUE {
-					wlog.Debugf("Sending batch to be stored...")
-					s.dbClient.WriteChan <- batch
-					batch = pgx.Batch{}
+					if batch.Len() > postgresql.MAX_BATCH_QUEUE {
+						wlog.Debugf("Sending batch to be stored...")
+						s.dbClient.WriteChan <- batch
+						batch = pgx.Batch{}
+					}
 				}
 
 			}
 
+			if len(s.PoolValidators) > 0 { // only send summary batch in case pools were introduced by the user
+
+				summaryBatch := pgx.Batch{}
+				summaryBatch.Queue(model.UpsertPoolSummary,
+					valTask.PoolName,
+					stateMetrics.GetMetricsBase().NextState.Epoch,
+					avgReward,
+					avgMaxReward,
+					avgAttMaxReward,
+					avgSyncMaxReward,
+					avgBaseReward,
+					missingSource,
+					missingTarget,
+					missingHead,
+					numVals)
+
+				wlog.Debugf("Sending summary batch to be stored...")
+				s.dbClient.WriteChan <- summaryBatch
+			}
 			wlog.Debugf("Validator group processed, worker freed for next group. Took %f seconds", time.Since(snapshot).Seconds())
 
 		case <-s.ctx.Done():
