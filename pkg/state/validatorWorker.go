@@ -157,9 +157,9 @@ loop:
 				avgReward = avgReward / float64(nonProposerVals)
 				avgMaxReward = avgMaxReward / float64(nonProposerVals)
 
-				avgBaseReward += avgBaseReward / float64(numVals)
-				avgAttMaxReward += avgAttMaxReward / float64(numVals)
-				avgSyncMaxReward += avgSyncMaxReward / float64(numVals)
+				avgBaseReward = avgBaseReward / float64(numVals)
+				avgAttMaxReward = avgAttMaxReward / float64(numVals)
+				avgSyncMaxReward = avgSyncMaxReward / float64(numVals)
 
 				summaryBatch := pgx.Batch{}
 				summaryBatch.Queue(model.UpsertPoolSummary,
