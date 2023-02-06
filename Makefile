@@ -33,7 +33,8 @@ run:
 			--db-url=${STATE_ANALYZER_DB_URL} \
 			--workers-num=${STATE_ANALYZER_WORKERS_NUM} \
 			--db-workers-num=${STATE_ANALYZER_DB_WORKERS_NUM} \
-			--download-mode=${STATE_ANALYZER_DOWNLOAD_MODE}
+			--download-mode=${STATE_ANALYZER_DOWNLOAD_MODE} \
+			--custom-pools=${STATE_ANALYZER_POOLS_FILE}
 endif
 
 ifeq ($(STATE_ANALYZER_CMD),"blocks")
