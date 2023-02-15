@@ -68,32 +68,42 @@ func DivideValidatorsBatches(input []uint64, workers int) []PoolKeys {
 }
 
 // From here we should obtain those validators that do not belong to any pool
-func ObtainMissingVals(valList []uint64, severalPoolVal [][]uint64) []uint64 {
+func ObtainMissing(valLen uint64, poolVals [][]uint64) []uint64 {
+	valList := make([]uint64, valLen)
 
-	for _, item := range severalPoolVal {
-
-		valList = RemoveSeveralFromArray(valList, item)
-	}
-	return valList
-}
-
-func RemoveSeveralFromArray(valList []uint64, severalVal []uint64) []uint64 {
-
-	for _, item := range severalVal {
-
-		valList = RemoveSingleFromArray(valList, item)
-	}
-	return valList
-}
-
-func RemoveSingleFromArray(valList []uint64, singleVal uint64) []uint64 {
-
-	for i, item := range valList {
-		if item == singleVal {
-			return append(valList[0:i], valList[i+1:len(valList)-1]...)
+	for _, item := range poolVals {
+		for _, item2 := range item {
+			valList[item2] = 1
 		}
 	}
-	return valList
+
+	result := make([]uint64, 0)
+
+	for i, item := range valList {
+		if item == 0 {
+			result = append(result, uint64(i))
+		}
+	}
+
+	return result
+}
+
+func AddOthersPool(batches []PoolKeys, othervalList []uint64) []PoolKeys {
+
+	for i, item := range batches {
+		if item.PoolName == "others" {
+			item.ValIdxs = append(item.ValIdxs, othervalList...)
+			batches[i] = item
+			return batches
+		}
+	}
+	batches = append(batches, PoolKeys{
+		PoolName: "others",
+		ValIdxs:  othervalList,
+		Pubkeys:  make([]string, 0),
+	})
+	return batches
+
 }
 
 func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeysByPool []PoolKeys, err error) {

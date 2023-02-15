@@ -60,16 +60,17 @@ loop:
 				if len(s.PoolValidators) > 0 { // in case someone introduces custom pools
 					validatorBatches = s.PoolValidators
 					allValList := stateMetrics.GetMetricsBase().NextState.GetAllVals()
+					valMatrix := make([][]uint64, len(validatorBatches))
 
-					for _, item := range validatorBatches {
-						allValList = utils.RemoveSeveralFromArray(allValList, item.ValIdxs)
+					for i, item := range validatorBatches {
+						valMatrix[i] = make([]uint64, 0)
+						valMatrix[i] = item.ValIdxs
 					}
+
+					othersMissingList := utils.ObtainMissing(uint64(len(allValList)), valMatrix)
 					// now allValList should contain those validators that do not belong to any pool
 					// keep track of those in a separate pool
-					validatorBatches = append(validatorBatches, utils.PoolKeys{
-						PoolName: "others",
-						ValIdxs:  allValList,
-					})
+					validatorBatches = utils.AddOthersPool(validatorBatches, othersMissingList)
 				} else {
 
 					// in case no validators provided, do all the active ones in the next epoch
