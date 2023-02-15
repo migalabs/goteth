@@ -51,26 +51,35 @@ loop:
 				log.Errorf(err.Error())
 				continue
 			}
-
-			log.Debugf("Creating validator batches for slot %d...", task.State.Slot)
-			// divide number of validators into number of workers equally
-
-			validatorBatches := make([]utils.PoolKeys, 0)
-
-			if len(s.PoolValidators) > 0 { // in case someone introduces custom pools
-				validatorBatches = s.PoolValidators
-			} else {
-
-				// in case no validators provided, do all the active ones in the next epoch
-				valIdxs := stateMetrics.GetMetricsBase().NextState.GetAllVals()
-
-				if len(task.ValIdxs) > 0 {
-					valIdxs = task.ValIdxs
-				}
-				validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
-			}
-
 			if task.NextState.Slot <= s.FinalSlot || task.Finalized {
+				log.Debugf("Creating validator batches for slot %d...", task.State.Slot)
+				// divide number of validators into number of workers equally
+
+				var validatorBatches []utils.PoolKeys
+
+				if len(s.PoolValidators) > 0 { // in case someone introduces custom pools
+					validatorBatches = s.PoolValidators
+					allValList := stateMetrics.GetMetricsBase().NextState.GetAllVals()
+
+					for _, item := range validatorBatches {
+						allValList = utils.RemoveSeveralFromArray(allValList, item.ValIdxs)
+					}
+					// now allValList should contain those validators that do not belong to any pool
+					// keep track of those in a separate pool
+					validatorBatches = append(validatorBatches, utils.PoolKeys{
+						PoolName: "others",
+						ValIdxs:  allValList,
+					})
+				} else {
+
+					// in case no validators provided, do all the active ones in the next epoch
+					valIdxs := stateMetrics.GetMetricsBase().NextState.GetAllVals()
+
+					if len(task.ValIdxs) > 0 {
+						valIdxs = task.ValIdxs
+					}
+					validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
+				}
 
 				for _, item := range validatorBatches {
 					valTask := &ValTask{
