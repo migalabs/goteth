@@ -78,7 +78,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	dbWorkers := 1
 	downloadMode := "hybrid"
 	customPools := ""
-	metrics := ""
+	metrics := "epoch,validator"
 	logRewardsRewards.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
