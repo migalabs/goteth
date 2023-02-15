@@ -56,6 +56,8 @@ loop:
 			numVals := uint64(0)
 			nonProposerVals := uint64(0)
 			syncCommitteeVals := uint64(0)
+
+			// process each validator
 			for _, valIdx := range valTask.ValIdxs {
 
 				if valIdx >= uint64(len(stateMetrics.GetMetricsBase().NextState.Validators)) {
@@ -76,6 +78,7 @@ loop:
 				// after state_transition
 				// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
 
+				// CurrentState Flags measure previous epoch flags
 				flags := stateMetrics.GetMetricsBase().CurrentState.MissingFlags(valIdx)
 
 				// create a model to be inserted into the db in the next epoch
@@ -87,8 +90,6 @@ loop:
 					stateMetrics.GetMetricsBase().EpochReward(valIdx), // reward is written after state transition
 					maxRewards.MaxReward,
 					maxRewards.Attestation,
-					maxRewards.InclusionDelay,
-					maxRewards.FlagIndex,
 					maxRewards.SyncCommittee,
 					stateMetrics.GetMetricsBase().GetAttSlot(valIdx),
 					stateMetrics.GetMetricsBase().GetAttInclusionSlot(valIdx),
@@ -170,6 +171,7 @@ loop:
 				avgAttMaxReward = avgAttMaxReward / float64(numVals)
 				avgSyncMaxReward = avgSyncMaxReward / float64(syncCommitteeVals)
 
+				// sanitize in case of division by 0
 				if numVals == 0 {
 					avgBaseReward = 0
 					avgAttMaxReward = 0
@@ -184,6 +186,7 @@ loop:
 					avgSyncMaxReward = 0
 				}
 
+				// create and send summary batch
 				summaryBatch := pgx.Batch{}
 				summaryBatch.Queue(model.UpsertPoolSummary,
 					valTask.PoolName,
@@ -199,7 +202,7 @@ loop:
 					numVals,
 					syncCommitteeVals)
 
-				wlog.Debugf("Sending summary batch to be stored...")
+				wlog.Debugf("Sending pool summary batch (%s) to be stored...", valTask.PoolName)
 				s.dbClient.WriteChan <- summaryBatch
 			}
 			wlog.Debugf("Validator group processed, worker freed for next group. Took %f seconds", time.Since(snapshot).Seconds())

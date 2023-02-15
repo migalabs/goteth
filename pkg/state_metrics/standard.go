@@ -63,8 +63,6 @@ func StateMetricsByForkVersion(nextBstate fork_state.ForkStateContentBase, bstat
 
 type ValidatorSepRewards struct {
 	Attestation     uint64
-	InclusionDelay  uint64
-	FlagIndex       uint64
 	SyncCommittee   uint64
 	MaxReward       uint64
 	BaseReward      uint64
