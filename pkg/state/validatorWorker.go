@@ -5,8 +5,10 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 	"github.com/jackc/pgx/v4"
 	"github.com/sirupsen/logrus"
 )
@@ -110,29 +112,33 @@ loop:
 					avgMaxReward += float64(validatorDBRow.MaxReward)
 					nonProposerVals += 1
 				}
+				if validatorDBRow.InSyncCommittee {
+					syncCommitteeVals += 1
+					avgSyncMaxReward += float64(validatorDBRow.SyncCommitteeReward)
+				}
+
 				avgBaseReward += float64(validatorDBRow.BaseReward)
 
 				// in case of Phase0 AttestationRewards and InlusionDelay is filled
 				// in case of Altair, only FlagIndexReward is filled
 				// TODO: we might need to do the same for single validator rewards
 				avgAttMaxReward += float64(validatorDBRow.FlagIndexReward + validatorDBRow.AttestationReward + validatorDBRow.InclusionDelayReward)
-				if validatorDBRow.InSyncCommittee {
-					syncCommitteeVals += 1
-					avgSyncMaxReward += float64(validatorDBRow.SyncCommitteeReward)
-				}
 
-				numVals += 1
+				if fork_state.IsActive(*stateMetrics.GetMetricsBase().NextState.Validators[valIdx],
+					phase0.Epoch(stateMetrics.GetMetricsBase().NextState.Epoch)) {
+					numVals += 1
 
-				if validatorDBRow.MissingSource {
-					missingSource += 1
-				}
+					if validatorDBRow.MissingSource {
+						missingSource += 1
+					}
 
-				if validatorDBRow.MissingTarget {
-					missingTarget += 1
-				}
+					if validatorDBRow.MissingTarget {
+						missingTarget += 1
+					}
 
-				if validatorDBRow.MissingHead {
-					missingHead += 1
+					if validatorDBRow.MissingHead {
+						missingHead += 1
+					}
 				}
 
 				if s.Metrics.Validator {
