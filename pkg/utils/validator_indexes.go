@@ -67,7 +67,6 @@ func DivideValidatorsBatches(input []uint64, workers int) []PoolKeys {
 	return result
 }
 
-<<<<<<< HEAD
 // From here we should obtain those validators that do not belong to any pool
 func ObtainMissingVals(valList []uint64, severalPoolVal [][]uint64) []uint64 {
 
@@ -97,8 +96,6 @@ func RemoveSingleFromArray(valList []uint64, singleVal uint64) []uint64 {
 	return valList
 }
 
-=======
->>>>>>> ff6d57189a4c1b7a735e7b414e2914105ae05f7b
 func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeysByPool []PoolKeys, err error) {
 	log.Info("Reading validator keys from: ", validatorKeysFile)
 	validatorKeysByPool = make([]PoolKeys, 0)

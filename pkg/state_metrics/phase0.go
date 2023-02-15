@@ -135,11 +135,6 @@ func (p Phase0Metrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 	if valIdx >= uint64(len(p.NextState.Validators)) || !fork_state.IsActive(*p.NextState.Validators[valIdx], phase0.Epoch(p.PrevState.Epoch)) {
 		return ValidatorSepRewards{
 			Attestation:     0,
-<<<<<<< HEAD
-=======
-			InclusionDelay:  0,
-			FlagIndex:       0,
->>>>>>> ff6d57189a4c1b7a735e7b414e2914105ae05f7b
 			SyncCommittee:   0,
 			MaxReward:       0,
 			BaseReward:      0,
