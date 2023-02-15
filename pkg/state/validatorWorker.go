@@ -56,8 +56,11 @@ loop:
 			numVals := uint64(0)
 			nonProposerVals := uint64(0)
 			syncCommitteeVals := uint64(0)
+<<<<<<< HEAD
 
 			// process each validator
+=======
+>>>>>>> ff6d57189a4c1b7a735e7b414e2914105ae05f7b
 			for _, valIdx := range valTask.ValIdxs {
 
 				if valIdx >= uint64(len(stateMetrics.GetMetricsBase().NextState.Validators)) {
@@ -171,7 +174,10 @@ loop:
 				avgAttMaxReward = avgAttMaxReward / float64(numVals)
 				avgSyncMaxReward = avgSyncMaxReward / float64(syncCommitteeVals)
 
+<<<<<<< HEAD
 				// sanitize in case of division by 0
+=======
+>>>>>>> ff6d57189a4c1b7a735e7b414e2914105ae05f7b
 				if numVals == 0 {
 					avgBaseReward = 0
 					avgAttMaxReward = 0
@@ -186,7 +192,10 @@ loop:
 					avgSyncMaxReward = 0
 				}
 
+<<<<<<< HEAD
 				// create and send summary batch
+=======
+>>>>>>> ff6d57189a4c1b7a735e7b414e2914105ae05f7b
 				summaryBatch := pgx.Batch{}
 				summaryBatch.Queue(model.UpsertPoolSummary,
 					valTask.PoolName,
@@ -202,7 +211,11 @@ loop:
 					numVals,
 					syncCommitteeVals)
 
+<<<<<<< HEAD
 				wlog.Debugf("Sending pool summary batch (%s) to be stored...", valTask.PoolName)
+=======
+				wlog.Debugf("Sending summary batch to be stored...")
+>>>>>>> ff6d57189a4c1b7a735e7b414e2914105ae05f7b
 				s.dbClient.WriteChan <- summaryBatch
 			}
 			wlog.Debugf("Validator group processed, worker freed for next group. Took %f seconds", time.Since(snapshot).Seconds())
