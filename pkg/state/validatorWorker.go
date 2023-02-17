@@ -217,6 +217,12 @@ loop:
 			log.Info("context has died, closing state worker routine")
 			return
 		default:
+			// if there is something to persist and no more incoming tasks
+			if batch.Len() > 0 && len(s.ValTaskChan) == 0 {
+				wlog.Debugf("Sending batch to be stored (no more tasks)...")
+				s.dbClient.WriteChan <- batch
+				batch = pgx.Batch{}
+			}
 		}
 
 	}

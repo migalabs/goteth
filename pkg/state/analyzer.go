@@ -114,6 +114,10 @@ func NewStateAnalyzer(
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to read custom pools file.")
 		}
+		for _, item := range poolValidators {
+			log.Infof("monitoring pool %s of length %d", item.PoolName, len(item.ValIdxs))
+		}
+
 	}
 
 	metricsObj, err := NewMetrics(metrics)
@@ -126,7 +130,6 @@ func NewStateAnalyzer(
 		cancel:             cancel,
 		InitSlot:           initSlot,
 		FinalSlot:          finalSlot,
-		ValidatorIndexes:   valIdxs,
 		SlotRanges:         slotRanges,
 		EpochTaskChan:      make(chan *EpochTask, 10),
 		ValTaskChan:        make(chan *ValTask, maxWorkers),
@@ -241,8 +244,9 @@ type MonitorTasks struct {
 }
 
 type DBMetrics struct {
-	Epoch     bool
-	Validator bool
+	Epoch       bool
+	Validator   bool
+	PoolSummary bool
 }
 
 func NewMetrics(input string) (DBMetrics, error) {

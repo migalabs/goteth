@@ -58,13 +58,11 @@ loop:
 				var validatorBatches []utils.PoolKeys
 
 				// first of all see if there user input any validator list
-				// in case no validators provided, do all the active ones in the next epoch
+				// in case no validators provided, do all the existing ones in the next epoch
 				valIdxs := stateMetrics.GetMetricsBase().NextState.GetAllVals()
-				if len(task.ValIdxs) > 0 {
-					valIdxs = task.ValIdxs
-				}
+				validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
 
-				if len(s.PoolValidators) > 0 { // in case someone introduces custom pools
+				if len(s.PoolValidators) > 0 { // in case the user introduces custom pools
 					validatorBatches = s.PoolValidators
 
 					valMatrix := make([][]uint64, len(validatorBatches))
