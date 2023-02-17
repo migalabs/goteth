@@ -63,22 +63,24 @@ func DivideValidatorsBatches(input []uint64, workers int) []PoolKeys {
 			Pubkeys:  make([]string, 0),
 		}
 		result = append(result, newBatch)
+		includedIndex = endIndex
 	}
 	return result
 }
 
 // From here we should obtain those validators that do not belong to any pool
-func ObtainMissing(valLen uint64, poolVals [][]uint64) []uint64 {
-	valList := make([]uint64, valLen)
+func ObtainMissing(valLen int, poolVals [][]uint64) []uint64 {
+	valList := make([]uint64, valLen) // initialized to 0, no need to track
 
-	for _, item := range poolVals {
-		for _, item2 := range item {
-			valList[item2] = 1
+	for _, poolArray := range poolVals {
+		for _, item := range poolArray {
+			valList[item] = 1 // it exists in the poolVals
 		}
 	}
 
 	result := make([]uint64, 0)
 
+	// track the validators that do not exist in the poolVals
 	for i, item := range valList {
 		if item == 0 {
 			result = append(result, uint64(i))

@@ -33,16 +33,16 @@ var RewardsCommand = &cli.Command{
 			Usage: "init slot from where to finish",
 		},
 		&cli.StringFlag{
-			Name:  "validator-indexes",
-			Usage: "json file including the list of validator indexes",
-		},
-		&cli.StringFlag{
 			Name:  "log-level",
 			Usage: "log level: debug, warn, info, error",
 		},
 		&cli.StringFlag{
 			Name:  "db-url",
 			Usage: "example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_kiln",
+		},
+		&cli.BoolFlag{
+			Name:  "missing-vals",
+			Usage: "example: true",
 		},
 		&cli.IntFlag{
 			Name:  "workers-num",
@@ -79,6 +79,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	downloadMode := "hybrid"
 	customPools := ""
 	metrics := "epoch,validator"
+	missingVals := false
 	logRewardsRewards.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
@@ -89,9 +90,6 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 	if !c.IsSet("final-slot") {
 		return errors.New("final slot not provided")
-	}
-	if !c.IsSet("validator-indexes") {
-		return errors.New("validator indexes not provided")
 	}
 	if c.IsSet("log-level") {
 		logrus.SetLevel(utils.ParseLogLevel(c.String("log-level")))
@@ -123,13 +121,11 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	if c.IsSet("custom-pools") {
 		customPools = c.String("custom-pools")
 	}
+	if c.IsSet("missing-vals") {
+		missingVals = true
+	}
 	if c.IsSet("metrics") {
 		metrics = c.String("metrics")
-	}
-
-	validatorIndexes, err := utils.GetValIndexesFromJson(c.String("validator-indexes"))
-	if err != nil {
-		return err
 	}
 
 	// generate the httpAPI client
@@ -139,7 +135,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 
 	// generate the state analyzer
-	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers, downloadMode, customPools, metrics)
+	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, customPools, missingVals, metrics)
 	if err != nil {
 		return err
 	}

@@ -74,13 +74,13 @@ loop:
 						valMatrix[i] = item.ValIdxs
 					}
 
-					othersMissingList := utils.ObtainMissing(uint64(len(valIdxs)), valMatrix)
-					// now allValList should contain those validators that do not belong to any pool
-					// keep track of those in a separate pool
-					validatorBatches = utils.AddOthersPool(validatorBatches, othersMissingList)
-				} else {
+					if s.MissingVals {
+						othersMissingList := utils.ObtainMissing(len(valIdxs), valMatrix)
+						// now allValList should contain those validators that do not belong to any pool
+						// keep track of those in a separate pool
+						validatorBatches = utils.AddOthersPool(validatorBatches, othersMissingList)
+					}
 
-					validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
 				}
 
 				for _, item := range validatorBatches {

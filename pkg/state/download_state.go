@@ -180,7 +180,6 @@ func (s *StateAnalyzer) DownloadNewState(
 		// only execute tasks if prevBState is something (we have state and nextState in this case)
 
 		epochTask := &EpochTask{
-			ValIdxs:   s.ValidatorIndexes,
 			NextState: *nextBstate,
 			State:     *bstate,
 			PrevState: *prevBState,

@@ -43,6 +43,7 @@ type StateAnalyzer struct {
 	ValTaskChan        chan *ValTask
 	validatorWorkerNum int
 	PoolValidators     []utils.PoolKeys
+	MissingVals        bool
 	Metrics            DBMetrics
 
 	cli      *clientapi.APIClient
@@ -63,23 +64,16 @@ func NewStateAnalyzer(
 	httpCli *clientapi.APIClient,
 	initSlot uint64,
 	finalSlot uint64,
-	valIdxs []uint64,
 	idbUrl string,
 	workerNum int,
 	dbWorkerNum int,
 	downloadMode string,
 	customPoolsFile string,
+	missingVals bool,
 	metrics string) (*StateAnalyzer, error) {
-	log.Infof("generating new State Analzyer from slots %d:%d, for validators %v", initSlot, finalSlot, valIdxs)
+	log.Infof("generating new State Analzyer from slots %d:%d", initSlot, finalSlot)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
-
-	valLength := len(valIdxs)
-	// check if valIdx where given
-	if len(valIdxs) < 1 {
-		log.Infof("No validator indexes provided: running all validators")
-		valLength = VAL_LEN // estimation to declare channels
-	}
 
 	slotRanges := make([]uint64, 0)
 
@@ -109,7 +103,7 @@ func NewStateAnalyzer(
 		}
 		log.Debug("slotRanges are:", slotRanges)
 	}
-	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, valLength*maxWorkers, dbWorkerNum)
+	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -135,7 +129,7 @@ func NewStateAnalyzer(
 		ValidatorIndexes:   valIdxs,
 		SlotRanges:         slotRanges,
 		EpochTaskChan:      make(chan *EpochTask, 10),
-		ValTaskChan:        make(chan *ValTask, valLength*maxWorkers),
+		ValTaskChan:        make(chan *ValTask, maxWorkers),
 		MonitorSlotProcess: make(map[uint64]uint64),
 		cli:                httpCli,
 		dbClient:           i_dbClient,
@@ -144,6 +138,7 @@ func NewStateAnalyzer(
 		downloadMode:       downloadMode,
 		eventsObj:          events.NewEventsObj(ctx, httpCli),
 		PoolValidators:     poolValidators,
+		MissingVals:        missingVals,
 		Metrics:            metricsObj,
 	}, nil
 }
@@ -227,7 +222,6 @@ func (s *StateAnalyzer) Close() {
 
 //
 type EpochTask struct {
-	ValIdxs   []uint64
 	NextState fork_state.ForkStateContentBase
 	State     fork_state.ForkStateContentBase
 	PrevState fork_state.ForkStateContentBase
