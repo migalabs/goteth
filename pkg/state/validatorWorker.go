@@ -167,7 +167,7 @@ loop:
 
 			}
 
-			if len(s.PoolValidators) > 0 { // only send summary batch in case pools were introduced by the user
+			if s.Metrics.PoolSummary { // only send summary batch in case pools were introduced by the user
 
 				// calculate averages
 				avgReward = avgReward / float64(nonProposerVals)

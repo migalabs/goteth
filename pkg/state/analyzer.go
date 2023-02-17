@@ -248,6 +248,7 @@ type DBMetrics struct {
 func NewMetrics(input string) (DBMetrics, error) {
 	epoch := false
 	validator := false
+	pool := false
 
 	for _, item := range strings.Split(input, ",") {
 
@@ -256,12 +257,15 @@ func NewMetrics(input string) (DBMetrics, error) {
 			epoch = true
 		case "validator":
 			validator = true
+		case "pool":
+			pool = true
 		default:
 			return DBMetrics{}, fmt.Errorf("could not parse metric: %s", item)
 		}
 	}
 	return DBMetrics{
-		Epoch:     epoch,
-		Validator: validator,
+		Epoch:       epoch,
+		Validator:   validator,
+		PoolSummary: pool,
 	}, nil
 }
