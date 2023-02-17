@@ -167,7 +167,7 @@ loop:
 
 			}
 
-			if s.Metrics.PoolSummary { // only send summary batch in case pools were introduced by the user
+			if s.Metrics.PoolSummary && valTask.PoolName != "" { // only send summary batch in case pools were introduced by the user and we have a name to identify it
 
 				// calculate averages
 				avgReward = avgReward / float64(nonProposerVals)

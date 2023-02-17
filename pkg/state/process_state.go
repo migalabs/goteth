@@ -51,7 +51,8 @@ loop:
 				log.Errorf(err.Error())
 				continue
 			}
-			if task.NextState.Slot <= s.FinalSlot || task.Finalized {
+			if (task.NextState.Slot <= s.FinalSlot || task.Finalized) &&
+				(s.Metrics.Validator || s.Metrics.PoolSummary) {
 				log.Debugf("Creating validator batches for slot %d...", task.State.Slot)
 				// divide number of validators into number of workers equally
 
