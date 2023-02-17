@@ -29,7 +29,6 @@ run:
 			--bn-endpoint=${STATE_ANALYZER_BN_ENDPOINT} \
 			--init-slot=${STATE_ANALYZER_INIT_SLOT} \
 			--final-slot=${STATE_ANALYZER_FINAL_SLOT} \
-			--validator-indexes=${STATE_ANALYZER_VALIDATOR_INDEXES} \
 			--db-url=${STATE_ANALYZER_DB_URL} \
 			--workers-num=${STATE_ANALYZER_WORKERS_NUM} \
 			--db-workers-num=${STATE_ANALYZER_DB_WORKERS_NUM} \
