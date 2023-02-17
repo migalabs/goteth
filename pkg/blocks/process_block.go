@@ -59,7 +59,8 @@ loop:
 				task.Block.ExecutionPayload.GasUsed,
 				task.Block.ExecutionPayload.BaseFeePerGas,
 				task.Block.ExecutionPayload.BlockHash,
-				task.Block.ExecutionPayload.Transactions)
+				task.Block.ExecutionPayload.Transactions,
+				task.Block.ExecutionPayload.BlockNumber)
 
 			blockBatch.Queue(model.UpsertBlock,
 				blockMetrics.ELTimestamp,
@@ -79,7 +80,8 @@ loop:
 				blockMetrics.ELGasUsed,
 				blockMetrics.ELBaseFeePerGas,
 				blockMetrics.ELBlockHash,
-				blockMetrics.ELTransactions)
+				blockMetrics.ELTransactions,
+				blockMetrics.BlockNumber)
 			// Flush the database batches
 			if blockBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE {
 				s.dbClient.WriteChan <- blockBatch

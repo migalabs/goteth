@@ -56,4 +56,5 @@ type ForkBlockPayloadBase struct {
 	BaseFeePerGas [32]byte
 	BlockHash     phase0.Hash32
 	Transactions  []bellatrix.Transaction
+	BlockNumber   uint64
 }
