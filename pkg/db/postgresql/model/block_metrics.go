@@ -56,25 +56,7 @@ var (
 		f_el_block_number)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		ON CONFLICT ON CONSTRAINT PK_Slot
-		DO
-			UPDATE SET
-				f_epoch = excluded.f_epoch,
-				f_graffiti = excluded.f_graffiti,
-				f_proposer_index = excluded.f_proposer_index,
-				f_proposed = excluded.f_proposed,
-				f_attestations = excluded.f_attestations,
-				f_deposits = excluded.f_deposits,
-				f_proposer_slashings = excluded.f_proposer_slashings,
-				f_att_slashings = excluded.f_att_slashings,
-				f_voluntary_exits = excluded.f_voluntary_exits,
-				f_sync_bits = excluded.f_sync_bits,
-				f_el_fee_recp = excluded.f_el_fee_recp,
-				f_el_gas_limit = excluded.f_el_gas_limit,
-				f_el_gas_used = excluded.f_el_gas_used,
-				f_el_base_fee_per_gas = excluded.f_el_base_fee_per_gas,
-				f_el_block_hash = excluded.f_el_block_hash,
-				f_el_transactions = excluded.f_el_transactions,
-				f_el_block_number = excluded.f_el_block_number;
+		DO NOTHING;
 	`
 	SelectLastSlot = `
 	SELECT f_slot
