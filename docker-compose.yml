@@ -20,6 +20,8 @@ services:
                         --download-mode=${STATE_ANALYZER_DOWNLOAD_MODE}
                         --custom-pools=${STATE_ANALYZER_POOLS_FILE}
                         --metrics=${STATE_ANALYZER_METRICS}
+                        --missing-vals=${STATE_ANALYZER_MISSING_VALS}
+                        
                 network_mode: 'host'
                 restart: unless-stopped
         

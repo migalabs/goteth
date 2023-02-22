@@ -122,7 +122,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 		customPools = c.String("custom-pools")
 	}
 	if c.IsSet("missing-vals") {
-		missingVals = true
+		missingVals = c.Bool("missing-vals")
 	}
 	if c.IsSet("metrics") {
 		metrics = c.String("metrics")

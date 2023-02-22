@@ -34,7 +34,8 @@ run:
 			--db-workers-num=${STATE_ANALYZER_DB_WORKERS_NUM} \
 			--download-mode=${STATE_ANALYZER_DOWNLOAD_MODE} \
 			--custom-pools=${STATE_ANALYZER_POOLS_FILE} \
-			--metrics=${STATE_ANALYZER_METRICS}
+			--metrics=${STATE_ANALYZER_METRICS} \
+			--missing-vals=${STATE_ANALYZER_MISSING_VALS}
 endif
 
 ifeq ($(STATE_ANALYZER_CMD),"blocks")
