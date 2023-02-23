@@ -58,11 +58,12 @@ var RewardsCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "custom-pools",
-			Usage: "example: pools.csv. Columns: f_val_idx,pubkey,pool_name",
+			Usage: "example: pools.csv. Columns: f_val_idx,pool_name",
 		},
 		&cli.StringFlag{
-			Name:  "metrics",
-			Usage: "example: epoch,validator. Empty for all",
+			Name:        "metrics",
+			Usage:       "example: epoch,validator, epoch. Empty for all",
+			DefaultText: "epoch",
 		}},
 }
 
@@ -78,7 +79,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	dbWorkers := 1
 	downloadMode := "hybrid"
 	customPools := ""
-	metrics := "epoch,validator"
+	metrics := "epoch" // By default we only track epochs, other metrics consume too much disk
 	missingVals := false
 	logRewardsRewards.Info("parsing flags")
 	// check if a config file is set
