@@ -103,6 +103,7 @@ func NewStateAnalyzer(
 		}
 		log.Debug("slotRanges are:", slotRanges)
 	}
+	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
 	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
@@ -126,12 +127,13 @@ func NewStateAnalyzer(
 	}
 
 	return &StateAnalyzer{
-		ctx:                ctx,
-		cancel:             cancel,
-		InitSlot:           initSlot,
-		FinalSlot:          finalSlot,
-		SlotRanges:         slotRanges,
-		EpochTaskChan:      make(chan *EpochTask, 10),
+		ctx:           ctx,
+		cancel:        cancel,
+		InitSlot:      initSlot,
+		FinalSlot:     finalSlot,
+		SlotRanges:    slotRanges,
+		EpochTaskChan: make(chan *EpochTask, 10),
+		// size of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
 		ValTaskChan:        make(chan *ValTask, maxWorkers),
 		MonitorSlotProcess: make(map[uint64]uint64),
 		cli:                httpCli,
