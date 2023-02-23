@@ -60,7 +60,6 @@ func DivideValidatorsBatches(input []uint64, workers int) []PoolKeys {
 		newBatch := PoolKeys{
 			PoolName: "",
 			ValIdxs:  input[includedIndex:endIndex],
-			Pubkeys:  make([]string, 0),
 		}
 		result = append(result, newBatch)
 		includedIndex = endIndex
@@ -102,7 +101,6 @@ func AddOthersPool(batches []PoolKeys, othervalList []uint64) []PoolKeys {
 	batches = append(batches, PoolKeys{
 		PoolName: "others",
 		ValIdxs:  othervalList,
-		Pubkeys:  make([]string, 0),
 	})
 	return batches
 
@@ -123,54 +121,39 @@ func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeysByPool []P
 		line := scanner.Text()
 
 		// Skip first line
-		if line == "val_idx,pubkey,custom_pool" {
+		if line == "val_idx,custom_pool" {
 			continue
 		}
 		fields := strings.Split(line, ",")
-		if len(fields) != 3 {
-			return validatorKeysByPool, errors.New("the format of the file is not the expected: f_val_idx, pubkey, pool_name")
+		if len(fields) != 2 {
+			return validatorKeysByPool, errors.New("the format of the file is not the expected: f_val_idx, pool_name")
 		}
 
 		// obtain three fields per line
 		valIdx, err := strconv.Atoi(fields[0])
-		pubkeyStr := strings.Trim(fields[1], "\"")
-		poolName := fields[2]
-
-		// check pubkey format
-		pubkeyStr = strings.Replace(pubkeyStr, "\\x", "", -1)
-		if !strings.HasPrefix(pubkeyStr, "0x") {
-			pubkeyStr = "0x" + pubkeyStr
-		}
-
-		if len(pubkeyStr) != 98 {
-			return validatorKeysByPool, errors.New(fmt.Sprintf("length of key for valIdx %d is incorrect: %d", valIdx, len(pubkeyStr)))
-		}
-
 		if err != nil {
 			return validatorKeysByPool, errors.Wrap(err, fmt.Sprintf("could not parse valIdx: %d", valIdx))
 		}
+
+		poolName := fields[1]
 
 		found := false
 		// look for which pool this line belongs to and append
 		for i, item := range validatorKeysByPool {
 			if poolName == item.PoolName {
 				item.ValIdxs = append(item.ValIdxs, uint64(valIdx))
-				item.Pubkeys = append(item.Pubkeys, pubkeyStr)
 				validatorKeysByPool[i] = item
 				found = true
 				break
 			}
 		}
-		if !found {
+		if !found { // add a new pool
 			valIdxs := make([]uint64, 0)
 			valIdxs = append(valIdxs, uint64(valIdx))
-			pubkeys := make([]string, 0)
-			pubkeys = append(pubkeys, pubkeyStr)
 
 			validatorKeysByPool = append(validatorKeysByPool, PoolKeys{
 				PoolName: poolName,
 				ValIdxs:  valIdxs,
-				Pubkeys:  pubkeys,
 			})
 
 		}
@@ -188,5 +171,4 @@ func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeysByPool []P
 type PoolKeys struct {
 	PoolName string
 	ValIdxs  []uint64
-	Pubkeys  []string
 }
