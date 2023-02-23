@@ -8,6 +8,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 	"github.com/jackc/pgx/v4"
 	"github.com/sirupsen/logrus"
@@ -46,18 +47,7 @@ loop:
 			snapshot := time.Now()
 
 			// batch metrics
-
-			avgReward := float64(0)
-			avgMaxReward := float64(0)
-			avgBaseReward := float64(0)
-			avgAttMaxReward := float64(0)
-			avgSyncMaxReward := float64(0)
-			missingSource := uint64(0)
-			missingTarget := uint64(0)
-			missingHead := uint64(0)
-			numVals := uint64(0)
-			nonProposerVals := uint64(0)
-			syncCommitteeVals := uint64(0)
+			summaryMet := NewSummaryMetrics()
 
 			// process each validator
 			for _, valIdx := range valTask.ValIdxs {
@@ -103,44 +93,6 @@ loop:
 					flags[altair.TimelyHeadFlagIndex],
 					stateMetrics.GetMetricsBase().NextState.GetValStatus(valIdx))
 
-				if maxRewards.ProposerSlot == -1 {
-					// only do rewards statistics in case the validator is not a proposer
-					// right now we cannot measure the max reward for a proposer
-
-					// process batch metrics
-					avgReward += float64(validatorDBRow.Reward)
-					avgMaxReward += float64(validatorDBRow.MaxReward)
-					nonProposerVals += 1
-				}
-				if validatorDBRow.InSyncCommittee {
-					syncCommitteeVals += 1
-					avgSyncMaxReward += float64(validatorDBRow.SyncCommitteeReward)
-				}
-
-				avgBaseReward += float64(validatorDBRow.BaseReward)
-
-				// in case of Phase0 AttestationRewards and InlusionDelay is filled
-				// in case of Altair, only FlagIndexReward is filled
-				// TODO: we might need to do the same for single validator rewards
-				avgAttMaxReward += float64(validatorDBRow.FlagIndexReward + validatorDBRow.AttestationReward + validatorDBRow.InclusionDelayReward)
-
-				if fork_state.IsActive(*stateMetrics.GetMetricsBase().NextState.Validators[valIdx],
-					phase0.Epoch(stateMetrics.GetMetricsBase().NextState.Epoch)) {
-					numVals += 1
-
-					if validatorDBRow.MissingSource {
-						missingSource += 1
-					}
-
-					if validatorDBRow.MissingTarget {
-						missingTarget += 1
-					}
-
-					if validatorDBRow.MissingHead {
-						missingHead += 1
-					}
-				}
-
 				if s.Metrics.Validator {
 					batch.Queue(model.UpsertValidator,
 						validatorDBRow.ValidatorIndex,
@@ -165,48 +117,28 @@ loop:
 					}
 				}
 
+				summaryMet.AddMetrics(maxRewards, stateMetrics, valIdx, validatorDBRow)
+
 			}
 
-			if s.Metrics.PoolSummary && valTask.PoolName != "" { // only send summary batch in case pools were introduced by the user and we have a name to identify it
-
-				// calculate averages
-				avgReward = avgReward / float64(nonProposerVals)
-				avgMaxReward = avgMaxReward / float64(nonProposerVals)
-
-				avgBaseReward = avgBaseReward / float64(numVals)
-				avgAttMaxReward = avgAttMaxReward / float64(numVals)
-				avgSyncMaxReward = avgSyncMaxReward / float64(syncCommitteeVals)
-
-				// sanitize in case of division by 0
-				if numVals == 0 {
-					avgBaseReward = 0
-					avgAttMaxReward = 0
-				}
-
-				if nonProposerVals == 0 {
-					avgReward = 0
-					avgMaxReward = 0
-				}
-
-				if syncCommitteeVals == 0 {
-					avgSyncMaxReward = 0
-				}
+			if s.Metrics.PoolSummary && valTask.PoolName != "" {
+				// only send summary batch in case pools were introduced by the user and we have a name to identify it
 
 				// create and send summary batch
 				summaryBatch := pgx.Batch{}
 				summaryBatch.Queue(model.UpsertPoolSummary,
 					valTask.PoolName,
 					stateMetrics.GetMetricsBase().NextState.Epoch,
-					avgReward,
-					avgMaxReward,
-					avgAttMaxReward,
-					avgSyncMaxReward,
-					avgBaseReward,
-					missingSource,
-					missingTarget,
-					missingHead,
-					numVals,
-					syncCommitteeVals)
+					summaryMet.AvgReward,
+					summaryMet.AvgMaxReward,
+					summaryMet.AvgAttMaxReward,
+					summaryMet.AvgSyncMaxReward,
+					summaryMet.AvgBaseReward,
+					summaryMet.MissingSourceCount,
+					summaryMet.MissingTargetCount,
+					summaryMet.MissingHeadCount,
+					summaryMet.NumActiveVals,
+					summaryMet.NumSyncVals)
 
 				wlog.Debugf("Sending pool summary batch (%s) to be stored...", valTask.PoolName)
 				s.dbClient.WriteChan <- summaryBatch
@@ -217,7 +149,7 @@ loop:
 			log.Info("context has died, closing state worker routine")
 			return
 		default:
-			// if there is something to persist and no more incoming tasks
+			// if there is something to persist and no more incoming tasks, flush validator batch
 			if batch.Len() > 0 && len(s.ValTaskChan) == 0 {
 				wlog.Debugf("Sending batch to be stored (no more tasks)...")
 				s.dbClient.WriteChan <- batch
@@ -227,4 +159,95 @@ loop:
 
 	}
 	wlog.Infof("Validator worker finished, no more tasks to process")
+}
+
+type SummaryMetrics struct {
+	AvgReward          float64
+	AvgMaxReward       float64
+	AvgAttMaxReward    float64
+	AvgSyncMaxReward   float64
+	AvgBaseReward      float64
+	MissingSourceCount uint64
+	MissingTargetCount uint64
+	MissingHeadCount   uint64
+
+	NumActiveVals      uint64
+	NumNonProposerVals uint64
+	NumSyncVals        uint64
+}
+
+func NewSummaryMetrics() SummaryMetrics {
+	return SummaryMetrics{}
+}
+
+func (s *SummaryMetrics) AddMetrics(
+	maxRewards state_metrics.ValidatorSepRewards,
+	stateMetrics state_metrics.StateMetrics,
+	valIdx uint64,
+	validatorDBRow model.ValidatorRewards) {
+	if maxRewards.ProposerSlot == -1 {
+		// only do rewards statistics in case the validator is not a proposer
+		// right now we cannot measure the max reward for a proposer
+
+		// process batch metrics
+		// s.AvgReward += float64(maxRewards.)
+		s.AvgMaxReward += float64(maxRewards.MaxReward)
+		s.NumNonProposerVals += 1
+	}
+	if maxRewards.InSyncCommittee {
+		s.NumSyncVals += 1
+		s.AvgSyncMaxReward += float64(maxRewards.SyncCommittee)
+	}
+
+	s.AvgBaseReward += float64(maxRewards.BaseReward)
+
+	// in case of Phase0 AttestationRewards and InlusionDelay is filled
+	// in case of Altair, only FlagIndexReward is filled
+	// TODO: we might need to do the same for single validator rewards
+	s.AvgAttMaxReward += float64(maxRewards.Attestation)
+
+	if fork_state.IsActive(*stateMetrics.GetMetricsBase().NextState.Validators[valIdx],
+		phase0.Epoch(stateMetrics.GetMetricsBase().NextState.Epoch)) {
+		s.NumActiveVals += 1
+
+		if validatorDBRow.MissingSource {
+			s.MissingSourceCount += 1
+		}
+
+		if validatorDBRow.MissingTarget {
+			s.MissingTargetCount += 1
+		}
+
+		if validatorDBRow.MissingHead {
+			s.MissingHeadCount += 1
+		}
+	}
+}
+
+func (s *SummaryMetrics) Aggregate() {
+	// calculate averages
+	s.AvgReward = s.AvgReward / float64(s.NumNonProposerVals)
+	s.AvgMaxReward = s.AvgMaxReward / float64(s.NumNonProposerVals)
+
+	s.AvgBaseReward = s.AvgBaseReward / float64(s.NumActiveVals)
+	s.AvgAttMaxReward = s.AvgAttMaxReward / float64(s.NumActiveVals)
+	s.AvgSyncMaxReward = s.AvgSyncMaxReward / float64(s.NumSyncVals)
+
+	// sanitize in case of division by 0
+	if s.NumActiveVals == 0 {
+		s.AvgBaseReward = 0
+		s.AvgAttMaxReward = 0
+	}
+
+	if s.NumNonProposerVals == 0 {
+		// al validators are proposers, therefore average rewards cannot be calculated
+		// (we still cannot calulate proposer max rewards)
+		s.AvgReward = 0
+		s.AvgMaxReward = 0
+	}
+
+	// avoid division by 0
+	if s.NumSyncVals == 0 {
+		s.AvgSyncMaxReward = 0
+	}
 }
