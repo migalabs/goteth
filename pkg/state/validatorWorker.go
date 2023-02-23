@@ -123,7 +123,7 @@ loop:
 
 			if s.Metrics.PoolSummary && valTask.PoolName != "" {
 				// only send summary batch in case pools were introduced by the user and we have a name to identify it
-
+				summaryMet.Aggregate()
 				// create and send summary batch
 				summaryBatch := pgx.Batch{}
 				summaryBatch.Queue(model.UpsertPoolSummary,
@@ -190,7 +190,7 @@ func (s *SummaryMetrics) AddMetrics(
 		// right now we cannot measure the max reward for a proposer
 
 		// process batch metrics
-		// s.AvgReward += float64(maxRewards.)
+		s.AvgReward += float64(stateMetrics.GetMetricsBase().EpochReward(valIdx))
 		s.AvgMaxReward += float64(maxRewards.MaxReward)
 		s.NumNonProposerVals += 1
 	}
