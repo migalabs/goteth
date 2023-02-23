@@ -37,26 +37,49 @@ make run
 ```
 COMMANDS:
    rewards  analyze the Beacon State of a given slot range
+   blocks   analyze the Beacon Block of a given slot range
    help, h  Shows a list of commands or help for one command
 ```
 
 *Available Options (configurable in the `.env` file)*
 ```
+Rewards
 OPTIONS:
    --bn-endpoint value        beacon node endpoint (to request the BeaconStates)
    --init-slot value          init slot from where to start (default: 0)
    --final-slot value         init slot from where to finish (default: 0)
-   --validator-indexes value  json file including the list of validator indexes (leave the json `[]` to index all the existing validators)
    --log-level value          log level: debug, warn, info, error
    --db-url value             example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states
    --workers-num value        example: 50 (default: 0)
    --db-workers-num value     example: 50 (default: 0)
+   --custom-pools value       example: pools.csv. Columns: f_val_idx,pool_name
+   --metrics value            example: epoch,validator, epoch. Empty for all (default: epoch)
    --help, -h                 show help (default: false)
+
+Blocks
+OPTIONS:
+   --bn-endpoint value     beacon node endpoint (to request the Beacon Blocks)
+   --init-slot value       init slot from where to start (default: 0)
+   --final-slot value      init slot from where to finish (default: 0)
+   --log-level value       log level: debug, warn, info, error
+   --db-url value          example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states
+   --workers-num value     example: 50 (default: 0)
+   --db-workers-num value  example: 50 (default: 0)
+   --download-mode value   example: hybrid,historical,finalized. Default: hybrid
+   --help, -h              show help (default: false)
+
 ```
+
+# Notes
+
+Validator metrics consume 95% of the database size. Please bear in mind that for 1k epochs of data, validator metrics consume around 100GB and CPU load will also increase. Exporting validator metrics has been tested using LH archival (states every 32 slots) and 32 core (AMD Ryzen 9500X) 128GB RAM machine.
+The tool will export the metrics but it might take some time if the machine is not as powerful.
+
+If no pools file is input to the tool, missing-vals flag is useless. If you want to track all validators under a unique pool go get pool statistics then you can add a single validator in the pools csv and add the missing-vals flag, this should put all validators in a single pool called "others". Please bear in mind this functionality is experimental and has not been tested yet.
 
 
 # Maintainers
-@cortze , @tadahar
+@cortze , @tdahar
 
 # Contributing
 The project is open for everyone to contribute! 
