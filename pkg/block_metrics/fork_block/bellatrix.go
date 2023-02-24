@@ -23,6 +23,7 @@ func NewBellatrixBlock(block spec.VersionedSignedBeaconBlock) ForkBlockContentBa
 			BaseFeePerGas: block.Bellatrix.Message.Body.ExecutionPayload.BaseFeePerGas,
 			BlockHash:     block.Bellatrix.Message.Body.ExecutionPayload.BlockHash,
 			Transactions:  block.Bellatrix.Message.Body.ExecutionPayload.Transactions,
+			BlockNumber:   block.Bellatrix.Message.Body.ExecutionPayload.BlockNumber,
 		},
 	}
 }

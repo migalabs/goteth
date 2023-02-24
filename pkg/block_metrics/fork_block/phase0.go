@@ -26,6 +26,7 @@ func NewPhase0Block(block spec.VersionedSignedBeaconBlock) ForkBlockContentBase 
 			BaseFeePerGas: [32]byte{},
 			BlockHash:     phase0.Hash32{},
 			Transactions:  make([]bellatrix.Transaction, 0),
+			BlockNumber:   0,
 		},
 	}
 }

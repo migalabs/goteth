@@ -2,6 +2,8 @@ package state
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,6 +42,9 @@ type StateAnalyzer struct {
 	EpochTaskChan      chan *EpochTask
 	ValTaskChan        chan *ValTask
 	validatorWorkerNum int
+	PoolValidators     []utils.PoolKeys
+	MissingVals        bool
+	Metrics            DBMetrics
 
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
@@ -59,21 +64,16 @@ func NewStateAnalyzer(
 	httpCli *clientapi.APIClient,
 	initSlot uint64,
 	finalSlot uint64,
-	valIdxs []uint64,
 	idbUrl string,
 	workerNum int,
 	dbWorkerNum int,
-	downloadMode string) (*StateAnalyzer, error) {
-	log.Infof("generating new State Analzyer from slots %d:%d, for validators %v", initSlot, finalSlot, valIdxs)
+	downloadMode string,
+	customPoolsFile string,
+	missingVals bool,
+	metrics string) (*StateAnalyzer, error) {
+	log.Infof("generating new State Analzyer from slots %d:%d", initSlot, finalSlot)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
-
-	valLength := len(valIdxs)
-	// check if valIdx where given
-	if len(valIdxs) < 1 {
-		log.Infof("No validator indexes provided: running all validators")
-		valLength = VAL_LEN // estimation to declare channels
-	}
 
 	slotRanges := make([]uint64, 0)
 
@@ -103,20 +103,38 @@ func NewStateAnalyzer(
 		}
 		log.Debug("slotRanges are:", slotRanges)
 	}
-	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, valLength*maxWorkers, dbWorkerNum)
+	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
+	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
 
+	poolValidators := make([]utils.PoolKeys, 0)
+	if customPoolsFile != "" {
+		poolValidators, err = utils.ReadCustomValidatorsFile(customPoolsFile)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to read custom pools file.")
+		}
+		for _, item := range poolValidators {
+			log.Infof("monitoring pool %s of length %d", item.PoolName, len(item.ValIdxs))
+		}
+
+	}
+
+	metricsObj, err := NewMetrics(metrics)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to read metric.")
+	}
+
 	return &StateAnalyzer{
-		ctx:                ctx,
-		cancel:             cancel,
-		InitSlot:           initSlot,
-		FinalSlot:          finalSlot,
-		ValidatorIndexes:   valIdxs,
-		SlotRanges:         slotRanges,
-		EpochTaskChan:      make(chan *EpochTask, 10),
-		ValTaskChan:        make(chan *ValTask, valLength*maxWorkers),
+		ctx:           ctx,
+		cancel:        cancel,
+		InitSlot:      initSlot,
+		FinalSlot:     finalSlot,
+		SlotRanges:    slotRanges,
+		EpochTaskChan: make(chan *EpochTask, 10),
+		// size of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
+		ValTaskChan:        make(chan *ValTask, maxWorkers),
 		MonitorSlotProcess: make(map[uint64]uint64),
 		cli:                httpCli,
 		dbClient:           i_dbClient,
@@ -124,6 +142,9 @@ func NewStateAnalyzer(
 		routineClosed:      make(chan struct{}),
 		downloadMode:       downloadMode,
 		eventsObj:          events.NewEventsObj(ctx, httpCli),
+		PoolValidators:     poolValidators,
+		MissingVals:        missingVals,
+		Metrics:            metricsObj,
 	}, nil
 }
 
@@ -206,7 +227,6 @@ func (s *StateAnalyzer) Close() {
 
 //
 type EpochTask struct {
-	ValIdxs   []uint64
 	NextState fork_state.ForkStateContentBase
 	State     fork_state.ForkStateContentBase
 	PrevState fork_state.ForkStateContentBase
@@ -217,9 +237,41 @@ type ValTask struct {
 	ValIdxs         []uint64
 	StateMetricsObj reward_metrics.StateMetrics
 	OnlyPrevAtt     bool
+	PoolName        string
 }
 
 type MonitorTasks struct {
 	ValIdxs []uint64
 	Slot    uint64
+}
+
+type DBMetrics struct {
+	Epoch       bool
+	Validator   bool
+	PoolSummary bool
+}
+
+func NewMetrics(input string) (DBMetrics, error) {
+	epoch := false
+	validator := false
+	pool := false
+
+	for _, item := range strings.Split(input, ",") {
+
+		switch item {
+		case "epoch":
+			epoch = true
+		case "validator":
+			validator = true
+		case "pool":
+			pool = true
+		default:
+			return DBMetrics{}, fmt.Errorf("could not parse metric: %s", item)
+		}
+	}
+	return DBMetrics{
+		Epoch:       epoch,
+		Validator:   validator,
+		PoolSummary: pool,
+	}, nil
 }

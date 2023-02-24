@@ -29,11 +29,13 @@ run:
 			--bn-endpoint=${STATE_ANALYZER_BN_ENDPOINT} \
 			--init-slot=${STATE_ANALYZER_INIT_SLOT} \
 			--final-slot=${STATE_ANALYZER_FINAL_SLOT} \
-			--validator-indexes=${STATE_ANALYZER_VALIDATOR_INDEXES} \
 			--db-url=${STATE_ANALYZER_DB_URL} \
 			--workers-num=${STATE_ANALYZER_WORKERS_NUM} \
 			--db-workers-num=${STATE_ANALYZER_DB_WORKERS_NUM} \
-			--download-mode=${STATE_ANALYZER_DOWNLOAD_MODE}
+			--download-mode=${STATE_ANALYZER_DOWNLOAD_MODE} \
+			--custom-pools=${STATE_ANALYZER_POOLS_FILE} \
+			--metrics=${STATE_ANALYZER_METRICS} \
+			--missing-vals=${STATE_ANALYZER_MISSING_VALS}
 endif
 
 ifeq ($(STATE_ANALYZER_CMD),"blocks")

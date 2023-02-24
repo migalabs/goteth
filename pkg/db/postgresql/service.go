@@ -108,6 +108,11 @@ func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error 
 		return err
 	}
 
+	err = p.createPoolsTable()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

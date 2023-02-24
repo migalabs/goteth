@@ -33,16 +33,16 @@ var RewardsCommand = &cli.Command{
 			Usage: "init slot from where to finish",
 		},
 		&cli.StringFlag{
-			Name:  "validator-indexes",
-			Usage: "json file including the list of validator indexes",
-		},
-		&cli.StringFlag{
 			Name:  "log-level",
 			Usage: "log level: debug, warn, info, error",
 		},
 		&cli.StringFlag{
 			Name:  "db-url",
 			Usage: "example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states_kiln",
+		},
+		&cli.BoolFlag{
+			Name:  "missing-vals",
+			Usage: "example: true",
 		},
 		&cli.IntFlag{
 			Name:  "workers-num",
@@ -55,6 +55,15 @@ var RewardsCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:  "download-mode",
 			Usage: "example: hybrid,historical,finalized. Default: hybrid",
+		},
+		&cli.StringFlag{
+			Name:  "custom-pools",
+			Usage: "example: pools.csv. Columns: f_val_idx,pool_name",
+		},
+		&cli.StringFlag{
+			Name:        "metrics",
+			Usage:       "example: epoch,validator, epoch. Empty for all",
+			DefaultText: "epoch",
 		}},
 }
 
@@ -69,6 +78,9 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	coworkers := 1
 	dbWorkers := 1
 	downloadMode := "hybrid"
+	customPools := ""
+	metrics := "epoch" // By default we only track epochs, other metrics consume too much disk
+	missingVals := false
 	logRewardsRewards.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
@@ -80,15 +92,13 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	if !c.IsSet("final-slot") {
 		return errors.New("final slot not provided")
 	}
-	if !c.IsSet("validator-indexes") {
-		return errors.New("validator indexes not provided")
-	}
 	if c.IsSet("log-level") {
 		logrus.SetLevel(utils.ParseLogLevel(c.String("log-level")))
 	}
 	if !c.IsSet("db-url") {
 		return errors.New("db-url not provided")
 	}
+
 	if !c.IsSet("download-mode") {
 		logRewardsRewards.Infof("download mode flag not provided, default: hybrid")
 	} else {
@@ -109,9 +119,14 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	finalSlot := uint64(c.Int("final-slot"))
 	dbUrl := c.String("db-url")
 
-	validatorIndexes, err := utils.GetValIndexesFromJson(c.String("validator-indexes"))
-	if err != nil {
-		return err
+	if c.IsSet("custom-pools") {
+		customPools = c.String("custom-pools")
+	}
+	if c.IsSet("missing-vals") {
+		missingVals = c.Bool("missing-vals")
+	}
+	if c.IsSet("metrics") {
+		metrics = c.String("metrics")
 	}
 
 	// generate the httpAPI client
@@ -121,7 +136,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 
 	// generate the state analyzer
-	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, validatorIndexes, dbUrl, coworkers, dbWorkers, downloadMode)
+	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, customPools, missingVals, metrics)
 	if err != nil {
 		return err
 	}
