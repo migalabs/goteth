@@ -1,0 +1,97 @@
+package model
+
+// Postgres intregration variables
+var (
+	CreatePoolSummaryTable = `
+	CREATE TABLE IF NOT EXISTS t_pool_summary(
+		f_pool_name TEXT,
+		f_epoch INT,
+		f_avg_reward INT,
+		f_avg_max_reward INT,
+		f_avg_max_att_reward INT,
+		f_avg_max_sync_reward INT,
+		f_avg_base_reward INT,
+		f_sum_missing_source INT,
+		f_sum_missing_target INT, 
+		f_sum_missing_head INT,
+		f_num_active_vals INT,
+		f_sync_vals INT,
+		CONSTRAINT PK_EpochPool PRIMARY KEY (f_pool_name,f_epoch));`
+
+	UpsertPoolSummary = `
+	INSERT INTO t_pool_summary (
+		f_pool_name,
+		f_epoch,
+		f_avg_reward,
+		f_avg_max_reward,
+		f_avg_max_att_reward,
+		f_avg_max_sync_reward,
+		f_avg_base_reward,
+		f_sum_missing_source,
+		f_sum_missing_target,
+		f_sum_missing_head,
+		f_num_active_vals,
+		f_sync_vals)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	ON CONFLICT ON CONSTRAINT PK_EpochPool
+		DO 
+			UPDATE SET 
+			f_avg_reward = excluded.f_avg_reward,
+			f_avg_max_reward = excluded.f_avg_max_reward,
+			f_avg_max_att_reward = excluded.f_avg_max_att_reward,
+			f_avg_max_sync_reward = excluded.f_avg_max_sync_reward,
+			f_avg_base_reward = excluded.f_avg_base_reward,
+			f_sum_missing_source = excluded.f_sum_missing_source,
+			f_sum_missing_target  = excluded.f_sum_missing_target,  
+			f_sum_missing_head = excluded.f_sum_missing_head,
+			f_num_active_vals = excluded.f_num_active_vals,
+			f_sync_vals = excluded.f_sync_vals;
+	`
+)
+
+type PoolSummary struct {
+	PoolName             string
+	Epoch                int
+	Reward               int64
+	MaxReward            uint64
+	AttestationReward    uint64
+	InclusionDelayReward uint64
+	FlagIndexReward      uint64
+	SyncCommitteeReward  uint64
+	BaseReward           uint64
+	MissingSource        bool
+	MissingTarget        bool
+	MissingHead          bool
+	NumActiveVals        int
+}
+
+func NewPoolSummary(
+	iPoolName string,
+	iEpoch uint64,
+	iReward int64,
+	iMaxReward uint64,
+	iMaxAttReward uint64,
+	iMaxInDelayReward uint64,
+	iMaxFlagReward uint64,
+	iMaxSyncComReward uint64,
+	iBaseReward uint64,
+	iMissingSource bool,
+	iMissingTarget bool,
+	iMissingHead bool,
+	iNumVal int) PoolSummary {
+	return PoolSummary{
+		PoolName:             iPoolName,
+		Epoch:                int(iEpoch),
+		Reward:               iReward,
+		MaxReward:            iMaxReward,
+		AttestationReward:    iMaxAttReward,
+		InclusionDelayReward: iMaxInDelayReward,
+		FlagIndexReward:      iMaxFlagReward,
+		SyncCommitteeReward:  iMaxSyncComReward,
+		BaseReward:           iBaseReward,
+		MissingSource:        iMissingSource,
+		MissingTarget:        iMissingTarget,
+		MissingHead:          iMissingHead,
+		NumActiveVals:        iNumVal,
+	}
+}

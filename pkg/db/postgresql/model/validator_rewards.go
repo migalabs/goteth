@@ -1,6 +1,6 @@
 package model
 
-import "github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
+import "github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 
 // Postgres intregration variables
 var (
@@ -20,7 +20,7 @@ var (
 		f_missing_source BOOL,
 		f_missing_target BOOL, 
 		f_missing_head BOOL,
-		f_status TEXT,
+		f_status SMALLINT,
 		CONSTRAINT PK_ValidatorSlot PRIMARY KEY (f_val_idx,f_slot));`
 
 	UpsertValidator = `
@@ -30,17 +30,16 @@ var (
 		f_epoch, 
 		f_balance_eth, 
 		f_reward, 
-		f_max_reward, 
+		f_max_reward,
 		f_max_att_reward,
 		f_max_sync_reward,
-		f_att_slot,
 		f_base_reward,
 		f_in_sync_committee,
 		f_missing_source,
 		f_missing_target,
 		f_missing_head,
 		f_status)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	ON CONFLICT ON CONSTRAINT PK_ValidatorSlot
 		DO 
 			UPDATE SET 
@@ -48,9 +47,6 @@ var (
 				f_balance_eth = excluded.f_balance_eth,
 				f_reward = excluded.f_reward,
 				f_max_reward = excluded.f_max_reward,
-				f_max_att_reward = excluded.f_max_att_reward,
-				f_max_sync_reward = excluded.f_max_sync_reward,
-				f_att_slot = excluded.f_att_slot,
 				f_base_reward = excluded.f_base_reward,
 				f_in_sync_committee = excluded.f_in_sync_committee,
 				f_missing_source = excluded.f_missing_source,
@@ -79,7 +75,7 @@ type ValidatorRewards struct {
 	MissingSource        bool
 	MissingTarget        bool
 	MissingHead          bool
-	Status               string
+	Status               int
 }
 
 func NewValidatorRewards(
@@ -90,8 +86,6 @@ func NewValidatorRewards(
 	iReward int64,
 	iMaxReward uint64,
 	iMaxAttReward uint64,
-	iMaxInDelayReward uint64,
-	iMaxFlagReward uint64,
 	iMaxSyncComReward uint64,
 	iAttSlot uint64,
 	iInclusionDelay int64,
@@ -101,27 +95,25 @@ func NewValidatorRewards(
 	iMissingSource bool,
 	iMissingTarget bool,
 	iMissingHead bool,
-	iStatus string) ValidatorRewards {
+	iStatus int) ValidatorRewards {
 	return ValidatorRewards{
-		ValidatorIndex:       iValIdx,
-		Slot:                 int(iSlot),
-		Epoch:                int(iEpoch),
-		ValidatorBalance:     float32(iValBal) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
-		Reward:               iReward,
-		MaxReward:            iMaxReward,
-		AttestationReward:    iMaxAttReward,
-		InclusionDelayReward: iMaxInDelayReward,
-		FlagIndexReward:      iMaxFlagReward,
-		SyncCommitteeReward:  iMaxSyncComReward,
-		AttSlot:              iAttSlot,
-		InclusionDelay:       iInclusionDelay,
-		BaseReward:           iBaseReward,
-		InSyncCommittee:      iSyncCommittee,
-		ProposerSlot:         iProposerSlot,
-		MissingSource:        iMissingSource,
-		MissingTarget:        iMissingTarget,
-		MissingHead:          iMissingHead,
-		Status:               iStatus,
+		ValidatorIndex:      iValIdx,
+		Slot:                int(iSlot),
+		Epoch:               int(iEpoch),
+		ValidatorBalance:    float32(iValBal) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
+		Reward:              iReward,
+		MaxReward:           iMaxReward,
+		AttestationReward:   iMaxAttReward,
+		SyncCommitteeReward: iMaxSyncComReward,
+		AttSlot:             iAttSlot,
+		InclusionDelay:      iInclusionDelay,
+		BaseReward:          iBaseReward,
+		InSyncCommittee:     iSyncCommittee,
+		ProposerSlot:        iProposerSlot,
+		MissingSource:       iMissingSource,
+		MissingTarget:       iMissingTarget,
+		MissingHead:         iMissingHead,
+		Status:              iStatus,
 	}
 }
 

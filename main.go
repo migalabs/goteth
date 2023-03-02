@@ -8,8 +8,8 @@ import (
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
-	"github.com/cortze/eth2-state-analyzer/cmd"
-	"github.com/cortze/eth2-state-analyzer/pkg/utils"
+	"github.com/cortze/eth-cl-state-analyzer/cmd"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 var (
@@ -23,10 +23,12 @@ var (
 func main() {
 	fmt.Println(CliName, Version)
 
-	//ctx, cancel := context.WithCancel(context.Background())
+	customFormatter := new(logrus.TextFormatter)
+	customFormatter.FullTimestamp = true
 
 	// Set the general log configurations for the entire tool
-	logrus.SetFormatter(utils.ParseLogFormatter("text"))
+	// logrus.SetFormatter(utils.ParseLogFormatter("text"))
+	logrus.SetFormatter(customFormatter)
 	logrus.SetOutput(utils.ParseLogOutput("terminal"))
 	logrus.SetLevel(utils.ParseLogLevel("info"))
 
@@ -46,6 +48,7 @@ func main() {
 		EnableBashCompletion: true,
 		Commands: []*cli.Command{
 			cmd.RewardsCommand,
+			cmd.BlocksCommand,
 		},
 	}
 

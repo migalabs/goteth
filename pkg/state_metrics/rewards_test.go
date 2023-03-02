@@ -1,4 +1,4 @@
-package fork_metrics
+package state_metrics
 
 import (
 	"math"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 	"github.com/stretchr/testify/require"
 )
 

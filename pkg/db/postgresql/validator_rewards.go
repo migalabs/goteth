@@ -1,16 +1,13 @@
 package postgresql
 
 import (
-	"context"
-
-	"github.com/cortze/eth2-state-analyzer/pkg/db/postgresql/model"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql/model"
 	"github.com/pkg/errors"
 )
 
-func (p *PostgresDBService) createRewardsTable(ctx context.Context, pool *pgxpool.Pool) error {
+func (p *PostgresDBService) createRewardsTable() error {
 	// create the tables
-	_, err := pool.Exec(ctx, model.CreateValidatorRewardsTable)
+	_, err := p.psqlPool.Exec(p.ctx, model.CreateValidatorRewardsTable)
 	if err != nil {
 		return errors.Wrap(err, "error creating rewards table")
 	}

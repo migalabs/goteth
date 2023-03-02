@@ -1,11 +1,11 @@
-package fork_metrics
+package state_metrics
 
 import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
-	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 )
 
 type StateMetricsBase struct {
@@ -63,8 +63,6 @@ func StateMetricsByForkVersion(nextBstate fork_state.ForkStateContentBase, bstat
 
 type ValidatorSepRewards struct {
 	Attestation     uint64
-	InclusionDelay  uint64
-	FlagIndex       uint64
 	SyncCommittee   uint64
 	MaxReward       uint64
 	BaseReward      uint64

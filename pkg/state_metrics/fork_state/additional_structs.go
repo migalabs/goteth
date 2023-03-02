@@ -8,7 +8,7 @@ import (
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth2-state-analyzer/pkg/utils"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 type EpochData struct {
@@ -100,4 +100,23 @@ func (p *ValVote) AddNewAtt(attestedSlot uint64, inclusionSlot uint64) {
 	p.AttestedSlot = append(p.AttestedSlot, attestedSlot)
 	p.InclusionSlot = append(p.InclusionSlot, inclusionSlot)
 
+}
+
+func GweiToUint64(iArray []phase0.Gwei) []uint64 {
+	result := make([]uint64, 0)
+
+	for _, item := range iArray {
+		result = append(result, uint64(item))
+	}
+	return result
+}
+
+func RootToByte(iArray []phase0.Root) [][]byte {
+	result := make([][]byte, len(iArray))
+
+	for i, item := range iArray {
+		result[i] = make([]byte, len(item))
+		copy(result[i], item[:])
+	}
+	return result
 }

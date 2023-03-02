@@ -1,4 +1,4 @@
-package fork_metrics
+package state_metrics
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth2-state-analyzer/pkg/fork_metrics/fork_state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 )
 
 // var (
@@ -131,6 +131,18 @@ func (p Phase0Metrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 	if p.CurrentState.Epoch == fork_state.GENESIS_EPOCH { // No rewards are applied at genesis
 		return ValidatorSepRewards{}, nil
 	}
+
+	if valIdx >= uint64(len(p.NextState.Validators)) || !fork_state.IsActive(*p.NextState.Validators[valIdx], phase0.Epoch(p.PrevState.Epoch)) {
+		return ValidatorSepRewards{
+			Attestation:     0,
+			SyncCommittee:   0,
+			MaxReward:       0,
+			BaseReward:      0,
+			ProposerSlot:    0,
+			InSyncCommittee: false,
+		}, nil
+	}
+	// only consider attestations rewards in case the validator was active in the previous epoch
 	baseReward := p.GetBaseReward(uint64(p.CurrentState.Validators[valIdx].EffectiveBalance))
 	voteReward := uint64(0)
 	proposerReward := uint64(0)
@@ -138,31 +150,26 @@ func (p Phase0Metrics) GetMaxReward(valIdx uint64) (ValidatorSepRewards, error) 
 	maxReward := uint64(0)
 	inclusionDelayReward := uint64(0)
 
-	if fork_state.IsActive(*p.NextState.Validators[valIdx], phase0.Epoch(p.PrevState.Epoch)) {
-		// only consider attestations rewards in case the validator was active in the previous epoch
-		for i := range p.CurrentState.CorrectFlags {
+	for i := range p.CurrentState.CorrectFlags {
 
-			previousAttestedBalance := p.CurrentState.AttestingBalance[i]
+		previousAttestedBalance := p.CurrentState.AttestingBalance[i]
 
-			// participationRate per flag ==> previousAttestBalance / TotalActiveBalance
-			singleReward := baseReward * (uint64(previousAttestedBalance) / fork_state.EFFECTIVE_BALANCE_INCREMENT)
+		// participationRate per flag ==> previousAttestBalance / TotalActiveBalance
+		singleReward := baseReward * (uint64(previousAttestedBalance) / fork_state.EFFECTIVE_BALANCE_INCREMENT)
 
-			// for each flag, we add baseReward * participationRate
-			voteReward += singleReward / (uint64(p.CurrentState.TotalActiveBalance) / fork_state.EFFECTIVE_BALANCE_INCREMENT)
-		}
-
-		proposerReward := baseReward / fork_state.PROPOSER_REWARD_QUOTIENT
-		// only add it when there was an attestation (correct source)
-		inclusionDelayReward = baseReward - proposerReward
+		// for each flag, we add baseReward * participationRate
+		voteReward += singleReward / (uint64(p.CurrentState.TotalActiveBalance) / fork_state.EFFECTIVE_BALANCE_INCREMENT)
 	}
+
+	proposerReward = baseReward / fork_state.PROPOSER_REWARD_QUOTIENT
+	// only add it when there was an attestation (correct source)
+	inclusionDelayReward = baseReward - proposerReward
 
 	_, proposerSlot = p.GetMaxProposerReward(valIdx, baseReward)
 	maxReward = voteReward + inclusionDelayReward + proposerReward
 
 	result := ValidatorSepRewards{
-		Attestation:     voteReward,
-		InclusionDelay:  inclusionDelayReward,
-		FlagIndex:       0,
+		Attestation:     voteReward + inclusionDelayReward,
 		SyncCommittee:   0,
 		MaxReward:       maxReward,
 		BaseReward:      baseReward,
