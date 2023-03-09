@@ -42,6 +42,8 @@ func GetCustomBlock(block spec.VersionedSignedBeaconBlock) (ForkBlockContentBase
 
 	case spec.DataVersionBellatrix:
 		return NewBellatrixBlock(block), nil
+	case spec.DataVersionCapella:
+		return NewCapellaBlock(block), nil
 	default:
 		return ForkBlockContentBase{}, fmt.Errorf("could not figure out the Beacon Block Fork Version: %s", block.Version)
 	}
