@@ -103,6 +103,7 @@ loop:
 						validatorDBRow.MaxReward,
 						validatorDBRow.AttestationReward,
 						validatorDBRow.SyncCommitteeReward,
+						validatorDBRow.AttSlot,
 						validatorDBRow.BaseReward,
 						validatorDBRow.InSyncCommittee,
 						validatorDBRow.MissingSource,
