@@ -56,8 +56,11 @@ func StateMetricsByForkVersion(nextBstate fork_state.ForkStateContentBase, bstat
 
 	case spec.DataVersionBellatrix:
 		return NewAltairMetrics(nextBstate, bstate, prevBstate), nil // We use Altair as Rewards system is the same
+
+	case spec.DataVersionCapella:
+		return NewAltairMetrics(nextBstate, bstate, prevBstate), nil // We use Altair as Rewards system is the same
 	default:
-		return nil, fmt.Errorf("could not figure out the Beacon State Fork Version: %s", bstate.Version)
+		return nil, fmt.Errorf("could not figure out the State Metrics Fork Version: %s", bstate.Version)
 	}
 }
 
