@@ -10,11 +10,11 @@ services:
                 init: true
                 command: >-
                         rewards
-                        --log-level=${STATE_ANALYZER_LOG_LEVEL}
-                        --bn-endpoint=${STATE_ANALYZER_BN_ENDPOINT}
+                        --log-level=${ANALYZER_LOG_LEVEL}
+                        --bn-endpoint=${ANALYZER_BN_ENDPOINT}
                         --init-slot=${STATE_ANALYZER_INIT_SLOT}
                         --final-slot=${STATE_ANALYZER_FINAL_SLOT}
-                        --db-url=${STATE_ANALYZER_DB_URL}
+                        --db-url=${ANALYZER_DB_URL}
                         --workers-num=${STATE_ANALYZER_WORKERS_NUM}
                         --db-workers-num=${STATE_ANALYZER_DB_WORKERS_NUM}
                         --download-mode=${STATE_ANALYZER_DOWNLOAD_MODE}
@@ -34,14 +34,14 @@ services:
                 init: true
                 command: >-
                         blocks
-                        --log-level=${STATE_ANALYZER_LOG_LEVEL}
-                        --bn-endpoint=${STATE_ANALYZER_BN_ENDPOINT}
-                        --init-slot=${STATE_ANALYZER_INIT_SLOT}
-                        --final-slot=${STATE_ANALYZER_FINAL_SLOT}
-                        --db-url=${STATE_ANALYZER_DB_URL}
-                        --workers-num=1
-                        --db-workers-num=1
-                        --download-mode=${STATE_ANALYZER_DOWNLOAD_MODE}
+                        --log-level=${ANALYZER_LOG_LEVEL}
+                        --bn-endpoint=${ANALYZER_BN_ENDPOINT}
+                        --init-slot=${BLOCK_ANALYZER_INIT_SLOT}
+                        --final-slot=${BLOCK_ANALYZER_FINAL_SLOT}
+                        --db-url=${ANALYZER_DB_URL}
+                        --workers-num=${BLOCK_ANALYZER_WORKERS_NUM}
+                        --db-workers-num=${BLOCK_ANALYZER_DB_WORKERS_NUM}
+                        --download-mode=${BLOCK_ANALYZER_DOWNLOAD_MODE}
                 network_mode: 'host'
                 restart: unless-stopped
                 
