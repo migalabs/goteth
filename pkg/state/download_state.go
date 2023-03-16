@@ -84,6 +84,11 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 				log.Errorf("error downloading state at slot %d", slot, err)
 				continue
 			}
+			if s.finishDownload {
+				log.Info("sudden shutdown detected, state downloader routine")
+				close(s.EpochTaskChan)
+				return
+			}
 		}
 
 	}
