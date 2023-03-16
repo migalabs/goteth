@@ -10,7 +10,7 @@ var (
 		f_slot INT,
 		f_epoch INT,
 		f_balance_eth REAL,
-		f_reward INT,
+		f_reward BIGINT,
 		f_max_reward INT,
 		f_max_att_reward INT,
 		f_max_sync_reward INT,

@@ -6,6 +6,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/sirupsen/logrus"
 )
@@ -42,6 +43,8 @@ func GetCustomBlock(block spec.VersionedSignedBeaconBlock) (ForkBlockContentBase
 
 	case spec.DataVersionBellatrix:
 		return NewBellatrixBlock(block), nil
+	case spec.DataVersionCapella:
+		return NewCapellaBlock(block), nil
 	default:
 		return ForkBlockContentBase{}, fmt.Errorf("could not figure out the Beacon Block Fork Version: %s", block.Version)
 	}
@@ -57,4 +60,5 @@ type ForkBlockPayloadBase struct {
 	BlockHash     phase0.Hash32
 	Transactions  []bellatrix.Transaction
 	BlockNumber   uint64
+	Withdrawals   []*capella.Withdrawal
 }

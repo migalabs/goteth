@@ -82,6 +82,15 @@ loop:
 				blockMetrics.ELBlockHash,
 				blockMetrics.ELTransactions,
 				blockMetrics.BlockNumber)
+
+			for _, item := range task.Block.ExecutionPayload.Withdrawals {
+				blockBatch.Queue(model.UpsertWithdrawal,
+					blockMetrics.Slot,
+					item.Index,
+					item.ValidatorIndex,
+					item.Address,
+					item.Amount)
+			}
 			// Flush the database batches
 			if blockBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE {
 				s.dbClient.WriteChan <- blockBatch

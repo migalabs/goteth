@@ -56,6 +56,9 @@ func GetCustomState(bstate spec.VersionedBeaconState, iApi *http.Service) (ForkS
 
 	case spec.DataVersionBellatrix:
 		return NewBellatrixState(bstate, iApi), nil
+
+	case spec.DataVersionCapella:
+		return NewCapellaState(bstate, iApi), nil
 	default:
 		return ForkStateContentBase{}, fmt.Errorf("could not figure out the Beacon State Fork Version: %s", bstate.Version)
 	}

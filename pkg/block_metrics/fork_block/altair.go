@@ -3,6 +3,7 @@ package fork_block
 import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 )
 
@@ -26,6 +27,7 @@ func NewAltairBlock(block spec.VersionedSignedBeaconBlock) ForkBlockContentBase 
 			BlockHash:     phase0.Hash32{},
 			Transactions:  make([]bellatrix.Transaction, 0),
 			BlockNumber:   0,
+			Withdrawals:   make([]*capella.Withdrawal, 0),
 		},
 	}
 }
