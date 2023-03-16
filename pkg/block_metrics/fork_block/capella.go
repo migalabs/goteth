@@ -24,6 +24,7 @@ func NewCapellaBlock(block spec.VersionedSignedBeaconBlock) ForkBlockContentBase
 			BlockHash:     block.Capella.Message.Body.ExecutionPayload.BlockHash,
 			Transactions:  block.Capella.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Capella.Message.Body.ExecutionPayload.BlockNumber,
+			Withdrawals:   block.Capella.Message.Body.ExecutionPayload.Withdrawals,
 		},
 	}
 }

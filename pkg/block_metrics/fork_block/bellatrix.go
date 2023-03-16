@@ -2,6 +2,7 @@ package fork_block
 
 import (
 	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/capella"
 )
 
 func NewBellatrixBlock(block spec.VersionedSignedBeaconBlock) ForkBlockContentBase {
@@ -24,6 +25,7 @@ func NewBellatrixBlock(block spec.VersionedSignedBeaconBlock) ForkBlockContentBa
 			BlockHash:     block.Bellatrix.Message.Body.ExecutionPayload.BlockHash,
 			Transactions:  block.Bellatrix.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Bellatrix.Message.Body.ExecutionPayload.BlockNumber,
+			Withdrawals:   make([]*capella.Withdrawal, 0),
 		},
 	}
 }
