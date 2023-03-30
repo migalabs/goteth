@@ -1,7 +1,5 @@
 package model
 
-import "github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
-
 // Postgres intregration variables
 var (
 	CreateLastValidatorStatusTable = `
@@ -26,27 +24,3 @@ var (
 				f_status = excluded.f_status;
 	`
 )
-
-type ValidatorLastStatus struct {
-	ValidatorIndex   uint64
-	Epoch            int
-	ValidatorBalance float32
-	Status           int
-}
-
-func NewValidatorLastStatus(
-	iValIdx uint64,
-	iEpoch uint64,
-	iValBal uint64,
-	iStatus int) ValidatorLastStatus {
-	return ValidatorLastStatus{
-		ValidatorIndex:   iValIdx,
-		Epoch:            int(iEpoch),
-		ValidatorBalance: float32(iValBal) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
-		Status:           iStatus,
-	}
-}
-
-func NewEmptyValidatorLastStatus() ValidatorLastStatus {
-	return ValidatorLastStatus{}
-}
