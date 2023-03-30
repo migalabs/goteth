@@ -87,6 +87,7 @@ loop:
 						ValIdxs:         item.ValIdxs,
 						StateMetricsObj: stateMetrics,
 						PoolName:        item.PoolName,
+						Finalized:       task.Finalized,
 					}
 					s.ValTaskChan <- valTask
 				}

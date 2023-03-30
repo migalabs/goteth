@@ -90,6 +90,15 @@ loop:
 					flags[altair.TimelyHeadFlagIndex],
 					stateMetrics.GetMetricsBase().NextState.GetValStatus(valIdx))
 
+				if valTask.Finalized {
+					// Only update validator last status on Finalized
+					// We will always receive higher epochs
+					batch.Queue(model.UpsertValidatorLastStatus,
+						validatorDBRow.ValidatorIndex,
+						validatorDBRow.Epoch,
+						validatorDBRow.ValidatorBalance,
+						validatorDBRow.Status)
+				}
 				if s.Metrics.Validator {
 					batch.Queue(model.UpsertValidator,
 						validatorDBRow.ValidatorIndex,
