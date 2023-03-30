@@ -32,31 +32,34 @@ var (
 )
 
 type StateAnalyzer struct {
-	ctx                context.Context
-	cancel             context.CancelFunc
+	ctx      context.Context
+	cancel   context.CancelFunc
+	initTime time.Time
+
+	ValidatorIndexes []uint64
+
+	// User inputs
 	InitSlot           uint64
 	FinalSlot          uint64
-	ValidatorIndexes   []uint64
 	SlotRanges         []uint64
-	MonitorSlotProcess map[uint64]uint64
-	EpochTaskChan      chan *EpochTask
-	ValTaskChan        chan *ValTask
-	validatorWorkerNum int
-	PoolValidators     []utils.PoolKeys
 	MissingVals        bool
+	validatorWorkerNum int
+	downloadMode       string
 	Metrics            DBMetrics
+	PoolValidators     []utils.PoolKeys
 
+	// Clients
 	cli      *clientapi.APIClient
 	dbClient *postgresql.PostgresDBService
 
-	downloadMode string
+	// Channels
+	EpochTaskChan chan *EpochTask
+	ValTaskChan   chan *ValTask
 
 	// Control Variables
 	finishDownload bool
 	routineClosed  chan struct{}
 	eventsObj      events.Events
-
-	initTime time.Time
 }
 
 func NewStateAnalyzer(
@@ -135,7 +138,6 @@ func NewStateAnalyzer(
 		EpochTaskChan: make(chan *EpochTask, 10),
 		// size of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
 		ValTaskChan:        make(chan *ValTask, maxWorkers),
-		MonitorSlotProcess: make(map[uint64]uint64),
 		cli:                httpCli,
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
