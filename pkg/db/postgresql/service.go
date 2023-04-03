@@ -118,6 +118,11 @@ func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error 
 		return err
 	}
 
+	err = p.createLastStatusTable()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
