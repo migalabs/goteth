@@ -12,7 +12,6 @@ var (
 	CreateValidatorRewardsTable = `
 	CREATE TABLE IF NOT EXISTS t_validator_rewards_summary(
 		f_val_idx INT,
-		f_slot INT,
 		f_epoch INT,
 		f_balance_eth REAL,
 		f_reward BIGINT,
@@ -26,7 +25,7 @@ var (
 		f_missing_target BOOL, 
 		f_missing_head BOOL,
 		f_status SMALLINT,
-		CONSTRAINT PK_ValidatorSlot PRIMARY KEY (f_val_idx,f_slot));`
+		CONSTRAINT t_validator_rewards_summary_pkey PRIMARY KEY (f_val_idx,f_epoch));`
 
 	UpsertValidator = `
 	INSERT INTO t_validator_rewards_summary (	
@@ -44,8 +43,8 @@ var (
 		f_missing_target,
 		f_missing_head,
 		f_status)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-	ON CONFLICT ON CONSTRAINT PK_ValidatorSlot
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+	ON CONFLICT ON CONSTRAINT t_validator_rewards_summary_pkey
 		DO 
 			UPDATE SET 
 				f_epoch = excluded.f_epoch, 
@@ -76,10 +75,9 @@ func insertValidator(inputValidator model.ValidatorRewards) (string, []interface
 	resultArgs = append(resultArgs, inputValidator.MaxReward)
 	resultArgs = append(resultArgs, inputValidator.AttestationReward)
 	resultArgs = append(resultArgs, inputValidator.SyncCommitteeReward)
-	resultArgs = append(resultArgs, inputValidator.BaseReward)
 	resultArgs = append(resultArgs, inputValidator.AttSlot)
+	resultArgs = append(resultArgs, inputValidator.BaseReward)
 	resultArgs = append(resultArgs, inputValidator.InSyncCommittee)
-	resultArgs = append(resultArgs, inputValidator.ProposerSlot)
 	resultArgs = append(resultArgs, inputValidator.MissingSource)
 	resultArgs = append(resultArgs, inputValidator.MissingTarget)
 	resultArgs = append(resultArgs, inputValidator.MissingHead)
