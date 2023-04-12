@@ -1,6 +1,9 @@
 package model
 
-import "github.com/attestantio/go-eth2-client/spec/phase0"
+import (
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
+)
 
 var (
 	ValidatorLastStatusModelOps = map[string]bool{
@@ -22,4 +25,8 @@ func (f ValidatorLastStatus) InsertOp() bool {
 
 func (f ValidatorLastStatus) DropOp() bool {
 	return false
+}
+
+func (f ValidatorLastStatus) BalanceToEth() float32 {
+	return float32(f.CurrentBalance) / utils.EFFECTIVE_BALANCE_INCREMENT
 }

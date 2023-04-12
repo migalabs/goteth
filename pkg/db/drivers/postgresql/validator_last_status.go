@@ -36,7 +36,7 @@ func insertValidatorLastStatus(inputValidator model.ValidatorLastStatus) (string
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, inputValidator.ValIdx)
 	resultArgs = append(resultArgs, inputValidator.Epoch)
-	resultArgs = append(resultArgs, inputValidator.CurrentBalance)
+	resultArgs = append(resultArgs, inputValidator.BalanceToEth())
 	resultArgs = append(resultArgs, inputValidator.CurrentStatus)
 
 	return UpsertValidatorLastStatus, resultArgs
