@@ -135,6 +135,8 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (model.Validat
 
 	maxReward := flagIndexMaxReward + syncComMaxReward
 
+	flags := p.CurrentState.MissingFlags(valIdx)
+
 	result := model.ValidatorRewards{
 		ValidatorIndex:      valIdx,
 		Epoch:               p.NextState.Epoch,
@@ -143,11 +145,11 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (model.Validat
 		MaxReward:           maxReward,
 		AttestationReward:   flagIndexMaxReward,
 		SyncCommitteeReward: syncComMaxReward,
-		AttSlot:             0,
-		MissingSource:       false,
-		MissingTarget:       false,
-		MissingHead:         false,
-		Status:              0,
+		AttSlot:             p.PrevState.EpochStructs.ValidatorAttSlot[valIdx],
+		MissingSource:       flags[0],
+		MissingTarget:       flags[1],
+		MissingHead:         flags[2],
+		Status:              p.NextState.GetValStatus(valIdx),
 		BaseReward:          baseReward,
 		ProposerSlot:        proposerSlot,
 		InSyncCommittee:     inSyncCommitte,
