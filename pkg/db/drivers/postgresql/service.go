@@ -2,11 +2,14 @@ package postgresql
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
@@ -31,12 +34,10 @@ type PostgresDBService struct {
 	connectionUrl string // the url might not be necessary (better to remove it?¿)
 	psqlPool      *pgxpool.Pool
 
-	WriteChan        chan pgx.Batch
-	doneTasks        chan interface{}
+	WriteChan        chan db.WriteTask // Receive tasks to persist
 	endProcess       int32
 	FinishSignalChan chan struct{}
 	workerNum        int
-	// Network DB Model
 }
 
 // Connect to the PostgreSQL Database and get the multithread-proof connection
@@ -44,7 +45,7 @@ type PostgresDBService struct {
 func ConnectToDB(ctx context.Context, url string, chanLength int, workerNum int) (*PostgresDBService, error) {
 	mainCtx, cancel := context.WithCancel(ctx)
 	// spliting the url to don't share any confidential information on wlogs
-	wlog.Infof("Conneting to postgres DB %s", url)
+	wlog.Infof("Connecting to postgres DB %s", url)
 	if strings.Contains(url, "@") {
 		wlog.Debugf("Connecting to PostgresDB at %s", strings.Split(url, "@")[1])
 	}
@@ -62,8 +63,7 @@ func ConnectToDB(ctx context.Context, url string, chanLength int, workerNum int)
 		cancel:           cancel,
 		connectionUrl:    url,
 		psqlPool:         psqlPool,
-		WriteChan:        make(chan pgx.Batch, chanLength),
-		doneTasks:        make(chan interface{}, 1),
+		WriteChan:        make(chan db.WriteTask, chanLength),
 		endProcess:       0,
 		FinishSignalChan: make(chan struct{}, 1),
 		workerNum:        workerNum,
@@ -138,10 +138,20 @@ func (p *PostgresDBService) runWriters() {
 	for i := 0; i < p.workerNum; i++ {
 		wgDBWriters.Add(1)
 		go func(dbWriterID int) {
+			batch := pgx.Batch{}
 			defer wgDBWriters.Done()
 			wlogWriter := wlog.WithField("DBWriter", dbWriterID)
 		loop:
 			for {
+				if batch.Len() > MAX_BATCH_QUEUE || (len(p.WriteChan) == 0 && batch.Len() > 0) {
+					wlog.Debugf("Sending batch to be stored...")
+
+					err := p.ExecuteBatch(batch)
+					if err != nil {
+						wlogWriter.Errorf("Error processing batch", err.Error())
+					}
+					batch = pgx.Batch{}
+				}
 
 				if p.endProcess >= 1 && len(p.WriteChan) == 0 {
 					wlogWriter.Info("finish detected, closing persister")
@@ -149,17 +159,46 @@ func (p *PostgresDBService) runWriters() {
 				}
 
 				select {
-				case task := <-p.WriteChan:
-					wlogWriter.Debugf("Received new write task")
-					err := p.ExecuteBatch(task)
-					if err != nil {
-						wlogWriter.Errorf("Error processing batch", err.Error())
-					}
-
 				case <-p.ctx.Done():
 					wlogWriter.Info("shutdown detected, closing persister")
 					break loop
+
+				case task := <-p.WriteChan:
+
+					wlogWriter.Debugf("Received new write task")
+					var q string
+					var args []interface{}
+					var err error
+
+					switch task.Model.(type) {
+					case model.ForkBlockContentBase:
+						q, args, err = BlockOperation(task.Model.(model.ForkBlockContentBase), task.Op)
+					case model.Epoch:
+						q, args, err = EpochOperation(task.Model.(model.Epoch), task.Op)
+					case model.PoolSummary:
+						q, args, err = PoolOperation(task.Model.(model.PoolSummary), task.Op)
+					case model.ProposerDuty:
+						q, args, err = ProposerDutyOperation(task.Model.(model.ProposerDuty), task.Op)
+					case model.ValidatorLastStatus:
+						q, args, err = ValidatorLastStatusOperation(task.Model.(model.ValidatorLastStatus), task.Op)
+					case model.ValidatorRewards:
+						q, args, err = ValidatorOperation(task.Model.(model.ValidatorRewards), task.Op)
+					case model.Withdrawal:
+						q, args, err = WithdrawalOperation(task.Model.(model.Withdrawal), task.Op)
+					default:
+						err = fmt.Errorf("could not figure out the type of write task")
+					}
+
+					if err != nil {
+						wlog.Errorf("could not process incoming task, %s", err)
+					} else {
+						batch.Queue(q, args...)
+					}
+
+					// if limit reached or no more queue and pending tasks
+
 				default:
+
 				}
 
 			}
@@ -169,20 +208,11 @@ func (p *PostgresDBService) runWriters() {
 	}
 
 	wgDBWriters.Wait()
-	p.FinishSignalChan <- struct{}{}
 
-}
-
-type WriteTask struct {
-	QueryID  int
-	ModelObj interface{}
 }
 
 func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
 
-	// for i := 0; i < batch.Len(); i++ {
-	// 	wlog.Tracef("Executing SQL: %s", batch.items[i])
-	// }
 	snapshot := time.Now()
 	tx, err := p.psqlPool.Begin(p.ctx)
 	if err != nil {
@@ -193,16 +223,17 @@ func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
 
 	var qerr error
 	var rows pgx.Rows
+	batchIdx := 0
 	for qerr == nil {
 		rows, qerr = batchResults.Query()
 		rows.Close()
+		batchIdx += 1
 	}
 	if qerr.Error() != "no result" {
-		wlog.Errorf(qerr.Error())
+		wlog.Errorf("Error executing batch, error: %s", qerr.Error())
+	} else {
+		wlog.Debugf("Batch process time: %f, batch size: %d", time.Since(snapshot).Seconds(), batch.Len())
 	}
-
-	// p.MonitorStruct.AddDBWrite(time.Since(snapshot).Seconds())
-	wlog.Debugf("Batch process time: %f, batch size: %d", time.Since(snapshot).Seconds(), batch.Len())
 
 	return tx.Commit(p.ctx)
 
