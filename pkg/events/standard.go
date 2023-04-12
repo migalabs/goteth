@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/sirupsen/logrus"
 )
@@ -17,7 +18,7 @@ type Events struct {
 	ctx            context.Context
 	cli            *clientapi.APIClient
 	SubscribedHead bool
-	HeadChan       chan int
+	HeadChan       chan phase0.Slot
 }
 
 func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
@@ -25,6 +26,6 @@ func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
 		ctx:            iCtx,
 		cli:            iCli,
 		SubscribedHead: false,
-		HeadChan:       make(chan int),
+		HeadChan:       make(chan phase0.Slot),
 	}
 }

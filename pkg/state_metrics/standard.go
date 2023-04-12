@@ -5,6 +5,8 @@ import (
 
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 )
 
@@ -14,35 +16,21 @@ type StateMetricsBase struct {
 	NextState    fork_state.ForkStateContentBase
 }
 
-func (p StateMetricsBase) EpochReward(valIdx uint64) int64 {
-	if valIdx < uint64(len(p.CurrentState.Balances)) && valIdx < uint64(len(p.NextState.Balances)) {
-		return int64(p.NextState.Balances[valIdx]) - int64(p.CurrentState.Balances[valIdx])
+func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) phase0.Gwei {
+	if valIdx < phase0.ValidatorIndex(len(p.CurrentState.Balances)) && valIdx < phase0.ValidatorIndex(len(p.NextState.Balances)) {
+		return p.NextState.Balances[valIdx] - p.CurrentState.Balances[valIdx]
 	}
 
 	return 0
 
 }
 
-func (p StateMetricsBase) GetAttSlot(valIdx uint64) uint64 {
-
-	return p.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
-}
-
-func (p StateMetricsBase) GetAttInclusionSlot(valIdx uint64) int64 {
-
-	for i, item := range p.CurrentState.ValAttestationInclusion[valIdx].AttestedSlot {
-		// we are looking for a vote to the previous epoch
-		if item >= p.PrevState.Slot+1-fork_state.SLOTS_PER_EPOCH &&
-			item <= p.PrevState.Slot {
-			return int64(p.CurrentState.ValAttestationInclusion[valIdx].InclusionSlot[i])
-		}
-	}
-	return int64(-1)
-}
-
 type StateMetrics interface {
 	GetMetricsBase() StateMetricsBase
-	GetMaxReward(valIdx uint64) (ValidatorSepRewards, error)
+	GetMaxReward(valIdx phase0.ValidatorIndex) (model.ValidatorRewards, error)
+	// keep in mind that att rewards for epoch 10 can be seen at beginning of epoch 12,
+	// after state_transition
+	// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
 }
 
 func StateMetricsByForkVersion(nextBstate fork_state.ForkStateContentBase, bstate fork_state.ForkStateContentBase, prevBstate fork_state.ForkStateContentBase, iApi *http.Service) (StateMetrics, error) {
@@ -62,13 +50,4 @@ func StateMetricsByForkVersion(nextBstate fork_state.ForkStateContentBase, bstat
 	default:
 		return nil, fmt.Errorf("could not figure out the State Metrics Fork Version: %s", bstate.Version)
 	}
-}
-
-type ValidatorSepRewards struct {
-	Attestation     uint64
-	SyncCommittee   uint64
-	MaxReward       uint64
-	BaseReward      uint64
-	InSyncCommittee bool
-	ProposerSlot    int64
 }

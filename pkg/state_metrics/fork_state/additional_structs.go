@@ -12,10 +12,9 @@ import (
 )
 
 type EpochData struct {
-	ProposerDuties    []*api.ProposerDuty
-	BeaconCommittees  []*api.BeaconCommittee // Beacon Committees organized by slot for the whole epoch
-	ValidatorAttSlot  map[uint64]uint64      // for each validator we have which slot it had to attest to
-	ValidatorsPerSlot map[uint64][]uint64    // each Slot, which validators had to attest
+	ProposerDuties   []*api.ProposerDuty                   // 32 Proposer Duties per Epoch
+	BeaconCommittees []*api.BeaconCommittee                // Beacon Committees organized by slot for the whole epoch
+	ValidatorAttSlot map[phase0.ValidatorIndex]phase0.Slot // for each validator we have which slot it had to attest to
 }
 
 func NewEpochData(iApi *http.Service, slot uint64) EpochData {
@@ -26,19 +25,19 @@ func NewEpochData(iApi *http.Service, slot uint64) EpochData {
 		log.Errorf(err.Error())
 	}
 
-	validatorsAttSlot := make(map[uint64]uint64) // each validator, when it had to attest
-	validatorsPerSlot := make(map[uint64][]uint64)
+	validatorsAttSlot := make(map[phase0.ValidatorIndex]phase0.Slot) // each validator, when it had to attest
+	validatorsPerSlot := make(map[phase0.Slot][]phase0.ValidatorIndex)
 
 	for _, committee := range epochCommittees {
 		for _, valID := range committee.Validators {
-			validatorsAttSlot[uint64(valID)] = uint64(committee.Slot)
+			validatorsAttSlot[valID] = committee.Slot
 
-			if val, ok := validatorsPerSlot[uint64(committee.Slot)]; ok {
+			if val, ok := validatorsPerSlot[committee.Slot]; ok {
 				// the slot exists in the map
-				validatorsPerSlot[uint64(committee.Slot)] = append(val, uint64(valID))
+				validatorsPerSlot[committee.Slot] = append(val, valID)
 			} else {
 				// the slot does not exist, create
-				validatorsPerSlot[uint64(committee.Slot)] = []uint64{uint64(valID)}
+				validatorsPerSlot[committee.Slot] = []phase0.ValidatorIndex{valID}
 			}
 		}
 	}
@@ -50,10 +49,9 @@ func NewEpochData(iApi *http.Service, slot uint64) EpochData {
 	}
 
 	return EpochData{
-		ProposerDuties:    proposerDuties,
-		BeaconCommittees:  epochCommittees,
-		ValidatorAttSlot:  validatorsAttSlot,
-		ValidatorsPerSlot: validatorsPerSlot,
+		ProposerDuties:   proposerDuties,
+		BeaconCommittees: epochCommittees,
+		ValidatorAttSlot: validatorsAttSlot,
 	}
 }
 

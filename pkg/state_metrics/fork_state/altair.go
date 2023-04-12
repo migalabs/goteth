@@ -6,7 +6,7 @@ import (
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 )
 
 var ( // spec weight constants
@@ -25,11 +25,11 @@ func NewAltairState(bstate spec.VersionedBeaconState, iApi *http.Service) ForkSt
 
 	altairObj := ForkStateContentBase{
 		Version:       bstate.Version,
-		Balances:      GweiToUint64(bstate.Altair.Balances),
+		Balances:      bstate.Altair.Balances,
 		Validators:    bstate.Altair.Validators,
 		EpochStructs:  NewEpochData(iApi, uint64(bstate.Altair.Slot)),
-		Epoch:         utils.GetEpochFromSlot(uint64(bstate.Altair.Slot)),
-		Slot:          uint64(bstate.Altair.Slot),
+		Epoch:         phase0.Epoch(bstate.Altair.Slot / SLOTS_PER_EPOCH),
+		Slot:          bstate.Altair.Slot,
 		BlockRoots:    RootToByte(bstate.Altair.BlockRoots),
 		SyncCommittee: *bstate.Altair.CurrentSyncCommittee,
 	}
@@ -59,15 +59,15 @@ func ProcessAttestations(customState *ForkStateContentBase, participation []alta
 
 			if (item & flag) == flag {
 				// The attestation has a timely flag, therefore we consider it correct flag
-				customState.CorrectFlags[participatingFlag][valIndex] += uint64(1)
+				customState.CorrectFlags[participatingFlag][valIndex] += uint(1)
 
 				// we sum the attesting balance in the corresponding flag index
-				customState.AttestingBalance[participatingFlag] += uint64(customState.Validators[valIndex].EffectiveBalance)
+				customState.AttestingBalance[participatingFlag] += customState.Validators[valIndex].EffectiveBalance
 
 				// if this validator was not counted as attesting before, count it now
 				if !customState.AttestingVals[valIndex] {
 					customState.NumAttestingVals++
-					customState.MaxAttestingBalance = uint64(customState.Validators[valIndex].EffectiveBalance)
+					customState.MaxAttestingBalance = customState.Validators[valIndex].EffectiveBalance
 				}
 				customState.AttestingVals[valIndex] = true
 			}

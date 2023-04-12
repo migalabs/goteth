@@ -18,5 +18,5 @@ func (e *Events) HandleHeadEvent(event *api.Event) {
 
 	data := event.Data.(*api.HeadEvent) // cast to head event
 	log.Infof("Received a new event: slot %d", data.Slot)
-	e.HeadChan <- int(data.Slot)
+	e.HeadChan <- data.Slot
 }
