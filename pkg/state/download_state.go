@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 )
 
@@ -33,7 +34,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 				return
 			}
 
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, int(slot), false)
+			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, phase0.Slot(slot), false)
 			if err != nil {
 				log.Errorf("error downloading state at slot %d", slot, err)
 				return
@@ -62,22 +63,22 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	}
 
 	// obtain current head
-	headSlot := -1
+	headSlot := phase0.Slot(0)
 	header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "head")
 	if err != nil {
 		log.Errorf("could not obtain current head to fill historical")
 	} else {
-		headSlot = int(header.Header.Message.Slot)
+		headSlot = header.Header.Message.Slot
 	}
 
 	// it means we could obtain both
 	if lastRequestEpoch > 0 && headSlot > 0 {
-		headEpoch := int(headSlot / EPOCH_SLOTS)
+		headEpoch := phase0.Epoch(headSlot / phase0.Slot(EPOCH_SLOTS))
 		lastRequestEpoch = lastRequestEpoch - 4 // start 4 epochs before for safety
 		for (lastRequestEpoch) < (headEpoch - 1) {
 			lastRequestEpoch = lastRequestEpoch + 1
 			log.Infof("filling missing epochs: %d", lastRequestEpoch)
-			slot := (lastRequestEpoch * EPOCH_SLOTS) + 31 // last slot of the epoch
+			slot := phase0.Slot(int(lastRequestEpoch)*EPOCH_SLOTS) + 31 // last slot of the epoch
 
 			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
 			if err != nil {
@@ -112,19 +113,19 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 
 		case newHead := <-s.eventsObj.HeadChan:
 			// new epoch
-			headEpoch := int(newHead / EPOCH_SLOTS)
+			headEpoch := phase0.Epoch(newHead / phase0.Slot(EPOCH_SLOTS))
 			if lastRequestEpoch <= 0 {
 				lastRequestEpoch = headEpoch
 			}
 			// reqEpoch => headEpoch - 1
 			log.Infof("Head Epoch: %d; Last Requested Epoch: %d", headEpoch, lastRequestEpoch)
-			log.Infof("Pending slots for new epoch: %d", ((headEpoch+1)*EPOCH_SLOTS)-newHead)
+			log.Infof("Pending slots for new epoch: %d", (int(headEpoch+1)*EPOCH_SLOTS)-int(newHead))
 
 			if (lastRequestEpoch + 1) >= headEpoch {
 				continue // wait for new epoch to arrive
 			}
 
-			slot := ((lastRequestEpoch + 1) * EPOCH_SLOTS) + 31 // last slot of the epoch
+			slot := phase0.Slot(int(lastRequestEpoch+1)*EPOCH_SLOTS) + 31 // last slot of the epoch
 			lastRequestEpoch = lastRequestEpoch + 1
 
 			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
@@ -138,7 +139,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	}
 }
 
-func (s StateAnalyzer) RequestBeaconState(slot int) (*spec.VersionedBeaconState, error) {
+func (s StateAnalyzer) RequestBeaconState(slot phase0.Slot) (*spec.VersionedBeaconState, error) {
 	newState, err := s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
 	if newState == nil {
 		return nil, fmt.Errorf("unable to retrieve Finalized Beacon State from the beacon node, closing requester routine. nil State")
@@ -155,7 +156,7 @@ func (s *StateAnalyzer) DownloadNewState(
 	prevBState *fork_state.ForkStateContentBase,
 	bstate *fork_state.ForkStateContentBase,
 	nextBstate *fork_state.ForkStateContentBase,
-	slot int,
+	slot phase0.Slot,
 	finalized bool) error {
 
 	log := log.WithField("routine", "download")

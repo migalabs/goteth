@@ -2,7 +2,7 @@ package state
 
 import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 )
@@ -27,11 +27,11 @@ func NewSummaryMetrics() SummaryMetrics {
 }
 
 func (s *SummaryMetrics) AddMetrics(
-	maxRewards state_metrics.ValidatorSepRewards,
+	maxRewards model.ValidatorRewards,
 	stateMetrics state_metrics.StateMetrics,
-	valIdx uint64,
+	valIdx phase0.ValidatorIndex,
 	validatorDBRow model.ValidatorRewards) {
-	if maxRewards.ProposerSlot == -1 {
+	if maxRewards.ProposerSlot == 0 { // there is no proposer at slot 0
 		// only do rewards statistics in case the validator is not a proposer
 		// right now we cannot measure the max reward for a proposer
 
@@ -42,7 +42,7 @@ func (s *SummaryMetrics) AddMetrics(
 	}
 	if maxRewards.InSyncCommittee {
 		s.NumSyncVals += 1
-		s.AvgSyncMaxReward += float64(maxRewards.SyncCommittee)
+		s.AvgSyncMaxReward += float64(maxRewards.SyncCommitteeReward)
 	}
 
 	s.AvgBaseReward += float64(maxRewards.BaseReward)
@@ -50,7 +50,7 @@ func (s *SummaryMetrics) AddMetrics(
 	// in case of Phase0 AttestationRewards and InlusionDelay is filled
 	// in case of Altair, only FlagIndexReward is filled
 	// TODO: we might need to do the same for single validator rewards
-	s.AvgAttMaxReward += float64(maxRewards.Attestation)
+	s.AvgAttMaxReward += float64(maxRewards.AttestationReward)
 
 	if fork_state.IsActive(*stateMetrics.GetMetricsBase().NextState.Validators[valIdx],
 		phase0.Epoch(stateMetrics.GetMetricsBase().NextState.Epoch)) {
