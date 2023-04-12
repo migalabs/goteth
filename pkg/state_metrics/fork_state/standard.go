@@ -9,6 +9,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -153,7 +154,7 @@ func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
 
 // check if there was a missed block at last slot of previous epoch
 func (p ForkStateContentBase) TrackPrevMissingBlock() phase0.Slot {
-	firstIndex := (p.Slot - SLOTS_PER_EPOCH) % SLOTS_PER_HISTORICAL_ROOT
+	firstIndex := (p.Slot - utils.SLOTS_PER_EPOCH) % utils.SLOTS_PER_HISTORICAL_ROOT
 
 	lastItem := p.BlockRoots[firstIndex-1]
 	item := p.BlockRoots[firstIndex]
@@ -161,7 +162,7 @@ func (p ForkStateContentBase) TrackPrevMissingBlock() phase0.Slot {
 
 	if res == 0 {
 		// both consecutive roots were the same ==> missed block
-		slot := p.Slot - SLOTS_PER_EPOCH
+		slot := p.Slot - utils.SLOTS_PER_EPOCH
 		return slot
 	}
 
@@ -171,8 +172,8 @@ func (p ForkStateContentBase) TrackPrevMissingBlock() phase0.Slot {
 
 // We use blockroots to track missed blocks. When there is a missed block, the block root is repeated
 func (p *ForkStateContentBase) TrackMissingBlocks() {
-	firstIndex := (p.Slot - SLOTS_PER_EPOCH + 1) % SLOTS_PER_HISTORICAL_ROOT
-	lastIndex := (p.Slot) % SLOTS_PER_HISTORICAL_ROOT
+	firstIndex := (p.Slot - utils.SLOTS_PER_EPOCH + 1) % utils.SLOTS_PER_HISTORICAL_ROOT
+	lastIndex := (p.Slot) % utils.SLOTS_PER_HISTORICAL_ROOT
 
 	for i := firstIndex; i <= lastIndex; i++ {
 		if i == 0 {
@@ -184,7 +185,7 @@ func (p *ForkStateContentBase) TrackMissingBlocks() {
 
 		if res == 0 {
 			// both consecutive roots were the same ==> missed block
-			slot := i - firstIndex + p.Slot - SLOTS_PER_EPOCH + 1
+			slot := i - firstIndex + p.Slot - utils.SLOTS_PER_EPOCH + 1
 			p.MissedBlocks = append(p.MissedBlocks, slot)
 		}
 	}

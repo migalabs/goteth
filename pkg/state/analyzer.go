@@ -97,11 +97,11 @@ func NewStateAnalyzer(
 		initEpoch := uint64(initSlot) / 32
 		finalEpoch := uint64(finalSlot / 32)
 
-		initSlot = (initEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1   // take last slot of init Epoch
-		finalSlot = (finalEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1 // take last slot of final Epoch
+		initSlot = (initEpoch+1)*utils.SLOTS_PER_EPOCH - 1   // take last slot of init Epoch
+		finalSlot = (finalEpoch+1)*utils.SLOTS_PER_EPOCH - 1 // take last slot of final Epoch
 
 		// start two epochs before and end two epochs after
-		for i := initSlot - (fork_state.SLOTS_PER_EPOCH * 2); i <= (finalSlot + fork_state.SLOTS_PER_EPOCH*2); i += utils.SlotBase {
+		for i := initSlot - (utils.SLOTS_PER_EPOCH * 2); i <= (finalSlot + utils.SLOTS_PER_EPOCH*2); i += utils.SlotBase {
 			slotRanges = append(slotRanges, i)
 			epochRange++
 		}

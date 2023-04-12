@@ -8,7 +8,6 @@ import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
@@ -104,9 +103,9 @@ loop:
 					NumAttestations:       len(stateMetrics.GetMetricsBase().NextState.PrevAttestations),
 					NumAttValidators:      int(stateMetrics.GetMetricsBase().NextState.NumAttestingVals),
 					NumValidators:         int(stateMetrics.GetMetricsBase().CurrentState.NumActiveVals),
-					TotalBalance:          float32(stateMetrics.GetMetricsBase().CurrentState.TotalActiveRealBalance) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
-					AttEffectiveBalance:   float32(stateMetrics.GetMetricsBase().NextState.AttestingBalance[altair.TimelyTargetFlagIndex]) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT), // as per BEaconcha.in
-					TotalEffectiveBalance: float32(stateMetrics.GetMetricsBase().CurrentState.TotalActiveBalance) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
+					TotalBalance:          float32(stateMetrics.GetMetricsBase().CurrentState.TotalActiveRealBalance) / float32(utils.EFFECTIVE_BALANCE_INCREMENT),
+					AttEffectiveBalance:   float32(stateMetrics.GetMetricsBase().NextState.AttestingBalance[altair.TimelyTargetFlagIndex]) / float32(utils.EFFECTIVE_BALANCE_INCREMENT), // as per BEaconcha.in
+					TotalEffectiveBalance: float32(stateMetrics.GetMetricsBase().CurrentState.TotalActiveBalance) / float32(utils.EFFECTIVE_BALANCE_INCREMENT),
 					MissingSource:         int(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
 					MissingTarget:         int(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
 					MissingHead:           int(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex)))}

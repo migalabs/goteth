@@ -71,7 +71,7 @@ func insertValidator(inputValidator model.ValidatorRewards) (string, []interface
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, inputValidator.ValidatorIndex)
 	resultArgs = append(resultArgs, inputValidator.Epoch)
-	resultArgs = append(resultArgs, inputValidator.ValidatorBalance)
+	resultArgs = append(resultArgs, inputValidator.BalanceToEth())
 	resultArgs = append(resultArgs, inputValidator.Reward)
 	resultArgs = append(resultArgs, inputValidator.MaxReward)
 	resultArgs = append(resultArgs, inputValidator.AttestationReward)

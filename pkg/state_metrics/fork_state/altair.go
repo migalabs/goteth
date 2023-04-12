@@ -7,17 +7,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-)
-
-var ( // spec weight constants
-	TIMELY_SOURCE_WEIGHT       = 14
-	TIMELY_TARGET_WEIGHT       = 26
-	TIMELY_HEAD_WEIGHT         = 14
-	PARTICIPATING_FLAGS_WEIGHT = []int{TIMELY_SOURCE_WEIGHT, TIMELY_TARGET_WEIGHT, TIMELY_HEAD_WEIGHT}
-	SYNC_REWARD_WEIGHT         = 2
-	PROPOSER_WEIGHT            = 8
-	WEIGHT_DENOMINATOR         = 64
-	SYNC_COMMITTEE_SIZE        = 512
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 // This Wrapper is meant to include all necessary data from the Altair Fork
@@ -28,7 +18,7 @@ func NewAltairState(bstate spec.VersionedBeaconState, iApi *http.Service) ForkSt
 		Balances:      bstate.Altair.Balances,
 		Validators:    bstate.Altair.Validators,
 		EpochStructs:  NewEpochData(iApi, uint64(bstate.Altair.Slot)),
-		Epoch:         phase0.Epoch(bstate.Altair.Slot / SLOTS_PER_EPOCH),
+		Epoch:         phase0.Epoch(bstate.Altair.Slot / utils.SLOTS_PER_EPOCH),
 		Slot:          bstate.Altair.Slot,
 		BlockRoots:    RootToByte(bstate.Altair.BlockRoots),
 		SyncCommittee: *bstate.Altair.CurrentSyncCommittee,

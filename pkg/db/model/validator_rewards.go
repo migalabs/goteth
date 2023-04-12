@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 var (
@@ -35,4 +36,8 @@ func (f ValidatorRewards) InsertOp() bool {
 
 func (f ValidatorRewards) DropOp() bool {
 	return false
+}
+
+func (f ValidatorRewards) BalanceToEth() float32 {
+	return float32(f.ValidatorBalance) / utils.EFFECTIVE_BALANCE_INCREMENT
 }

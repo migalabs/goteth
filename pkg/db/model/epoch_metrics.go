@@ -39,14 +39,14 @@ func (f Epoch) DropOp() bool {
 // 	return Epoch{
 // 		Epoch:                 input.CurrentState.Epoch,
 // 		Slot:                  input.CurrentState.Slot,
-// 		PrevNumAttestations:   len(input.NextState.PrevAttestations),
-// 		PrevNumAttValidators:  int(input.NextState.NumAttestingVals),
-// 		PrevNumValidators:     int(input.CurrentState.NumActiveVals),
-// 		TotalBalance:          float32(input.CurrentState.TotalActiveRealBalance) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
-// 		AttEffectiveBalance:   float32(input.NextState.AttestingBalance[altair.TimelyTargetFlagIndex]) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
-// 		TotalEffectiveBalance: float32(input.CurrentState.TotalActiveBalance) / float32(fork_state.EFFECTIVE_BALANCE_INCREMENT),
+// 		NumAttestations:       len(input.NextState.PrevAttestations),
+// 		NumAttValidators:      int(input.NextState.NumAttestingVals),
+// 		NumValidators:         int(input.CurrentState.NumActiveVals),
+// 		TotalBalance:          float32(input.CurrentState.TotalActiveRealBalance) / float32(utils.EFFECTIVE_BALANCE_INCREMENT),
+// 		AttEffectiveBalance:   float32(input.NextState.AttestingBalance[altair.TimelyTargetFlagIndex]) / float32(utils.EFFECTIVE_BALANCE_INCREMENT), // as per BEaconcha.in
+// 		TotalEffectiveBalance: float32(input.CurrentState.TotalActiveBalance) / float32(utils.EFFECTIVE_BALANCE_INCREMENT),
 // 		MissingSource:         int(input.NextState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
 // 		MissingTarget:         int(input.NextState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
-// 		MissingHead:           int(input.NextState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
-// 	}
+// 		MissingHead:           int(input.NextState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex)))}
+
 // }

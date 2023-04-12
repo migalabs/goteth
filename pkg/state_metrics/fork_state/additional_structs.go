@@ -66,7 +66,7 @@ func (p EpochData) GetValList(slot uint64, committeeIndex uint64) []phase0.Valid
 }
 
 func GetEffectiveBalance(balance float64) float64 {
-	return math.Min(MAX_EFFECTIVE_INCREMENTS*EFFECTIVE_BALANCE_INCREMENT, balance)
+	return math.Min(utils.MAX_EFFECTIVE_INCREMENTS*utils.EFFECTIVE_BALANCE_INCREMENT, balance)
 }
 
 type ValVote struct {

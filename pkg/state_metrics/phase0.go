@@ -8,6 +8,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 type Phase0Metrics struct {
@@ -111,7 +112,7 @@ func (p Phase0Metrics) GetMaxProposerReward(valIdx phase0.ValidatorIndex, baseRe
 			}
 		}
 		if votesIncluded > 0 {
-			return phase0.Gwei(baseReward/fork_state.PROPOSER_REWARD_QUOTIENT) * phase0.Gwei(votesIncluded), proposerSlot
+			return phase0.Gwei(baseReward/utils.PROPOSER_REWARD_QUOTIENT) * phase0.Gwei(votesIncluded), proposerSlot
 		}
 
 	}
@@ -123,7 +124,7 @@ func (p Phase0Metrics) GetMaxProposerReward(valIdx phase0.ValidatorIndex, baseRe
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#components-of-attestation-deltas
 func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (model.ValidatorRewards, error) {
 
-	if p.CurrentState.Epoch == fork_state.GENESIS_EPOCH { // No rewards are applied at genesis
+	if p.CurrentState.Epoch == utils.GENESIS_EPOCH { // No rewards are applied at genesis
 		return model.ValidatorRewards{}, nil
 	}
 
@@ -143,13 +144,13 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (model.Validat
 		previousAttestedBalance := p.CurrentState.AttestingBalance[i]
 
 		// participationRate per flag ==> previousAttestBalance / TotalActiveBalance
-		singleReward := baseReward * (previousAttestedBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT)
+		singleReward := baseReward * (previousAttestedBalance / utils.EFFECTIVE_BALANCE_INCREMENT)
 
 		// for each flag, we add baseReward * participationRate
-		voteReward += singleReward / (p.CurrentState.TotalActiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT)
+		voteReward += singleReward / (p.CurrentState.TotalActiveBalance / utils.EFFECTIVE_BALANCE_INCREMENT)
 	}
 
-	proposerReward = baseReward / fork_state.PROPOSER_REWARD_QUOTIENT
+	proposerReward = baseReward / utils.PROPOSER_REWARD_QUOTIENT
 	// only add it when there was an attestation (correct source)
 	inclusionDelayReward = baseReward - proposerReward
 
@@ -178,7 +179,7 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (model.Validat
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#helper-functions-1
 func (p Phase0Metrics) IsCorrectSource() bool {
-	epoch := phase0.Epoch(p.CurrentState.Slot / fork_state.SLOTS_PER_EPOCH)
+	epoch := phase0.Epoch(p.CurrentState.Slot / utils.SLOTS_PER_EPOCH)
 	if epoch == p.CurrentState.Epoch || epoch == p.PrevState.Epoch {
 		return true
 	}
@@ -189,9 +190,9 @@ func (p Phase0Metrics) IsCorrectSource() bool {
 func (p Phase0Metrics) IsCorrectTarget(attestation phase0.PendingAttestation) bool {
 	target := attestation.Data.Target.Root
 
-	slot := p.PrevState.Slot / fork_state.SLOTS_PER_EPOCH
-	slot = slot * fork_state.SLOTS_PER_EPOCH
-	expected := p.PrevState.BlockRoots[slot%fork_state.SLOTS_PER_HISTORICAL_ROOT]
+	slot := p.PrevState.Slot / utils.SLOTS_PER_EPOCH
+	slot = slot * utils.SLOTS_PER_EPOCH
+	expected := p.PrevState.BlockRoots[slot%utils.SLOTS_PER_HISTORICAL_ROOT]
 
 	res := bytes.Compare(target[:], expected)
 
@@ -202,7 +203,7 @@ func (p Phase0Metrics) IsCorrectTarget(attestation phase0.PendingAttestation) bo
 func (p Phase0Metrics) IsCorrectHead(attestation phase0.PendingAttestation) bool {
 	head := attestation.Data.BeaconBlockRoot
 
-	index := attestation.Data.Slot % fork_state.SLOTS_PER_HISTORICAL_ROOT
+	index := attestation.Data.Slot % utils.SLOTS_PER_HISTORICAL_ROOT
 	expected := p.CurrentState.BlockRoots[index]
 
 	res := bytes.Compare(head[:], expected)
@@ -217,9 +218,9 @@ func (p Phase0Metrics) GetBaseReward(valEffectiveBalance phase0.Gwei) phase0.Gwe
 
 	sqrt := math.Sqrt(float64(p.CurrentState.TotalActiveBalance))
 
-	denom := fork_state.BASE_REWARD_PER_EPOCH * sqrt
+	denom := utils.BASE_REWARD_PER_EPOCH * sqrt
 
-	num := (valEffectiveBalance * fork_state.BASE_REWARD_FACTOR)
+	num := (valEffectiveBalance * utils.BASE_REWARD_FACTOR)
 	baseReward = phase0.Gwei(num) / phase0.Gwei(denom)
 
 	return baseReward

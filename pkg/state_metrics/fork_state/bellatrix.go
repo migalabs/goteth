@@ -4,6 +4,7 @@ import (
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 // This Wrapper is meant to include all necessary data from the Bellatrix Fork
@@ -14,7 +15,7 @@ func NewBellatrixState(bstate spec.VersionedBeaconState, iApi *http.Service) For
 		Balances:      bstate.Bellatrix.Balances,
 		Validators:    bstate.Bellatrix.Validators,
 		EpochStructs:  NewEpochData(iApi, uint64(bstate.Bellatrix.Slot)),
-		Epoch:         phase0.Epoch(bstate.Bellatrix.Slot / SLOTS_PER_EPOCH),
+		Epoch:         phase0.Epoch(bstate.Bellatrix.Slot / utils.SLOTS_PER_EPOCH),
 		Slot:          bstate.Bellatrix.Slot,
 		BlockRoots:    RootToByte(bstate.Bellatrix.BlockRoots),
 		SyncCommittee: *bstate.Bellatrix.CurrentSyncCommittee,

@@ -6,6 +6,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 type AltairMetrics struct {
@@ -75,12 +76,12 @@ func (p AltairMetrics) GetMaxSyncComReward(valIdx phase0.ValidatorIndex) phase0.
 
 	// at this point we know the validator was inside the sync committee and, therefore, active at that point
 
-	totalActiveInc := p.NextState.TotalActiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT
+	totalActiveInc := p.NextState.TotalActiveBalance / utils.EFFECTIVE_BALANCE_INCREMENT
 	totalBaseRewards := p.GetBaseRewardPerInc(p.NextState.TotalActiveBalance) * totalActiveInc
-	maxParticipantRewards := totalBaseRewards * phase0.Gwei(fork_state.SYNC_REWARD_WEIGHT) / phase0.Gwei(fork_state.WEIGHT_DENOMINATOR) / fork_state.SLOTS_PER_EPOCH
-	participantReward := maxParticipantRewards / phase0.Gwei(fork_state.SYNC_COMMITTEE_SIZE) // this is the participantReward for a single slot
+	maxParticipantRewards := totalBaseRewards * phase0.Gwei(utils.SYNC_REWARD_WEIGHT) / phase0.Gwei(utils.WEIGHT_DENOMINATOR) / utils.SLOTS_PER_EPOCH
+	participantReward := maxParticipantRewards / phase0.Gwei(utils.SYNC_COMMITTEE_SIZE) // this is the participantReward for a single slot
 
-	return participantReward * phase0.Gwei(fork_state.SLOTS_PER_EPOCH-len(p.NextState.MissedBlocks)) // max reward would be 32 perfect slots
+	return participantReward * phase0.Gwei(utils.SLOTS_PER_EPOCH-len(p.NextState.MissedBlocks)) // max reward would be 32 perfect slots
 
 }
 
@@ -97,10 +98,10 @@ func (p AltairMetrics) GetMaxAttestationReward(valIdx phase0.ValidatorIndex) pha
 		for i := range p.CurrentState.AttestingBalance {
 
 			// apply formula
-			attestingBalanceInc := p.CurrentState.AttestingBalance[i] / fork_state.EFFECTIVE_BALANCE_INCREMENT
+			attestingBalanceInc := p.CurrentState.AttestingBalance[i] / utils.EFFECTIVE_BALANCE_INCREMENT
 
-			flagReward := phase0.Gwei(fork_state.PARTICIPATING_FLAGS_WEIGHT[i]) * baseReward * attestingBalanceInc
-			flagReward = flagReward / ((phase0.Gwei(p.CurrentState.TotalActiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT)) * phase0.Gwei(fork_state.WEIGHT_DENOMINATOR))
+			flagReward := phase0.Gwei(utils.PARTICIPATING_FLAGS_WEIGHT[i]) * baseReward * attestingBalanceInc
+			flagReward = flagReward / ((phase0.Gwei(p.CurrentState.TotalActiveBalance / utils.EFFECTIVE_BALANCE_INCREMENT)) * phase0.Gwei(utils.WEIGHT_DENOMINATOR))
 			maxFlagsReward += flagReward
 		}
 	}
@@ -156,7 +157,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (model.Validat
 }
 
 func (p AltairMetrics) GetBaseReward(valIdx phase0.ValidatorIndex, effectiveBalance phase0.Gwei, totalEffectiveBalance phase0.Gwei) phase0.Gwei {
-	effectiveBalanceInc := effectiveBalance / fork_state.EFFECTIVE_BALANCE_INCREMENT
+	effectiveBalanceInc := effectiveBalance / utils.EFFECTIVE_BALANCE_INCREMENT
 	return p.GetBaseRewardPerInc(totalEffectiveBalance) * effectiveBalanceInc
 }
 
@@ -166,7 +167,7 @@ func (p AltairMetrics) GetBaseRewardPerInc(totalEffectiveBalance phase0.Gwei) ph
 
 	sqrt := uint64(math.Sqrt(float64(totalEffectiveBalance)))
 
-	num := fork_state.EFFECTIVE_BALANCE_INCREMENT * fork_state.BASE_REWARD_FACTOR
+	num := utils.EFFECTIVE_BALANCE_INCREMENT * utils.BASE_REWARD_FACTOR
 	baseReward = phase0.Gwei(uint64(num) / sqrt)
 
 	return baseReward
