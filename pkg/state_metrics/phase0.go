@@ -120,6 +120,7 @@ func (p Phase0Metrics) GetMaxProposerReward(valIdx phase0.ValidatorIndex, baseRe
 	return 0, 0
 }
 
+// TODO: review formulas
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#rewards-and-penalties-1
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#components-of-attestation-deltas
 func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (model.ValidatorRewards, error) {
