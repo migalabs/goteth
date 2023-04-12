@@ -31,6 +31,7 @@ var (
 	EPOCH_SLOTS        = 32
 )
 
+// TODO: reorganize routines
 type StateAnalyzer struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
