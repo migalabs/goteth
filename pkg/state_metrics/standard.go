@@ -16,9 +16,9 @@ type StateMetricsBase struct {
 	NextState    fork_state.ForkStateContentBase
 }
 
-func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) phase0.Gwei {
+func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
 	if valIdx < phase0.ValidatorIndex(len(p.CurrentState.Balances)) && valIdx < phase0.ValidatorIndex(len(p.NextState.Balances)) {
-		return p.NextState.Balances[valIdx] - p.CurrentState.Balances[valIdx]
+		return int64(p.NextState.Balances[valIdx]) - int64(p.CurrentState.Balances[valIdx])
 	}
 
 	return 0

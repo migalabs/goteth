@@ -16,7 +16,7 @@ type ValidatorRewards struct {
 	ValidatorIndex      phase0.ValidatorIndex
 	Epoch               phase0.Epoch
 	ValidatorBalance    phase0.Gwei
-	Reward              phase0.Gwei
+	Reward              int64 // it can be negative
 	MaxReward           phase0.Gwei
 	AttestationReward   phase0.Gwei
 	SyncCommitteeReward phase0.Gwei
