@@ -5,13 +5,6 @@ import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
-var (
-	ValidatorLastStatusModelOps = map[string]bool{
-		INSERT_OP: true,
-		DROP_OP:   false,
-	}
-)
-
 type ValidatorLastStatus struct {
 	ValIdx         phase0.ValidatorIndex
 	Epoch          phase0.Epoch

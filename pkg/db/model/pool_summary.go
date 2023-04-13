@@ -4,13 +4,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 )
 
-var (
-	PoolSummaryModelOps = map[string]bool{
-		INSERT_OP: true,
-		DROP_OP:   false,
-	}
-)
-
 type PoolSummary struct {
 	PoolName      string
 	Epoch         phase0.Epoch

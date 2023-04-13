@@ -7,13 +7,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 )
 
-var (
-	BlockModelOps = map[string]bool{
-		INSERT_OP: true,
-		DROP_OP:   false,
-	}
-)
-
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type ForkBlockContentBase struct {
 	Slot              phase0.Slot
