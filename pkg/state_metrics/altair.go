@@ -140,7 +140,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (model.Validat
 	result := model.ValidatorRewards{
 		ValidatorIndex:      valIdx,
 		Epoch:               p.NextState.Epoch,
-		ValidatorBalance:    p.CurrentState.Balances[valIdx],
+		ValidatorBalance:    p.NextState.Balances[valIdx],
 		Reward:              p.EpochReward(valIdx),
 		MaxReward:           maxReward,
 		AttestationReward:   flagIndexMaxReward,
