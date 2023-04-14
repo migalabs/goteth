@@ -28,6 +28,7 @@ var (
 	VAL_LEN            = 400000
 	SLOT_SECONDS       = 12
 	EPOCH_SLOTS        = 32
+	VALIDATOR_SET_SIZE = 500000
 )
 
 type BlockAnalyzer struct {
@@ -79,7 +80,7 @@ func NewBlockAnalyzer(
 		}
 		log.Debug("slotRanges are:", slotRanges)
 	}
-	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
+	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, maxWorkers*VALIDATOR_SET_SIZE, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
