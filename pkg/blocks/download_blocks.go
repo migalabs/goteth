@@ -91,14 +91,13 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	// loop over the list of slots that we need to analyze
 
 	for {
-
+		if s.finishDownload {
+			log.Info("sudden shutdown detected, block downloader routine")
+			close(s.BlockTaskChan)
+			return
+		}
 		select {
-		default:
-			if s.finishDownload {
-				log.Info("sudden shutdown detected, block downloader routine")
-				close(s.BlockTaskChan)
-				return
-			}
+
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
 			close(s.BlockTaskChan)

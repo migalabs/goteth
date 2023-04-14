@@ -29,7 +29,7 @@ loop:
 				return
 			}
 
-			wlog.Debugf("task received for val %d - %d in slot %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.StateMetricsObj.GetMetricsBase().CurrentState.Slot)
+			wlog.Debugf("task received for val %d - %d in epoch %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch)
 			// Proccess State
 			snapshot := time.Now()
 
@@ -90,7 +90,6 @@ loop:
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state worker routine")
 			return
-		default:
 		}
 
 	}

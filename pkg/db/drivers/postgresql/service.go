@@ -25,6 +25,7 @@ var (
 	)
 	MAX_BATCH_QUEUE       = 700
 	MAX_EPOCH_BATCH_QUEUE = 1
+	batchFlushingTimeout  = time.Duration(1 * time.Second)
 )
 
 type PostgresDBService struct {
@@ -141,31 +142,16 @@ func (p *PostgresDBService) runWriters() {
 			batch := pgx.Batch{}
 			defer wgDBWriters.Done()
 			wlogWriter := wlog.WithField("DBWriter", dbWriterID)
+			// batch flushing ticker
+			ticker := time.NewTicker(batchFlushingTimeout)
 		loop:
 			for {
-				if batch.Len() > MAX_BATCH_QUEUE || (len(p.WriteChan) == 0 && batch.Len() > 0) {
-					wlog.Debugf("Sending batch to be stored...")
-
-					err := p.ExecuteBatch(batch)
-					if err != nil {
-						wlogWriter.Errorf("Error processing batch", err.Error())
-					}
-					batch = pgx.Batch{}
-				}
-
-				if p.endProcess >= 1 && len(p.WriteChan) == 0 {
-					wlogWriter.Info("finish detected, closing persister")
-					break loop
-				}
 
 				select {
-				case <-p.ctx.Done():
-					wlogWriter.Info("shutdown detected, closing persister")
-					break loop
 
 				case task := <-p.WriteChan:
 
-					wlogWriter.Debugf("Received new write task")
+					wlogWriter.Tracef("Received new write task")
 					var q string
 					var args []interface{}
 					var err error
@@ -195,12 +181,28 @@ func (p *PostgresDBService) runWriters() {
 						batch.Queue(q, args...)
 					}
 
+				case <-p.ctx.Done():
+					wlogWriter.Info("shutdown detected, closing persister")
+					break loop
+				case <-ticker.C:
 					// if limit reached or no more queue and pending tasks
+					if batch.Len() > MAX_BATCH_QUEUE ||
+						(len(p.WriteChan) == 0 && batch.Len() > 0) {
 
-				default:
+						wlog.Tracef("Sending batch to be stored...")
 
+						err := p.ExecuteBatch(batch)
+						if err != nil {
+							wlogWriter.Errorf("Error processing batch", err.Error())
+						}
+						batch = pgx.Batch{}
+					}
+
+					if p.endProcess >= 1 && len(p.WriteChan) == 0 {
+						wlogWriter.Info("shutdown detected, closing persister")
+						break loop
+					}
 				}
-
 			}
 			wlogWriter.Debugf("DB Writer finished...")
 
@@ -232,7 +234,7 @@ func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
 	if qerr.Error() != "no result" {
 		wlog.Errorf("Error executing batch, error: %s", qerr.Error())
 	} else {
-		wlog.Debugf("Batch process time: %f, batch size: %d", time.Since(snapshot).Seconds(), batch.Len())
+		wlog.Tracef("Batch process time: %f, batch size: %d", time.Since(snapshot).Seconds(), batch.Len())
 	}
 
 	return tx.Commit(p.ctx)

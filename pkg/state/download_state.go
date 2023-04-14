@@ -97,15 +97,13 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	// -----------------------------------------------------------------------------------
 	s.eventsObj.SubscribeToHeadEvents()
 	for {
-
+		if s.finishDownload {
+			log.Info("sudden shutdown detected, state downloader routine")
+			close(s.EpochTaskChan)
+			return
+		}
 		select {
-		default:
 
-			if s.finishDownload {
-				log.Info("sudden shutdown detected, state downloader routine")
-				close(s.EpochTaskChan)
-				return
-			}
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state requester routine")
 			close(s.EpochTaskChan)
