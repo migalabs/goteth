@@ -109,7 +109,7 @@ func (p *PostgresDBService) ObtainLastEpoch() (phase0.Epoch, error) {
 	if err != nil {
 		return phase0.Epoch(0), errors.Wrap(err, "error obtaining last epoch from database")
 	}
-	epoch := -1
+	epoch := phase0.Epoch(0)
 	rows.Next()
 	rows.Scan(&epoch)
 	return phase0.Epoch(epoch), nil

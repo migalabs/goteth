@@ -111,7 +111,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 				log.Infof("No new head block yet")
 				continue
 			}
-			if lastRequestSlot < 0 {
+			if lastRequestSlot == 0 {
 				lastRequestSlot = headSlot
 			}
 			for lastRequestSlot < headSlot {

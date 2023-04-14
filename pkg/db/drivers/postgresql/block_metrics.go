@@ -125,7 +125,7 @@ func (p *PostgresDBService) ObtainLastSlot() (phase0.Slot, error) {
 	if err != nil {
 		return 0, errors.Wrap(err, "error obtianing last block from database")
 	}
-	slot := -1
+	slot := uint64(0)
 	rows.Next()
 	rows.Scan(&slot)
 	return phase0.Slot(slot), nil

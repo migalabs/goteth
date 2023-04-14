@@ -26,7 +26,7 @@ type ForkStateContentBase struct {
 	Validators              []*phase0.Validator               // list of validators
 	TotalActiveBalance      phase0.Gwei                       // effective balance
 	TotalActiveRealBalance  phase0.Gwei                       // real balance
-	AttestingBalance        []phase0.Gwei                     // one attesting balance per flag
+	AttestingBalance        []phase0.Gwei                     // one attesting balance per flag (of the previous epoch attestations)
 	MaxAttestingBalance     phase0.Gwei                       // the effective balance of validators that did attest in any manner
 	EpochStructs            EpochData                         // structs about beacon committees, proposers and attestation
 	CorrectFlags            [][]uint                          // one aray per flag

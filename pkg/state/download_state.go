@@ -112,7 +112,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 		case newHead := <-s.eventsObj.HeadChan:
 			// new epoch
 			headEpoch := phase0.Epoch(newHead / phase0.Slot(EPOCH_SLOTS))
-			if lastRequestEpoch <= 0 {
+			if lastRequestEpoch == 0 {
 				lastRequestEpoch = headEpoch
 			}
 			// reqEpoch => headEpoch - 1
