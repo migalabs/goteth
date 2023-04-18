@@ -100,7 +100,6 @@ loop:
 
 				s.dbClient.Persist(db.WriteTask{
 					Model: epochModel,
-					Op:    model.INSERT_OP,
 				})
 
 				// Proposer Duties
@@ -119,7 +118,6 @@ loop:
 					}
 					s.dbClient.Persist(db.WriteTask{
 						Model: newDuty,
-						Op:    model.INSERT_OP,
 					})
 				}
 			}

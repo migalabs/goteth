@@ -35,7 +35,6 @@ loop:
 
 			s.dbClient.Persist(db.WriteTask{
 				Model: task.Block,
-				Op:    model.INSERT_OP,
 			})
 
 			for _, item := range task.Block.ExecutionPayload.Withdrawals {
@@ -47,7 +46,6 @@ loop:
 						Address:        item.Address,
 						Amount:         item.Amount,
 					},
-					Op: model.INSERT_OP,
 				})
 
 			}

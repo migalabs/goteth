@@ -63,13 +63,11 @@ loop:
 							CurrentBalance: valTask.StateMetricsObj.GetMetricsBase().NextState.Balances[valIdx],
 							CurrentStatus:  maxRewards.Status,
 						},
-						Op: model.INSERT_OP,
 					})
 				}
 				if s.Metrics.ValidatorRewards { // only if flag is activated
 					s.dbClient.Persist(db.WriteTask{
 						Model: maxRewards,
-						Op:    model.INSERT_OP,
 					})
 				}
 
@@ -85,7 +83,6 @@ loop:
 				wlog.Debugf("Sending pool summary batch (%s) to be stored...", summaryMet.PoolName)
 				s.dbClient.Persist(db.WriteTask{
 					Model: summaryMet,
-					Op:    model.INSERT_OP,
 				})
 			}
 			wlog.Debugf("Validator group processed, worker freed for next group. Took %f seconds", time.Since(snapshot).Seconds())
