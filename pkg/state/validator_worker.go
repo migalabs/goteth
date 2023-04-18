@@ -36,6 +36,7 @@ loop:
 			// batch metrics
 			summaryMet := model.PoolSummary{
 				PoolName: valTask.PoolName,
+				Epoch:    valTask.StateMetricsObj.GetMetricsBase().NextState.Epoch,
 			}
 
 			// process each validator

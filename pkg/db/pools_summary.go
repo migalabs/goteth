@@ -74,10 +74,10 @@ func insertPool(inputPool model.PoolSummary) (string, []interface{}) {
 		// calculate averages
 		for _, item := range inputPool.ValidatorList {
 			reward += float32(item.Reward)
-			reward += float32(item.MaxReward)
-			reward += float32(item.BaseReward)
-			reward += float32(item.AttestationReward)
-			reward += float32(item.SyncCommitteeReward)
+			maxReward += float32(item.MaxReward)
+			baseReward += float32(item.BaseReward)
+			attMaxReward += float32(item.AttestationReward)
+			syncMaxReward += float32(item.SyncCommitteeReward)
 
 			if item.MissingSource {
 				missingSource += 1
