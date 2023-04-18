@@ -251,7 +251,7 @@ func (p ForkStateContentBase) GetMissingFlagCount(flagIndex int) uint64 {
 	return result
 }
 
-func (p ForkStateContentBase) GetValStatus(valIdx phase0.ValidatorIndex) int {
+func (p ForkStateContentBase) GetValStatus(valIdx phase0.ValidatorIndex) model.ValidatorStatus {
 
 	if p.Validators[valIdx].ExitEpoch <= phase0.Epoch(p.Epoch) {
 		return model.EXIT_STATUS
