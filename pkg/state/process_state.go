@@ -3,7 +3,6 @@ package state
 import (
 	"sync"
 
-	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
@@ -97,23 +96,12 @@ loop:
 				}
 
 				// TODO: send constructor to model package
-				epochModel := model.Epoch{
-					Epoch:                 stateMetrics.GetMetricsBase().CurrentState.Epoch,
-					Slot:                  stateMetrics.GetMetricsBase().CurrentState.Slot,
-					NumAttestations:       len(stateMetrics.GetMetricsBase().NextState.PrevAttestations),
-					NumAttValidators:      int(stateMetrics.GetMetricsBase().NextState.NumAttestingVals),
-					NumValidators:         int(stateMetrics.GetMetricsBase().CurrentState.NumActiveVals),
-					TotalBalance:          float32(stateMetrics.GetMetricsBase().CurrentState.TotalActiveRealBalance) / float32(utils.EFFECTIVE_BALANCE_INCREMENT),
-					AttEffectiveBalance:   float32(stateMetrics.GetMetricsBase().NextState.AttestingBalance[altair.TimelyTargetFlagIndex]) / float32(utils.EFFECTIVE_BALANCE_INCREMENT), // as per BEaconcha.in
-					TotalEffectiveBalance: float32(stateMetrics.GetMetricsBase().CurrentState.TotalActiveBalance) / float32(utils.EFFECTIVE_BALANCE_INCREMENT),
-					MissingSource:         int(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
-					MissingTarget:         int(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
-					MissingHead:           int(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex)))}
+				epochModel := stateMetrics.GetMetricsBase().ExportToEpoch()
 
-				s.dbClient.WriteChan <- db.WriteTask{
+				s.dbClient.Persist(db.WriteTask{
 					Model: epochModel,
 					Op:    model.INSERT_OP,
-				}
+				})
 
 				// Proposer Duties
 
@@ -129,10 +117,10 @@ loop:
 							newDuty.Proposed = false
 						}
 					}
-					s.dbClient.WriteChan <- db.WriteTask{
+					s.dbClient.Persist(db.WriteTask{
 						Model: newDuty,
 						Op:    model.INSERT_OP,
-					}
+					})
 				}
 			}
 		}

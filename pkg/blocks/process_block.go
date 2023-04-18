@@ -33,13 +33,13 @@ loop:
 			}
 			log.Infof("block task received for slot %d, analyzing...", task.Slot)
 
-			s.dbClient.WriteChan <- db.WriteTask{
+			s.dbClient.Persist(db.WriteTask{
 				Model: task.Block,
 				Op:    model.INSERT_OP,
-			}
+			})
 
 			for _, item := range task.Block.ExecutionPayload.Withdrawals {
-				s.dbClient.WriteChan <- db.WriteTask{
+				s.dbClient.Persist(db.WriteTask{
 					Model: model.Withdrawal{
 						Slot:           task.Block.Slot,
 						Index:          item.Index,
@@ -48,7 +48,7 @@ loop:
 						Amount:         item.Amount,
 					},
 					Op: model.INSERT_OP,
-				}
+				})
 
 			}
 		}

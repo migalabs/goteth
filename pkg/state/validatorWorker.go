@@ -53,7 +53,7 @@ loop:
 				if valTask.Finalized {
 					// Only update validator last status on Finalized
 					// We will always receive higher epochs
-					s.dbClient.WriteChan <- db.WriteTask{
+					s.dbClient.Persist(db.WriteTask{
 						Model: model.ValidatorLastStatus{
 							ValIdx:         phase0.ValidatorIndex(valIdx),
 							Epoch:          valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch,
@@ -61,13 +61,13 @@ loop:
 							CurrentStatus:  maxRewards.Status,
 						},
 						Op: model.INSERT_OP,
-					}
+					})
 				}
 				if s.Metrics.ValidatorRewards { // only if flag is activated
-					s.dbClient.WriteChan <- db.WriteTask{
+					s.dbClient.Persist(db.WriteTask{
 						Model: maxRewards,
 						Op:    model.INSERT_OP,
-					}
+					})
 				}
 
 				if s.Metrics.PoolSummary && valTask.PoolName != "" {
@@ -80,10 +80,10 @@ loop:
 				// only send summary batch in case pools were introduced by the user and we have a name to identify it
 
 				wlog.Debugf("Sending pool summary batch (%s) to be stored...", valTask.PoolName)
-				s.dbClient.WriteChan <- db.WriteTask{
+				s.dbClient.Persist(db.WriteTask{
 					Model: summaryMet,
 					Op:    model.INSERT_OP,
-				}
+				})
 			}
 			wlog.Debugf("Validator group processed, worker freed for next group. Took %f seconds", time.Since(snapshot).Seconds())
 
