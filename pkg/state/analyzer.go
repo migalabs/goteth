@@ -11,7 +11,7 @@ import (
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/controller"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/drivers/postgresql"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
 	reward_metrics "github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
@@ -51,7 +51,7 @@ type StateAnalyzer struct {
 
 	// Clients
 	cli      *clientapi.APIClient
-	dbClient *postgresql.PostgresDBService
+	dbClient *db.PostgresDBService
 
 	// Channels
 	EpochTaskChan chan *EpochTask
@@ -108,7 +108,7 @@ func NewStateAnalyzer(
 		log.Debug("slotRanges are:", slotRanges)
 	}
 	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
-	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
+	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -210,6 +210,7 @@ func (s *StateAnalyzer) Run() {
 	s.dbClient.DoneTasks()
 	<-s.dbClient.FinishSignalChan
 	log.Info("All database workers finished")
+	s.dbClient.Close()
 	close(s.ValTaskChan)
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()

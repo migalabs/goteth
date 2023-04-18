@@ -9,7 +9,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/drivers/postgresql"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
 	"github.com/pkg/errors"
@@ -42,7 +42,7 @@ type BlockAnalyzer struct {
 	BlockTaskChan      chan *BlockTask
 
 	cli      *clientapi.APIClient
-	dbClient *postgresql.PostgresDBService
+	dbClient *db.PostgresDBService
 
 	downloadMode string
 	// Control Variables
@@ -80,7 +80,7 @@ func NewBlockAnalyzer(
 		}
 		log.Debug("slotRanges are:", slotRanges)
 	}
-	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, maxWorkers*VALIDATOR_SET_SIZE, dbWorkerNum)
+	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, maxWorkers*VALIDATOR_SET_SIZE, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
