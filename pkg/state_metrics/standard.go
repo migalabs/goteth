@@ -5,9 +5,11 @@ import (
 
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 type StateMetricsBase struct {
@@ -50,4 +52,19 @@ func StateMetricsByForkVersion(nextBstate fork_state.ForkStateContentBase, bstat
 	default:
 		return nil, fmt.Errorf("could not figure out the State Metrics Fork Version: %s", bstate.Version)
 	}
+}
+
+func (s StateMetricsBase) ExportToEpoch() model.Epoch {
+	return model.Epoch{
+		Epoch:                 s.CurrentState.Epoch,
+		Slot:                  s.CurrentState.Slot,
+		NumAttestations:       len(s.NextState.PrevAttestations),
+		NumAttValidators:      int(s.NextState.NumAttestingVals),
+		NumValidators:         int(s.CurrentState.NumActiveVals),
+		TotalBalance:          float32(s.CurrentState.TotalActiveRealBalance) / float32(utils.EFFECTIVE_BALANCE_INCREMENT),
+		AttEffectiveBalance:   float32(s.NextState.AttestingBalance[altair.TimelyTargetFlagIndex]) / float32(utils.EFFECTIVE_BALANCE_INCREMENT), // as per BEaconcha.in
+		TotalEffectiveBalance: float32(s.CurrentState.TotalActiveBalance) / float32(utils.EFFECTIVE_BALANCE_INCREMENT),
+		MissingSource:         int(s.NextState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
+		MissingTarget:         int(s.NextState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
+		MissingHead:           int(s.NextState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex)))}
 }
