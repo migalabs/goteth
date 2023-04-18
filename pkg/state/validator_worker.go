@@ -34,7 +34,9 @@ loop:
 			snapshot := time.Now()
 
 			// batch metrics
-			summaryMet := model.PoolSummary{}
+			summaryMet := model.PoolSummary{
+				PoolName: valTask.PoolName,
+			}
 
 			// process each validator
 			for _, valIdx := range valTask.ValIdxs {
@@ -76,10 +78,10 @@ loop:
 
 			}
 
-			if s.Metrics.PoolSummary && valTask.PoolName != "" {
+			if s.Metrics.PoolSummary && summaryMet.PoolName != "" {
 				// only send summary batch in case pools were introduced by the user and we have a name to identify it
 
-				wlog.Debugf("Sending pool summary batch (%s) to be stored...", valTask.PoolName)
+				wlog.Debugf("Sending pool summary batch (%s) to be stored...", summaryMet.PoolName)
 				s.dbClient.Persist(db.WriteTask{
 					Model: summaryMet,
 					Op:    model.INSERT_OP,

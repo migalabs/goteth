@@ -11,11 +11,11 @@ var (
 	CREATE TABLE IF NOT EXISTS t_pool_summary(
 		f_pool_name TEXT,
 		f_epoch INT,
-		f_avg_reward INT,
-		f_avg_max_reward INT,
-		f_avg_max_att_reward INT,
-		f_avg_max_sync_reward INT,
-		f_avg_base_reward INT,
+		f_reward INT,
+		f_max_reward INT,
+		f_max_att_reward INT,
+		f_max_sync_reward INT,
+		f_base_reward INT,
 		f_sum_missing_source INT,
 		f_sum_missing_target INT, 
 		f_sum_missing_head INT,
@@ -27,11 +27,11 @@ var (
 	INSERT INTO t_pool_summary (
 		f_pool_name,
 		f_epoch,
-		f_avg_reward,
-		f_avg_max_reward,
-		f_avg_max_att_reward,
-		f_avg_max_sync_reward,
-		f_avg_base_reward,
+		f_reward,
+		f_max_reward,
+		f_max_att_reward,
+		f_max_sync_reward,
+		f_base_reward,
 		f_sum_missing_source,
 		f_sum_missing_target,
 		f_sum_missing_head,
@@ -41,11 +41,11 @@ var (
 	ON CONFLICT ON CONSTRAINT PK_EpochPool
 		DO 
 			UPDATE SET 
-			f_avg_reward = excluded.f_avg_reward,
-			f_avg_max_reward = excluded.f_avg_max_reward,
-			f_avg_max_att_reward = excluded.f_avg_max_att_reward,
-			f_avg_max_sync_reward = excluded.f_avg_max_sync_reward,
-			f_avg_base_reward = excluded.f_avg_base_reward,
+			f_reward = excluded.f_reward,
+			f_max_reward = excluded.f_max_reward,
+			f_max_att_reward = excluded.f_max_att_reward,
+			f_max_sync_reward = excluded.f_max_sync_reward,
+			f_base_reward = excluded.f_base_reward,
 			f_sum_missing_source = excluded.f_sum_missing_source,
 			f_sum_missing_target  = excluded.f_sum_missing_target,  
 			f_sum_missing_head = excluded.f_sum_missing_head,
@@ -67,9 +67,9 @@ func insertPool(inputPool model.PoolSummary) (string, []interface{}) {
 		missingTarget := 0
 		missingHead := 0
 
-		// numSyncVals := 0
+		numSyncVals := 0
+		numActiveVals := 0
 		// numProposers := 0
-		// numActiveVals := 0
 
 		// calculate averages
 		for _, item := range inputPool.ValidatorList {
@@ -88,6 +88,13 @@ func insertPool(inputPool model.PoolSummary) (string, []interface{}) {
 			if item.MissingHead {
 				missingHead += 1
 			}
+
+			if item.Status == model.ACTIVE_STATUS {
+				numActiveVals += 1
+			}
+			if item.InSyncCommittee {
+				numSyncVals += 1
+			}
 		}
 
 		resultArgs = append(resultArgs, inputPool.PoolName)
@@ -97,6 +104,11 @@ func insertPool(inputPool model.PoolSummary) (string, []interface{}) {
 		resultArgs = append(resultArgs, attMaxReward)
 		resultArgs = append(resultArgs, syncMaxReward)
 		resultArgs = append(resultArgs, baseReward)
+		resultArgs = append(resultArgs, missingSource)
+		resultArgs = append(resultArgs, missingTarget)
+		resultArgs = append(resultArgs, missingHead)
+		resultArgs = append(resultArgs, numActiveVals)
+		resultArgs = append(resultArgs, numSyncVals)
 	}
 
 	return UpsertPoolSummary, resultArgs
