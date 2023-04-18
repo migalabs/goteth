@@ -20,15 +20,11 @@ type ValidatorRewards struct {
 	MissingSource       bool
 	MissingTarget       bool
 	MissingHead         bool
-	Status              int
+	Status              ValidatorStatus
 }
 
 func (f ValidatorRewards) InsertOp() bool {
 	return true
-}
-
-func (f ValidatorRewards) DropOp() bool {
-	return false
 }
 
 func (f ValidatorRewards) BalanceToEth() float32 {

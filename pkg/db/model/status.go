@@ -1,8 +1,10 @@
 package model
 
-var (
-	QUEUE_STATUS   = 0
-	ACTIVE_STATUS  = 1
-	EXIT_STATUS    = 2
-	SLASHED_STATUS = 3
+type ValidatorStatus int8
+
+const (
+	QUEUE_STATUS ValidatorStatus = iota
+	ACTIVE_STATUS
+	EXIT_STATUS
+	SLASHED_STATUS
 )

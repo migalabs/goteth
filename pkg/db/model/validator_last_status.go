@@ -9,15 +9,11 @@ type ValidatorLastStatus struct {
 	ValIdx         phase0.ValidatorIndex
 	Epoch          phase0.Epoch
 	CurrentBalance phase0.Gwei
-	CurrentStatus  int
+	CurrentStatus  ValidatorStatus
 }
 
 func (f ValidatorLastStatus) InsertOp() bool {
 	return true
-}
-
-func (f ValidatorLastStatus) DropOp() bool {
-	return false
 }
 
 func (f ValidatorLastStatus) BalanceToEth() float32 {

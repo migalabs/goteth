@@ -17,7 +17,3 @@ type Withdrawal struct {
 func (f Withdrawal) InsertOp() bool {
 	return true
 }
-
-func (f Withdrawal) DropOp() bool {
-	return false
-}

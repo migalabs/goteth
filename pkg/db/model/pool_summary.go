@@ -17,7 +17,3 @@ func (p *PoolSummary) AddValidator(input ValidatorRewards) {
 func (f PoolSummary) InsertOp() bool {
 	return true
 }
-
-func (f PoolSummary) DropOp() bool {
-	return false
-}

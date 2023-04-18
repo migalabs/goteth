@@ -11,7 +11,3 @@ type ProposerDuty struct {
 func (f ProposerDuty) InsertOp() bool {
 	return true
 }
-
-func (f ProposerDuty) DropOp() bool {
-	return false
-}

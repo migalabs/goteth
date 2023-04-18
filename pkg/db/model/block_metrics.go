@@ -39,10 +39,6 @@ func (f ForkBlockContentBase) InsertOp() bool {
 	return true
 }
 
-func (f ForkBlockContentBase) DropOp() bool {
-	return false
-}
-
 func (p ForkBlockPayloadBase) BaseFeeToInt() int {
 	return 0 // not implemented yet
 }
