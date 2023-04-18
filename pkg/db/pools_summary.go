@@ -1,8 +1,6 @@
-package postgresql
+package db
 
 import (
-	"fmt"
-
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/pkg/errors"
 )
@@ -104,14 +102,11 @@ func insertPool(inputPool model.PoolSummary) (string, []interface{}) {
 	return UpsertPoolSummary, resultArgs
 }
 
-func PoolOperation(inputPool model.PoolSummary, op string) (string, []interface{}, error) {
+func PoolOperation(inputPool model.PoolSummary) (string, []interface{}) {
 
-	if op == model.INSERT_OP {
-		q, args := insertPool(inputPool)
-		return q, args, nil
-	}
+	q, args := insertPool(inputPool)
+	return q, args
 
-	return "", nil, fmt.Errorf("pool operation not permitted: %s", op)
 }
 
 func (p *PostgresDBService) createPoolsTable() error {

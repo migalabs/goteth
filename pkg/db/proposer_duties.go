@@ -1,4 +1,4 @@
-package postgresql
+package db
 
 /*
 
@@ -7,8 +7,6 @@ This file together with the model, has all the needed methods to interact with t
 */
 
 import (
-	"fmt"
-
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/pkg/errors"
 )
@@ -42,14 +40,11 @@ func insertProposerDuty(inputDuty model.ProposerDuty) (string, []interface{}) {
 	return InsertProposerDuty, resultArgs
 }
 
-func ProposerDutyOperation(inputDuty model.ProposerDuty, op string) (string, []interface{}, error) {
+func ProposerDutyOperation(inputDuty model.ProposerDuty) (string, []interface{}) {
 
-	if op == model.INSERT_OP {
-		q, args := insertProposerDuty(inputDuty)
-		return q, args, nil
-	}
+	q, args := insertProposerDuty(inputDuty)
+	return q, args
 
-	return "", nil, fmt.Errorf("proposer duty operation not permitted: %s", op)
 }
 
 // in case the table did not exist

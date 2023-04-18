@@ -1,8 +1,6 @@
-package postgresql
+package db
 
 import (
-	"fmt"
-
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/pkg/errors"
 )
@@ -85,14 +83,10 @@ func insertValidator(inputValidator model.ValidatorRewards) (string, []interface
 	return UpsertValidator, resultArgs
 }
 
-func ValidatorOperation(inputValidator model.ValidatorRewards, op string) (string, []interface{}, error) {
+func ValidatorOperation(inputValidator model.ValidatorRewards) (string, []interface{}) {
 
-	if op == model.INSERT_OP {
-		q, args := insertValidator(inputValidator)
-		return q, args, nil
-	}
-
-	return "", nil, fmt.Errorf("epoch operation not permitted: %s", op)
+	q, args := insertValidator(inputValidator)
+	return q, args
 }
 
 func (p *PostgresDBService) createRewardsTable() error {

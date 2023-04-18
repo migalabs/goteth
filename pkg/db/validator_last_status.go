@@ -1,8 +1,6 @@
-package postgresql
+package db
 
 import (
-	"fmt"
-
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/pkg/errors"
 )
@@ -42,14 +40,11 @@ func insertValidatorLastStatus(inputValidator model.ValidatorLastStatus) (string
 	return UpsertValidatorLastStatus, resultArgs
 }
 
-func ValidatorLastStatusOperation(inputValidator model.ValidatorLastStatus, op string) (string, []interface{}, error) {
+func ValidatorLastStatusOperation(inputValidator model.ValidatorLastStatus) (string, []interface{}) {
 
-	if op == model.INSERT_OP {
-		q, args := insertValidatorLastStatus(inputValidator)
-		return q, args, nil
-	}
+	q, args := insertValidatorLastStatus(inputValidator)
+	return q, args
 
-	return "", nil, fmt.Errorf("validator last status operation not permitted: %s", op)
 }
 
 func (p *PostgresDBService) createLastStatusTable() error {

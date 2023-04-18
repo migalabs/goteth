@@ -1,4 +1,4 @@
-package postgresql
+package db
 
 /*
 
@@ -7,7 +7,6 @@ This file together with the model, has all the needed methods to interact with t
 */
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -98,14 +97,11 @@ func insertBlock(inputBlock model.ForkBlockContentBase) (string, []interface{}) 
 	return UpsertBlock, resultArgs
 }
 
-func BlockOperation(inputBlock model.ForkBlockContentBase, op string) (string, []interface{}, error) {
+func BlockOperation(inputBlock model.ForkBlockContentBase) (string, []interface{}) {
 
-	if op == model.INSERT_OP {
-		q, args := insertBlock(inputBlock)
-		return q, args, nil
-	}
+	q, args := insertBlock(inputBlock)
+	return q, args
 
-	return "", nil, fmt.Errorf("block operation not permitted: %s", op)
 }
 
 // in case the table did not exist

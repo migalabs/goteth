@@ -1,4 +1,4 @@
-package postgresql
+package db
 
 /*
 
@@ -7,8 +7,6 @@ This file together with the model, has all the needed methods to interact with t
 */
 
 import (
-	"fmt"
-
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/pkg/errors"
@@ -82,14 +80,10 @@ func insertEpoch(inputEpoch model.Epoch) (string, []interface{}) {
 	return UpsertEpoch, resultArgs
 }
 
-func EpochOperation(inputEpoch model.Epoch, op string) (string, []interface{}, error) {
+func EpochOperation(inputEpoch model.Epoch) (string, []interface{}) {
 
-	if op == model.INSERT_OP {
-		q, args := insertEpoch(inputEpoch)
-		return q, args, nil
-	}
-
-	return "", nil, fmt.Errorf("epoch operation not permitted: %s", op)
+	q, args := insertEpoch(inputEpoch)
+	return q, args
 }
 
 // in case the table did not exist

@@ -1,4 +1,4 @@
-package postgresql
+package db
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -35,7 +34,7 @@ type PostgresDBService struct {
 	connectionUrl string // the url might not be necessary (better to remove it?¿)
 	psqlPool      *pgxpool.Pool
 
-	WriteChan        chan db.WriteTask // Receive tasks to persist
+	writeChan        chan WriteTask // Receive tasks to persist
 	endProcess       int32
 	FinishSignalChan chan struct{}
 	workerNum        int
@@ -64,7 +63,7 @@ func ConnectToDB(ctx context.Context, url string, chanLength int, workerNum int)
 		cancel:           cancel,
 		connectionUrl:    url,
 		psqlPool:         psqlPool,
-		WriteChan:        make(chan db.WriteTask, chanLength),
+		writeChan:        make(chan WriteTask, chanLength),
 		endProcess:       0,
 		FinishSignalChan: make(chan struct{}, 1),
 		workerNum:        workerNum,
@@ -80,6 +79,7 @@ func ConnectToDB(ctx context.Context, url string, chanLength int, workerNum int)
 
 // Close the connection with the PostgreSQL
 func (p *PostgresDBService) Close() {
+	p.psqlPool.Close()
 }
 
 func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error {
@@ -149,7 +149,7 @@ func (p *PostgresDBService) runWriters() {
 
 				select {
 
-				case task := <-p.WriteChan:
+				case task := <-p.writeChan:
 
 					wlogWriter.Tracef("Received new write task")
 					var q string
@@ -158,19 +158,19 @@ func (p *PostgresDBService) runWriters() {
 
 					switch task.Model.(type) {
 					case model.ForkBlockContentBase:
-						q, args, err = BlockOperation(task.Model.(model.ForkBlockContentBase), task.Op)
+						q, args = BlockOperation(task.Model.(model.ForkBlockContentBase))
 					case model.Epoch:
-						q, args, err = EpochOperation(task.Model.(model.Epoch), task.Op)
+						q, args = EpochOperation(task.Model.(model.Epoch))
 					case model.PoolSummary:
-						q, args, err = PoolOperation(task.Model.(model.PoolSummary), task.Op)
+						q, args = PoolOperation(task.Model.(model.PoolSummary))
 					case model.ProposerDuty:
-						q, args, err = ProposerDutyOperation(task.Model.(model.ProposerDuty), task.Op)
+						q, args = ProposerDutyOperation(task.Model.(model.ProposerDuty))
 					case model.ValidatorLastStatus:
-						q, args, err = ValidatorLastStatusOperation(task.Model.(model.ValidatorLastStatus), task.Op)
+						q, args = ValidatorLastStatusOperation(task.Model.(model.ValidatorLastStatus))
 					case model.ValidatorRewards:
-						q, args, err = ValidatorOperation(task.Model.(model.ValidatorRewards), task.Op)
+						q, args = ValidatorOperation(task.Model.(model.ValidatorRewards))
 					case model.Withdrawal:
-						q, args, err = WithdrawalOperation(task.Model.(model.Withdrawal), task.Op)
+						q, args = WithdrawalOperation(task.Model.(model.Withdrawal))
 					default:
 						err = fmt.Errorf("could not figure out the type of write task")
 					}
@@ -187,7 +187,7 @@ func (p *PostgresDBService) runWriters() {
 				case <-ticker.C:
 					// if limit reached or no more queue and pending tasks
 					if batch.Len() > MAX_BATCH_QUEUE ||
-						(len(p.WriteChan) == 0 && batch.Len() > 0) {
+						(len(p.writeChan) == 0 && batch.Len() > 0) {
 
 						wlog.Tracef("Sending batch to be stored...")
 
@@ -198,7 +198,7 @@ func (p *PostgresDBService) runWriters() {
 						batch = pgx.Batch{}
 					}
 
-					if p.endProcess >= 1 && len(p.WriteChan) == 0 {
+					if p.endProcess >= 1 && len(p.writeChan) == 0 {
 						wlogWriter.Info("shutdown detected, closing persister")
 						break loop
 					}
@@ -239,4 +239,8 @@ func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
 
 	return tx.Commit(p.ctx)
 
+}
+
+func (p *PostgresDBService) Persist(w WriteTask) {
+	p.writeChan <- w
 }

@@ -1,8 +1,6 @@
-package postgresql
+package db
 
 import (
-	"fmt"
-
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/pkg/errors"
 )
@@ -46,14 +44,10 @@ func insertWithdrawal(inputWithdrawal model.Withdrawal) (string, []interface{}) 
 	return UpsertWithdrawal, resultArgs
 }
 
-func WithdrawalOperation(inputWithdrawal model.Withdrawal, op string) (string, []interface{}, error) {
+func WithdrawalOperation(inputWithdrawal model.Withdrawal) (string, []interface{}) {
 
-	if op == model.INSERT_OP {
-		q, args := insertWithdrawal(inputWithdrawal)
-		return q, args, nil
-	}
-
-	return "", nil, fmt.Errorf("withdrawal operation not permitted: %s", op)
+	q, args := insertWithdrawal(inputWithdrawal)
+	return q, args
 }
 
 func (p *PostgresDBService) createWithdrawalsTable() error {
