@@ -23,8 +23,8 @@ type ValidatorRewards struct {
 	Status              ValidatorStatus
 }
 
-func (f ValidatorRewards) InsertOp() bool {
-	return true
+func (f ValidatorRewards) Type() ModelType {
+	return ValidatorRewardsModel
 }
 
 func (f ValidatorRewards) BalanceToEth() float32 {

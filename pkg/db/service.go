@@ -34,7 +34,7 @@ type PostgresDBService struct {
 	connectionUrl string // the url might not be necessary (better to remove it?¿)
 	psqlPool      *pgxpool.Pool
 
-	writeChan        chan WriteTask // Receive tasks to persist
+	writeChan        chan model.Model // Receive tasks to persist
 	endProcess       int32
 	FinishSignalChan chan struct{}
 	workerNum        int
@@ -63,7 +63,7 @@ func ConnectToDB(ctx context.Context, url string, chanLength int, workerNum int)
 		cancel:           cancel,
 		connectionUrl:    url,
 		psqlPool:         psqlPool,
-		writeChan:        make(chan WriteTask, chanLength),
+		writeChan:        make(chan model.Model, chanLength),
 		endProcess:       0,
 		FinishSignalChan: make(chan struct{}, 1),
 		workerNum:        workerNum,
@@ -156,21 +156,21 @@ func (p *PostgresDBService) runWriters() {
 					var args []interface{}
 					var err error
 
-					switch task.Model.(type) {
-					case model.ForkBlockContentBase:
-						q, args = BlockOperation(task.Model.(model.ForkBlockContentBase))
-					case model.Epoch:
-						q, args = EpochOperation(task.Model.(model.Epoch))
-					case model.PoolSummary:
-						q, args = PoolOperation(task.Model.(model.PoolSummary))
-					case model.ProposerDuty:
-						q, args = ProposerDutyOperation(task.Model.(model.ProposerDuty))
-					case model.ValidatorLastStatus:
-						q, args = ValidatorLastStatusOperation(task.Model.(model.ValidatorLastStatus))
-					case model.ValidatorRewards:
-						q, args = ValidatorOperation(task.Model.(model.ValidatorRewards))
-					case model.Withdrawal:
-						q, args = WithdrawalOperation(task.Model.(model.Withdrawal))
+					switch task.Type() {
+					case model.BlockModel:
+						q, args = BlockOperation(task.(model.ForkBlockContentBase))
+					case model.EpochModel:
+						q, args = EpochOperation(task.(model.Epoch))
+					case model.PoolSummaryModel:
+						q, args = PoolOperation(task.(model.PoolSummary))
+					case model.ProposerDutyModel:
+						q, args = ProposerDutyOperation(task.(model.ProposerDuty))
+					case model.ValidatorLastStatusModel:
+						q, args = ValidatorLastStatusOperation(task.(model.ValidatorLastStatus))
+					case model.ValidatorRewardsModel:
+						q, args = ValidatorOperation(task.(model.ValidatorRewards))
+					case model.WithdrawalModel:
+						q, args = WithdrawalOperation(task.(model.Withdrawal))
 					default:
 						err = fmt.Errorf("could not figure out the type of write task")
 					}
@@ -241,6 +241,6 @@ func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
 
 }
 
-func (p *PostgresDBService) Persist(w WriteTask) {
+func (p *PostgresDBService) Persist(w model.Model) {
 	p.writeChan <- w
 }

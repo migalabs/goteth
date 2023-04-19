@@ -8,6 +8,6 @@ type ProposerDuty struct {
 	Proposed     bool
 }
 
-func (f ProposerDuty) InsertOp() bool {
-	return true
+func (f ProposerDuty) Type() ModelType {
+	return ProposerDutyModel
 }

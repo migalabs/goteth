@@ -14,6 +14,6 @@ type Withdrawal struct {
 	Amount         phase0.Gwei
 }
 
-func (f Withdrawal) InsertOp() bool {
-	return true
+func (f Withdrawal) Type() ModelType {
+	return WithdrawalModel
 }

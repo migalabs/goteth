@@ -12,8 +12,8 @@ type ValidatorLastStatus struct {
 	CurrentStatus  ValidatorStatus
 }
 
-func (f ValidatorLastStatus) InsertOp() bool {
-	return true
+func (f ValidatorLastStatus) Type() ModelType {
+	return ValidatorLastStatusModel
 }
 
 func (f ValidatorLastStatus) BalanceToEth() float32 {

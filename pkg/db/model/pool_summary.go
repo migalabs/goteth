@@ -14,6 +14,6 @@ func (p *PoolSummary) AddValidator(input ValidatorRewards) {
 	p.ValidatorList = append(p.ValidatorList, input)
 }
 
-func (f PoolSummary) InsertOp() bool {
-	return true
+func (f PoolSummary) Type() ModelType {
+	return PoolSummaryModel
 }

@@ -3,7 +3,6 @@ package blocks
 import (
 	"sync"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 )
 
@@ -33,19 +32,15 @@ loop:
 			}
 			log.Infof("block task received for slot %d, analyzing...", task.Slot)
 
-			s.dbClient.Persist(db.WriteTask{
-				Model: task.Block,
-			})
+			s.dbClient.Persist(task.Block)
 
 			for _, item := range task.Block.ExecutionPayload.Withdrawals {
-				s.dbClient.Persist(db.WriteTask{
-					Model: model.Withdrawal{
-						Slot:           task.Block.Slot,
-						Index:          item.Index,
-						ValidatorIndex: item.ValidatorIndex,
-						Address:        item.Address,
-						Amount:         item.Amount,
-					},
+				s.dbClient.Persist(model.Withdrawal{
+					Slot:           task.Block.Slot,
+					Index:          item.Index,
+					ValidatorIndex: item.ValidatorIndex,
+					Address:        item.Address,
+					Amount:         item.Amount,
 				})
 
 			}

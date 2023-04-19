@@ -35,8 +35,8 @@ type ForkBlockPayloadBase struct {
 	Withdrawals   []*capella.Withdrawal
 }
 
-func (f ForkBlockContentBase) InsertOp() bool {
-	return true
+func (f ForkBlockContentBase) Type() ModelType {
+	return BlockModel
 }
 
 func (p ForkBlockPayloadBase) BaseFeeToInt() int {

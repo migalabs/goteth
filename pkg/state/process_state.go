@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
@@ -98,9 +97,7 @@ loop:
 				// TODO: send constructor to model package
 				epochModel := stateMetrics.GetMetricsBase().ExportToEpoch()
 
-				s.dbClient.Persist(db.WriteTask{
-					Model: epochModel,
-				})
+				s.dbClient.Persist(epochModel)
 
 				// Proposer Duties
 
@@ -116,9 +113,7 @@ loop:
 							newDuty.Proposed = false
 						}
 					}
-					s.dbClient.Persist(db.WriteTask{
-						Model: newDuty,
-					})
+					s.dbClient.Persist(newDuty)
 				}
 			}
 		}

@@ -19,6 +19,6 @@ type Epoch struct {
 	MissingHead           int
 }
 
-func (f Epoch) InsertOp() bool {
-	return true
+func (f Epoch) Type() ModelType {
+	return EpochModel
 }
