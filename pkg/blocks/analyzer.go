@@ -8,9 +8,9 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/block_metrics/fork_block"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/go-bitfield"
@@ -28,6 +28,7 @@ var (
 	VAL_LEN            = 400000
 	SLOT_SECONDS       = 12
 	EPOCH_SLOTS        = 32
+	VALIDATOR_SET_SIZE = 500000
 )
 
 type BlockAnalyzer struct {
@@ -41,7 +42,7 @@ type BlockAnalyzer struct {
 	BlockTaskChan      chan *BlockTask
 
 	cli      *clientapi.APIClient
-	dbClient *postgresql.PostgresDBService
+	dbClient *db.PostgresDBService
 
 	downloadMode string
 	// Control Variables
@@ -79,7 +80,7 @@ func NewBlockAnalyzer(
 		}
 		log.Debug("slotRanges are:", slotRanges)
 	}
-	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
+	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, maxWorkers*VALIDATOR_SET_SIZE, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -160,28 +161,29 @@ func (s *BlockAnalyzer) Close() {
 
 //
 type BlockTask struct {
-	Block    fork_block.ForkBlockContentBase
+	Block    model.ForkBlockContentBase
 	Slot     uint64
 	Proposed bool
 }
 
-func (s BlockAnalyzer) CreateMissingBlock(slot int) fork_block.ForkBlockContentBase {
+func (s BlockAnalyzer) CreateMissingBlock(slot phase0.Slot) model.ForkBlockContentBase {
 	duties, err := s.cli.Api.ProposerDuties(s.ctx, phase0.Epoch(slot/32), []phase0.ValidatorIndex{})
-	proposerValIdx := 0
+	proposerValIdx := phase0.ValidatorIndex(0)
 	if err != nil {
 		log.Errorf("could not request proposer duty: %s", err)
 	} else {
 		for _, duty := range duties {
 			if duty.Slot == phase0.Slot(slot) {
-				proposerValIdx = int(duty.ValidatorIndex)
+				proposerValIdx = duty.ValidatorIndex
 			}
 		}
 	}
 
-	return fork_block.ForkBlockContentBase{
-		Slot:              uint64(slot),
-		ProposerIndex:     uint64(proposerValIdx),
+	return model.ForkBlockContentBase{
+		Slot:              slot,
+		ProposerIndex:     proposerValIdx,
 		Graffiti:          [32]byte{},
+		Proposed:          false,
 		Attestations:      make([]*phase0.Attestation, 0),
 		Deposits:          make([]*phase0.Deposit, 0),
 		ProposerSlashings: make([]*phase0.ProposerSlashing, 0),
@@ -190,7 +192,7 @@ func (s BlockAnalyzer) CreateMissingBlock(slot int) fork_block.ForkBlockContentB
 		SyncAggregate: &altair.SyncAggregate{
 			SyncCommitteeBits:      bitfield.NewBitvector512(),
 			SyncCommitteeSignature: phase0.BLSSignature{}},
-		ExecutionPayload: fork_block.ForkBlockPayloadBase{
+		ExecutionPayload: model.ForkBlockPayloadBase{
 			FeeRecipient:  bellatrix.ExecutionAddress{},
 			GasLimit:      0,
 			GasUsed:       0,

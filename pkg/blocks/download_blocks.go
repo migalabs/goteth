@@ -5,7 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/block_metrics/fork_block"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 )
 
 // This routine is able to download block by block in the slot range
@@ -32,7 +34,7 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 			ticker.Reset(minReqTime)
 
 			log.Infof("requesting Beacon Block from endpoint: slot %d", slot)
-			err := s.DownloadNewBlock(int(slot))
+			err := s.DownloadNewBlock(phase0.Slot(slot))
 
 			if err != nil {
 				log.Errorf("error downloading block at slot %d: %s", slot, err)
@@ -58,23 +60,23 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	}
 
 	// obtain current head
-	headSlot := -1
+	headSlot := phase0.Slot(0)
 	header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "head")
 	if err != nil {
 		log.Errorf("could not obtain current head to fill historical")
 	} else {
-		headSlot = int(header.Header.Message.Slot)
+		headSlot = header.Header.Message.Slot
 	}
 
 	// it means we could obtain both
 	if lastRequestSlot > 0 && headSlot > 0 {
 
-		for (lastRequestSlot) < (headSlot - 1) {
+		for lastRequestSlot < (headSlot - 1) {
 			lastRequestSlot = lastRequestSlot + 1
 
 			log.Infof("filling missing blocks: %d", lastRequestSlot)
 
-			err := s.DownloadNewBlock(lastRequestSlot)
+			err := s.DownloadNewBlock(phase0.Slot(lastRequestSlot))
 
 			if err != nil {
 				log.Errorf("error downloading block at slot %d: %s", lastRequestSlot, err)
@@ -89,14 +91,13 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	// loop over the list of slots that we need to analyze
 
 	for {
-
+		if s.finishDownload {
+			log.Info("sudden shutdown detected, block downloader routine")
+			close(s.BlockTaskChan)
+			return
+		}
 		select {
-		default:
-			if s.finishDownload {
-				log.Info("sudden shutdown detected, block downloader routine")
-				close(s.BlockTaskChan)
-				return
-			}
+
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
 			close(s.BlockTaskChan)
@@ -110,7 +111,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 				log.Infof("No new head block yet")
 				continue
 			}
-			if lastRequestSlot < 0 {
+			if lastRequestSlot == 0 {
 				lastRequestSlot = headSlot
 			}
 			for lastRequestSlot < headSlot {
@@ -128,7 +129,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	}
 }
 
-func (s BlockAnalyzer) RequestBeaconBlock(slot int) (fork_block.ForkBlockContentBase, bool, error) {
+func (s BlockAnalyzer) RequestBeaconBlock(slot phase0.Slot) (model.ForkBlockContentBase, bool, error) {
 	newBlock, err := s.cli.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
 	if newBlock == nil {
 		log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
@@ -136,19 +137,19 @@ func (s BlockAnalyzer) RequestBeaconBlock(slot int) (fork_block.ForkBlockContent
 	}
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
-		return fork_block.ForkBlockContentBase{}, false, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
+		return model.ForkBlockContentBase{}, false, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
 	}
 
 	customBlock, err := fork_block.GetCustomBlock(*newBlock)
 
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
-		return fork_block.ForkBlockContentBase{}, false, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
+		return model.ForkBlockContentBase{}, false, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
 	}
 	return customBlock, true, nil
 }
 
-func (s BlockAnalyzer) DownloadNewBlock(slot int) error {
+func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 
 	ticker := time.NewTicker(minReqTime)
 	newBlock, proposed, err := s.RequestBeaconBlock(slot)

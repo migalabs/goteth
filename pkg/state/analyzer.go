@@ -2,16 +2,16 @@ package state
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/controller"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
 	reward_metrics "github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics/fork_state"
@@ -31,6 +31,7 @@ var (
 	EPOCH_SLOTS        = 32
 )
 
+// TODO: reorganize routines
 type StateAnalyzer struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
@@ -39,18 +40,18 @@ type StateAnalyzer struct {
 	ValidatorIndexes []uint64
 
 	// User inputs
-	InitSlot           uint64
-	FinalSlot          uint64
+	InitSlot           phase0.Slot
+	FinalSlot          phase0.Slot
 	SlotRanges         []uint64
 	MissingVals        bool
 	validatorWorkerNum int
 	downloadMode       string
-	Metrics            DBMetrics
+	Metrics            controller.DBMetrics
 	PoolValidators     []utils.PoolKeys
 
 	// Clients
 	cli      *clientapi.APIClient
-	dbClient *postgresql.PostgresDBService
+	dbClient *db.PostgresDBService
 
 	// Channels
 	EpochTaskChan chan *EpochTask
@@ -96,18 +97,18 @@ func NewStateAnalyzer(
 		initEpoch := uint64(initSlot) / 32
 		finalEpoch := uint64(finalSlot / 32)
 
-		initSlot = (initEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1   // take last slot of init Epoch
-		finalSlot = (finalEpoch+1)*fork_state.SLOTS_PER_EPOCH - 1 // take last slot of final Epoch
+		initSlot = (initEpoch+1)*utils.SLOTS_PER_EPOCH - 1   // take last slot of init Epoch
+		finalSlot = (finalEpoch+1)*utils.SLOTS_PER_EPOCH - 1 // take last slot of final Epoch
 
 		// start two epochs before and end two epochs after
-		for i := initSlot - (fork_state.SLOTS_PER_EPOCH * 2); i <= (finalSlot + fork_state.SLOTS_PER_EPOCH*2); i += utils.SlotBase {
+		for i := initSlot - (utils.SLOTS_PER_EPOCH * 2); i <= (finalSlot + utils.SLOTS_PER_EPOCH*2); i += utils.SlotBase {
 			slotRanges = append(slotRanges, i)
 			epochRange++
 		}
 		log.Debug("slotRanges are:", slotRanges)
 	}
 	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
-	i_dbClient, err := postgresql.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
+	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -124,7 +125,7 @@ func NewStateAnalyzer(
 
 	}
 
-	metricsObj, err := NewMetrics(metrics)
+	metricsObj, err := controller.NewMetrics(metrics)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read metric.")
 	}
@@ -132,8 +133,8 @@ func NewStateAnalyzer(
 	return &StateAnalyzer{
 		ctx:           ctx,
 		cancel:        cancel,
-		InitSlot:      initSlot,
-		FinalSlot:     finalSlot,
+		InitSlot:      phase0.Slot(initSlot),
+		FinalSlot:     phase0.Slot(finalSlot),
 		SlotRanges:    slotRanges,
 		EpochTaskChan: make(chan *EpochTask, 10),
 		// size of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
@@ -209,6 +210,7 @@ func (s *StateAnalyzer) Run() {
 	s.dbClient.DoneTasks()
 	<-s.dbClient.FinishSignalChan
 	log.Info("All database workers finished")
+	s.dbClient.Close()
 	close(s.ValTaskChan)
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
@@ -227,7 +229,6 @@ func (s *StateAnalyzer) Close() {
 	s.cancel()
 }
 
-//
 type EpochTask struct {
 	NextState fork_state.ForkStateContentBase
 	State     fork_state.ForkStateContentBase
@@ -236,45 +237,9 @@ type EpochTask struct {
 }
 
 type ValTask struct {
-	ValIdxs         []uint64
+	ValIdxs         []phase0.ValidatorIndex
 	StateMetricsObj reward_metrics.StateMetrics
 	OnlyPrevAtt     bool
 	PoolName        string
 	Finalized       bool
-}
-
-type MonitorTasks struct {
-	ValIdxs []uint64
-	Slot    uint64
-}
-
-type DBMetrics struct {
-	Epoch       bool
-	Validator   bool
-	PoolSummary bool
-}
-
-func NewMetrics(input string) (DBMetrics, error) {
-	epoch := false
-	validator := false
-	pool := false
-
-	for _, item := range strings.Split(input, ",") {
-
-		switch item {
-		case "epoch":
-			epoch = true
-		case "validator":
-			validator = true
-		case "pool":
-			pool = true
-		default:
-			return DBMetrics{}, fmt.Errorf("could not parse metric: %s", item)
-		}
-	}
-	return DBMetrics{
-		Epoch:       epoch,
-		Validator:   validator,
-		PoolSummary: pool,
-	}, nil
 }

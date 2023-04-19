@@ -52,7 +52,7 @@ OPTIONS:
    --db-url value             example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states
    --workers-num value        example: 50 (default: 0)
    --db-workers-num value     example: 50 (default: 0)
-   --custom-pools value       example: pools.csv. Columns: f_val_idx,pool_name
+   --custom-pools value       example: pools.csv. Columns: f_val_idx,pool_name (Experimental)
    --metrics value            example: epoch,validator, epoch. Empty for all (default: epoch)
    --help, -h                 show help (default: false)
 

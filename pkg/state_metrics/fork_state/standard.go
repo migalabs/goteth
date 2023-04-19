@@ -8,6 +8,8 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,34 +17,30 @@ var (
 	log = logrus.WithField(
 		"module", "FoskStateContent",
 	)
-	QUEUE_STATUS   = 0
-	ACTIVE_STATUS  = 1
-	EXIT_STATUS    = 2
-	SLASHED_STATUS = 3
 )
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type ForkStateContentBase struct {
 	Version                 spec.DataVersion
-	Balances                []uint64                     // balance of each validator
-	Validators              []*phase0.Validator          // list of validators
-	TotalActiveBalance      uint64                       // effective balance
-	TotalActiveRealBalance  uint64                       // real balance
-	AttestingBalance        []uint64                     // one attesting balance per flag
-	MaxAttestingBalance     uint64                       // the effective balance of validators that did attest in any manner
-	EpochStructs            EpochData                    // structs about beacon committees, proposers and attestation
-	CorrectFlags            [][]uint64                   // one aray per flag
-	AttestingVals           []bool                       // the number of validators that did attest in the last epoch
-	PrevAttestations        []*phase0.PendingAttestation // array of attestations (currently only for Phase0)
-	NumAttestingVals        uint64                       // number of validators that attested in the last epoch
-	NumActiveVals           uint64                       // number of active validators in the epoch
-	ValAttestationInclusion map[uint64]ValVote           // one map per validator including which slots it had to attest and when it was included
-	AttestedValsPerSlot     map[uint64][]uint64          // for each slot in the epoch, how many vals attested
-	Epoch                   uint64                       // Epoch of the state
-	Slot                    uint64                       // Slot of the state
-	BlockRoots              [][]byte                     // array of block roots at this point (8192)
-	MissedBlocks            []uint64                     // blocks missed in the epoch until this point
-	SyncCommittee           altair.SyncCommittee         // list of pubkeys in the current sync committe
+	Balances                []phase0.Gwei                     // balance of each validator
+	Validators              []*phase0.Validator               // list of validators
+	TotalActiveBalance      phase0.Gwei                       // effective balance
+	TotalActiveRealBalance  phase0.Gwei                       // real balance
+	AttestingBalance        []phase0.Gwei                     // one attesting balance per flag (of the previous epoch attestations)
+	MaxAttestingBalance     phase0.Gwei                       // the effective balance of validators that did attest in any manner
+	EpochStructs            EpochData                         // structs about beacon committees, proposers and attestation
+	CorrectFlags            [][]uint                          // one aray per flag
+	AttestingVals           []bool                            // the number of validators that did attest in the last epoch
+	PrevAttestations        []*phase0.PendingAttestation      // array of attestations (currently only for Phase0)
+	NumAttestingVals        uint                              // number of validators that attested in the last epoch
+	NumActiveVals           uint                              // number of active validators in the epoch
+	ValAttestationInclusion map[phase0.ValidatorIndex]ValVote // one map per validator including which slots it had to attest and when it was included
+	AttestedValsPerSlot     map[phase0.Slot][]uint64          // for each slot in the epoch, how many vals attested
+	Epoch                   phase0.Epoch                      // Epoch of the state
+	Slot                    phase0.Slot                       // Slot of the state
+	BlockRoots              [][]byte                          // array of block roots at this point (8192)
+	MissedBlocks            []phase0.Slot                     // blocks missed in the epoch until this point
+	SyncCommittee           altair.SyncCommittee              // list of pubkeys in the current sync committe
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, iApi *http.Service) (ForkStateContentBase, error) {
@@ -74,15 +72,15 @@ func (p *ForkStateContentBase) Setup() error {
 		p.PrevAttestations = make([]*phase0.PendingAttestation, 0)
 	}
 
-	p.AttestingBalance = make([]uint64, 3)
+	p.AttestingBalance = make([]phase0.Gwei, 3)
 	p.AttestingVals = make([]bool, arrayLen)
-	p.CorrectFlags = make([][]uint64, 3)
-	p.MissedBlocks = make([]uint64, 0)
-	p.ValAttestationInclusion = make(map[uint64]ValVote)
-	p.AttestedValsPerSlot = make(map[uint64][]uint64)
+	p.CorrectFlags = make([][]uint, 3)
+	p.MissedBlocks = make([]phase0.Slot, 0)
+	p.ValAttestationInclusion = make(map[phase0.ValidatorIndex]ValVote)
+	p.AttestedValsPerSlot = make(map[phase0.Slot][]uint64)
 
 	for i := range p.CorrectFlags {
-		p.CorrectFlags[i] = make([]uint64, arrayLen)
+		p.CorrectFlags[i] = make([]uint, arrayLen)
 	}
 
 	p.TotalActiveBalance = p.GetTotalActiveEffBalance()
@@ -94,21 +92,21 @@ func (p *ForkStateContentBase) Setup() error {
 // the length of the valList = number of validators
 // each position represents a valIdx
 // if the item has a number > 0, count it
-func (p ForkStateContentBase) ValsEffectiveBalance(valList []uint64) uint64 {
+func (p ForkStateContentBase) ValsEffectiveBalance(valList []phase0.Gwei) phase0.Gwei {
 
-	resultBalance := uint64(0)
+	resultBalance := phase0.Gwei(0)
 
 	for valIdx, item := range valList { // loop over validators
 		if item > 0 && valIdx < len(p.Validators) {
-			resultBalance += uint64(p.Validators[valIdx].EffectiveBalance)
+			resultBalance += p.Validators[valIdx].EffectiveBalance
 		}
 	}
 
-	return uint64(resultBalance)
+	return resultBalance
 }
 
-func (p ForkStateContentBase) Balance(valIdx uint64) (uint64, error) {
-	if uint64(len(p.Balances)) < valIdx {
+func (p ForkStateContentBase) Balance(valIdx phase0.ValidatorIndex) (phase0.Gwei, error) {
+	if uint64(len(p.Balances)) < uint64(valIdx) {
 		err := fmt.Errorf("phase0 - validator index %d wasn't activated in slot %d", valIdx, p.Slot)
 		return 0, err
 	}
@@ -118,9 +116,9 @@ func (p ForkStateContentBase) Balance(valIdx uint64) (uint64, error) {
 }
 
 // Edit NumActiveVals
-func (p *ForkStateContentBase) GetTotalActiveEffBalance() uint64 {
+func (p *ForkStateContentBase) GetTotalActiveEffBalance() phase0.Gwei {
 
-	val_array := make([]uint64, len(p.Validators))
+	val_array := make([]phase0.Gwei, len(p.Validators))
 	p.NumActiveVals = 0 // any time we calculate total effective balance, the number of active vals is refreshed and recalculated
 	for idx := range val_array {
 		if IsActive(*p.Validators[idx], phase0.Epoch(p.Epoch)) {
@@ -134,8 +132,8 @@ func (p *ForkStateContentBase) GetTotalActiveEffBalance() uint64 {
 }
 
 // Not effective balance, but balance
-func (p ForkStateContentBase) GetTotalActiveRealBalance() uint64 {
-	totalBalance := uint64(0)
+func (p ForkStateContentBase) GetTotalActiveRealBalance() phase0.Gwei {
+	totalBalance := phase0.Gwei(0)
 
 	for idx := range p.Validators {
 		if IsActive(*p.Validators[idx], phase0.Epoch(p.Epoch)) {
@@ -155,8 +153,8 @@ func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
 }
 
 // check if there was a missed block at last slot of previous epoch
-func (p ForkStateContentBase) TrackPrevMissingBlock() uint64 {
-	firstIndex := (p.Slot - SLOTS_PER_EPOCH) % SLOTS_PER_HISTORICAL_ROOT
+func (p ForkStateContentBase) TrackPrevMissingBlock() phase0.Slot {
+	firstIndex := (p.Slot - utils.SLOTS_PER_EPOCH) % utils.SLOTS_PER_HISTORICAL_ROOT
 
 	lastItem := p.BlockRoots[firstIndex-1]
 	item := p.BlockRoots[firstIndex]
@@ -164,7 +162,7 @@ func (p ForkStateContentBase) TrackPrevMissingBlock() uint64 {
 
 	if res == 0 {
 		// both consecutive roots were the same ==> missed block
-		slot := p.Slot - SLOTS_PER_EPOCH
+		slot := p.Slot - utils.SLOTS_PER_EPOCH
 		return slot
 	}
 
@@ -174,8 +172,8 @@ func (p ForkStateContentBase) TrackPrevMissingBlock() uint64 {
 
 // We use blockroots to track missed blocks. When there is a missed block, the block root is repeated
 func (p *ForkStateContentBase) TrackMissingBlocks() {
-	firstIndex := (p.Slot - SLOTS_PER_EPOCH + 1) % SLOTS_PER_HISTORICAL_ROOT
-	lastIndex := (p.Slot) % SLOTS_PER_HISTORICAL_ROOT
+	firstIndex := (p.Slot - utils.SLOTS_PER_EPOCH + 1) % utils.SLOTS_PER_HISTORICAL_ROOT
+	lastIndex := (p.Slot) % utils.SLOTS_PER_HISTORICAL_ROOT
 
 	for i := firstIndex; i <= lastIndex; i++ {
 		if i == 0 {
@@ -187,8 +185,8 @@ func (p *ForkStateContentBase) TrackMissingBlocks() {
 
 		if res == 0 {
 			// both consecutive roots were the same ==> missed block
-			slot := i - firstIndex + p.Slot - SLOTS_PER_EPOCH + 1
-			p.MissedBlocks = append(p.MissedBlocks, uint64(slot))
+			slot := i - firstIndex + p.Slot - utils.SLOTS_PER_EPOCH + 1
+			p.MissedBlocks = append(p.MissedBlocks, slot)
 		}
 	}
 }
@@ -209,18 +207,18 @@ func (p ForkStateContentBase) GetActiveVals() []uint64 {
 
 // List of validators that were in the epoch of the state
 // Length of the list is variable, each position containing the valIdx
-func (p ForkStateContentBase) GetAllVals() []uint64 {
-	result := make([]uint64, 0)
+func (p ForkStateContentBase) GetAllVals() []phase0.ValidatorIndex {
+	result := make([]phase0.ValidatorIndex, 0)
 
 	for i := range p.Validators {
-		result = append(result, uint64(i))
+		result = append(result, phase0.ValidatorIndex(i))
 
 	}
 	return result
 }
 
 // Returns a list of missing flags for the corresponding valIdx
-func (p ForkStateContentBase) MissingFlags(valIdx uint64) []bool {
+func (p ForkStateContentBase) MissingFlags(valIdx phase0.ValidatorIndex) []bool {
 	result := []bool{false, false, false}
 
 	if int(valIdx) >= len(p.CorrectFlags[0]) {
@@ -253,20 +251,20 @@ func (p ForkStateContentBase) GetMissingFlagCount(flagIndex int) uint64 {
 	return result
 }
 
-func (p ForkStateContentBase) GetValStatus(valIdx uint64) int {
+func (p ForkStateContentBase) GetValStatus(valIdx phase0.ValidatorIndex) model.ValidatorStatus {
 
 	if p.Validators[valIdx].ExitEpoch <= phase0.Epoch(p.Epoch) {
-		return EXIT_STATUS
+		return model.EXIT_STATUS
 	}
 
 	if p.Validators[valIdx].Slashed {
-		return SLASHED_STATUS
+		return model.SLASHED_STATUS
 	}
 
 	if p.Validators[valIdx].ActivationEpoch <= phase0.Epoch(p.Epoch) {
-		return ACTIVE_STATUS
+		return model.ACTIVE_STATUS
 	}
 
-	return QUEUE_STATUS
+	return model.QUEUE_STATUS
 
 }

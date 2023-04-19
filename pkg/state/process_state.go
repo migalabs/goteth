@@ -3,29 +3,20 @@ package state
 import (
 	"sync"
 
-	"github.com/attestantio/go-eth2-client/spec/altair"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/postgresql/model"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/state_metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
-	"github.com/jackc/pgx/v4"
 )
 
 func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool) {
 	defer wgProcess.Done()
-
-	epochBatch := pgx.Batch{}
 	log.Info("Launching Beacon State Pre-Processer")
 loop:
 	for {
 		// in case the downloads have finished, and there are no more tasks to execute
 		if *downloadFinishedFlag && len(s.EpochTaskChan) == 0 {
 			log.Warn("the task channel has been closed, finishing epoch routine")
-			if epochBatch.Len() == 0 {
-				log.Debugf("Sending last epoch batch to be stored...")
-				s.dbClient.WriteChan <- epochBatch
-				epochBatch = pgx.Batch{}
-			}
 
 			break loop
 		}
@@ -65,10 +56,10 @@ loop:
 				if len(s.PoolValidators) > 0 { // in case the user introduces custom pools
 					validatorBatches = s.PoolValidators
 
-					valMatrix := make([][]uint64, len(validatorBatches))
+					valMatrix := make([][]phase0.ValidatorIndex, len(validatorBatches))
 
 					for i, item := range validatorBatches {
-						valMatrix[i] = make([]uint64, 0)
+						valMatrix[i] = make([]phase0.ValidatorIndex, 0)
 						valMatrix[i] = item.ValIdxs
 					}
 
@@ -102,55 +93,29 @@ loop:
 				if nextMissedBlock != 0 {
 					missedBlocks = append(missedBlocks, nextMissedBlock)
 				}
-				epochDBRow := model.NewEpochMetrics(
-					stateMetrics.GetMetricsBase().CurrentState.Epoch,
-					stateMetrics.GetMetricsBase().CurrentState.Slot,
-					uint64(len(stateMetrics.GetMetricsBase().NextState.PrevAttestations)),
-					uint64(stateMetrics.GetMetricsBase().NextState.NumAttestingVals),
-					uint64(stateMetrics.GetMetricsBase().CurrentState.NumActiveVals),
-					uint64(stateMetrics.GetMetricsBase().CurrentState.TotalActiveRealBalance),
-					uint64(stateMetrics.GetMetricsBase().NextState.AttestingBalance[altair.TimelyTargetFlagIndex]), // as per BEaconcha.in
-					uint64(stateMetrics.GetMetricsBase().CurrentState.TotalActiveBalance),
-					uint64(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
-					uint64(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
-					uint64(stateMetrics.GetMetricsBase().NextState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
-					missedBlocks)
 
-				epochBatch.Queue(model.UpsertEpoch,
-					epochDBRow.Epoch,
-					epochDBRow.Slot,
-					epochDBRow.PrevNumAttestations,
-					epochDBRow.PrevNumAttValidators,
-					epochDBRow.PrevNumValidators,
-					epochDBRow.TotalBalance,
-					epochDBRow.AttEffectiveBalance,
-					epochDBRow.TotalEffectiveBalance,
-					epochDBRow.MissingSource,
-					epochDBRow.MissingTarget,
-					epochDBRow.MissingHead)
+				// TODO: send constructor to model package
+				epochModel := stateMetrics.GetMetricsBase().ExportToEpoch()
+
+				s.dbClient.Persist(epochModel)
 
 				// Proposer Duties
 
 				for _, item := range stateMetrics.GetMetricsBase().CurrentState.EpochStructs.ProposerDuties {
-					newDuty := model.NewProposerDuties(uint64(item.ValidatorIndex), uint64(item.Slot), true)
+
+					newDuty := model.ProposerDuty{
+						ValIdx:       item.ValidatorIndex,
+						ProposerSlot: item.Slot,
+						Proposed:     true,
+					}
 					for _, item := range missedBlocks {
 						if newDuty.ProposerSlot == item { // we found the proposer slot in the missed blocks
 							newDuty.Proposed = false
 						}
 					}
-					epochBatch.Queue(model.InsertProposerDuty,
-						newDuty.ValIdx,
-						newDuty.ProposerSlot,
-						newDuty.Proposed)
+					s.dbClient.Persist(newDuty)
 				}
 			}
-
-			// Flush the database batches
-			if epochBatch.Len() >= postgresql.MAX_EPOCH_BATCH_QUEUE {
-				s.dbClient.WriteChan <- epochBatch
-				epochBatch = pgx.Batch{}
-			}
-		default:
 		}
 
 	}

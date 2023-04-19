@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/pkg/errors"
 )
 
@@ -44,7 +45,7 @@ func BoolToUint(input []bool) []uint64 {
 }
 
 // in the case there is no pool
-func DivideValidatorsBatches(input []uint64, workers int) []PoolKeys {
+func DivideValidatorsBatches(input []phase0.ValidatorIndex, workers int) []PoolKeys {
 
 	result := make([]PoolKeys, 0)
 	step := len(input) / workers
@@ -68,7 +69,7 @@ func DivideValidatorsBatches(input []uint64, workers int) []PoolKeys {
 }
 
 // From here we should obtain those validators that do not belong to any pool
-func ObtainMissing(valLen int, poolVals [][]uint64) []uint64 {
+func ObtainMissing(valLen int, poolVals [][]phase0.ValidatorIndex) []phase0.ValidatorIndex {
 	valList := make([]uint64, valLen) // initialized to 0, no need to track
 
 	for _, poolArray := range poolVals {
@@ -77,19 +78,19 @@ func ObtainMissing(valLen int, poolVals [][]uint64) []uint64 {
 		}
 	}
 
-	result := make([]uint64, 0)
+	result := make([]phase0.ValidatorIndex, 0)
 
 	// track the validators that do not exist in the poolVals
 	for i, item := range valList {
 		if item == 0 {
-			result = append(result, uint64(i))
+			result = append(result, phase0.ValidatorIndex(i))
 		}
 	}
 
 	return result
 }
 
-func AddOthersPool(batches []PoolKeys, othervalList []uint64) []PoolKeys {
+func AddOthersPool(batches []PoolKeys, othervalList []phase0.ValidatorIndex) []PoolKeys {
 
 	for i, item := range batches {
 		if item.PoolName == "others" {
@@ -141,15 +142,15 @@ func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeysByPool []P
 		// look for which pool this line belongs to and append
 		for i, item := range validatorKeysByPool {
 			if poolName == item.PoolName {
-				item.ValIdxs = append(item.ValIdxs, uint64(valIdx))
+				item.ValIdxs = append(item.ValIdxs, phase0.ValidatorIndex(valIdx))
 				validatorKeysByPool[i] = item
 				found = true
 				break
 			}
 		}
 		if !found { // add a new pool
-			valIdxs := make([]uint64, 0)
-			valIdxs = append(valIdxs, uint64(valIdx))
+			valIdxs := make([]phase0.ValidatorIndex, 0)
+			valIdxs = append(valIdxs, phase0.ValidatorIndex(valIdx))
 
 			validatorKeysByPool = append(validatorKeysByPool, PoolKeys{
 				PoolName: poolName,
@@ -170,5 +171,5 @@ func ReadCustomValidatorsFile(validatorKeysFile string) (validatorKeysByPool []P
 
 type PoolKeys struct {
 	PoolName string
-	ValIdxs  []uint64
+	ValIdxs  []phase0.ValidatorIndex
 }

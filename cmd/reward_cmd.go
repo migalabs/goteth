@@ -73,7 +73,7 @@ var logRewardsRewards = logrus.WithField(
 
 var QueryTimeout = 90 * time.Second
 
-// CrawlAction is the function that is called when running `eth2`.
+// TODO: work on a better config in next releases
 func LaunchRewardsCalculator(c *cli.Context) error {
 	coworkers := 1
 	dbWorkers := 1
