@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
@@ -22,7 +22,7 @@ var (
 	wlog     = logrus.WithField(
 		"module", PsqlType,
 	)
-	MAX_BATCH_QUEUE       = 700
+	MAX_BATCH_QUEUE       = 1000
 	MAX_EPOCH_BATCH_QUEUE = 1
 	batchFlushingTimeout  = time.Duration(1 * time.Second)
 )
@@ -34,7 +34,7 @@ type PostgresDBService struct {
 	connectionUrl string // the url might not be necessary (better to remove it?¿)
 	psqlPool      *pgxpool.Pool
 
-	writeChan        chan model.Model // Receive tasks to persist
+	writeChan        chan Model // Receive tasks to persist
 	endProcess       int32
 	FinishSignalChan chan struct{}
 	workerNum        int
@@ -63,7 +63,7 @@ func ConnectToDB(ctx context.Context, url string, chanLength int, workerNum int)
 		cancel:           cancel,
 		connectionUrl:    url,
 		psqlPool:         psqlPool,
-		writeChan:        make(chan model.Model, chanLength),
+		writeChan:        make(chan Model, chanLength),
 		endProcess:       0,
 		FinishSignalChan: make(chan struct{}, 1),
 		workerNum:        workerNum,
@@ -157,20 +157,20 @@ func (p *PostgresDBService) runWriters() {
 					var err error
 
 					switch task.Type() {
-					case model.BlockModel:
-						q, args = BlockOperation(task.(model.ForkBlockContentBase))
-					case model.EpochModel:
-						q, args = EpochOperation(task.(model.Epoch))
-					case model.PoolSummaryModel:
-						q, args = PoolOperation(task.(model.PoolSummary))
-					case model.ProposerDutyModel:
-						q, args = ProposerDutyOperation(task.(model.ProposerDuty))
-					case model.ValidatorLastStatusModel:
-						q, args = ValidatorLastStatusOperation(task.(model.ValidatorLastStatus))
-					case model.ValidatorRewardsModel:
-						q, args = ValidatorOperation(task.(model.ValidatorRewards))
-					case model.WithdrawalModel:
-						q, args = WithdrawalOperation(task.(model.Withdrawal))
+					case spec.BlockModel:
+						q, args = BlockOperation(task.(spec.AgnosticBlock))
+					case spec.EpochModel:
+						q, args = EpochOperation(task.(spec.Epoch))
+					case spec.PoolSummaryModel:
+						q, args = PoolOperation(task.(spec.PoolSummary))
+					case spec.ProposerDutyModel:
+						q, args = ProposerDutyOperation(task.(spec.ProposerDuty))
+					case spec.ValidatorLastStatusModel:
+						q, args = ValidatorLastStatusOperation(task.(spec.ValidatorLastStatus))
+					case spec.ValidatorRewardsModel:
+						q, args = ValidatorOperation(task.(spec.ValidatorRewards))
+					case spec.WithdrawalModel:
+						q, args = WithdrawalOperation(task.(spec.Withdrawal))
 					default:
 						err = fmt.Errorf("could not figure out the type of write task")
 					}
@@ -241,6 +241,11 @@ func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
 
 }
 
-func (p *PostgresDBService) Persist(w model.Model) {
+func (p *PostgresDBService) Persist(w Model) {
 	p.writeChan <- w
+}
+
+type Model interface { // simply to enforce a Model interface
+	// For now we simply support insert operations
+	Type() spec.ModelType // whether insert is activated for this model
 }

@@ -7,7 +7,7 @@ This file together with the model, has all the needed methods to interact with t
 */
 
 import (
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/pkg/errors"
 )
 
@@ -37,22 +37,22 @@ func (p *PostgresDBService) createStatusTable() error {
 	}
 
 	// insert status
-	_, err = p.psqlPool.Exec(p.ctx, UpsertStatus, model.QUEUE_STATUS, "in queue to activation")
+	_, err = p.psqlPool.Exec(p.ctx, UpsertStatus, spec.QUEUE_STATUS, "in queue to activation")
 	if err != nil {
 		return errors.Wrap(err, "error inserting queue status")
 	}
 
-	_, err = p.psqlPool.Exec(p.ctx, UpsertStatus, model.ACTIVE_STATUS, "active")
+	_, err = p.psqlPool.Exec(p.ctx, UpsertStatus, spec.ACTIVE_STATUS, "active")
 	if err != nil {
 		return errors.Wrap(err, "error inserting active status")
 	}
 
-	_, err = p.psqlPool.Exec(p.ctx, UpsertStatus, model.EXIT_STATUS, "exit")
+	_, err = p.psqlPool.Exec(p.ctx, UpsertStatus, spec.EXIT_STATUS, "exit")
 	if err != nil {
 		return errors.Wrap(err, "error inserting exit status")
 	}
 
-	_, err = p.psqlPool.Exec(p.ctx, UpsertStatus, model.SLASHED_STATUS, "slashed")
+	_, err = p.psqlPool.Exec(p.ctx, UpsertStatus, spec.SLASHED_STATUS, "slashed")
 	if err != nil {
 		return errors.Wrap(err, "error inserting slashed status")
 	}

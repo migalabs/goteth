@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/pkg/errors"
 )
 
@@ -33,7 +33,7 @@ var (
 	`
 )
 
-func insertWithdrawal(inputWithdrawal model.Withdrawal) (string, []interface{}) {
+func insertWithdrawal(inputWithdrawal spec.Withdrawal) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, inputWithdrawal.Slot)
 	resultArgs = append(resultArgs, inputWithdrawal.Index)
@@ -44,7 +44,7 @@ func insertWithdrawal(inputWithdrawal model.Withdrawal) (string, []interface{}) 
 	return UpsertWithdrawal, resultArgs
 }
 
-func WithdrawalOperation(inputWithdrawal model.Withdrawal) (string, []interface{}) {
+func WithdrawalOperation(inputWithdrawal spec.Withdrawal) (string, []interface{}) {
 
 	q, args := insertWithdrawal(inputWithdrawal)
 	return q, args

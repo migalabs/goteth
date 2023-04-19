@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/pkg/errors"
 )
 
@@ -54,7 +54,7 @@ var (
 	`
 )
 
-func insertPool(inputPool model.PoolSummary) (string, []interface{}) {
+func insertPool(inputPool spec.PoolSummary) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 
 	if len(inputPool.ValidatorList) > 0 {
@@ -89,7 +89,7 @@ func insertPool(inputPool model.PoolSummary) (string, []interface{}) {
 				missingHead += 1
 			}
 
-			if item.Status == model.ACTIVE_STATUS {
+			if item.Status == spec.ACTIVE_STATUS {
 				numActiveVals += 1
 			}
 			if item.InSyncCommittee {
@@ -114,7 +114,7 @@ func insertPool(inputPool model.PoolSummary) (string, []interface{}) {
 	return UpsertPoolSummary, resultArgs
 }
 
-func PoolOperation(inputPool model.PoolSummary) (string, []interface{}) {
+func PoolOperation(inputPool spec.PoolSummary) (string, []interface{}) {
 
 	q, args := insertPool(inputPool)
 	return q, args

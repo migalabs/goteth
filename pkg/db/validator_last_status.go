@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/pkg/errors"
 )
 
@@ -30,7 +30,7 @@ var (
 	`
 )
 
-func insertValidatorLastStatus(inputValidator model.ValidatorLastStatus) (string, []interface{}) {
+func insertValidatorLastStatus(inputValidator spec.ValidatorLastStatus) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, inputValidator.ValIdx)
 	resultArgs = append(resultArgs, inputValidator.Epoch)
@@ -40,7 +40,7 @@ func insertValidatorLastStatus(inputValidator model.ValidatorLastStatus) (string
 	return UpsertValidatorLastStatus, resultArgs
 }
 
-func ValidatorLastStatusOperation(inputValidator model.ValidatorLastStatus) (string, []interface{}) {
+func ValidatorLastStatusOperation(inputValidator spec.ValidatorLastStatus) (string, []interface{}) {
 
 	q, args := insertValidatorLastStatus(inputValidator)
 	return q, args
