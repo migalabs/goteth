@@ -10,7 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/controller"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
@@ -33,7 +32,7 @@ type StateAnalyzer struct {
 	MissingVals        bool
 	validatorWorkerNum int
 	downloadMode       string
-	Metrics            controller.DBMetrics
+	Metrics            DBMetrics
 	PoolValidators     []utils.PoolKeys
 
 	// Clients
@@ -112,7 +111,7 @@ func NewStateAnalyzer(
 
 	}
 
-	metricsObj, err := controller.NewMetrics(metrics)
+	metricsObj, err := NewMetrics(metrics)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read metric.")
 	}
