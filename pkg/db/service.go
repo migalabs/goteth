@@ -42,7 +42,7 @@ type PostgresDBService struct {
 
 // Connect to the PostgreSQL Database and get the multithread-proof connection
 // from the given url-composed credentials
-func ConnectToDB(ctx context.Context, url string, chanLength int, workerNum int) (*PostgresDBService, error) {
+func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBService, error) {
 	mainCtx, cancel := context.WithCancel(ctx)
 	// spliting the url to don't share any confidential information on wlogs
 	wlog.Infof("Connecting to postgres DB %s", url)
@@ -63,7 +63,7 @@ func ConnectToDB(ctx context.Context, url string, chanLength int, workerNum int)
 		cancel:           cancel,
 		connectionUrl:    url,
 		psqlPool:         psqlPool,
-		writeChan:        make(chan Model, chanLength),
+		writeChan:        make(chan Model, workerNum),
 		endProcess:       0,
 		FinishSignalChan: make(chan struct{}, 1),
 		workerNum:        workerNum,
@@ -151,7 +151,6 @@ func (p *PostgresDBService) runWriters() {
 
 				case task := <-p.writeChan:
 
-					wlogWriter.Tracef("Received new write task")
 					var q string
 					var args []interface{}
 					var err error

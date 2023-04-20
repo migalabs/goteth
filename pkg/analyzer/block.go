@@ -66,7 +66,7 @@ func NewBlockAnalyzer(
 		}
 		log.Debug("slotRanges are:", slotRanges)
 	}
-	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, maxWorkers*ValidatorSetSize, dbWorkerNum)
+	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -77,7 +77,7 @@ func NewBlockAnalyzer(
 		InitSlot:           initSlot,
 		FinalSlot:          finalSlot,
 		SlotRanges:         slotRanges,
-		BlockTaskChan:      make(chan *BlockTask, 10),
+		BlockTaskChan:      make(chan *BlockTask, 1),
 		cli:                httpCli,
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,

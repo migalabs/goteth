@@ -94,7 +94,7 @@ func NewStateAnalyzer(
 		log.Debug("slotRanges are:", slotRanges)
 	}
 	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
-	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, maxWorkers, dbWorkerNum)
+	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, dbWorkerNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
@@ -117,14 +117,13 @@ func NewStateAnalyzer(
 	}
 
 	return &StateAnalyzer{
-		ctx:           ctx,
-		cancel:        cancel,
-		InitSlot:      phase0.Slot(initSlot),
-		FinalSlot:     phase0.Slot(finalSlot),
-		SlotRanges:    slotRanges,
-		EpochTaskChan: make(chan *EpochTask, 10),
-		// size of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
-		ValTaskChan:        make(chan *ValTask, maxWorkers),
+		ctx:                ctx,
+		cancel:             cancel,
+		InitSlot:           phase0.Slot(initSlot),
+		FinalSlot:          phase0.Slot(finalSlot),
+		SlotRanges:         slotRanges,
+		EpochTaskChan:      make(chan *EpochTask, 1),
+		ValTaskChan:        make(chan *ValTask, workerNum), // chan length is the same as the number of workers
 		cli:                httpCli,
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
