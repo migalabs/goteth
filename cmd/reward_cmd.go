@@ -10,8 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
+	"github.com/cortze/eth-cl-state-analyzer/pkg/analyzer"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/state"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
@@ -136,13 +136,13 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 
 	// generate the state analyzer
-	stateAnalyzer, err := state.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, customPools, missingVals, metrics)
+	stateAnalyzer, err := analyzer.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, customPools, missingVals, metrics)
 	if err != nil {
 		return err
 	}
 
 	procDoneC := make(chan struct{})
-	sigtermC := make(chan os.Signal)
+	sigtermC := make(chan os.Signal, 1)
 
 	signal.Notify(sigtermC, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, syscall.SIGTERM)
 
