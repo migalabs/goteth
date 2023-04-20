@@ -158,7 +158,7 @@ func (s *StateAnalyzer) DownloadNewState(
 	finalized bool) error {
 
 	log := log.WithField("routine", "download")
-	ticker := time.NewTicker(minReqTime)
+	ticker := time.NewTicker(minStateReqTime)
 	// We need three states to calculate both, rewards and maxRewards
 
 	if bstate.AttestingBalance != nil { // in case we already had a bstate

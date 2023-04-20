@@ -14,8 +14,6 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
 	// loop over the list of slots that we need to analyze
-
-	ticker := time.NewTicker(minReqTime)
 	for _, slot := range s.SlotRanges {
 
 		select {
@@ -30,7 +28,6 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 				close(s.BlockTaskChan)
 				return
 			}
-			ticker.Reset(minReqTime)
 
 			log.Infof("requesting Beacon Block from endpoint: slot %d", slot)
 			err := s.DownloadNewBlock(phase0.Slot(slot))
@@ -150,7 +147,7 @@ func (s BlockAnalyzer) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock,
 
 func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 
-	ticker := time.NewTicker(minReqTime)
+	ticker := time.NewTicker(minBlockReqTime)
 	newBlock, proposed, err := s.RequestBeaconBlock(slot)
 	if err != nil {
 		return fmt.Errorf("block error at slot %d: %s", slot, err)
