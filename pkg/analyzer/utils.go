@@ -9,7 +9,7 @@ import (
 const (
 	ValidatorSetSize = 500000 // Estimation of current number of validators, used for channel length declaration
 	maxWorkers       = 50
-	minReqTime       = 10 * time.Second
+	minReqTime       = 100 * time.Millisecond // max 10 queries per second, dont spam beacon node
 )
 
 var (
