@@ -33,6 +33,9 @@ To execute the tool, you can simply modify the `.env` file with your own configu
 make run
 ```
 
+
+
+
 *Available Commands*:
 ```
 COMMANDS:
@@ -67,7 +70,11 @@ OPTIONS:
    --db-workers-num value  example: 50 (default: 0)
    --download-mode value   example: hybrid,historical,finalized. Default: hybrid
    --help, -h              show help (default: false)
+```
 
+Additionally, you may run using the docker-compose file (see list of services in docker-compose file):
+```
+docker-compose up
 ```
 
 # Notes
