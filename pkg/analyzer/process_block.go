@@ -2,26 +2,21 @@ package analyzer
 
 import (
 	"sync"
+	"time"
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
-func (s *BlockAnalyzer) runProcessBlock(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool) {
+func (s *BlockAnalyzer) runProcessBlock(wgProcess *sync.WaitGroup) {
 	defer wgProcess.Done()
 
 	log.Info("Launching Beacon Block Processor")
+	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 loop:
 	for {
-		// in case the downloads have finished, and there are no more tasks to execute
-		if *downloadFinishedFlag && len(s.BlockTaskChan) == 0 {
-			log.Warn("the task channel has been closed, finishing block routine")
-			break loop
-		}
 
 		select {
-		case <-s.ctx.Done():
-			log.Info("context has died, closing block processer routine")
-			break loop
 
 		case task, ok := <-s.BlockTaskChan:
 
@@ -44,6 +39,16 @@ loop:
 				})
 
 			}
+
+		case <-ticker.C:
+			// in case the downloads have finished, and there are no more tasks to execute
+			if s.downloadFinished && len(s.BlockTaskChan) == 0 {
+				log.Warn("the task channel has been closed, finishing block routine")
+				break loop
+			}
+		case <-s.ctx.Done():
+			log.Info("context has died, closing block processer routine")
+			break loop
 		}
 
 	}

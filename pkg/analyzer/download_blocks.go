@@ -7,28 +7,27 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 // This routine is able to download block by block in the slot range
 func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
+
+loop:
 	// loop over the list of slots that we need to analyze
 	for slot := s.initSlot; slot < s.finalSlot; slot += 1 {
 
 		select {
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
-			close(s.BlockTaskChan)
-			close(s.TransactionTaskChan)
-			return
+			break loop
 
 		default:
-			if s.finishDownload {
+			if s.stop {
 				log.Info("sudden shutdown detected, block downloader routine")
-				close(s.BlockTaskChan)
-				close(s.TransactionTaskChan)
-				return
+				break loop
 			}
 
 			log.Infof("requesting Beacon Block from endpoint: slot %d", slot)
@@ -42,7 +41,7 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 
 	}
 
-	log.Infof("All blocks for the slot ranges has been successfully retrieved, clossing go routine")
+	log.Infof("Block Download routine finished")
 }
 
 func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
@@ -79,29 +78,22 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			if err != nil {
 				log.Errorf("error downloading block at slot %d: %s", lastRequestSlot, err)
 			}
+
+			if s.stop {
+				log.Info("sudden shutdown detected, block downloader routine")
+				return
+			}
 		}
 
 	}
 
 	// -----------------------------------------------------------------------------------
 	s.eventsObj.SubscribeToHeadEvents()
-
+	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 	// loop over the list of slots that we need to analyze
 
 	for {
-		if s.finishDownload {
-			log.Info("sudden shutdown detected, block downloader routine")
-			close(s.BlockTaskChan)
-			close(s.TransactionTaskChan)
-			return
-		}
 		select {
-
-		case <-s.ctx.Done():
-			log.Info("context has died, closing block requester routine")
-			close(s.BlockTaskChan)
-			close(s.TransactionTaskChan)
-			return
 
 		case headSlot := <-s.eventsObj.HeadChan: // wait for new head event
 			// make the block query
@@ -124,6 +116,15 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 
 			}
 
+		case <-s.ctx.Done():
+			log.Info("context has died, closing block requester routine")
+			return
+
+		case <-ticker.C:
+			if s.stop {
+				log.Info("sudden shutdown detected, block downloader routine")
+				return
+			}
 		}
 
 	}
