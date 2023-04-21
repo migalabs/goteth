@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
@@ -24,7 +25,6 @@ var (
 	)
 	MAX_BATCH_QUEUE       = 1000
 	MAX_EPOCH_BATCH_QUEUE = 1
-	batchFlushingTimeout  = time.Duration(1 * time.Second)
 )
 
 type PostgresDBService struct {
@@ -148,7 +148,7 @@ func (p *PostgresDBService) runWriters() {
 			defer wgDBWriters.Done()
 			wlogWriter := wlog.WithField("DBWriter", dbWriterID)
 			// batch flushing ticker
-			ticker := time.NewTicker(batchFlushingTimeout)
+			ticker := time.NewTicker(utils.RoutineFlushTimeout)
 		loop:
 			for {
 
