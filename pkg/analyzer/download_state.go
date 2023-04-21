@@ -20,7 +20,6 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 	bstate := local_spec.AgnosticState{}
 	nextBstate := local_spec.AgnosticState{}
 
-	// Start two epochs before and end one epoch after
 	for slot := s.initSlot; slot < s.finalSlot; slot += local_spec.SlotSeconds {
 
 		select {
@@ -30,7 +29,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 			return
 
 		default:
-			if s.finishDownload {
+			if s.downloadFinished {
 				log.Info("sudden shutdown detected, state downloader routine")
 				close(s.EpochTaskChan)
 				return
@@ -87,7 +86,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 				log.Errorf("error downloading state at slot %d", slot, err)
 				continue
 			}
-			if s.finishDownload {
+			if s.downloadFinished {
 				log.Info("sudden shutdown detected, state downloader routine")
 				close(s.EpochTaskChan)
 				return
@@ -99,7 +98,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	// -----------------------------------------------------------------------------------
 	s.eventsObj.SubscribeToHeadEvents()
 	for {
-		if s.finishDownload {
+		if s.downloadFinished {
 			log.Info("sudden shutdown detected, state downloader routine")
 			close(s.EpochTaskChan)
 			return

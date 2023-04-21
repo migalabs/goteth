@@ -10,13 +10,13 @@ import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
-func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup, downloadFinishedFlag *bool) {
+func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup) {
 	defer wgProcess.Done()
 	log.Info("Launching Beacon State Pre-Processer")
 loop:
 	for {
 		// in case the downloads have finished, and there are no more tasks to execute
-		if *downloadFinishedFlag && len(s.EpochTaskChan) == 0 {
+		if s.downloadFinished && len(s.EpochTaskChan) == 0 {
 			log.Warn("the task channel has been closed, finishing epoch routine")
 
 			break loop

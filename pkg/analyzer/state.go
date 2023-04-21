@@ -44,9 +44,12 @@ type StateAnalyzer struct {
 	ValTaskChan   chan *ValTask
 
 	// Control Variables
-	finishDownload bool
-	routineClosed  chan struct{}
-	eventsObj      events.Events
+	stop              bool
+	downloadFinished  bool
+	processerFinished bool
+	validatorFinished bool
+	routineClosed     chan struct{}
+	eventsObj         events.Events
 }
 
 func NewStateAnalyzer(
@@ -135,11 +138,9 @@ func (s *StateAnalyzer) Run() {
 
 	// State requester
 	var wgDownload sync.WaitGroup
-	downloadFinishedFlag := false
 
 	// Rewards per process
 	var wgProcess sync.WaitGroup
-	processFinishedFlag := false
 
 	// Workers to process each validator rewards
 	var wgWorkers sync.WaitGroup
@@ -159,7 +160,7 @@ func (s *StateAnalyzer) Run() {
 		go s.runDownloadStatesFinalized(&wgDownload)
 	}
 	wgProcess.Add(1)
-	go s.runProcessState(&wgProcess, &downloadFinishedFlag)
+	go s.runProcessState(&wgProcess)
 
 	for i := 0; i < s.validatorWorkerNum; i++ {
 		// state workers, receiving State and valIdx to measure performance
@@ -169,19 +170,16 @@ func (s *StateAnalyzer) Run() {
 
 		wlog.Tracef("Launching Task Worker")
 		wgWorkers.Add(1)
-		go s.runWorker(wlog, &wgWorkers, &processFinishedFlag)
+		go s.runWorker(wlog, &wgWorkers)
 	}
 
 	wgDownload.Wait()
-	downloadFinishedFlag = true
-	log.Info("Beacon State Downloads finished")
+	s.downloadFinished = true
 
 	wgProcess.Wait()
-	processFinishedFlag = true
-	log.Info("Beacon State Processing finished")
+	s.processerFinished = true
 
 	wgWorkers.Wait()
-	log.Info("All validator workers finished")
 	s.dbClient.DoneTasks()
 	<-s.dbClient.FinishSignalChan
 	log.Info("All database workers finished")
@@ -190,7 +188,7 @@ func (s *StateAnalyzer) Run() {
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
 
-	if s.finishDownload {
+	if s.downloadFinished {
 		s.routineClosed <- struct{}{}
 	}
 	log.Info("State Analyzer finished in ", analysisDuration)
@@ -199,7 +197,7 @@ func (s *StateAnalyzer) Run() {
 
 func (s *StateAnalyzer) Close() {
 	log.Info("Sudden closed detected, closing StateAnalyzer")
-	s.finishDownload = true
+	s.stop = true
 	<-s.routineClosed
 	s.cancel()
 }

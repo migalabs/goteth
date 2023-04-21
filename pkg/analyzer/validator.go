@@ -9,13 +9,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup, processFinishedFlag *bool) {
+func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup) {
 	defer wgWorkers.Done()
 	// keep iterating until the channel is closed due to finishing
 loop:
 	for {
 
-		if *processFinishedFlag && len(s.ValTaskChan) == 0 {
+		if s.processerFinished && len(s.ValTaskChan) == 0 {
 			wlog.Warn("the task channel has been closed, finishing worker routine")
 			break loop
 		}
