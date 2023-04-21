@@ -43,7 +43,7 @@ loop:
 				log.Errorf(err.Error())
 				continue
 			}
-			if task.NextState.Slot <= s.FinalSlot || task.Finalized {
+			if task.NextState.Slot <= s.finalSlot || task.Finalized {
 				log.Debugf("Creating validator batches for slot %d...", task.State.Slot)
 				// divide number of validators into number of workers equally
 
@@ -83,7 +83,7 @@ loop:
 					s.ValTaskChan <- valTask
 				}
 			}
-			if task.PrevState.Slot >= s.InitSlot || task.Finalized { // only write epoch metrics inside the defined range
+			if task.PrevState.Slot >= s.initSlot || task.Finalized { // only write epoch metrics inside the defined range
 
 				log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
 				// create a model to be inserted into the db, we only insert previous epoch metrics

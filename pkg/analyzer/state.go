@@ -26,9 +26,9 @@ type StateAnalyzer struct {
 	ValidatorIndexes []uint64
 
 	// User inputs
-	InitSlot           phase0.Slot
-	FinalSlot          phase0.Slot
-	SlotRanges         []uint64
+	initSlot  phase0.Slot
+	finalSlot phase0.Slot
+
 	MissingVals        bool
 	validatorWorkerNum int
 	downloadMode       string
@@ -65,8 +65,6 @@ func NewStateAnalyzer(
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
 
-	slotRanges := make([]uint64, 0)
-
 	// if historical is active
 	if downloadMode == "hybrid" || downloadMode == "historical" {
 
@@ -74,24 +72,17 @@ func NewStateAnalyzer(
 		if finalSlot <= initSlot {
 			return nil, errors.New("provided slot range isn't valid")
 		}
-		// calculate the list of slots that we will analyze
-
-		epochRange := uint64(0)
 
 		// minimum slot is 31
 		// force to be in the previous epoch than select by user
-		initEpoch := uint64(initSlot) / 32
-		finalEpoch := uint64(finalSlot / 32)
+		initEpoch := (initSlot) / 32
+		finalEpoch := (finalSlot / 32)
 
-		initSlot = (initEpoch+1)*spec.SlotsPerEpoch - 1   // take last slot of init Epoch
+		// start two epochs before and end one epoch after
+		initSlot = ((initEpoch-1)*spec.SlotsPerEpoch - 1) // take last slot of init Epoch
 		finalSlot = (finalEpoch+1)*spec.SlotsPerEpoch - 1 // take last slot of final Epoch
 
-		// start two epochs before and end two epochs after
-		for i := initSlot - (spec.SlotsPerEpoch * 2); i <= (finalSlot + spec.SlotsPerEpoch*2); i += spec.SlotsPerEpoch {
-			slotRanges = append(slotRanges, i)
-			epochRange++
-		}
-		log.Debug("slotRanges are:", slotRanges)
+		log.Debug("slot range: %d-%d", initSlot, finalSlot)
 	}
 	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
 	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, dbWorkerNum)
@@ -119,9 +110,8 @@ func NewStateAnalyzer(
 	return &StateAnalyzer{
 		ctx:                ctx,
 		cancel:             cancel,
-		InitSlot:           phase0.Slot(initSlot),
-		FinalSlot:          phase0.Slot(finalSlot),
-		SlotRanges:         slotRanges,
+		initSlot:           phase0.Slot(initSlot),
+		finalSlot:          phase0.Slot(finalSlot),
 		EpochTaskChan:      make(chan *EpochTask, 1),
 		ValTaskChan:        make(chan *ValTask, workerNum), // chan length is the same as the number of workers
 		cli:                httpCli,
