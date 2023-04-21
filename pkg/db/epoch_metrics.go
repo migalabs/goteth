@@ -8,7 +8,8 @@ This file together with the model, has all the needed methods to interact with t
 
 import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+
 	"github.com/pkg/errors"
 )
 
@@ -63,7 +64,7 @@ var (
 		LIMIT 1`
 )
 
-func insertEpoch(inputEpoch model.Epoch) (string, []interface{}) {
+func insertEpoch(inputEpoch spec.Epoch) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, inputEpoch.Epoch)
 	resultArgs = append(resultArgs, inputEpoch.Slot)
@@ -80,7 +81,7 @@ func insertEpoch(inputEpoch model.Epoch) (string, []interface{}) {
 	return UpsertEpoch, resultArgs
 }
 
-func EpochOperation(inputEpoch model.Epoch) (string, []interface{}) {
+func EpochOperation(inputEpoch spec.Epoch) (string, []interface{}) {
 
 	q, args := insertEpoch(inputEpoch)
 	return q, args

@@ -7,7 +7,7 @@ This file together with the model, has all the needed methods to interact with t
 */
 
 import (
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/pkg/errors"
 )
 
@@ -31,7 +31,7 @@ var (
 	// if there is a confilct the line already exists
 )
 
-func insertProposerDuty(inputDuty model.ProposerDuty) (string, []interface{}) {
+func insertProposerDuty(inputDuty spec.ProposerDuty) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, inputDuty.ValIdx)
 	resultArgs = append(resultArgs, inputDuty.ProposerSlot)
@@ -40,7 +40,7 @@ func insertProposerDuty(inputDuty model.ProposerDuty) (string, []interface{}) {
 	return InsertProposerDuty, resultArgs
 }
 
-func ProposerDutyOperation(inputDuty model.ProposerDuty) (string, []interface{}) {
+func ProposerDutyOperation(inputDuty spec.ProposerDuty) (string, []interface{}) {
 
 	q, args := insertProposerDuty(inputDuty)
 	return q, args

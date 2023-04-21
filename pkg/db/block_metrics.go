@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/pkg/errors"
 )
 
@@ -71,7 +71,7 @@ var (
 	LIMIT 1`
 )
 
-func insertBlock(inputBlock model.ForkBlockContentBase) (string, []interface{}) {
+func insertBlock(inputBlock spec.AgnosticBlock) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.Timestamp)
@@ -97,7 +97,7 @@ func insertBlock(inputBlock model.ForkBlockContentBase) (string, []interface{}) 
 	return UpsertBlock, resultArgs
 }
 
-func BlockOperation(inputBlock model.ForkBlockContentBase) (string, []interface{}) {
+func BlockOperation(inputBlock spec.AgnosticBlock) (string, []interface{}) {
 
 	q, args := insertBlock(inputBlock)
 	return q, args

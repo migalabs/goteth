@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/blocks"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/analyzer"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
@@ -106,13 +106,13 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	}
 
 	// generate the block analyzer
-	blockAnalyzer, err := blocks.NewBlockAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode)
+	blockAnalyzer, err := analyzer.NewBlockAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode)
 	if err != nil {
 		return err
 	}
 
 	procDoneC := make(chan struct{})
-	sigtermC := make(chan os.Signal)
+	sigtermC := make(chan os.Signal, 1)
 
 	signal.Notify(sigtermC, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, syscall.SIGTERM)
 

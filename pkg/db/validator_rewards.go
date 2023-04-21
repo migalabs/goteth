@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db/model"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/pkg/errors"
 )
 
@@ -64,7 +64,7 @@ var (
 	`
 )
 
-func insertValidator(inputValidator model.ValidatorRewards) (string, []interface{}) {
+func insertValidator(inputValidator spec.ValidatorRewards) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, inputValidator.ValidatorIndex)
 	resultArgs = append(resultArgs, inputValidator.Epoch)
@@ -83,7 +83,7 @@ func insertValidator(inputValidator model.ValidatorRewards) (string, []interface
 	return UpsertValidator, resultArgs
 }
 
-func ValidatorOperation(inputValidator model.ValidatorRewards) (string, []interface{}) {
+func ValidatorOperation(inputValidator spec.ValidatorRewards) (string, []interface{}) {
 
 	q, args := insertValidator(inputValidator)
 	return q, args
