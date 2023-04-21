@@ -177,9 +177,12 @@ func (s *StateAnalyzer) Run() {
 	s.downloadFinished = true
 
 	wgProcess.Wait()
+	close(s.EpochTaskChan)
 	s.processerFinished = true
 
 	wgWorkers.Wait()
+	close(s.ValTaskChan)
+
 	s.dbClient.DoneTasks()
 	<-s.dbClient.FinishSignalChan
 	log.Info("All database workers finished")

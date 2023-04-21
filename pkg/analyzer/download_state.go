@@ -8,6 +8,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
@@ -19,20 +20,18 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 	prevBState := local_spec.AgnosticState{}
 	bstate := local_spec.AgnosticState{}
 	nextBstate := local_spec.AgnosticState{}
-
+loop:
 	for slot := s.initSlot; slot < s.finalSlot; slot += local_spec.SlotSeconds {
 
 		select {
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state requester routine")
-			close(s.EpochTaskChan)
-			return
+			break loop
 
 		default:
-			if s.downloadFinished {
+			if s.stop {
 				log.Info("sudden shutdown detected, state downloader routine")
-				close(s.EpochTaskChan)
-				return
+				break loop
 			}
 
 			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, phase0.Slot(slot), false)
@@ -45,7 +44,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 
 	}
 
-	log.Infof("All states for the slot ranges has been successfully retrieved, clossing go routine")
+	log.Infof("State Downloader routine finished")
 }
 
 func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
@@ -86,9 +85,8 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 				log.Errorf("error downloading state at slot %d", slot, err)
 				continue
 			}
-			if s.downloadFinished {
+			if s.stop {
 				log.Info("sudden shutdown detected, state downloader routine")
-				close(s.EpochTaskChan)
 				return
 			}
 		}
@@ -97,18 +95,10 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 
 	// -----------------------------------------------------------------------------------
 	s.eventsObj.SubscribeToHeadEvents()
+	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 	for {
-		if s.downloadFinished {
-			log.Info("sudden shutdown detected, state downloader routine")
-			close(s.EpochTaskChan)
-			return
-		}
-		select {
 
-		case <-s.ctx.Done():
-			log.Info("context has died, closing state requester routine")
-			close(s.EpochTaskChan)
-			return
+		select {
 
 		case newHead := <-s.eventsObj.HeadChan:
 			// new epoch
@@ -132,7 +122,15 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 				log.Errorf("error downloading state at slot %d", slot, err)
 				continue
 			}
+		case <-s.ctx.Done():
+			log.Info("context has died, closing state requester routine")
+			return
 
+		case <-ticker.C:
+			if s.stop {
+				log.Info("sudden shutdown detected, state downloader routine")
+				return
+			}
 		}
 
 	}

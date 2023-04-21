@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"sync"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
@@ -13,27 +14,14 @@ import (
 func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup) {
 	defer wgProcess.Done()
 	log.Info("Launching Beacon State Pre-Processer")
+	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 loop:
 	for {
-		// in case the downloads have finished, and there are no more tasks to execute
-		if s.downloadFinished && len(s.EpochTaskChan) == 0 {
-			log.Warn("the task channel has been closed, finishing epoch routine")
-
-			break loop
-		}
 
 		select {
-		case <-s.ctx.Done():
-			log.Info("context has died, closing state processer routine")
-			return
 
-		case task, ok := <-s.EpochTaskChan:
+		case task := <-s.EpochTaskChan:
 
-			// check if the channel has been closed
-			if !ok {
-				log.Warn("the task channel has been closed, finishing epoch routine")
-				return
-			}
 			log.Infof("epoch task received for slot %d, epoch: %d, analyzing...", task.State.Slot, task.State.Epoch)
 
 			// returns the state in a custom struct for Phase0, Altair of Bellatrix
@@ -117,6 +105,13 @@ loop:
 					s.dbClient.Persist(newDuty)
 				}
 			}
+		case <-ticker.C:
+			// in case the downloads have finished, and there are no more tasks to execute
+			if s.downloadFinished && len(s.EpochTaskChan) == 0 {
+				break loop
+			}
+		case <-s.ctx.Done():
+			break loop
 		}
 
 	}

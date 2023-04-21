@@ -6,27 +6,19 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
 func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup) {
 	defer wgWorkers.Done()
-	// keep iterating until the channel is closed due to finishing
+	ticker := time.NewTicker(utils.RoutineFlushTimeout)
+
 loop:
 	for {
 
-		if s.processerFinished && len(s.ValTaskChan) == 0 {
-			wlog.Warn("the task channel has been closed, finishing worker routine")
-			break loop
-		}
-
 		select {
-		case valTask, ok := <-s.ValTaskChan:
-			// check if the channel has been closed
-			if !ok {
-				wlog.Warn("the task channel has been closed, finishing worker routine")
-				return
-			}
+		case valTask := <-s.ValTaskChan:
 
 			wlog.Debugf("task received for val %d - %d in epoch %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch)
 			// Proccess State
@@ -82,7 +74,11 @@ loop:
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state worker routine")
-			return
+			break loop
+		case <-ticker.C:
+			if s.processerFinished && len(s.ValTaskChan) == 0 {
+				break loop
+			}
 		}
 
 	}
