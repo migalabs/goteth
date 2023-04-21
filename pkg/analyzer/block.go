@@ -18,13 +18,11 @@ import (
 )
 
 type BlockAnalyzer struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
-	InitSlot   uint64
-	FinalSlot  uint64
-	SlotRanges []uint64
+	ctx       context.Context
+	cancel    context.CancelFunc
+	initSlot  phase0.Slot
+	finalSlot phase0.Slot
 
-	validatorWorkerNum  int
 	BlockTaskChan       chan *BlockTask
 	TransactionTaskChan chan *TransactionTask
 
@@ -59,14 +57,6 @@ func NewBlockAnalyzer(
 	slotRanges := make([]uint64, 0)
 
 	if downloadMode == "hybrid" || downloadMode == "historical" {
-
-		epochRange := uint64(0)
-
-		// start two epochs before and end two epochs after
-		for i := initSlot; i <= finalSlot; i += 1 {
-			slotRanges = append(slotRanges, i)
-			epochRange++
-		}
 		log.Debug("slotRanges are:", slotRanges)
 	}
 	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, dbWorkerNum)
@@ -77,14 +67,12 @@ func NewBlockAnalyzer(
 	return &BlockAnalyzer{
 		ctx:                 ctx,
 		cancel:              cancel,
-		InitSlot:            initSlot,
-		FinalSlot:           finalSlot,
-		SlotRanges:          slotRanges,
+		initSlot:            phase0.Slot(initSlot),
+		finalSlot:           phase0.Slot(finalSlot),
 		BlockTaskChan:       make(chan *BlockTask, 1),
 		TransactionTaskChan: make(chan *TransactionTask, 1),
 		cli:                 httpCli,
 		dbClient:            i_dbClient,
-		validatorWorkerNum:  workerNum,
 		routineClosed:       make(chan struct{}),
 		eventsObj:           events.NewEventsObj(ctx, httpCli),
 		downloadMode:        downloadMode,

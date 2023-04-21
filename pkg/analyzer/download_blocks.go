@@ -14,7 +14,7 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
 	// loop over the list of slots that we need to analyze
-	for _, slot := range s.SlotRanges {
+	for slot := s.initSlot; slot < s.finalSlot; slot += 1 {
 
 		select {
 		case <-s.ctx.Done():
