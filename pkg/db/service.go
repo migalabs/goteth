@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
@@ -33,11 +32,11 @@ type PostgresDBService struct {
 	cancel        context.CancelFunc
 	connectionUrl string // the url might not be necessary (better to remove it?¿)
 	psqlPool      *pgxpool.Pool
+	wgDBWriters   sync.WaitGroup
 
-	writeChan        chan Model // Receive tasks to persist
-	endProcess       int32
-	FinishSignalChan chan struct{}
-	workerNum        int
+	writeChan chan Model // Receive tasks to persist
+	stop      bool
+	workerNum int
 }
 
 // Connect to the PostgreSQL Database and get the multithread-proof connection
@@ -59,14 +58,12 @@ func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBSer
 	// filter the type of network that we are filtering
 
 	psqlDB := &PostgresDBService{
-		ctx:              mainCtx,
-		cancel:           cancel,
-		connectionUrl:    url,
-		psqlPool:         psqlPool,
-		writeChan:        make(chan Model, workerNum),
-		endProcess:       0,
-		FinishSignalChan: make(chan struct{}, 1),
-		workerNum:        workerNum,
+		ctx:           mainCtx,
+		cancel:        cancel,
+		connectionUrl: url,
+		psqlPool:      psqlPool,
+		writeChan:     make(chan Model, workerNum),
+		workerNum:     workerNum,
 	}
 	// init the psql db
 	err = psqlDB.init(ctx, psqlDB.psqlPool)
@@ -75,11 +72,6 @@ func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBSer
 	}
 	go psqlDB.runWriters()
 	return psqlDB, err
-}
-
-// Close the connection with the PostgreSQL
-func (p *PostgresDBService) Close() {
-	p.psqlPool.Close()
 }
 
 func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error {
@@ -132,20 +124,25 @@ func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error 
 	return nil
 }
 
-func (p *PostgresDBService) DoneTasks() {
-	atomic.AddInt32(&p.endProcess, int32(1))
-	wlog.Infof("Received finish signal")
+func (p *PostgresDBService) Finish() {
+	p.stop = true
+	p.wgDBWriters.Wait()
+	wlog.Infof("Routines finished...")
+	wlog.Infof("closing connection to database server...")
+	p.psqlPool.Close()
+	wlog.Infof("connection to database server closed...")
+	close(p.writeChan)
 }
 
 func (p *PostgresDBService) runWriters() {
-	var wgDBWriters sync.WaitGroup
+
 	wlog.Info("Launching Beacon State Writers")
 	wlog.Infof("Launching %d Beacon State Writers", p.workerNum)
 	for i := 0; i < p.workerNum; i++ {
-		wgDBWriters.Add(1)
+		p.wgDBWriters.Add(1)
 		go func(dbWriterID int) {
 			batch := pgx.Batch{}
-			defer wgDBWriters.Done()
+			defer p.wgDBWriters.Done()
 			wlogWriter := wlog.WithField("DBWriter", dbWriterID)
 			// batch flushing ticker
 			ticker := time.NewTicker(utils.RoutineFlushTimeout)
@@ -188,7 +185,7 @@ func (p *PostgresDBService) runWriters() {
 					}
 
 				case <-p.ctx.Done():
-					wlogWriter.Info("shutdown detected, closing persister")
+
 					break loop
 				case <-ticker.C:
 					// if limit reached or no more queue and pending tasks
@@ -204,18 +201,14 @@ func (p *PostgresDBService) runWriters() {
 						batch = pgx.Batch{}
 					}
 
-					if p.endProcess >= 1 && len(p.writeChan) == 0 {
-						wlogWriter.Info("shutdown detected, closing persister")
+					if p.stop && len(p.writeChan) == 0 {
 						break loop
 					}
 				}
 			}
-			wlogWriter.Debugf("DB Writer finished...")
 
 		}(i)
 	}
-
-	wgDBWriters.Wait()
 
 }
 
