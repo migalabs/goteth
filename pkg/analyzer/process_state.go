@@ -20,7 +20,7 @@ loop:
 
 		select {
 
-		case task := <-s.EpochTaskChan:
+		case task := <-s.epochTaskChan:
 
 			log.Infof("epoch task received for slot %d, epoch: %d, analyzing...", task.State.Slot, task.State.Epoch)
 
@@ -42,8 +42,8 @@ loop:
 				valIdxs := stateMetrics.GetMetricsBase().NextState.GetAllVals()
 				validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
 
-				if len(s.PoolValidators) > 0 { // in case the user introduces custom pools
-					validatorBatches = s.PoolValidators
+				if len(s.poolValidators) > 0 { // in case the user introduces custom pools
+					validatorBatches = s.poolValidators
 
 					valMatrix := make([][]phase0.ValidatorIndex, len(validatorBatches))
 
@@ -52,7 +52,7 @@ loop:
 						valMatrix[i] = item.ValIdxs
 					}
 
-					if s.MissingVals {
+					if s.missingVals {
 						othersMissingList := utils.ObtainMissing(len(valIdxs), valMatrix)
 						// now allValList should contain those validators that do not belong to any pool
 						// keep track of those in a separate pool
@@ -68,7 +68,7 @@ loop:
 						PoolName:        item.PoolName,
 						Finalized:       task.Finalized,
 					}
-					s.ValTaskChan <- valTask
+					s.valTaskChan <- valTask
 				}
 			}
 			if task.PrevState.Slot >= s.initSlot || task.Finalized { // only write epoch metrics inside the defined range
@@ -107,7 +107,7 @@ loop:
 			}
 		case <-ticker.C:
 			// in case the downloads have finished, and there are no more tasks to execute
-			if s.downloadFinished && len(s.EpochTaskChan) == 0 {
+			if s.downloadFinished && len(s.epochTaskChan) == 0 {
 				break loop
 			}
 		case <-s.ctx.Done():

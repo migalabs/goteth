@@ -18,7 +18,7 @@ loop:
 	for {
 
 		select {
-		case valTask := <-s.ValTaskChan:
+		case valTask := <-s.valTaskChan:
 
 			wlog.Debugf("task received for val %d - %d in epoch %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch)
 			// Proccess State
@@ -54,17 +54,17 @@ loop:
 						CurrentStatus:  maxRewards.Status,
 					})
 				}
-				if s.Metrics.ValidatorRewards { // only if flag is activated
+				if s.metrics.ValidatorRewards { // only if flag is activated
 					s.dbClient.Persist(maxRewards)
 				}
 
-				if s.Metrics.PoolSummary && valTask.PoolName != "" {
+				if s.metrics.PoolSummary && valTask.PoolName != "" {
 					summaryMet.AddValidator(maxRewards)
 				}
 
 			}
 
-			if s.Metrics.PoolSummary && summaryMet.PoolName != "" {
+			if s.metrics.PoolSummary && summaryMet.PoolName != "" {
 				// only send summary batch in case pools were introduced by the user and we have a name to identify it
 
 				wlog.Debugf("Sending pool summary batch (%s) to be stored...", summaryMet.PoolName)
@@ -76,7 +76,7 @@ loop:
 			log.Info("context has died, closing state worker routine")
 			break loop
 		case <-ticker.C:
-			if s.processerFinished && len(s.ValTaskChan) == 0 {
+			if s.processerFinished && len(s.valTaskChan) == 0 {
 				break loop
 			}
 		}

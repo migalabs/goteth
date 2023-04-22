@@ -165,7 +165,7 @@ func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 		Proposed: proposed,
 	}
 	log.Debugf("sending a new task for slot %d", slot)
-	s.BlockTaskChan <- blockTask
+	s.blockTaskChan <- blockTask
 
 	// store transactions if it has been enabled
 	if s.enableTransactions {

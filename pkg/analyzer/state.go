@@ -27,19 +27,19 @@ type StateAnalyzer struct {
 	initSlot  phase0.Slot
 	finalSlot phase0.Slot
 
-	MissingVals        bool
+	missingVals        bool
 	validatorWorkerNum int
 	downloadMode       string
-	Metrics            DBMetrics
-	PoolValidators     []utils.PoolKeys
+	metrics            DBMetrics
+	poolValidators     []utils.PoolKeys
 
 	// Clients
 	cli      *clientapi.APIClient
 	dbClient *db.PostgresDBService
 
 	// Channels
-	EpochTaskChan chan *EpochTask
-	ValTaskChan   chan *ValTask
+	epochTaskChan chan *EpochTask
+	valTaskChan   chan *ValTask
 
 	// Control Variables
 	stop              bool
@@ -112,17 +112,17 @@ func NewStateAnalyzer(
 		cancel:             cancel,
 		initSlot:           phase0.Slot(initSlot),
 		finalSlot:          phase0.Slot(finalSlot),
-		EpochTaskChan:      make(chan *EpochTask, 1),
-		ValTaskChan:        make(chan *ValTask, workerNum), // chan length is the same as the number of workers
+		epochTaskChan:      make(chan *EpochTask, 1),
+		valTaskChan:        make(chan *ValTask, workerNum), // chan length is the same as the number of workers
 		cli:                httpCli,
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
 		routineClosed:      make(chan struct{}),
 		downloadMode:       downloadMode,
 		eventsObj:          events.NewEventsObj(ctx, httpCli),
-		PoolValidators:     poolValidators,
-		MissingVals:        missingVals,
-		Metrics:            metricsObj,
+		poolValidators:     poolValidators,
+		missingVals:        missingVals,
+		metrics:            metricsObj,
 	}, nil
 }
 
@@ -174,11 +174,11 @@ func (s *StateAnalyzer) Run() {
 	s.downloadFinished = true
 
 	wgProcess.Wait()
-	close(s.EpochTaskChan)
+	close(s.epochTaskChan)
 	s.processerFinished = true
 
 	wgWorkers.Wait()
-	close(s.ValTaskChan)
+	close(s.valTaskChan)
 
 	s.dbClient.Finish()
 

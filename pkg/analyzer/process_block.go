@@ -18,7 +18,7 @@ loop:
 
 		select {
 
-		case task, ok := <-s.BlockTaskChan:
+		case task, ok := <-s.blockTaskChan:
 
 			// check if the channel has been closed
 			if !ok {
@@ -42,7 +42,7 @@ loop:
 
 		case <-ticker.C:
 			// in case the downloads have finished, and there are no more tasks to execute
-			if s.downloadFinished && len(s.BlockTaskChan) == 0 {
+			if s.downloadFinished && len(s.blockTaskChan) == 0 {
 				log.Warn("the task channel has been closed, finishing block routine")
 				break loop
 			}

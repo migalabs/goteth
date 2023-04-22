@@ -190,7 +190,7 @@ func (s *StateAnalyzer) DownloadNewState(
 		}
 
 		log.Debugf("sending task for slot: %d", epochTask.State.Slot)
-		s.EpochTaskChan <- epochTask
+		s.epochTaskChan <- epochTask
 	}
 	// check if the min Request time has been completed (to avoid spaming the API)
 	<-ticker.C
