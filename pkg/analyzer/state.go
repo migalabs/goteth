@@ -47,7 +47,6 @@ type StateAnalyzer struct {
 	stop              bool
 	downloadFinished  bool
 	processerFinished bool
-	validatorFinished bool
 	routineClosed     chan struct{}
 	eventsObj         events.Events
 }
