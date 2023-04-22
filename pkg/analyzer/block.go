@@ -120,17 +120,18 @@ func (s *BlockAnalyzer) Run() {
 	wgProcess.Wait()
 	s.processerFinished = true
 
-	s.dbClient.DoneTasks()
-	<-s.dbClient.FinishSignalChan
+	s.dbClient.Finish()
 
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
 	log.Info("Blocks Analyzer finished in ", analysisDuration)
+	s.routineClosed <- struct{}{}
 }
 
 func (s *BlockAnalyzer) Close() {
 	log.Info("Sudden closed detected, closing StateAnalyzer")
 	s.stop = true
+	<-s.routineClosed // Wait for services to stop before returning
 }
 
 type BlockTask struct {

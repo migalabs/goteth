@@ -183,26 +183,19 @@ func (s *StateAnalyzer) Run() {
 	wgWorkers.Wait()
 	close(s.ValTaskChan)
 
-	s.dbClient.DoneTasks()
-	<-s.dbClient.FinishSignalChan
-	log.Info("All database workers finished")
-	s.dbClient.Close()
-	close(s.ValTaskChan)
+	s.dbClient.Finish()
+
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
 
-	if s.downloadFinished {
-		s.routineClosed <- struct{}{}
-	}
 	log.Info("State Analyzer finished in ", analysisDuration)
-
+	s.routineClosed <- struct{}{}
 }
 
 func (s *StateAnalyzer) Close() {
 	log.Info("Sudden closed detected, closing StateAnalyzer")
 	s.stop = true
-	<-s.routineClosed
-	s.cancel()
+	<-s.routineClosed // Wait for services to stop before returning
 }
 
 type EpochTask struct {
