@@ -23,8 +23,6 @@ type StateAnalyzer struct {
 	cancel   context.CancelFunc
 	initTime time.Time
 
-	ValidatorIndexes []uint64
-
 	// User inputs
 	initSlot  phase0.Slot
 	finalSlot phase0.Slot
