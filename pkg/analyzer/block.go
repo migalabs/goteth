@@ -75,7 +75,7 @@ func NewBlockAnalyzer(
 		transactionTaskChan: make(chan *TransactionTask, 1),
 		cli:                 httpCli,
 		dbClient:            i_dbClient,
-		routineClosed:       make(chan struct{}),
+		routineClosed:       make(chan struct{}, 1),
 		eventsObj:           events.NewEventsObj(ctx, httpCli),
 		downloadMode:        downloadMode,
 		enableTransactions:  enableTransactions,
