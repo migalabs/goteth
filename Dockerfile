@@ -19,11 +19,16 @@ ADD ./go.sum /app/
 ADD ./Makefile /app/
 ADD ./.env /app/
 
-
 WORKDIR /app
 RUN ls -la
 RUN go mod tidy
 RUN go get
 RUN make build
 
-ENTRYPOINT ["./build/eth-cl-state-analyzer"]
+
+FROM alpine:latest  
+RUN apk --no-cache add ca-certificates
+WORKDIR /
+COPY --from=0 /app/build/eth-cl-state-analyzer ./
+ENTRYPOINT ["/eth-cl-state-analyzer"]
+
