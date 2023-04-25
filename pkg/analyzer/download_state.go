@@ -21,7 +21,7 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 	bstate := local_spec.AgnosticState{}
 	nextBstate := local_spec.AgnosticState{}
 loop:
-	for slot := s.initSlot; slot < s.finalSlot; slot += local_spec.SlotSeconds {
+	for slot := s.initSlot; slot < s.finalSlot; slot += local_spec.SlotsPerEpoch {
 
 		select {
 		case <-s.ctx.Done():
