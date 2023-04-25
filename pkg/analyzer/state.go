@@ -117,7 +117,7 @@ func NewStateAnalyzer(
 		cli:                httpCli,
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
-		routineClosed:      make(chan struct{}),
+		routineClosed:      make(chan struct{}, 1),
 		downloadMode:       downloadMode,
 		eventsObj:          events.NewEventsObj(ctx, httpCli),
 		poolValidators:     poolValidators,
