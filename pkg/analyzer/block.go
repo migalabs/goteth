@@ -24,8 +24,9 @@ type BlockAnalyzer struct {
 	FinalSlot  uint64
 	SlotRanges []uint64
 
-	validatorWorkerNum int
-	BlockTaskChan      chan *BlockTask
+	validatorWorkerNum  int
+	BlockTaskChan       chan *BlockTask
+	TransactionTaskChan chan *TransactionTask
 
 	cli      *clientapi.APIClient
 	dbClient *db.PostgresDBService
@@ -147,7 +148,6 @@ func (s *BlockAnalyzer) Close() {
 	s.cancel()
 }
 
-//
 type BlockTask struct {
 	Block    spec.AgnosticBlock
 	Slot     uint64
