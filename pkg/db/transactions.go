@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS t_transactions(
     f_gas_price BIGINT,
     f_gas_tip_cap BIGINT,
     f_gas_fee_cap BIGINT,
-    f_value BIGINT,
+    f_value NUMERIC,
     f_nonce BIGINT,
     f_to TEXT DEFAULT '',
     f_hash TEXT UNIQUE DEFAULT '',
