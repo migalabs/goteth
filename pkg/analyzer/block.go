@@ -72,18 +72,20 @@ func NewBlockAnalyzer(
 	}
 
 	return &BlockAnalyzer{
-		ctx:                ctx,
-		cancel:             cancel,
-		InitSlot:           initSlot,
-		FinalSlot:          finalSlot,
-		SlotRanges:         slotRanges,
-		BlockTaskChan:      make(chan *BlockTask, 1),
-		cli:                httpCli,
-		dbClient:           i_dbClient,
-		validatorWorkerNum: workerNum,
-		routineClosed:      make(chan struct{}),
-		eventsObj:          events.NewEventsObj(ctx, httpCli),
-		downloadMode:       downloadMode,
+		ctx:                 ctx,
+		cancel:              cancel,
+		InitSlot:            initSlot,
+		FinalSlot:           finalSlot,
+		SlotRanges:          slotRanges,
+		BlockTaskChan:       make(chan *BlockTask, 1),
+		TransactionTaskChan: make(chan *TransactionTask, 1),
+		cli:                 httpCli,
+		dbClient:            i_dbClient,
+		validatorWorkerNum:  workerNum,
+		routineClosed:       make(chan struct{}),
+		eventsObj:           events.NewEventsObj(ctx, httpCli),
+		downloadMode:        downloadMode,
+		enableTransactions:  enableTransactions,
 	}, nil
 }
 
@@ -150,6 +152,11 @@ type BlockTask struct {
 	Block    spec.AgnosticBlock
 	Slot     uint64
 	Proposed bool
+}
+
+type TransactionTask struct {
+	Slot         uint64
+	Transactions []*spec.AgnosticTransaction
 }
 
 func (s BlockAnalyzer) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {

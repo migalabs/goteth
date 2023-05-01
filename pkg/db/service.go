@@ -175,6 +175,8 @@ func (p *PostgresDBService) runWriters() {
 						q, args = ValidatorOperation(task.(spec.ValidatorRewards))
 					case spec.WithdrawalModel:
 						q, args = WithdrawalOperation(task.(spec.Withdrawal))
+					case spec.TransactionsModel:
+						q, args = TransactionOperation(task.(*spec.AgnosticTransaction))
 					default:
 						err = fmt.Errorf("could not figure out the type of write task")
 					}

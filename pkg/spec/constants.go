@@ -45,6 +45,7 @@ const (
 	ValidatorLastStatusModel
 	ValidatorRewardsModel
 	WithdrawalModel
+	TransactionsModel
 )
 
 type ValidatorStatus int8
