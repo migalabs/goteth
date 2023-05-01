@@ -50,6 +50,10 @@ var BlocksCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:  "download-mode",
 			Usage: "example: hybrid,historical,finalized. Default: hybrid",
+		},
+		&cli.StringFlag{
+			Name:  "enable-transactions",
+			Usage: "example: true,false. Default: false",
 		}},
 }
 
@@ -62,6 +66,7 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	coworkers := 1
 	dbWorkers := 1
 	downloadMode := "hybrid"
+	enableTransactions := false
 	logBlocks.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
@@ -94,6 +99,9 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	} else {
 		dbWorkers = c.Int("db-workers-num")
 	}
+	if c.IsSet("enable-transactions") {
+		enableTransactions = c.Bool("enable-transactions")
+	}
 	bnEndpoint := c.String("bn-endpoint")
 	initSlot := uint64(c.Int("init-slot"))
 	finalSlot := uint64(c.Int("final-slot"))
@@ -106,7 +114,7 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	}
 
 	// generate the block analyzer
-	blockAnalyzer, err := analyzer.NewBlockAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode)
+	blockAnalyzer, err := analyzer.NewBlockAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, enableTransactions)
 	if err != nil {
 		return err
 	}

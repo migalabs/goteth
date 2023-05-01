@@ -37,7 +37,8 @@ type BlockAnalyzer struct {
 	routineClosed  chan struct{}
 	eventsObj      events.Events
 
-	initTime time.Time
+	initTime           time.Time
+	enableTransactions bool
 }
 
 func NewBlockAnalyzer(
@@ -48,7 +49,8 @@ func NewBlockAnalyzer(
 	idbUrl string,
 	workerNum int,
 	dbWorkerNum int,
-	downloadMode string) (*BlockAnalyzer, error) {
+	downloadMode string,
+	enableTransactions bool) (*BlockAnalyzer, error) {
 	log.Infof("generating new Block Analzyer from slots %d:%d", initSlot, finalSlot)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)

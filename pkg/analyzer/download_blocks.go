@@ -166,12 +166,17 @@ func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 	log.Debugf("sending a new task for slot %d", slot)
 	s.BlockTaskChan <- blockTask
 
-	transactionTask := &TransactionTask{
-		Slot:         uint64(slot),
-		Transactions: spec.RequestTransactionDetails(newBlock),
+	// store transactions if it has been enabled
+	if s.enableTransactions {
+		transactionTask := &TransactionTask{
+			Slot:         uint64(slot),
+			Transactions: spec.RequestTransactionDetails(newBlock),
+		}
+		log.Debugf("sending a new tx task for slot %d", slot)
+		s.TransactionTaskChan <- transactionTask
+	} else {
+		log.Info("Here is the skip..............................")
 	}
-	log.Debugf("sending a new tx task for slot %d", slot)
-	s.TransactionTaskChan <- transactionTask
 
 	<-ticker.C
 	// check if the min Request time has been completed (to avoid spaming the API)
