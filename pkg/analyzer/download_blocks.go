@@ -174,8 +174,6 @@ func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 		}
 		log.Debugf("sending a new tx task for slot %d", slot)
 		s.TransactionTaskChan <- transactionTask
-	} else {
-		log.Info("Here is the skip..............................")
 	}
 
 	<-ticker.C
