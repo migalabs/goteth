@@ -123,6 +123,8 @@ func (s *BlockAnalyzer) Run() {
 	}
 	wgProcess.Add(1)
 	go s.runProcessBlock(&wgProcess, &downloadFinishedFlag)
+	wgProcess.Add(1)
+	go s.runProcessTransactions(&wgProcess, &downloadFinishedFlag)
 
 	wgDownload.Wait()
 	downloadFinishedFlag = true

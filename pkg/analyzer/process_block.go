@@ -44,17 +44,6 @@ loop:
 				})
 
 			}
-		case task, ok := <-s.TransactionTaskChan:
-
-			if !ok {
-				log.Warn("the task channel has closed, finishing transaction routine")
-				return
-			}
-			log.Infof("transaction task received for slot %d, analyzing...", task.Slot)
-
-			for _, tx := range task.Transactions {
-				s.dbClient.Persist(tx)
-			}
 		}
 
 	}
