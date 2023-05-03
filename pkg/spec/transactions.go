@@ -9,21 +9,21 @@ import (
 
 // A wrapper for blockchain transaction with basic information retrieved from the Ethereum blockchain
 type AgnosticTransaction struct {
-	TxType      uint8
-	ChainId     uint64
-	Data        string
-	Gas         uint64
-	GasPrice    uint64
-	GasTipCap   uint64
-	GasFeeCap   uint64
-	Value       uint64
-	Nonce       uint64
-	To          *common.Address
-	Hash        common.Hash
-	Size        uint64
-	Slot        phase0.Slot
-	BlockNumber uint64
-	Timestamp   uint64
+	TxType      uint8           // type of transaction: LegacyTxType, AccessListTxType, or DynamicFeeTxType
+	ChainId     uint8           // a unique identifier for the ethereum network
+	Data        string          // the input data of the transaction
+	Gas         phase0.Gwei     // the gas limit of the transaction
+	GasPrice    phase0.Gwei     // the gas price of the transaction
+	GasTipCap   phase0.Gwei     // the tip cap per gas of the transaction
+	GasFeeCap   phase0.Gwei     // the fee cap per gas of the transaction
+	Value       phase0.Gwei     // the ether amount of the transaction.
+	Nonce       uint64          // the sender account nonce of the transaction
+	To          *common.Address // transaction recipient's address
+	Hash        phase0.Hash32   // the transaction hash
+	Size        uint64          // the true encoded storage size of the transaction
+	Slot        phase0.Slot     // the slot of the transaction
+	BlockNumber uint64          // the number of the block where this transaction was added
+	Timestamp   uint64          // timestamp of the block to which this transaction belongs
 }
 
 func (txs AgnosticTransaction) Type() ModelType {
@@ -41,16 +41,16 @@ func RequestTransactionDetails(block AgnosticBlock) []*AgnosticTransaction {
 
 		processedTransactions = append(processedTransactions, &AgnosticTransaction{
 			TxType:      parsedTx.Type(),
-			ChainId:     parsedTx.ChainId().Uint64(),
+			ChainId:     uint8(parsedTx.ChainId().Uint64()),
 			Data:        hex.EncodeToString(parsedTx.Data()),
-			Gas:         parsedTx.Gas(),
-			GasPrice:    parsedTx.GasPrice().Uint64(),
-			GasTipCap:   parsedTx.GasTipCap().Uint64(),
-			GasFeeCap:   parsedTx.GasFeeCap().Uint64(),
-			Value:       parsedTx.Value().Uint64(),
+			Gas:         phase0.Gwei(parsedTx.Gas()),
+			GasPrice:    phase0.Gwei(parsedTx.GasPrice().Uint64()),
+			GasTipCap:   phase0.Gwei(parsedTx.GasTipCap().Uint64()),
+			GasFeeCap:   phase0.Gwei(parsedTx.GasFeeCap().Uint64()),
+			Value:       phase0.Gwei(parsedTx.Value().Uint64()),
 			Nonce:       parsedTx.Nonce(),
 			To:          parsedTx.To(),
-			Hash:        parsedTx.Hash(),
+			Hash:        phase0.Hash32(parsedTx.Hash()),
 			Size:        parsedTx.Size(),
 			Slot:        block.Slot,
 			BlockNumber: block.ExecutionPayload.BlockNumber,
