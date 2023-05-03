@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.17-alpine
+FROM golang:1.17-alpine as builder
 RUN apk add --update git
 RUN apk add --update gcc
 RUN apk add --update g++
@@ -7,21 +7,9 @@ RUN apk add --update openssh-client
 RUN apk add --update make
 
 RUN mkdir /app
-RUN mkdir /app/pkg
-RUN mkdir /app/cmd
-
-ADD ./pkg /app/pkg
-ADD ./cmd /app/cmd
-ADD ./main.go /app/
-ADD ./go.mod /app/
-ADD ./go.sum /app/
-
-ADD ./Makefile /app/
-ADD ./.env /app/
-
 WORKDIR /app
-RUN ls -la
-RUN go mod tidy
+ADD . .
+
 RUN go get
 RUN make build
 
@@ -29,6 +17,6 @@ RUN make build
 FROM alpine:latest  
 RUN apk --no-cache add ca-certificates
 WORKDIR /
-COPY --from=0 /app/build/eth-cl-state-analyzer ./
+COPY --from=builder /app/build/eth-cl-state-analyzer ./
 ENTRYPOINT ["/eth-cl-state-analyzer"]
 
