@@ -42,6 +42,7 @@ services:
                         --workers-num=${BLOCK_ANALYZER_WORKERS_NUM}
                         --db-workers-num=${BLOCK_ANALYZER_DB_WORKERS_NUM}
                         --download-mode=${BLOCK_ANALYZER_DOWNLOAD_MODE}
+                        --enable-transactions=${BLOCK_ENABLE_TRANSACTIONS}
                 network_mode: 'host'
                 restart: unless-stopped
                 
