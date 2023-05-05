@@ -20,12 +20,14 @@ func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
 			close(s.BlockTaskChan)
+			close(s.TransactionTaskChan)
 			return
 
 		default:
 			if s.finishDownload {
 				log.Info("sudden shutdown detected, block downloader routine")
 				close(s.BlockTaskChan)
+				close(s.TransactionTaskChan)
 				return
 			}
 
@@ -90,6 +92,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 		if s.finishDownload {
 			log.Info("sudden shutdown detected, block downloader routine")
 			close(s.BlockTaskChan)
+			close(s.TransactionTaskChan)
 			return
 		}
 		select {
@@ -97,6 +100,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
 			close(s.BlockTaskChan)
+			close(s.TransactionTaskChan)
 			return
 
 		case headSlot := <-s.eventsObj.HeadChan: // wait for new head event
@@ -161,6 +165,16 @@ func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 	}
 	log.Debugf("sending a new task for slot %d", slot)
 	s.BlockTaskChan <- blockTask
+
+	// store transactions if it has been enabled
+	if s.enableTransactions {
+		transactionTask := &TransactionTask{
+			Slot:         uint64(slot),
+			Transactions: spec.RequestTransactionDetails(newBlock),
+		}
+		log.Debugf("sending a new tx task for slot %d", slot)
+		s.TransactionTaskChan <- transactionTask
+	}
 
 	<-ticker.C
 	// check if the min Request time has been completed (to avoid spaming the API)
