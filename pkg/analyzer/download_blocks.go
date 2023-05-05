@@ -174,7 +174,7 @@ func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 			Transactions: spec.RequestTransactionDetails(newBlock),
 		}
 		log.Debugf("sending a new tx task for slot %d", slot)
-		s.TransactionTaskChan <- transactionTask
+		s.transactionTaskChan <- transactionTask
 	}
 
 	<-ticker.C

@@ -95,6 +95,9 @@ func (s *BlockAnalyzer) Run() {
 	// Metrics per block
 	var wgProcess sync.WaitGroup
 
+	// Transactions per block
+	var wgTransaction sync.WaitGroup
+
 	totalTime := int64(0)
 	start := time.Now()
 
@@ -111,14 +114,19 @@ func (s *BlockAnalyzer) Run() {
 	}
 	wgProcess.Add(1)
 	go s.runProcessBlock(&wgProcess)
-	wgProcess.Add(1)
-	go s.runProcessTransactions(&wgProcess)
+
+	wgTransaction.Add(1)
+	go s.runProcessTransactions(&wgTransaction)
 
 	wgDownload.Wait()
 	s.downloadFinished = true
 
 	wgProcess.Wait()
 	s.processerFinished = true
+	close(s.blockTaskChan)
+
+	wgTransaction.Wait()
+	close(s.transactionTaskChan)
 
 	s.dbClient.Finish()
 
