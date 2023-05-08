@@ -24,8 +24,9 @@ type BlockAnalyzer struct {
 	FinalSlot  uint64
 	SlotRanges []uint64
 
-	validatorWorkerNum int
-	BlockTaskChan      chan *BlockTask
+	validatorWorkerNum  int
+	BlockTaskChan       chan *BlockTask
+	TransactionTaskChan chan *TransactionTask
 
 	cli      *clientapi.APIClient
 	dbClient *db.PostgresDBService
@@ -36,7 +37,8 @@ type BlockAnalyzer struct {
 	routineClosed  chan struct{}
 	eventsObj      events.Events
 
-	initTime time.Time
+	initTime           time.Time
+	enableTransactions bool
 }
 
 func NewBlockAnalyzer(
@@ -47,7 +49,8 @@ func NewBlockAnalyzer(
 	idbUrl string,
 	workerNum int,
 	dbWorkerNum int,
-	downloadMode string) (*BlockAnalyzer, error) {
+	downloadMode string,
+	enableTransactions bool) (*BlockAnalyzer, error) {
 	log.Infof("generating new Block Analzyer from slots %d:%d", initSlot, finalSlot)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
@@ -72,18 +75,20 @@ func NewBlockAnalyzer(
 	}
 
 	return &BlockAnalyzer{
-		ctx:                ctx,
-		cancel:             cancel,
-		InitSlot:           initSlot,
-		FinalSlot:          finalSlot,
-		SlotRanges:         slotRanges,
-		BlockTaskChan:      make(chan *BlockTask, 1),
-		cli:                httpCli,
-		dbClient:           i_dbClient,
-		validatorWorkerNum: workerNum,
-		routineClosed:      make(chan struct{}),
-		eventsObj:          events.NewEventsObj(ctx, httpCli),
-		downloadMode:       downloadMode,
+		ctx:                 ctx,
+		cancel:              cancel,
+		InitSlot:            initSlot,
+		FinalSlot:           finalSlot,
+		SlotRanges:          slotRanges,
+		BlockTaskChan:       make(chan *BlockTask, 1),
+		TransactionTaskChan: make(chan *TransactionTask, 1),
+		cli:                 httpCli,
+		dbClient:            i_dbClient,
+		validatorWorkerNum:  workerNum,
+		routineClosed:       make(chan struct{}),
+		eventsObj:           events.NewEventsObj(ctx, httpCli),
+		downloadMode:        downloadMode,
+		enableTransactions:  enableTransactions,
 	}, nil
 }
 
@@ -118,6 +123,8 @@ func (s *BlockAnalyzer) Run() {
 	}
 	wgProcess.Add(1)
 	go s.runProcessBlock(&wgProcess, &downloadFinishedFlag)
+	wgProcess.Add(1)
+	go s.runProcessTransactions(&wgProcess, &downloadFinishedFlag)
 
 	wgDownload.Wait()
 	downloadFinishedFlag = true
@@ -145,11 +152,15 @@ func (s *BlockAnalyzer) Close() {
 	s.cancel()
 }
 
-//
 type BlockTask struct {
 	Block    spec.AgnosticBlock
 	Slot     uint64
 	Proposed bool
+}
+
+type TransactionTask struct {
+	Slot         uint64
+	Transactions []*spec.AgnosticTransaction
 }
 
 func (s BlockAnalyzer) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
