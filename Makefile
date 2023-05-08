@@ -4,9 +4,7 @@ GOCC=go
 MKDIR_P=mkdir -p
 
 BIN_PATH=./build
-BIN="./build/eth-cl-state-analyzer"
-
-
+BIN="./build/goteth"
 
 .PHONY: check build install run clean
 
@@ -22,14 +20,14 @@ env_file=.env # default
 endif
 
 include $(env_file)
-ifeq ($(STATE_ANALYZER_CMD),"rewards")
+ifeq ($(ANALYZER_CMD),"rewards")
 run: 
-		$(BIN) $(STATE_ANALYZER_CMD) \
-			--log-level=${STATE_ANALYZER_LOG_LEVEL} \
-			--bn-endpoint=${STATE_ANALYZER_BN_ENDPOINT} \
+		$(BIN) $(ANALYZER_CMD) \
+			--log-level=${ANALYZER_LOG_LEVEL} \
+			--bn-endpoint=${ANALYZER_BN_ENDPOINT} \
 			--init-slot=${STATE_ANALYZER_INIT_SLOT} \
 			--final-slot=${STATE_ANALYZER_FINAL_SLOT} \
-			--db-url=${STATE_ANALYZER_DB_URL} \
+			--db-url=${ANALYZER_DB_URL} \
 			--workers-num=${STATE_ANALYZER_WORKERS_NUM} \
 			--db-workers-num=${STATE_ANALYZER_DB_WORKERS_NUM} \
 			--download-mode=${STATE_ANALYZER_DOWNLOAD_MODE} \
@@ -38,17 +36,18 @@ run:
 			--missing-vals=${STATE_ANALYZER_MISSING_VALS}
 endif
 
-ifeq ($(STATE_ANALYZER_CMD),"blocks")
+ifeq ($(ANALYZER_CMD),"blocks")
 run: 
-		$(BIN) $(STATE_ANALYZER_CMD) \
-			--log-level=${STATE_ANALYZER_LOG_LEVEL} \
-			--bn-endpoint=${STATE_ANALYZER_BN_ENDPOINT} \
-			--init-slot=${STATE_ANALYZER_INIT_SLOT} \
-			--final-slot=${STATE_ANALYZER_FINAL_SLOT} \
-			--db-url=${STATE_ANALYZER_DB_URL} \
-			--workers-num=${STATE_ANALYZER_WORKERS_NUM} \
-			--db-workers-num=${STATE_ANALYZER_DB_WORKERS_NUM} \
-			--download-mode=${STATE_ANALYZER_DOWNLOAD_MODE}
+		$(BIN) $(ANALYZER_CMD) \
+			--log-level=${ANALYZER_LOG_LEVEL} \
+			--bn-endpoint=${ANALYZER_BN_ENDPOINT} \
+			--init-slot=${BLOCK_ANALYZER_INIT_SLOT} \
+			--final-slot=${BLOCK_ANALYZER_FINAL_SLOT} \
+			--db-url=${ANALYZER_DB_URL} \
+			--workers-num=${BLOCK_ANALYZER_WORKERS_NUM} \
+			--db-workers-num=${BLOCK_ANALYZER_DB_WORKERS_NUM} \
+			--download-mode=${BLOCK_ANALYZER_DOWNLOAD_MODE} \
+			--enable-transactions=${BLOCK_ENABLE_TRANSACTIONS}
 endif
 
 clean:
