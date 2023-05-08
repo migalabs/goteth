@@ -11,7 +11,7 @@ WORKDIR /app
 ADD . .
 
 RUN go get
-RUN make build
+RUN go build -o ./build/goteth
 
 
 FROM alpine:latest  
