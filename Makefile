@@ -4,7 +4,7 @@ GOCC=go
 MKDIR_P=mkdir -p
 
 BIN_PATH=./build
-BIN="./build/eth-cl-state-analyzer"
+BIN="./build/goteth"
 
 .PHONY: check build install run clean
 

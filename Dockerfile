@@ -17,6 +17,6 @@ RUN make build
 FROM alpine:latest  
 RUN apk --no-cache add ca-certificates
 WORKDIR /
-COPY --from=builder /app/build/eth-cl-state-analyzer ./
-ENTRYPOINT ["/eth-cl-state-analyzer"]
+COPY --from=builder /app/build/goteth ./
+ENTRYPOINT ["/goteth"]
 
