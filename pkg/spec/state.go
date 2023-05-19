@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -36,23 +35,30 @@ type AgnosticState struct {
 	BlockList               []AgnosticBlock                   // list of blocks for the given Epoch
 }
 
-func GetCustomState(bstate spec.VersionedBeaconState, iApi *http.Service) (AgnosticState, error) {
+func GetCustomState(bstate spec.VersionedBeaconState, epochDuties EpochDuties, blocks []AgnosticBlock) (AgnosticState, error) {
+	var agnosticState AgnosticState
+	var err error
 	switch bstate.Version {
 
 	case spec.DataVersionPhase0:
-		return NewPhase0State(bstate, iApi), nil
+		agnosticState = NewPhase0State(bstate)
 
 	case spec.DataVersionAltair:
-		return NewAltairState(bstate, iApi), nil
+		agnosticState = NewAltairState(bstate)
 
 	case spec.DataVersionBellatrix:
-		return NewBellatrixState(bstate, iApi), nil
+		agnosticState = NewBellatrixState(bstate)
 
 	case spec.DataVersionCapella:
-		return NewCapellaState(bstate, iApi), nil
+		agnosticState = NewCapellaState(bstate)
 	default:
 		return AgnosticState{}, fmt.Errorf("could not figure out the Beacon State Fork Version: %s", bstate.Version)
 	}
+
+	agnosticState.EpochStructs = epochDuties
+	agnosticState.BlockList = blocks
+
+	return agnosticState, err
 }
 
 // Initialize all necessary arrays and process anything standard
@@ -263,7 +269,7 @@ func (p AgnosticState) GetValStatus(valIdx phase0.ValidatorIndex) ValidatorStatu
 }
 
 // This Wrapper is meant to include all necessary data from the Phase0 Fork
-func NewPhase0State(bstate spec.VersionedBeaconState, iApi *http.Service) AgnosticState {
+func NewPhase0State(bstate spec.VersionedBeaconState) AgnosticState {
 
 	balances := make([]phase0.Gwei, 0)
 
@@ -275,7 +281,6 @@ func NewPhase0State(bstate spec.VersionedBeaconState, iApi *http.Service) Agnost
 		Version:          bstate.Version,
 		Balances:         balances,
 		Validators:       bstate.Phase0.Validators,
-		EpochStructs:     NewEpochData(iApi, bstate.Phase0.Slot),
 		Epoch:            phase0.Epoch(bstate.Phase0.Slot / SlotsPerEpoch),
 		Slot:             phase0.Slot(bstate.Phase0.Slot),
 		BlockRoots:       bstate.Phase0.BlockRoots,
@@ -289,13 +294,12 @@ func NewPhase0State(bstate spec.VersionedBeaconState, iApi *http.Service) Agnost
 }
 
 // This Wrapper is meant to include all necessary data from the Altair Fork
-func NewAltairState(bstate spec.VersionedBeaconState, iApi *http.Service) AgnosticState {
+func NewAltairState(bstate spec.VersionedBeaconState) AgnosticState {
 
 	altairObj := AgnosticState{
 		Version:       bstate.Version,
 		Balances:      bstate.Altair.Balances,
 		Validators:    bstate.Altair.Validators,
-		EpochStructs:  NewEpochData(iApi, uint64(bstate.Altair.Slot)),
 		Epoch:         phase0.Epoch(bstate.Altair.Slot / SlotsPerEpoch),
 		Slot:          bstate.Altair.Slot,
 		BlockRoots:    RootToByte(bstate.Altair.BlockRoots),
@@ -344,13 +348,12 @@ func ProcessAltairAttestations(customState *AgnosticState, participation []altai
 }
 
 // This Wrapper is meant to include all necessary data from the Bellatrix Fork
-func NewBellatrixState(bstate spec.VersionedBeaconState, iApi *http.Service) AgnosticState {
+func NewBellatrixState(bstate spec.VersionedBeaconState) AgnosticState {
 
 	bellatrixObj := AgnosticState{
 		Version:       bstate.Version,
 		Balances:      bstate.Bellatrix.Balances,
 		Validators:    bstate.Bellatrix.Validators,
-		EpochStructs:  NewEpochData(iApi, uint64(bstate.Bellatrix.Slot)),
 		Epoch:         phase0.Epoch(bstate.Bellatrix.Slot / SlotsPerEpoch),
 		Slot:          bstate.Bellatrix.Slot,
 		BlockRoots:    RootToByte(bstate.Bellatrix.BlockRoots),
@@ -365,13 +368,12 @@ func NewBellatrixState(bstate spec.VersionedBeaconState, iApi *http.Service) Agn
 }
 
 // This Wrapper is meant to include all necessary data from the Capella Fork
-func NewCapellaState(bstate spec.VersionedBeaconState, iApi *http.Service) AgnosticState {
+func NewCapellaState(bstate spec.VersionedBeaconState) AgnosticState {
 
 	capellaObj := AgnosticState{
 		Version:       bstate.Version,
 		Balances:      bstate.Capella.Balances,
 		Validators:    bstate.Capella.Validators,
-		EpochStructs:  NewEpochData(iApi, uint64(bstate.Capella.Slot)),
 		Epoch:         phase0.Epoch(bstate.Capella.Slot / SlotsPerEpoch),
 		Slot:          bstate.Capella.Slot,
 		BlockRoots:    RootToByte(bstate.Capella.BlockRoots),
