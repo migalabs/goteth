@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/spec/altair"
-	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
@@ -14,7 +12,6 @@ import (
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
 	"github.com/pkg/errors"
-	"github.com/prysmaticlabs/go-bitfield"
 )
 
 type BlockAnalyzer struct {
@@ -151,42 +148,4 @@ type BlockTask struct {
 type TransactionTask struct {
 	Slot         uint64
 	Transactions []*spec.AgnosticTransaction
-}
-
-func (s BlockAnalyzer) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
-	duties, err := s.cli.Api.ProposerDuties(s.ctx, phase0.Epoch(slot/32), []phase0.ValidatorIndex{})
-	proposerValIdx := phase0.ValidatorIndex(0)
-	if err != nil {
-		log.Errorf("could not request proposer duty: %s", err)
-	} else {
-		for _, duty := range duties {
-			if duty.Slot == phase0.Slot(slot) {
-				proposerValIdx = duty.ValidatorIndex
-			}
-		}
-	}
-
-	return spec.AgnosticBlock{
-		Slot:              slot,
-		ProposerIndex:     proposerValIdx,
-		Graffiti:          [32]byte{},
-		Proposed:          false,
-		Attestations:      make([]*phase0.Attestation, 0),
-		Deposits:          make([]*phase0.Deposit, 0),
-		ProposerSlashings: make([]*phase0.ProposerSlashing, 0),
-		AttesterSlashings: make([]*phase0.AttesterSlashing, 0),
-		VoluntaryExits:    make([]*phase0.SignedVoluntaryExit, 0),
-		SyncAggregate: &altair.SyncAggregate{
-			SyncCommitteeBits:      bitfield.NewBitvector512(),
-			SyncCommitteeSignature: phase0.BLSSignature{}},
-		ExecutionPayload: spec.AgnosticExecutionPayload{
-			FeeRecipient:  bellatrix.ExecutionAddress{},
-			GasLimit:      0,
-			GasUsed:       0,
-			Timestamp:     0,
-			BaseFeePerGas: [32]byte{},
-			BlockHash:     phase0.Hash32{},
-			Transactions:  make([]bellatrix.Transaction, 0),
-		},
-	}
 }
