@@ -36,7 +36,7 @@ loop:
 
 			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, phase0.Slot(slot), false)
 			if err != nil {
-				log.Errorf("error downloading state at slot %d", slot, err)
+				log.Errorf("error downloading state at slot %d: %s", slot, err)
 				return
 			}
 
@@ -82,7 +82,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 
 			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
 			if err != nil {
-				log.Errorf("error downloading state at slot %d", slot, err)
+				log.Errorf("error downloading state at slot %d: %s", slot, err)
 				continue
 			}
 			if s.stop {
@@ -119,7 +119,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 
 			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
 			if err != nil {
-				log.Errorf("error downloading state at slot %d", slot, err)
+				log.Errorf("error downloading state at slot %d: %s", slot, err)
 				continue
 			}
 		case <-s.ctx.Done():

@@ -40,7 +40,7 @@ loop:
 				maxRewards, err := valTask.StateMetricsObj.GetMaxReward(valIdx)
 
 				if err != nil {
-					log.Errorf("Error obtaining max reward: ", err.Error())
+					log.Errorf("Error obtaining max reward: %s", err.Error())
 					continue
 				}
 
