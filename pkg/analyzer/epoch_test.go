@@ -149,39 +149,95 @@ func TestAltairRewards(t *testing.T) {
 
 	rewards, err := stateMetrics.GetMaxReward(1250)
 	assert.Equal(t,
-		int64(19222),
-		rewards.Reward)
+		rewards.Reward,
+		int64(19222))
 
 	assert.Equal(t,
-		phase0.Gwei(19222),
-		rewards.AttestationReward)
+		rewards.AttestationReward,
+		phase0.Gwei(19222))
 
 	assert.Equal(t,
-		phase0.Slot(2375659),
-		rewards.AttSlot)
+		rewards.AttSlot,
+		phase0.Slot(2375659))
 	assert.Equal(t,
-		phase0.Gwei(22880),
-		rewards.BaseReward)
+		rewards.BaseReward,
+		phase0.Gwei(22880))
 	assert.Equal(t,
-		phase0.Gwei(19222),
-		rewards.MaxReward)
+		rewards.MaxReward,
+		phase0.Gwei(19222))
 
 	assert.Equal(t,
-		phase0.Gwei(0),
-		rewards.SyncCommitteeReward)
+		rewards.SyncCommitteeReward,
+		phase0.Gwei(0))
 	assert.Equal(t,
-		false,
-		rewards.InSyncCommittee)
+		rewards.InSyncCommittee,
+		false)
 	assert.Equal(t,
-		false,
-		rewards.MissingHead)
+		rewards.MissingHead,
+		false)
 	assert.Equal(t,
-		false,
-		rewards.MissingSource)
+		rewards.MissingSource,
+		false)
 	assert.Equal(t,
-		false,
-		rewards.MissingTarget)
+		rewards.MissingTarget,
+		false)
 	assert.Equal(t,
-		phase0.Gwei(34446677741),
-		rewards.ValidatorBalance)
+		rewards.ValidatorBalance,
+		phase0.Gwei(34446677741))
+}
+
+func TestAltairNegativeRewards(t *testing.T) {
+
+	analyzer, err := BuildStateAnalyzer()
+	if err != nil {
+		fmt.Errorf("could not build analyzer: %s", err)
+		return
+	}
+
+	epochTask, err := BuildEpochTask(analyzer, 2375807) // epoch 74243
+	if err != nil {
+		fmt.Errorf("could not build epoch task: %s", err)
+		return
+	}
+
+	// returns the state in a custom struct for Phase0, Altair of Bellatrix
+	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.NextState, epochTask.State, epochTask.PrevState, analyzer.cli.Api)
+
+	rewards, err := stateMetrics.GetMaxReward(60027)
+	assert.Equal(t,
+		rewards.Reward,
+		int64(-254518))
+
+	assert.Equal(t,
+		rewards.AttestationReward,
+		phase0.Gwei(17674))
+
+	assert.Equal(t,
+		rewards.AttSlot,
+		phase0.Slot(2375772))
+	assert.Equal(t,
+		rewards.BaseReward,
+		phase0.Gwei(22880))
+	assert.Equal(t,
+		rewards.MaxReward,
+		phase0.Gwei(257892))
+
+	assert.Equal(t,
+		rewards.SyncCommitteeReward,
+		phase0.Gwei(240218))
+	assert.Equal(t,
+		rewards.InSyncCommittee,
+		true)
+	assert.Equal(t,
+		rewards.MissingHead,
+		true)
+	assert.Equal(t,
+		rewards.MissingSource,
+		true)
+	assert.Equal(t,
+		rewards.MissingTarget,
+		true)
+	assert.Equal(t,
+		rewards.ValidatorBalance,
+		phase0.Gwei(33675494489))
 }
