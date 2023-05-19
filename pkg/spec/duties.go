@@ -16,44 +16,6 @@ type EpochDuties struct {
 	ValidatorAttSlot map[phase0.ValidatorIndex]phase0.Slot // for each validator we have which slot it had to attest to
 }
 
-func NewEpochData(iApi *http.Service, slot uint64) EpochDuties {
-
-	epochCommittees, err := iApi.BeaconCommittees(context.Background(), strconv.Itoa(int(slot)))
-
-	if err != nil {
-		log.Errorf(err.Error())
-	}
-
-	validatorsAttSlot := make(map[phase0.ValidatorIndex]phase0.Slot) // each validator, when it had to attest
-	validatorsPerSlot := make(map[phase0.Slot][]phase0.ValidatorIndex)
-
-	for _, committee := range epochCommittees {
-		for _, valID := range committee.Validators {
-			validatorsAttSlot[valID] = committee.Slot
-
-			if val, ok := validatorsPerSlot[committee.Slot]; ok {
-				// the slot exists in the map
-				validatorsPerSlot[committee.Slot] = append(val, valID)
-			} else {
-				// the slot does not exist, create
-				validatorsPerSlot[committee.Slot] = []phase0.ValidatorIndex{valID}
-			}
-		}
-	}
-
-	proposerDuties, err := iApi.ProposerDuties(context.Background(), phase0.Epoch(slot/SlotsPerEpoch), nil)
-
-	if err != nil {
-		log.Errorf(err.Error())
-	}
-
-	return EpochDuties{
-		ProposerDuties:   proposerDuties,
-		BeaconCommittees: epochCommittees,
-		ValidatorAttSlot: validatorsAttSlot,
-	}
-}
-
 func (p EpochDuties) GetValList(slot uint64, committeeIndex uint64) []phase0.ValidatorIndex {
 	for _, committee := range p.BeaconCommittees {
 		if (uint64(committee.Slot) == slot) && (uint64(committee.Index) == committeeIndex) {
