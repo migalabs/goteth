@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
@@ -154,13 +154,19 @@ func (s *StateAnalyzer) DownloadNewState(
 		*bstate = *nextBstate
 	}
 	log.Infof("requesting Beacon State from endpoint: slot %d", slot)
-	newState, err := s.RequestBeaconState(slot)
+	newState, err := s.cli.RequestBeaconState(slot)
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
 		return fmt.Errorf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
 
 	}
-	*nextBstate, err = local_spec.GetCustomState(*newState, s.cli.Api)
+	blockList, err := s.cli.DownloadEpochBlocks(phase0.Epoch(slot / spec.SlotsPerEpoch))
+	if err != nil {
+		return fmt.Errorf("unable to download epoch blocks, closing requester routine. %s", err.Error())
+	}
+	epochDuties := s.cli.NewEpochDuties(phase0.Epoch(slot / spec.SlotsPerEpoch))
+
+	*nextBstate, err = local_spec.GetCustomState(*newState, epochDuties, blockList)
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
 		return fmt.Errorf("unable to open beacon state, closing requester routine. %s", err.Error())
