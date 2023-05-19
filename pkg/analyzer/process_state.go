@@ -104,6 +104,33 @@ loop:
 					}
 					s.dbClient.Persist(newDuty)
 				}
+
+				// Process Blocks
+				// send task to be processed
+				for _, block := range stateMetrics.GetMetricsBase().CurrentState.BlockList {
+
+					s.dbClient.Persist(block)
+
+					for _, item := range block.ExecutionPayload.Withdrawals {
+						s.dbClient.Persist(spec.Withdrawal{
+							Slot:           block.Slot,
+							Index:          item.Index,
+							ValidatorIndex: item.ValidatorIndex,
+							Address:        item.Address,
+							Amount:         item.Amount,
+						})
+
+					}
+
+					// store transactions if it has been enabled
+					if s.metrics.Transaction {
+
+						for _, tx := range spec.RequestTransactionDetails(block) {
+							s.dbClient.Persist(tx)
+						}
+					}
+				}
+
 			}
 		case <-ticker.C:
 			// in case the downloads have finished, and there are no more tasks to execute
