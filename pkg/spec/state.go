@@ -33,6 +33,7 @@ type AgnosticState struct {
 	BlockRoots              [][]byte                          // array of block roots at this point (8192)
 	MissedBlocks            []phase0.Slot                     // blocks missed in the epoch until this point
 	SyncCommittee           altair.SyncCommittee              // list of pubkeys in the current sync committe
+	BlockList               []AgnosticBlock                   // list of blocks for the given Epoch
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, iApi *http.Service) (AgnosticState, error) {
