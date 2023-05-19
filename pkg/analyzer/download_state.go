@@ -136,19 +136,6 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	}
 }
 
-func (s StateAnalyzer) RequestBeaconState(slot phase0.Slot) (*spec.VersionedBeaconState, error) {
-	newState, err := s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
-	if newState == nil {
-		return nil, fmt.Errorf("unable to retrieve Finalized Beacon State from the beacon node, closing requester routine. nil State")
-	}
-	if err != nil {
-		// close the channel (to tell other routines to stop processing and end)
-		return nil, fmt.Errorf("unable to retrieve Finalized Beacon State from the beacon node, closing requester routine. %s", err.Error())
-
-	}
-	return newState, nil
-}
-
 func (s *StateAnalyzer) DownloadNewState(
 	prevBState *local_spec.AgnosticState,
 	bstate *local_spec.AgnosticState,
