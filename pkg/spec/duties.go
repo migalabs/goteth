@@ -1,12 +1,9 @@
 package spec
 
 import (
-	"context"
 	"math"
-	"strconv"
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
-	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 )
 
