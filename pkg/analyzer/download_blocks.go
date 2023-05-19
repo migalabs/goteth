@@ -133,7 +133,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 
 	ticker := time.NewTicker(minBlockReqTime)
-	newBlock, proposed, err := s.RequestBeaconBlock(slot)
+	newBlock, proposed, err := s.cli.RequestBeaconBlock(slot)
 	if err != nil {
 		return fmt.Errorf("block error at slot %d: %s", slot, err)
 	}
