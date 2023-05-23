@@ -12,7 +12,7 @@ import (
 var (
 	moduleName = "API-Cli"
 	log        = logrus.WithField(
-		"module", "")
+		"module", moduleName)
 )
 
 type APIClient struct {
