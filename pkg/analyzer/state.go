@@ -38,7 +38,7 @@ type StateAnalyzer struct {
 	dbClient *db.PostgresDBService
 
 	// Channels
-	epochTaskChan chan *EpochTask
+	epochTaskChan chan *StateQueue
 	valTaskChan   chan *ValTask
 
 	// Control Variables
@@ -112,7 +112,7 @@ func NewStateAnalyzer(
 		cancel:             cancel,
 		initSlot:           phase0.Slot(initSlot),
 		finalSlot:          phase0.Slot(finalSlot),
-		epochTaskChan:      make(chan *EpochTask, 1),
+		epochTaskChan:      make(chan *StateQueue, 1),
 		valTaskChan:        make(chan *ValTask, workerNum), // chan length is the same as the number of workers
 		cli:                httpCli,
 		dbClient:           i_dbClient,
@@ -148,13 +148,13 @@ func (s *StateAnalyzer) Run() {
 	if s.downloadMode == "hybrid" || s.downloadMode == "historical" {
 		// State requester + Task generator
 		wgDownload.Add(1)
-		go s.runDownloadStates(&wgDownload)
+		go s.runBackfill(&wgDownload, s.initSlot, s.finalSlot)
 	}
 
 	if s.downloadMode == "hybrid" || s.downloadMode == "finalized" {
 		// State requester in finalized slots, not used for now
 		wgDownload.Add(1)
-		go s.runDownloadStatesFinalized(&wgDownload)
+		go s.runDownloadFinalized(&wgDownload)
 	}
 	wgProcess.Add(1)
 	go s.runProcessState(&wgProcess)
