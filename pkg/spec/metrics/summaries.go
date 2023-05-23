@@ -50,8 +50,8 @@ func (s *SummaryMetrics) AddMetrics(
 	// TODO: we might need to do the same for single validator rewards
 	s.AvgAttMaxReward += float64(maxRewards.AttestationReward)
 
-	if spec.IsActive(*stateMetrics.GetMetricsBase().NextState.Validators[valIdx],
-		phase0.Epoch(stateMetrics.GetMetricsBase().NextState.Epoch)) {
+	if spec.IsActive(*stateMetrics.GetMetricsBase().ThirdState.Validators[valIdx],
+		phase0.Epoch(stateMetrics.GetMetricsBase().ThirdState.Epoch)) {
 		s.NumActiveVals += 1
 
 		if validatorDBRow.MissingSource {

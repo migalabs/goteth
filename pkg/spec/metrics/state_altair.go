@@ -12,12 +12,17 @@ type AltairMetrics struct {
 	baseMetrics StateMetricsBase
 }
 
-func NewAltairMetrics(nextBstate spec.AgnosticState, bstate spec.AgnosticState, prevBstate spec.AgnosticState) AltairMetrics {
+func NewAltairMetrics(
+	firstState spec.AgnosticState,
+	secondState spec.AgnosticState,
+	thirdState spec.AgnosticState,
+	fourthState spec.AgnosticState) AltairMetrics {
 
 	altairObj := AltairMetrics{}
-	altairObj.baseMetrics.CurrentState = bstate
-	altairObj.baseMetrics.PrevState = prevBstate
-	altairObj.baseMetrics.NextState = nextBstate
+	altairObj.baseMetrics.FirstState = firstState
+	altairObj.baseMetrics.SecondState = secondState
+	altairObj.baseMetrics.ThirdState = thirdState
+	altairObj.baseMetrics.FourthState = fourthState
 
 	return altairObj
 }
@@ -32,7 +37,7 @@ func (p AltairMetrics) GetMaxProposerAttReward(valIdx phase0.ValidatorIndex) (ph
 
 	proposerSlot := phase0.Slot(0)
 	reward := phase0.Gwei(0)
-	duties := p.baseMetrics.NextState.EpochStructs.ProposerDuties
+	duties := p.baseMetrics.ThirdState.EpochStructs.ProposerDuties
 	// validator will only have duties it is active at this point
 	for _, duty := range duties {
 		if duty.ValidatorIndex == phase0.ValidatorIndex(valIdx) {
@@ -59,9 +64,9 @@ func (p AltairMetrics) GetMaxSyncComReward(valIdx phase0.ValidatorIndex) phase0.
 
 	inCommittee := false
 
-	valPubKey := p.baseMetrics.NextState.Validators[valIdx].PublicKey
+	valPubKey := p.baseMetrics.ThirdState.Validators[valIdx].PublicKey
 
-	syncCommitteePubKeys := p.baseMetrics.NextState.SyncCommittee
+	syncCommitteePubKeys := p.baseMetrics.ThirdState.SyncCommittee
 
 	for _, item := range syncCommitteePubKeys.Pubkeys {
 		if valPubKey == item {
@@ -75,12 +80,12 @@ func (p AltairMetrics) GetMaxSyncComReward(valIdx phase0.ValidatorIndex) phase0.
 
 	// at this point we know the validator was inside the sync committee and, therefore, active at that point
 
-	totalActiveInc := p.baseMetrics.NextState.TotalActiveBalance / spec.EffectiveBalanceInc
-	totalBaseRewards := p.GetBaseRewardPerInc(p.baseMetrics.NextState.TotalActiveBalance) * totalActiveInc
+	totalActiveInc := p.baseMetrics.ThirdState.TotalActiveBalance / spec.EffectiveBalanceInc
+	totalBaseRewards := p.GetBaseRewardPerInc(p.baseMetrics.ThirdState.TotalActiveBalance) * totalActiveInc
 	maxParticipantRewards := totalBaseRewards * phase0.Gwei(spec.SyncRewardWeight) / phase0.Gwei(spec.WeightDenominator) / spec.SlotsPerEpoch
 	participantReward := maxParticipantRewards / phase0.Gwei(spec.SyncCommitteeSize) // this is the participantReward for a single slot
 
-	return participantReward * phase0.Gwei(spec.SlotsPerEpoch-len(p.baseMetrics.NextState.MissedBlocks)) // max reward would be 32 perfect slots
+	return participantReward * phase0.Gwei(spec.SlotsPerEpoch-len(p.baseMetrics.ThirdState.GetMissingBlocks())) // max reward would be 32 perfect slots
 
 }
 
@@ -90,17 +95,17 @@ func (p AltairMetrics) GetMaxAttestationReward(valIdx phase0.ValidatorIndex) pha
 	maxFlagsReward := phase0.Gwei(0)
 	// the maxReward would be each flag_index_weight * base_reward * (attesting_balance_inc / total_active_balance_inc) / WEIGHT_DENOMINATOR
 
-	if spec.IsActive(*p.baseMetrics.NextState.Validators[valIdx], phase0.Epoch(p.baseMetrics.PrevState.Epoch)) {
-		baseReward := p.GetBaseReward(valIdx, p.baseMetrics.CurrentState.Validators[valIdx].EffectiveBalance, p.baseMetrics.CurrentState.TotalActiveBalance)
+	if spec.IsActive(*p.baseMetrics.ThirdState.Validators[valIdx], phase0.Epoch(p.baseMetrics.FirstState.Epoch)) {
+		baseReward := p.GetBaseReward(valIdx, p.baseMetrics.SecondState.Validators[valIdx].EffectiveBalance, p.baseMetrics.SecondState.TotalActiveBalance)
 		// only consider flag Index rewards if the validator was active in the previous epoch
 
-		for i := range p.baseMetrics.CurrentState.AttestingBalance {
+		for i := range p.baseMetrics.SecondState.AttestingBalance {
 
 			// apply formula
-			attestingBalanceInc := p.baseMetrics.CurrentState.AttestingBalance[i] / spec.EffectiveBalanceInc
+			attestingBalanceInc := p.baseMetrics.SecondState.AttestingBalance[i] / spec.EffectiveBalanceInc
 
 			flagReward := phase0.Gwei(spec.ParticipatingFlagsWeight[i]) * baseReward * attestingBalanceInc
-			flagReward = flagReward / ((phase0.Gwei(p.baseMetrics.CurrentState.TotalActiveBalance / spec.EffectiveBalanceInc)) * phase0.Gwei(spec.WeightDenominator))
+			flagReward = flagReward / ((phase0.Gwei(p.baseMetrics.SecondState.TotalActiveBalance / spec.EffectiveBalanceInc)) * phase0.Gwei(spec.WeightDenominator))
 			maxFlagsReward += flagReward
 		}
 	}
@@ -118,7 +123,7 @@ func (p AltairMetrics) GetMaxAttestationReward(valIdx phase0.ValidatorIndex) pha
 
 func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.ValidatorRewards, error) {
 
-	baseReward := p.GetBaseReward(valIdx, p.baseMetrics.NextState.Validators[valIdx].EffectiveBalance, p.baseMetrics.NextState.TotalActiveBalance)
+	baseReward := p.GetBaseReward(valIdx, p.baseMetrics.ThirdState.Validators[valIdx].EffectiveBalance, p.baseMetrics.ThirdState.TotalActiveBalance)
 
 	flagIndexMaxReward := p.GetMaxAttestationReward(valIdx)
 
@@ -134,21 +139,21 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 
 	maxReward := flagIndexMaxReward + syncComMaxReward
 
-	flags := p.baseMetrics.CurrentState.MissingFlags(valIdx)
+	flags := p.baseMetrics.SecondState.MissingFlags(valIdx)
 
 	result := spec.ValidatorRewards{
 		ValidatorIndex:      valIdx,
-		Epoch:               p.baseMetrics.NextState.Epoch,
-		ValidatorBalance:    p.baseMetrics.NextState.Balances[valIdx],
+		Epoch:               p.baseMetrics.ThirdState.Epoch,
+		ValidatorBalance:    p.baseMetrics.ThirdState.Balances[valIdx],
 		Reward:              p.baseMetrics.EpochReward(valIdx),
 		MaxReward:           maxReward,
 		AttestationReward:   flagIndexMaxReward,
 		SyncCommitteeReward: syncComMaxReward,
-		AttSlot:             p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx],
+		AttSlot:             p.baseMetrics.FirstState.EpochStructs.ValidatorAttSlot[valIdx],
 		MissingSource:       flags[0],
 		MissingTarget:       flags[1],
 		MissingHead:         flags[2],
-		Status:              p.baseMetrics.NextState.GetValStatus(valIdx),
+		Status:              p.baseMetrics.ThirdState.GetValStatus(valIdx),
 		BaseReward:          baseReward,
 		ProposerSlot:        proposerSlot,
 		InSyncCommittee:     inSyncCommitte,
