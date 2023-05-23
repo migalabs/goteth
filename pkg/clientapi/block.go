@@ -2,6 +2,7 @@ package clientapi
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
@@ -11,7 +12,9 @@ import (
 )
 
 func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, error) {
+	initTime := time.Now()
 	newBlock, err := s.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
+	downloadTime := time.Since(initTime).Seconds()
 	if newBlock == nil {
 		log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
 		return s.CreateMissingBlock(slot), nil
@@ -27,6 +30,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, err
 		// close the channel (to tell other routines to stop processing and end)
 		return spec.AgnosticBlock{}, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
 	}
+	log.Debugf("block at slot %d took %f seconds to download", slot, downloadTime)
 	return customBlock, nil
 }
 
