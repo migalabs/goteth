@@ -1,42 +1,107 @@
 package analyzer
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
-func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
+func (s StateAnalyzer) runBackfill(wgDownload *sync.WaitGroup,
+	initSlot phase0.Slot,
+	endSlot phase0.Slot) {
+
+	slotChan := make(chan phase0.Slot, 1)
+	if initSlot > endSlot {
+		log.Errorf("backfill not allowed: initSlot greater than endSlot")
+		return
+	}
+
+	// make sure init and end Slot are a start and end of epochs, never in the middle
+	initSlot = phase0.Slot(phase0.Epoch(initSlot/local_spec.SlotsPerEpoch) * local_spec.SlotsPerEpoch)
+	endSlot = phase0.Slot((phase0.Epoch(endSlot/local_spec.SlotsPerEpoch)+1)*local_spec.SlotsPerEpoch) - 1
+
+	go s.runDownloads(wgDownload, slotChan, false)
+	for i := initSlot; i <= endSlot; i++ {
+		if s.stop {
+			return
+		}
+		slotChan <- i
+	}
+}
+
+func (s StateAnalyzer) runDownloads(
+	wgDownload *sync.WaitGroup,
+	triggerChan <-chan phase0.Slot,
+	finalized bool) {
+
 	defer wgDownload.Done()
 	log.Info("Launching Beacon State Requester")
+	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 	// loop over the list of slots that we need to analyze
+	states := NewStateQueue()
+	states.Finalized = finalized
+	blockList := make([]local_spec.AgnosticBlock, 0)
+	nextSlot := <-triggerChan // wait to know which slot are we at
+	epoch := phase0.Epoch(nextSlot / local_spec.SlotsPerEpoch)
 
-	// We need three consecutive states to compute max rewards easier
-	prevBState := local_spec.AgnosticState{}
-	bstate := local_spec.AgnosticState{}
-	nextBstate := local_spec.AgnosticState{}
+	// prevSlot always starts at the beginning of an epoch -> full epoch metrics
+	slot := phase0.Slot((epoch - 3) * local_spec.SlotsPerEpoch) // first slot of three epochs before
+
 loop:
-	for slot := s.initSlot; slot < s.finalSlot; slot += local_spec.SlotsPerEpoch {
+	for {
 
 		select {
-		case <-s.ctx.Done():
-			log.Info("context has died, closing state requester routine")
-			break loop
 
-		default:
+		case nextSlot := <-triggerChan:
 			if s.stop {
 				log.Info("sudden shutdown detected, state downloader routine")
 				break loop
 			}
+			for slot <= nextSlot { // always fill from previous requested slot to current chan slot
+				epoch = phase0.Epoch(slot / local_spec.SlotsPerEpoch)
+				log.Debugf("filling from %d to %d", slot, nextSlot)
+				block, err := s.downloadNewBlock(phase0.Slot(slot))
+				if err != nil {
+					log.Errorf("error downloading state at slot %d", slot, err)
+					return
+				}
+				blockList = append(blockList, block)
 
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, phase0.Slot(slot), false)
-			if err != nil {
-				log.Errorf("error downloading state at slot %d", slot, err)
+				// If last slot of epoch
+				if (slot+1)%local_spec.SlotsPerEpoch == 0 {
+					// End of epoch, add new state state
+
+					newState, err := s.downloadNewState(epoch)
+					if err != nil {
+						log.Errorf("could not download state at epoch %d: %s", slot%local_spec.SlotsPerEpoch, err)
+					}
+					newState.BlockList = blockList // add blockList to the new state
+					err = states.AddNewState(newState)
+					if err != nil {
+						log.Errorf("could not add state to the list: %s", err)
+						return
+					}
+					blockList = make([]local_spec.AgnosticBlock, 0) // clean the temp block list
+
+					// send for metrics processing
+
+					if states.Complete() {
+						s.epochTaskChan <- &states
+					}
+
+				}
+				slot += 1
+			}
+
+		case <-s.ctx.Done():
+			log.Info("context has died, closing state requester routine")
+			break loop
+		case <-ticker.C:
+			if s.stop {
+				log.Info("sudden shutdown detected, state downloader routine")
 				return
 			}
 
@@ -47,14 +112,8 @@ loop:
 	log.Infof("State Downloader routine finished")
 }
 
-func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
+func (s *StateAnalyzer) runDownloadFinalized(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
-	log.Info("Launching Beacon State Finalized Requester")
-	prevBState := local_spec.AgnosticState{}
-	bstate := local_spec.AgnosticState{}
-	nextBstate := local_spec.AgnosticState{}
-
-	// ------ fill from last epoch in database to current head -------
 
 	// obtain last epoch in database
 	lastRequestEpoch, err := s.dbClient.ObtainLastEpoch()
@@ -71,121 +130,16 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 		headSlot = header.Header.Message.Slot
 	}
 
-	// it means we could obtain both
-	if lastRequestEpoch > 0 && headSlot > 0 {
-		headEpoch := phase0.Epoch(headSlot / phase0.Slot(local_spec.EpochSlots))
-		lastRequestEpoch = lastRequestEpoch - 4 // start 4 epochs before for safety
-		for (lastRequestEpoch) < (headEpoch - 1) {
-			lastRequestEpoch = lastRequestEpoch + 1
-			log.Infof("filling missing epochs: %d", lastRequestEpoch)
-			slot := phase0.Slot(int(lastRequestEpoch)*local_spec.EpochSlots) + 31 // last slot of the epoch
-
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
-			if err != nil {
-				log.Errorf("error downloading state at slot %d", slot, err)
-				continue
-			}
-			if s.stop {
-				log.Info("sudden shutdown detected, state downloader routine")
-				return
-			}
-		}
+	if lastRequestEpoch > 0 && headSlot > 0 &&
+		phase0.Epoch(headSlot/local_spec.SlotsPerEpoch) > lastRequestEpoch {
+		// it means we could obtain both, there is probably some data in the database
+		go s.runBackfill(wgDownload, phase0.Slot((lastRequestEpoch-4)*32), headSlot)
 
 	}
 
-	// -----------------------------------------------------------------------------------
+	// --------------------------------- Begin the infinte loop -----------------------------------
 	s.eventsObj.SubscribeToHeadEvents()
-	ticker := time.NewTicker(utils.RoutineFlushTimeout)
-	for {
 
-		select {
+	go s.runDownloads(wgDownload, s.eventsObj.HeadChan, true)
 
-		case newHead := <-s.eventsObj.HeadChan:
-			// new epoch
-			headEpoch := phase0.Epoch(newHead / phase0.Slot(local_spec.EpochSlots))
-			if lastRequestEpoch == 0 {
-				lastRequestEpoch = headEpoch
-			}
-			// reqEpoch => headEpoch - 1
-			log.Infof("Head Epoch: %d; Last Requested Epoch: %d", headEpoch, lastRequestEpoch)
-			log.Infof("Pending slots for new epoch: %d", (int(headEpoch+1)*local_spec.EpochSlots)-int(newHead))
-
-			if (lastRequestEpoch + 1) >= headEpoch {
-				continue // wait for new epoch to arrive
-			}
-
-			slot := phase0.Slot(int(lastRequestEpoch+1)*local_spec.EpochSlots) + 31 // last slot of the epoch
-			lastRequestEpoch = lastRequestEpoch + 1
-
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
-			if err != nil {
-				log.Errorf("error downloading state at slot %d", slot, err)
-				continue
-			}
-		case <-s.ctx.Done():
-			log.Info("context has died, closing state requester routine")
-			return
-
-		case <-ticker.C:
-			if s.stop {
-				log.Info("sudden shutdown detected, state downloader routine")
-				return
-			}
-		}
-
-	}
-}
-
-func (s *StateAnalyzer) DownloadNewState(
-	prevBState *local_spec.AgnosticState,
-	bstate *local_spec.AgnosticState,
-	nextBstate *local_spec.AgnosticState,
-	slot phase0.Slot,
-	finalized bool) error {
-
-	log := log.WithField("routine", "download")
-	ticker := time.NewTicker(minStateReqTime)
-	// We need three states to calculate both, rewards and maxRewards
-
-	if bstate.AttestingBalance != nil { // in case we already had a bstate
-		*prevBState = *bstate
-	}
-	if nextBstate.AttestingBalance != nil { // in case we already had a nextBstate
-		*bstate = *nextBstate
-	}
-	log.Infof("requesting Beacon State from endpoint: slot %d", slot)
-	newState, err := s.cli.RequestBeaconState(slot)
-	if err != nil {
-		// close the channel (to tell other routines to stop processing and end)
-		return fmt.Errorf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
-
-	}
-	blockList, err := s.cli.DownloadEpochBlocks(phase0.Epoch(slot / spec.SlotsPerEpoch))
-	if err != nil {
-		return fmt.Errorf("unable to download epoch blocks, closing requester routine. %s", err.Error())
-	}
-	epochDuties := s.cli.NewEpochDuties(phase0.Epoch(slot / spec.SlotsPerEpoch))
-
-	*nextBstate, err = local_spec.GetCustomState(*newState, epochDuties, blockList)
-	if err != nil {
-		// close the channel (to tell other routines to stop processing and end)
-		return fmt.Errorf("unable to open beacon state, closing requester routine. %s", err.Error())
-	}
-
-	if prevBState.AttestingBalance != nil {
-		// only execute tasks if prevBState is something (we have state and nextState in this case)
-
-		epochTask := &EpochTask{
-			NextState: *nextBstate,
-			State:     *bstate,
-			PrevState: *prevBState,
-			Finalized: finalized,
-		}
-
-		log.Debugf("sending task for slot: %d", epochTask.State.Slot)
-		s.epochTaskChan <- epochTask
-	}
-	// check if the min Request time has been completed (to avoid spaming the API)
-	<-ticker.C
-	return nil
 }

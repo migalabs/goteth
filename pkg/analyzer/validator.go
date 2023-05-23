@@ -20,20 +20,20 @@ loop:
 		select {
 		case valTask := <-s.valTaskChan:
 
-			wlog.Debugf("task received for val %d - %d in epoch %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch)
+			wlog.Debugf("task received for val %d - %d in epoch %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.StateMetricsObj.GetMetricsBase().SecondState.Epoch)
 			// Proccess State
 			snapshot := time.Now()
 
 			// batch metrics
 			summaryMet := spec.PoolSummary{
 				PoolName: valTask.PoolName,
-				Epoch:    valTask.StateMetricsObj.GetMetricsBase().NextState.Epoch,
+				Epoch:    valTask.StateMetricsObj.GetMetricsBase().ThirdState.Epoch,
 			}
 
 			// process each validator
 			for _, valIdx := range valTask.ValIdxs {
 
-				if int(valIdx) >= len(valTask.StateMetricsObj.GetMetricsBase().NextState.Validators) {
+				if int(valIdx) >= len(valTask.StateMetricsObj.GetMetricsBase().ThirdState.Validators) {
 					continue // validator is not in the chain yet
 				}
 				// get max reward at given epoch using the formulas
@@ -49,8 +49,8 @@ loop:
 					// We will always receive higher epochs
 					s.dbClient.Persist(spec.ValidatorLastStatus{
 						ValIdx:         phase0.ValidatorIndex(valIdx),
-						Epoch:          valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch,
-						CurrentBalance: valTask.StateMetricsObj.GetMetricsBase().NextState.Balances[valIdx],
+						Epoch:          valTask.StateMetricsObj.GetMetricsBase().ThirdState.Epoch,
+						CurrentBalance: valTask.StateMetricsObj.GetMetricsBase().SecondState.Balances[valIdx],
 						CurrentStatus:  maxRewards.Status,
 					})
 				}
