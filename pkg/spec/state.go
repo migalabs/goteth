@@ -1,7 +1,6 @@
 package spec
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 
@@ -30,12 +29,11 @@ type AgnosticState struct {
 	Epoch                   phase0.Epoch                      // Epoch of the state
 	Slot                    phase0.Slot                       // Slot of the state
 	BlockRoots              [][]byte                          // array of block roots at this point (8192)
-	MissedBlocks            []phase0.Slot                     // blocks missed in the epoch until this point
 	SyncCommittee           altair.SyncCommittee              // list of pubkeys in the current sync committe
 	BlockList               []AgnosticBlock                   // list of blocks for the given Epoch
 }
 
-func GetCustomState(bstate spec.VersionedBeaconState, epochDuties EpochDuties, blocks []AgnosticBlock) (AgnosticState, error) {
+func GetCustomState(bstate spec.VersionedBeaconState, epochDuties EpochDuties) (AgnosticState, error) {
 	var agnosticState AgnosticState
 	var err error
 	switch bstate.Version {
@@ -56,7 +54,6 @@ func GetCustomState(bstate spec.VersionedBeaconState, epochDuties EpochDuties, b
 	}
 
 	agnosticState.EpochStructs = epochDuties
-	agnosticState.BlockList = blocks
 
 	return agnosticState, err
 }
@@ -74,7 +71,6 @@ func (p *AgnosticState) Setup() error {
 	p.AttestingBalance = make([]phase0.Gwei, 3)
 	p.AttestingVals = make([]bool, arrayLen)
 	p.CorrectFlags = make([][]uint, 3)
-	p.MissedBlocks = make([]phase0.Slot, 0)
 	p.ValAttestationInclusion = make(map[phase0.ValidatorIndex]ValVote)
 	p.AttestedValsPerSlot = make(map[phase0.Slot][]uint64)
 
@@ -84,7 +80,6 @@ func (p *AgnosticState) Setup() error {
 
 	p.TotalActiveBalance = p.GetTotalActiveEffBalance()
 	p.TotalActiveRealBalance = p.GetTotalActiveRealBalance()
-	p.TrackMissingBlocks()
 	return nil
 }
 
@@ -143,51 +138,16 @@ func (p AgnosticState) GetTotalActiveRealBalance() phase0.Gwei {
 	return totalBalance
 }
 
-func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
-	if validator.ActivationEpoch <= epoch &&
-		epoch < validator.ExitEpoch {
-		return true
-	}
-	return false
-}
+func (p AgnosticState) GetMissingBlocks() []phase0.Slot {
 
-// check if there was a missed block at last slot of previous epoch
-func (p AgnosticState) TrackPrevMissingBlock() phase0.Slot {
-	firstIndex := (p.Slot - SlotsPerEpoch) % SlotsPerHistoricalRoot
-
-	lastItem := p.BlockRoots[firstIndex-1]
-	item := p.BlockRoots[firstIndex]
-	res := bytes.Compare(lastItem, item)
-
-	if res == 0 {
-		// both consecutive roots were the same ==> missed block
-		slot := p.Slot - SlotsPerEpoch
-		return slot
-	}
-
-	return 0
-
-}
-
-// We use blockroots to track missed blocks. When there is a missed block, the block root is repeated
-func (p *AgnosticState) TrackMissingBlocks() {
-	firstIndex := (p.Slot - SlotsPerEpoch + 1) % SlotsPerHistoricalRoot
-	lastIndex := (p.Slot) % SlotsPerHistoricalRoot
-
-	for i := firstIndex; i <= lastIndex; i++ {
-		if i == 0 {
-			continue
-		}
-		lastItem := p.BlockRoots[i-1]
-		item := p.BlockRoots[i]
-		res := bytes.Compare(lastItem, item)
-
-		if res == 0 {
-			// both consecutive roots were the same ==> missed block
-			slot := i - firstIndex + p.Slot - SlotsPerEpoch + 1
-			p.MissedBlocks = append(p.MissedBlocks, slot)
+	result := make([]phase0.Slot, 0)
+	for _, block := range p.BlockList {
+		if !block.Proposed {
+			result = append(result, block.Slot)
 		}
 	}
+
+	return result
 }
 
 // List of validators that were active in the epoch of the state
