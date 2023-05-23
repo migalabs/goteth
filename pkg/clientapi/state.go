@@ -22,7 +22,7 @@ func (s APIClient) RequestBeaconState(epoch phase0.Epoch) (*spec.VersionedBeacon
 		return nil, fmt.Errorf("unable to retrieve Finalized Beacon State from the beacon node, closing requester routine. %s", err.Error())
 
 	}
-	log.Debugf("state at epoch %d took %f seconds to download", phase0.Epoch(slot/32), downloadTime)
+	log.Infof("state at epoch %d (slot %d) took %f seconds to download", phase0.Epoch(slot/32), slot, downloadTime)
 
 	return newState, nil
 }
