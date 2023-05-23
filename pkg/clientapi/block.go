@@ -30,7 +30,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, err
 		// close the channel (to tell other routines to stop processing and end)
 		return spec.AgnosticBlock{}, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
 	}
-	log.Debugf("block at slot %d took %f seconds to download", slot, downloadTime)
+	log.Infof("block at slot %d took %f seconds to download", slot, downloadTime)
 	return customBlock, nil
 }
 
