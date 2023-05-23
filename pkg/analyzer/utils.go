@@ -57,7 +57,7 @@ func (s StateAnalyzer) downloadNewBlock(slot phase0.Slot) (local_spec.AgnosticBl
 
 func (s StateAnalyzer) downloadNewState(epoch phase0.Epoch) (local_spec.AgnosticState, error) {
 
-	log.Infof("requesting Beacon State from endpoint: epoch %d", epoch)
+	log.Debugf("requesting Beacon State from endpoint: epoch %d", epoch)
 	newState, err := s.cli.RequestBeaconState(epoch)
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
