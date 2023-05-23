@@ -7,13 +7,15 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
-func (s StateAnalyzer) runBackfill(wgDownload *sync.WaitGroup,
+func (s *StateAnalyzer) prepareBackfill(wgDownload *sync.WaitGroup,
 	initSlot phase0.Slot,
-	endSlot phase0.Slot) {
-
+	endSlot phase0.Slot,
+	id_name string) {
 	slotChan := make(chan phase0.Slot, 1)
+	finishChan := make(chan interface{}, 1)
 	if initSlot > endSlot {
 		log.Errorf("backfill not allowed: initSlot greater than endSlot")
 		return
@@ -21,9 +23,10 @@ func (s StateAnalyzer) runBackfill(wgDownload *sync.WaitGroup,
 
 	// make sure init and end Slot are a start and end of epochs, never in the middle
 	initSlot = phase0.Slot(phase0.Epoch(initSlot/local_spec.SlotsPerEpoch) * local_spec.SlotsPerEpoch)
+	backFillEpoch := phase0.Epoch(initSlot/local_spec.SlotsPerEpoch - 2)
 	endSlot = phase0.Slot((phase0.Epoch(endSlot/local_spec.SlotsPerEpoch)+1)*local_spec.SlotsPerEpoch) - 1
 
-	go s.runDownloads(wgDownload, slotChan, false)
+	go s.runDownloads(wgDownload, slotChan, finishChan, false, id_name, backFillEpoch)
 	for i := initSlot; i <= endSlot; i++ {
 		if s.stop {
 			return
@@ -32,23 +35,53 @@ func (s StateAnalyzer) runBackfill(wgDownload *sync.WaitGroup,
 	}
 }
 
-func (s StateAnalyzer) runDownloads(
+func (s *StateAnalyzer) prepareFinalized(wgDownload *sync.WaitGroup) {
+	defer wgDownload.Done()
+
+	finishChan := make(chan interface{}, 1)
+	// obtain last epoch in database
+	lastRequestEpoch, err := s.dbClient.ObtainLastEpoch()
+	if err == nil && lastRequestEpoch > 0 {
+		log.Infof("database detected: backfilling from %d", lastRequestEpoch)
+		lastRequestEpoch = lastRequestEpoch - 2
+	}
+
+	// --------------------------------- Begin the infinte loop -----------------------------------
+	s.eventsObj.SubscribeToHeadEvents()
+
+	go s.runDownloads(wgDownload,
+		s.eventsObj.HeadChan,
+		finishChan,
+		true,
+		"finalized",
+		lastRequestEpoch)
+
+}
+
+func (s *StateAnalyzer) runDownloads(
 	wgDownload *sync.WaitGroup,
 	triggerChan <-chan phase0.Slot,
-	finalized bool) {
-
+	finishChan <-chan interface{},
+	finalized bool,
+	id_name string,
+	backfill phase0.Epoch) {
 	defer wgDownload.Done()
+	log = logrus.WithField("download-routine", id_name)
+
 	log.Info("Launching Beacon State Requester")
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
-	// loop over the list of slots that we need to analyze
+
 	states := NewStateQueue()
 	states.Finalized = finalized
 	blockList := make([]local_spec.AgnosticBlock, 0)
 	nextSlot := <-triggerChan // wait to know which slot are we at
 	epoch := phase0.Epoch(nextSlot / local_spec.SlotsPerEpoch)
 
-	// prevSlot always starts at the beginning of an epoch -> full epoch metrics
-	slot := phase0.Slot((epoch - 3) * local_spec.SlotsPerEpoch) // first slot of three epochs before
+	// slot always starts at the beginning of an epoch -> full epoch metrics
+	slot := phase0.Slot(backfill * local_spec.SlotsPerEpoch) // first slot to start downloading
+	if slot == 0 {
+		slot = nextSlot
+	}
 
 loop:
 	for {
@@ -56,11 +89,7 @@ loop:
 		select {
 
 		case nextSlot := <-triggerChan:
-			if s.stop {
-				log.Info("sudden shutdown detected, state downloader routine")
-				break loop
-			}
-			for slot <= nextSlot { // always fill from previous requested slot to current chan slot
+			for slot <= nextSlot && !s.stop { // always fill from previous requested slot to current chan slot
 				epoch = phase0.Epoch(slot / local_spec.SlotsPerEpoch)
 				log.Debugf("filling from %d to %d", slot, nextSlot)
 				block, err := s.downloadNewBlock(phase0.Slot(slot))
@@ -72,7 +101,7 @@ loop:
 
 				// If last slot of epoch
 				if (slot+1)%local_spec.SlotsPerEpoch == 0 {
-					// End of epoch, add new state state
+					// End of epoch, add new state
 
 					newState, err := s.downloadNewState(epoch)
 					if err != nil {
@@ -95,14 +124,15 @@ loop:
 				}
 				slot += 1
 			}
-
+		case <-finishChan:
+			break loop
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state requester routine")
 			break loop
 		case <-ticker.C:
 			if s.stop {
 				log.Info("sudden shutdown detected, state downloader routine")
-				return
+				break loop
 			}
 
 		}
@@ -110,36 +140,4 @@ loop:
 	}
 
 	log.Infof("State Downloader routine finished")
-}
-
-func (s *StateAnalyzer) runDownloadFinalized(wgDownload *sync.WaitGroup) {
-	defer wgDownload.Done()
-
-	// obtain last epoch in database
-	lastRequestEpoch, err := s.dbClient.ObtainLastEpoch()
-	if err != nil {
-		log.Errorf("could not obtain last epoch in database")
-	}
-
-	// obtain current head
-	headSlot := phase0.Slot(0)
-	header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "head")
-	if err != nil {
-		log.Errorf("could not obtain current head to fill historical")
-	} else {
-		headSlot = header.Header.Message.Slot
-	}
-
-	if lastRequestEpoch > 0 && headSlot > 0 &&
-		phase0.Epoch(headSlot/local_spec.SlotsPerEpoch) > lastRequestEpoch {
-		// it means we could obtain both, there is probably some data in the database
-		go s.runBackfill(wgDownload, phase0.Slot((lastRequestEpoch-4)*32), headSlot)
-
-	}
-
-	// --------------------------------- Begin the infinte loop -----------------------------------
-	s.eventsObj.SubscribeToHeadEvents()
-
-	go s.runDownloads(wgDownload, s.eventsObj.HeadChan, true)
-
 }
