@@ -10,24 +10,24 @@ import (
 	"github.com/prysmaticlabs/go-bitfield"
 )
 
-func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, bool, error) {
+func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, error) {
 	newBlock, err := s.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
 	if newBlock == nil {
 		log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
-		return s.CreateMissingBlock(slot), false, nil
+		return s.CreateMissingBlock(slot), nil
 	}
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
-		return spec.AgnosticBlock{}, false, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
+		return spec.AgnosticBlock{}, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
 	}
 
 	customBlock, err := spec.GetCustomBlock(*newBlock)
 
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
-		return spec.AgnosticBlock{}, false, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
+		return spec.AgnosticBlock{}, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
 	}
-	return customBlock, true, nil
+	return customBlock, nil
 }
 
 func (s APIClient) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
@@ -76,7 +76,7 @@ func (s APIClient) DownloadEpochBlocks(epoch phase0.Epoch) ([]spec.AgnosticBlock
 	endSlot := phase0.Slot((epoch+1)*spec.SlotsPerEpoch - 1)
 
 	for i := firstSlot; i <= endSlot; i++ {
-		newBlock, _, err := s.RequestBeaconBlock(i)
+		newBlock, err := s.RequestBeaconBlock(i)
 		if err != nil {
 			return blockList, fmt.Errorf("unable to retrieve beacon block from the beacon node, closing requester routine. %s", err.Error())
 		}
