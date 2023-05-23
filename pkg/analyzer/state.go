@@ -148,13 +148,13 @@ func (s *StateAnalyzer) Run() {
 	if s.downloadMode == "hybrid" || s.downloadMode == "historical" {
 		// State requester + Task generator
 		wgDownload.Add(1)
-		go s.runBackfill(&wgDownload, s.initSlot, s.finalSlot)
+		go s.prepareBackfill(&wgDownload, s.initSlot, s.finalSlot, "historical")
 	}
 
 	if s.downloadMode == "hybrid" || s.downloadMode == "finalized" {
 		// State requester in finalized slots, not used for now
 		wgDownload.Add(1)
-		go s.runDownloadFinalized(&wgDownload)
+		go s.prepareFinalized(&wgDownload)
 	}
 	wgProcess.Add(1)
 	go s.runProcessState(&wgProcess)
