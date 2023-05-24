@@ -42,7 +42,7 @@ func (s *StateAnalyzer) prepareFinalized(wgDownload *sync.WaitGroup) {
 	// obtain last epoch in database
 	lastRequestEpoch, err := s.dbClient.ObtainLastEpoch()
 	if err == nil && lastRequestEpoch > 0 {
-		log.Infof("database detected: backfilling from %d", lastRequestEpoch)
+		log.Infof("database detected: backfilling from epoch %d", lastRequestEpoch)
 		lastRequestEpoch = lastRequestEpoch - 2
 	}
 
@@ -79,8 +79,11 @@ func (s *StateAnalyzer) runDownloads(
 
 	// slot always starts at the beginning of an epoch -> full epoch metrics
 	slot := phase0.Slot(backfill * local_spec.SlotsPerEpoch) // first slot to start downloading
+	log.Infof("downloads starting from %d to %d", slot, nextSlot)
+
+	// if no backfill provided we start 2 epochs before the current epoch
 	if slot == 0 {
-		slot = nextSlot
+		slot = phase0.Slot(epoch-2) * local_spec.SlotsPerEpoch
 	}
 
 loop:
