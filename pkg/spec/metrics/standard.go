@@ -42,8 +42,8 @@ func StateMetricsByForkVersion(
 	iApi *http.Service) (StateMetrics, error) {
 	switch third.Version {
 
-	// case spec.DataVersionPhase0:
-	// 	return NewPhase0Metrics(nextBstate, bstate, prevBstate), nil
+	case spec.DataVersionPhase0:
+		return NewPhase0Metrics(first, second, third, fourth), nil
 
 	case spec.DataVersionAltair:
 		return NewAltairMetrics(first, second, third, fourth), nil
