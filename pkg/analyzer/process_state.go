@@ -70,61 +70,8 @@ loop:
 				s.valTaskChan <- valTask
 			}
 
-			log.Debugf("Writing epoch metrics to DB for slot %d...", task.ThirdState.Slot)
-			// create a model to be inserted into the db, we only insert previous epoch metrics
-
-			missedBlocks := stateMetrics.GetMetricsBase().ThirdState.GetMissingBlocks()
-
-			// TODO: send constructor to model package
-			epochModel := stateMetrics.GetMetricsBase().ExportToEpoch()
-
-			s.dbClient.Persist(epochModel)
-
-			// Proposer Duties
-
-			// TODO: this should be done by the statemetrics directly
-			for _, item := range stateMetrics.GetMetricsBase().ThirdState.EpochStructs.ProposerDuties {
-
-				newDuty := spec.ProposerDuty{
-					ValIdx:       item.ValidatorIndex,
-					ProposerSlot: item.Slot,
-					Proposed:     true,
-				}
-				for _, item := range missedBlocks {
-					if newDuty.ProposerSlot == item { // we found the proposer slot in the missed blocks
-						newDuty.Proposed = false
-					}
-				}
-				s.dbClient.Persist(newDuty)
-			}
-
-			// Process Blocks
-			// send task to be processed
-
-			// TODO: for every block we should have a function that persists all data block-wise
-			for _, block := range stateMetrics.GetMetricsBase().ThirdState.BlockList {
-
-				s.dbClient.Persist(block)
-
-				for _, item := range block.ExecutionPayload.Withdrawals {
-					s.dbClient.Persist(spec.Withdrawal{
-						Slot:           block.Slot,
-						Index:          item.Index,
-						ValidatorIndex: item.ValidatorIndex,
-						Address:        item.Address,
-						Amount:         item.Amount,
-					})
-
-				}
-
-				// store transactions if it has been enabled
-				if s.metrics.Transaction {
-
-					for _, tx := range spec.RequestTransactionDetails(block) {
-						s.dbClient.Persist(tx)
-					}
-				}
-			}
+			s.PersistEpochData(stateMetrics)
+			s.PersistBlockData(stateMetrics)
 
 		case <-ticker.C:
 			// in case the downloads have finished, and there are no more tasks to execute
@@ -137,4 +84,57 @@ loop:
 
 	}
 	log.Infof("Pre process routine finished...")
+}
+
+func (s *StateAnalyzer) PersistEpochData(stateMetrics metrics.StateMetrics) {
+	log.Debugf("Writing epoch metrics to DB for epoch %d...", stateMetrics.GetMetricsBase().ThirdState.Epoch)
+	missedBlocks := stateMetrics.GetMetricsBase().ThirdState.GetMissingBlocks()
+
+	epochModel := stateMetrics.GetMetricsBase().ExportToEpoch()
+
+	s.dbClient.Persist(epochModel)
+
+	// Proposer Duties
+
+	// TODO: this should be done by the statemetrics directly
+	for _, item := range stateMetrics.GetMetricsBase().ThirdState.EpochStructs.ProposerDuties {
+
+		newDuty := spec.ProposerDuty{
+			ValIdx:       item.ValidatorIndex,
+			ProposerSlot: item.Slot,
+			Proposed:     true,
+		}
+		for _, item := range missedBlocks {
+			if newDuty.ProposerSlot == item { // we found the proposer slot in the missed blocks
+				newDuty.Proposed = false
+			}
+		}
+		s.dbClient.Persist(newDuty)
+	}
+}
+
+func (s *StateAnalyzer) PersistBlockData(stateMetrics metrics.StateMetrics) {
+	for _, block := range stateMetrics.GetMetricsBase().ThirdState.BlockList {
+
+		s.dbClient.Persist(block)
+
+		for _, item := range block.ExecutionPayload.Withdrawals {
+			s.dbClient.Persist(spec.Withdrawal{
+				Slot:           block.Slot,
+				Index:          item.Index,
+				ValidatorIndex: item.ValidatorIndex,
+				Address:        item.Address,
+				Amount:         item.Amount,
+			})
+
+		}
+
+		// store transactions if it has been enabled
+		if s.metrics.Transaction {
+
+			for _, tx := range spec.RequestTransactionDetails(block) {
+				s.dbClient.Persist(tx)
+			}
+		}
+	}
 }
