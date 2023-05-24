@@ -65,7 +65,7 @@ func (s *StateAnalyzer) runDownloads(
 	id_name string,
 	backfill phase0.Epoch) {
 	defer wgDownload.Done()
-	log = logrus.WithField("download-routine", id_name)
+	log := logrus.WithField("download-routine", id_name)
 
 	log.Info("Launching Beacon State Requester")
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
