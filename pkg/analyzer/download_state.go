@@ -36,7 +36,6 @@ func (s *StateAnalyzer) prepareBackfill(wgDownload *sync.WaitGroup,
 }
 
 func (s *StateAnalyzer) prepareFinalized(wgDownload *sync.WaitGroup) {
-	defer wgDownload.Done()
 
 	finishChan := make(chan interface{}, 1)
 	// obtain last epoch in database
