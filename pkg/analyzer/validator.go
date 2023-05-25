@@ -50,7 +50,7 @@ loop:
 					s.dbClient.Persist(spec.ValidatorLastStatus{
 						ValIdx:         phase0.ValidatorIndex(valIdx),
 						Epoch:          valTask.StateMetricsObj.GetMetricsBase().ThirdState.Epoch,
-						CurrentBalance: valTask.StateMetricsObj.GetMetricsBase().SecondState.Balances[valIdx],
+						CurrentBalance: valTask.StateMetricsObj.GetMetricsBase().ThirdState.Balances[valIdx],
 						CurrentStatus:  maxRewards.Status,
 					})
 				}
