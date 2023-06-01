@@ -243,6 +243,63 @@ func TestAltairRewards(t *testing.T) {
 		phase0.Gwei(32078071168))
 }
 
+func TestAltairNegativeRewards(t *testing.T) {
+
+	analyzer, err := BuildStateAnalyzer()
+	if err != nil {
+		fmt.Errorf("could not build analyzer: %s", err)
+		return
+	}
+
+	epochTask, err := BuildEpochTask(analyzer, 6565823) // epoch 205181
+	if err != nil {
+		fmt.Errorf("could not build epoch task: %s", err)
+		return
+	}
+
+	// returns the state in a custom struct for Phase0, Altair of Bellatrix
+	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.NextState, epochTask.State, epochTask.PrevState, analyzer.cli.Api)
+
+	// Test negative rewards
+	rewards, err := stateMetrics.GetMaxReward(9097)
+	assert.Equal(t,
+		rewards.Reward,
+		int64(-9260))
+
+	assert.Equal(t,
+		rewards.AttestationReward,
+		phase0.Gwei(12122))
+
+	assert.Equal(t,
+		rewards.AttSlot,
+		phase0.Slot(6565786))
+	assert.Equal(t,
+		rewards.BaseReward,
+		phase0.Gwei(14816))
+	assert.Equal(t,
+		rewards.MaxReward,
+		phase0.Gwei(12122))
+
+	assert.Equal(t,
+		rewards.SyncCommitteeReward,
+		phase0.Gwei(0))
+	assert.Equal(t,
+		rewards.InSyncCommittee,
+		false)
+	assert.Equal(t,
+		rewards.MissingHead,
+		true)
+	assert.Equal(t,
+		rewards.MissingSource,
+		true)
+	assert.Equal(t,
+		rewards.MissingTarget,
+		true)
+	assert.Equal(t,
+		rewards.ValidatorBalance,
+		phase0.Gwei(36855786132))
+}
+
 func TestCapellaBlock(t *testing.T) {
 
 	blockAnalyzer, err := BuildBlockAnalyzer()
