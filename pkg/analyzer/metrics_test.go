@@ -155,7 +155,7 @@ func TestAltairRewards(t *testing.T) {
 		return
 	}
 
-	epochTask, err := BuildEpochTask(analyzer, 2375711) // epoch 74240
+	epochTask, err := BuildEpochTask(analyzer, 6565759) // epoch 205179
 	if err != nil {
 		fmt.Errorf("could not build epoch task: %s", err)
 		return
@@ -168,21 +168,21 @@ func TestAltairRewards(t *testing.T) {
 	rewards, err := stateMetrics.GetMaxReward(1250)
 	assert.Equal(t,
 		rewards.Reward,
-		int64(19222))
+		int64(12322))
 
 	assert.Equal(t,
 		rewards.AttestationReward,
-		phase0.Gwei(19222))
+		phase0.Gwei(12322))
 
 	assert.Equal(t,
 		rewards.AttSlot,
-		phase0.Slot(2375659))
+		phase0.Slot(6565698))
 	assert.Equal(t,
 		rewards.BaseReward,
-		phase0.Gwei(22880))
+		phase0.Gwei(14816))
 	assert.Equal(t,
 		rewards.MaxReward,
-		phase0.Gwei(19222))
+		phase0.Gwei(12322))
 
 	assert.Equal(t,
 		rewards.SyncCommitteeReward,
@@ -201,46 +201,46 @@ func TestAltairRewards(t *testing.T) {
 		false)
 	assert.Equal(t,
 		rewards.ValidatorBalance,
-		phase0.Gwei(34446677741))
+		phase0.Gwei(36586892613))
 
-	// Test when validator did not perform duties and was in a sync committee
-	rewards, err = stateMetrics.GetMaxReward(60027)
+	// Test when validator did perform duties and was in a sync committee
+	rewards, err = stateMetrics.GetMaxReward(325479)
 	assert.Equal(t,
 		rewards.Reward,
-		int64(-254518))
+		int64(517882))
 
 	assert.Equal(t,
 		rewards.AttestationReward,
-		phase0.Gwei(17674))
+		phase0.Gwei(12322))
 
 	assert.Equal(t,
 		rewards.AttSlot,
-		phase0.Slot(2375772))
+		phase0.Slot(6565704))
 	assert.Equal(t,
 		rewards.BaseReward,
-		phase0.Gwei(22880))
+		phase0.Gwei(14816))
 	assert.Equal(t,
 		rewards.MaxReward,
-		phase0.Gwei(257892))
+		phase0.Gwei(517882))
 
 	assert.Equal(t,
 		rewards.SyncCommitteeReward,
-		phase0.Gwei(240218))
+		phase0.Gwei(505560))
 	assert.Equal(t,
 		rewards.InSyncCommittee,
 		true)
 	assert.Equal(t,
 		rewards.MissingHead,
-		true)
+		false)
 	assert.Equal(t,
 		rewards.MissingSource,
-		true)
+		false)
 	assert.Equal(t,
 		rewards.MissingTarget,
-		true)
+		false)
 	assert.Equal(t,
 		rewards.ValidatorBalance,
-		phase0.Gwei(33675494489))
+		phase0.Gwei(32078071168))
 }
 
 func TestCapellaBlock(t *testing.T) {
