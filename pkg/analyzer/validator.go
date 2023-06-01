@@ -54,7 +54,7 @@ loop:
 						CurrentStatus:  maxRewards.Status,
 					})
 				}
-				if s.metrics.ValidatorRewards { // only if flag is activated
+				if s.metrics.Validator { // only if flag is activated
 					s.dbClient.Persist(maxRewards)
 				}
 

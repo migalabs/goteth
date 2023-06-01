@@ -33,7 +33,7 @@ loop:
 			}
 			log.Debugf("Creating validator batches for slot %d...", task.ThirdState.Slot)
 
-			if s.metrics.Validator {
+			if s.metrics.Validator || s.metrics.PoolSummary {
 
 				// divide number of validators into number of workers equally
 
