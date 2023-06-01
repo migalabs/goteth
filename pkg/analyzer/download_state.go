@@ -96,6 +96,10 @@ func (s *StateAnalyzer) runDownloads(
 		slot = phase0.Slot(epoch-2) * local_spec.SlotsPerEpoch
 	}
 
+	var err error
+	var newBlock local_spec.AgnosticBlock
+	var newState local_spec.AgnosticState
+
 loop:
 	for {
 
@@ -105,21 +109,25 @@ loop:
 			for slot <= nextSlot && !s.stop { // always fill from previous requested slot to current chan slot
 				epoch = phase0.Epoch(slot / local_spec.SlotsPerEpoch)
 				log.Debugf("filling from %d to %d", slot, nextSlot)
-				block, err := s.downloadNewBlock(phase0.Slot(slot))
+				newBlock, err = s.downloadNewBlock(phase0.Slot(slot))
 				if err != nil {
 					log.Errorf("error downloading state at slot %d", slot, err)
 					return
 				}
-				blockList = append(blockList, block)
+				blockList = append(blockList, newBlock)
 
 				// If last slot of epoch
 				if (slot+1)%local_spec.SlotsPerEpoch == 0 {
 					// End of epoch, add new state
 
-					newState, err := s.downloadNewState(epoch)
-					if err != nil {
-						log.Errorf("could not download state at epoch %d: %s", slot%local_spec.SlotsPerEpoch, err)
+					newState = local_spec.AgnosticState{} // in case no state metrics are required
+					if s.metrics.StateDownload {          // avoid downloading a new state when no need
+						newState, err = s.downloadNewState(epoch)
+						if err != nil {
+							log.Errorf("could not download state at epoch %d: %s", slot%local_spec.SlotsPerEpoch, err)
+						}
 					}
+
 					newState.BlockList = blockList // add blockList to the new state
 					err = states.AddNewState(newState)
 					if err != nil {
