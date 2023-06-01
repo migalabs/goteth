@@ -32,42 +32,46 @@ loop:
 				continue
 			}
 			log.Debugf("Creating validator batches for slot %d...", task.ThirdState.Slot)
-			// divide number of validators into number of workers equally
 
-			var validatorBatches []utils.PoolKeys
+			if s.metrics.Validator {
 
-			// first of all see if there user input any validator list
-			// in case no validators provided, do all the existing ones in the next epoch
-			valIdxs := stateMetrics.GetMetricsBase().ThirdState.GetAllVals()
-			validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
+				// divide number of validators into number of workers equally
 
-			if len(s.poolValidators) > 0 { // in case the user introduces custom pools
-				validatorBatches = s.poolValidators
+				var validatorBatches []utils.PoolKeys
 
-				valMatrix := make([][]phase0.ValidatorIndex, len(validatorBatches))
+				// first of all see if there user input any validator list
+				// in case no validators provided, do all the existing ones in the next epoch
+				valIdxs := stateMetrics.GetMetricsBase().ThirdState.GetAllVals()
+				validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
 
-				for i, item := range validatorBatches {
-					valMatrix[i] = make([]phase0.ValidatorIndex, 0)
-					valMatrix[i] = item.ValIdxs
+				if len(s.poolValidators) > 0 { // in case the user introduces custom pools
+					validatorBatches = s.poolValidators
+
+					valMatrix := make([][]phase0.ValidatorIndex, len(validatorBatches))
+
+					for i, item := range validatorBatches {
+						valMatrix[i] = make([]phase0.ValidatorIndex, 0)
+						valMatrix[i] = item.ValIdxs
+					}
+
+					if s.missingVals {
+						othersMissingList := utils.ObtainMissing(len(valIdxs), valMatrix)
+						// now allValList should contain those validators that do not belong to any pool
+						// keep track of those in a separate pool
+						validatorBatches = utils.AddOthersPool(validatorBatches, othersMissingList)
+					}
+
 				}
 
-				if s.missingVals {
-					othersMissingList := utils.ObtainMissing(len(valIdxs), valMatrix)
-					// now allValList should contain those validators that do not belong to any pool
-					// keep track of those in a separate pool
-					validatorBatches = utils.AddOthersPool(validatorBatches, othersMissingList)
+				for _, item := range validatorBatches {
+					valTask := &ValTask{
+						ValIdxs:         item.ValIdxs,
+						StateMetricsObj: stateMetrics,
+						PoolName:        item.PoolName,
+						Finalized:       task.Finalized,
+					}
+					s.valTaskChan <- valTask
 				}
-
-			}
-
-			for _, item := range validatorBatches {
-				valTask := &ValTask{
-					ValIdxs:         item.ValIdxs,
-					StateMetricsObj: stateMetrics,
-					PoolName:        item.PoolName,
-					Finalized:       task.Finalized,
-				}
-				s.valTaskChan <- valTask
 			}
 
 			s.PersistEpochData(stateMetrics)
@@ -87,6 +91,11 @@ loop:
 }
 
 func (s *StateAnalyzer) PersistEpochData(stateMetrics metrics.StateMetrics) {
+
+	if !s.metrics.Epoch {
+		return // Only persist when metric activated
+	}
+
 	log.Debugf("Writing epoch metrics to DB for epoch %d...", stateMetrics.GetMetricsBase().ThirdState.Epoch)
 	missedBlocks := stateMetrics.GetMetricsBase().ThirdState.GetMissingBlocks()
 
@@ -111,22 +120,27 @@ func (s *StateAnalyzer) PersistEpochData(stateMetrics metrics.StateMetrics) {
 		}
 		s.dbClient.Persist(newDuty)
 	}
+
 }
 
 func (s *StateAnalyzer) PersistBlockData(stateMetrics metrics.StateMetrics) {
 	for _, block := range stateMetrics.GetMetricsBase().ThirdState.BlockList {
 
-		s.dbClient.Persist(block)
+		if s.metrics.Block {
+			s.dbClient.Persist(block)
+		}
 
-		for _, item := range block.ExecutionPayload.Withdrawals {
-			s.dbClient.Persist(spec.Withdrawal{
-				Slot:           block.Slot,
-				Index:          item.Index,
-				ValidatorIndex: item.ValidatorIndex,
-				Address:        item.Address,
-				Amount:         item.Amount,
-			})
+		if s.metrics.Withdrawals {
+			for _, item := range block.ExecutionPayload.Withdrawals {
+				s.dbClient.Persist(spec.Withdrawal{
+					Slot:           block.Slot,
+					Index:          item.Index,
+					ValidatorIndex: item.ValidatorIndex,
+					Address:        item.Address,
+					Amount:         item.Amount,
+				})
 
+			}
 		}
 
 		// store transactions if it has been enabled
