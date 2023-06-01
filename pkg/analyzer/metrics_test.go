@@ -30,6 +30,22 @@ func BuildStateAnalyzer() (StateAnalyzer, error) {
 	}, nil
 }
 
+func BuildBlockAnalyzer() (BlockAnalyzer, error) {
+
+	ctx := context.Background()
+
+	// generate the httpAPI client
+	cli, err := clientapi.NewAPIClient(ctx, "http://localhost:5052", 50*time.Second)
+	if err != nil {
+		return BlockAnalyzer{}, err
+	}
+
+	return BlockAnalyzer{
+		ctx: context.Background(),
+		cli: cli,
+	}, nil
+}
+
 func BuildEpochTask(analyzer StateAnalyzer, slot phase0.Slot) (EpochTask, error) {
 
 	// Review slot is well positioned
@@ -147,6 +163,7 @@ func TestAltairRewards(t *testing.T) {
 	// returns the state in a custom struct for Phase0, Altair of Bellatrix
 	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.NextState, epochTask.State, epochTask.PrevState, analyzer.cli.Api)
 
+	// Test when everything runs normal
 	rewards, err := stateMetrics.GetMaxReward(1250)
 	assert.Equal(t,
 		rewards.Reward,
@@ -184,26 +201,9 @@ func TestAltairRewards(t *testing.T) {
 	assert.Equal(t,
 		rewards.ValidatorBalance,
 		phase0.Gwei(34446677741))
-}
 
-func TestAltairNegativeRewards(t *testing.T) {
-
-	analyzer, err := BuildStateAnalyzer()
-	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
-		return
-	}
-
-	epochTask, err := BuildEpochTask(analyzer, 2375807) // epoch 74243
-	if err != nil {
-		fmt.Errorf("could not build epoch task: %s", err)
-		return
-	}
-
-	// returns the state in a custom struct for Phase0, Altair of Bellatrix
-	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.NextState, epochTask.State, epochTask.PrevState, analyzer.cli.Api)
-
-	rewards, err := stateMetrics.GetMaxReward(60027)
+	// Test when validator did not perform duties and was in a sync committee
+	rewards, err = stateMetrics.GetMaxReward(60027)
 	assert.Equal(t,
 		rewards.Reward,
 		int64(-254518))
