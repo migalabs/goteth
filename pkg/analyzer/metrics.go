@@ -6,14 +6,15 @@ import (
 )
 
 type DBMetrics struct {
-	Block               bool
-	Epoch               bool
-	PoolSummary         bool
-	ProposerDuties      bool
-	ValidatorLastStatus bool
-	ValidatorRewards    bool
-	Withdrawals         bool
-	Transaction         bool
+	Block          bool
+	Epoch          bool
+	PoolSummary    bool
+	ProposerDuties bool
+	Validator      bool
+	Withdrawals    bool
+	Transaction    bool
+
+	StateDownload bool
 }
 
 func NewMetrics(input string) (DBMetrics, error) {
@@ -26,13 +27,14 @@ func NewMetrics(input string) (DBMetrics, error) {
 			dbMetrics.Block = true
 		case "epoch":
 			dbMetrics.Epoch = true
+			dbMetrics.StateDownload = true
 		case "pool_summary":
 			dbMetrics.PoolSummary = true
-		case "validator_last_status":
-			dbMetrics.ValidatorLastStatus = true
+			dbMetrics.StateDownload = true
 		case "validator":
-			dbMetrics.ValidatorRewards = true
-		case "withdrawals":
+			dbMetrics.Validator = true
+			dbMetrics.StateDownload = true
+		case "withdrawal":
 			dbMetrics.Withdrawals = true
 		case "transaction":
 			dbMetrics.Withdrawals = true
