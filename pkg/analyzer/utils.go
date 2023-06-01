@@ -108,9 +108,9 @@ func (s *StateQueue) AddNewState(input local_spec.AgnosticState) error {
 	return nil
 }
 
-// used to see if
+// used to see if we already have 4 states in the queue
 func (s StateQueue) Complete() bool {
-	if s.FirstState.AttestingBalance == nil {
+	if s.FirstState.BlockList == nil { // we always download blocks
 		return false
 	}
 	return true
