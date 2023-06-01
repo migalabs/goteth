@@ -297,3 +297,57 @@ func TestCapellaBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 0)
 
 }
+
+func TestBellatrixBlock(t *testing.T) {
+
+	blockAnalyzer, err := BuildBlockAnalyzer()
+
+	if err != nil {
+		fmt.Errorf("could not build analyzer: %s", err)
+		return
+	}
+
+	// Test regular case
+
+	block, proposed, err := blockAnalyzer.RequestBeaconBlock(4709993)
+
+	assert.Equal(t, proposed, true)
+
+	assert.Equal(t, strings.ReplaceAll(string(block.Graffiti[:]), "\u0000", ""), "Lighthouse/v3.1.0-aa022f4")
+	assert.Equal(t, len(block.Attestations), 128)
+	assert.Equal(t, len(block.Deposits), 0)
+	assert.Equal(t, block.ProposerIndex, phase0.ValidatorIndex(361543))
+	assert.Equal(t, block.Proposed, true)
+	assert.Equal(t, block.Slot, phase0.Slot(4709993))
+	assert.Equal(t, block.ExecutionPayload.BlockHash.String(), "0xdf8c3becf096dd2f50ae3848a6c3c9bc6b6b68eb5c00051d76b8dff82919e2db")
+	assert.Equal(t, block.ExecutionPayload.BlockNumber, uint64(15547218))
+	assert.Equal(t, block.ExecutionPayload.FeeRecipient.String(), strings.ToLower("0xb64a30399f7F6b0C154c2E7Af0a3ec7B0A5b131a"))
+	assert.Equal(t, block.ExecutionPayload.GasLimit, uint64(30000000))
+	assert.Equal(t, block.ExecutionPayload.GasUsed, uint64(29993683))
+	assert.Equal(t, block.ExecutionPayload.Timestamp, uint64(1663343939))
+	assert.Equal(t, len(block.ExecutionPayload.Transactions), 441)
+	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 0)
+
+	assert.Equal(t, spec.RequestTransactionDetails(block)[0].Hash.String(), "0x2ec2cc18a5db329ef76b71db72f47611b49d51b780f5e0140c455320d1278d41")
+
+	// Test missed
+
+	block, proposed, err = blockAnalyzer.RequestBeaconBlock(4709992)
+
+	assert.Equal(t, proposed, false)
+
+	assert.Equal(t, strings.ReplaceAll(string(block.Graffiti[:]), "\u0000", ""), "")
+	assert.Equal(t, len(block.Attestations), 0)
+	assert.Equal(t, len(block.Deposits), 0)
+	assert.Equal(t, block.ProposerIndex, phase0.ValidatorIndex(43851))
+	assert.Equal(t, block.Proposed, false)
+	assert.Equal(t, block.Slot, phase0.Slot(4709992))
+	assert.Equal(t, block.ExecutionPayload.BlockHash.String(), "0x0000000000000000000000000000000000000000000000000000000000000000")
+	assert.Equal(t, block.ExecutionPayload.BlockNumber, uint64(0))
+	assert.Equal(t, block.ExecutionPayload.FeeRecipient.String(), strings.ToLower("0x0000000000000000000000000000000000000000"))
+	assert.Equal(t, block.ExecutionPayload.GasLimit, uint64(0))
+	assert.Equal(t, block.ExecutionPayload.GasUsed, uint64(0))
+	assert.Equal(t, block.ExecutionPayload.Timestamp, uint64(0))
+	assert.Equal(t, len(block.ExecutionPayload.Transactions), 0)
+	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 0)
+}
