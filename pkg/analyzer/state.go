@@ -82,7 +82,7 @@ func NewStateAnalyzer(
 		initSlot = ((initEpoch-1)*spec.SlotsPerEpoch - 1) // take last slot of init Epoch
 		finalSlot = (finalEpoch+1)*spec.SlotsPerEpoch - 1 // take last slot of final Epoch
 
-		log.Debug("slot range: %d-%d", initSlot, finalSlot)
+		log.Debugf("slot range: %d-%d", initSlot, finalSlot)
 	}
 	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
 	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, dbWorkerNum)
