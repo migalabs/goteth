@@ -114,6 +114,7 @@ loop:
 					log.Errorf("error downloading block at slot %d", slot, err.Error())
 					return
 				}
+				s.persistBlockData(newBlock)
 				blockList = append(blockList, newBlock)
 
 				// If last slot of epoch
