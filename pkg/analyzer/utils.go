@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec/metrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -114,4 +116,65 @@ func (s StateQueue) Complete() bool {
 		return false
 	}
 	return true
+}
+
+func (s *StateAnalyzer) persistEpochData(stateMetrics metrics.StateMetrics) {
+
+	if !s.metrics.Epoch {
+		return // Only persist when metric activated
+	}
+
+	log.Debugf("Writing epoch metrics to DB for epoch %d...", stateMetrics.GetMetricsBase().ThirdState.Epoch)
+	missedBlocks := stateMetrics.GetMetricsBase().ThirdState.GetMissingBlocks()
+
+	epochModel := stateMetrics.GetMetricsBase().ExportToEpoch()
+
+	s.dbClient.Persist(epochModel)
+
+	// Proposer Duties
+
+	// TODO: this should be done by the statemetrics directly
+	for _, item := range stateMetrics.GetMetricsBase().ThirdState.EpochStructs.ProposerDuties {
+
+		newDuty := spec.ProposerDuty{
+			ValIdx:       item.ValidatorIndex,
+			ProposerSlot: item.Slot,
+			Proposed:     true,
+		}
+		for _, item := range missedBlocks {
+			if newDuty.ProposerSlot == item { // we found the proposer slot in the missed blocks
+				newDuty.Proposed = false
+			}
+		}
+		s.dbClient.Persist(newDuty)
+	}
+
+}
+
+func (s *StateAnalyzer) persistBlockData(block spec.AgnosticBlock) {
+
+	if s.metrics.Block {
+		s.dbClient.Persist(block)
+	}
+
+	if s.metrics.Withdrawals {
+		for _, item := range block.ExecutionPayload.Withdrawals {
+			s.dbClient.Persist(spec.Withdrawal{
+				Slot:           block.Slot,
+				Index:          item.Index,
+				ValidatorIndex: item.ValidatorIndex,
+				Address:        item.Address,
+				Amount:         item.Amount,
+			})
+
+		}
+	}
+
+	// store transactions if it has been enabled
+	if s.metrics.Transaction {
+
+		for _, tx := range spec.RequestTransactionDetails(block) {
+			s.dbClient.Persist(tx)
+		}
+	}
 }
