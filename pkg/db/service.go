@@ -9,7 +9,6 @@ import (
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -29,7 +28,6 @@ var (
 type PostgresDBService struct {
 	// Control Variables
 	ctx           context.Context
-	cancel        context.CancelFunc
 	connectionUrl string // the url might not be necessary (better to remove it?¿)
 	psqlPool      *pgxpool.Pool
 	wgDBWriters   sync.WaitGroup
@@ -42,13 +40,12 @@ type PostgresDBService struct {
 // Connect to the PostgreSQL Database and get the multithread-proof connection
 // from the given url-composed credentials
 func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBService, error) {
-	mainCtx, cancel := context.WithCancel(ctx)
 	// spliting the url to don't share any confidential information on wlogs
 	wlog.Infof("Connecting to postgres DB %s", url)
 	if strings.Contains(url, "@") {
 		wlog.Debugf("Connecting to PostgresDB at %s", strings.Split(url, "@")[1])
 	}
-	psqlPool, err := pgxpool.Connect(mainCtx, url)
+	psqlPool, err := pgxpool.Connect(ctx, url)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +55,7 @@ func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBSer
 	// filter the type of network that we are filtering
 
 	psqlDB := &PostgresDBService{
-		ctx:           mainCtx,
-		cancel:        cancel,
+		ctx:           ctx,
 		connectionUrl: url,
 		psqlPool:      psqlPool,
 		writeChan:     make(chan Model, workerNum),
@@ -141,64 +137,77 @@ func (p *PostgresDBService) runWriters() {
 	for i := 0; i < p.workerNum; i++ {
 		p.wgDBWriters.Add(1)
 		go func(dbWriterID int) {
-			batch := pgx.Batch{}
 			defer p.wgDBWriters.Done()
+			batcher := NewQueryBatch(p.ctx, p.psqlPool, MAX_BATCH_QUEUE)
 			wlogWriter := wlog.WithField("DBWriter", dbWriterID)
-			// batch flushing ticker
 			ticker := time.NewTicker(utils.RoutineFlushTimeout)
 		loop:
 			for {
-
 				select {
-
 				case task := <-p.writeChan:
 
-					var q string
-					var args []interface{}
 					var err error
+					persis := NewPersistable()
 
 					switch task.Type() {
 					case spec.BlockModel:
-						q, args = BlockOperation(task.(spec.AgnosticBlock))
+						q, args := BlockOperation(task.(spec.AgnosticBlock))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					case spec.EpochModel:
-						q, args = EpochOperation(task.(spec.Epoch))
+						q, args := EpochOperation(task.(spec.Epoch))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					case spec.PoolSummaryModel:
-						q, args = PoolOperation(task.(spec.PoolSummary))
+						q, args := PoolOperation(task.(spec.PoolSummary))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					case spec.ProposerDutyModel:
-						q, args = ProposerDutyOperation(task.(spec.ProposerDuty))
+						q, args := ProposerDutyOperation(task.(spec.ProposerDuty))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					case spec.ValidatorLastStatusModel:
-						q, args = ValidatorLastStatusOperation(task.(spec.ValidatorLastStatus))
+						q, args := ValidatorLastStatusOperation(task.(spec.ValidatorLastStatus))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					case spec.ValidatorRewardsModel:
-						q, args = ValidatorOperation(task.(spec.ValidatorRewards))
+						q, args := ValidatorOperation(task.(spec.ValidatorRewards))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					case spec.WithdrawalModel:
-						q, args = WithdrawalOperation(task.(spec.Withdrawal))
+						q, args := WithdrawalOperation(task.(spec.Withdrawal))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					case spec.TransactionsModel:
-						q, args = TransactionOperation(task.(*spec.AgnosticTransaction))
+						q, args := TransactionOperation(task.(*spec.AgnosticTransaction))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					default:
 						err = fmt.Errorf("could not figure out the type of write task")
-					}
-
-					if err != nil {
 						wlog.Errorf("could not process incoming task, %s", err)
-					} else {
-						batch.Queue(q, args...)
 					}
-
-				case <-p.ctx.Done():
-
-					break loop
-				case <-ticker.C:
-					// if limit reached or no more queue and pending tasks
-					if batch.Len() > MAX_BATCH_QUEUE ||
-						(len(p.writeChan) == 0 && batch.Len() > 0) {
-
-						wlog.Tracef("Sending batch to be stored...")
-
-						err := p.ExecuteBatch(batch)
+					// ckeck if there is any new query to add
+					if !persis.isEmpty() {
+						batcher.AddQuery(persis)
+					}
+					// check if we can flush the batch of queries
+					if batcher.IsReadyToPersist() {
+						err := batcher.PersistBatch()
 						if err != nil {
 							wlogWriter.Errorf("Error processing batch", err.Error())
 						}
-						batch = pgx.Batch{}
+					}
+
+				case <-p.ctx.Done():
+					break loop
+
+				case <-ticker.C:
+					// if limit reached or no more queue and pending tasks
+					if batcher.IsReadyToPersist() || (len(p.writeChan) == 0 && batcher.Len() > 0) {
+						wlog.Tracef("flushing batcher")
+						err := batcher.PersistBatch()
+						if err != nil {
+						}
 					}
 
 					if p.stop && len(p.writeChan) == 0 {
@@ -206,37 +215,8 @@ func (p *PostgresDBService) runWriters() {
 					}
 				}
 			}
-
 		}(i)
 	}
-
-}
-
-func (p PostgresDBService) ExecuteBatch(batch pgx.Batch) error {
-
-	snapshot := time.Now()
-	tx, err := p.psqlPool.Begin(p.ctx)
-	if err != nil {
-		panic(err)
-	}
-
-	batchResults := tx.SendBatch(p.ctx, &batch)
-
-	var qerr error
-	var rows pgx.Rows
-	batchIdx := 0
-	for qerr == nil {
-		rows, qerr = batchResults.Query()
-		rows.Close()
-		batchIdx += 1
-	}
-	if qerr.Error() != "no result" {
-		wlog.Errorf("Error executing batch, error: %s", qerr.Error())
-	} else {
-		wlog.Tracef("Batch process time: %f, batch size: %d", time.Since(snapshot).Seconds(), batch.Len())
-	}
-
-	return tx.Commit(p.ctx)
 
 }
 
