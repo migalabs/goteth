@@ -119,7 +119,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 
 			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
 			if err != nil {
-				log.Errorf("error downloading state at slot %d: %s", slot, err)
+				log.Errorf("error downloading state at slot %d: %s", slot, err.Error())
 				continue
 			}
 		case <-s.ctx.Done():
