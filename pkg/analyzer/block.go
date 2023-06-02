@@ -18,24 +18,24 @@ import (
 )
 
 type BlockAnalyzer struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
-	InitSlot   uint64
-	FinalSlot  uint64
-	SlotRanges []uint64
+	ctx       context.Context
+	cancel    context.CancelFunc
+	initSlot  phase0.Slot
+	finalSlot phase0.Slot
 
-	validatorWorkerNum  int
-	BlockTaskChan       chan *BlockTask
-	TransactionTaskChan chan *TransactionTask
+	blockTaskChan       chan *BlockTask
+	transactionTaskChan chan *TransactionTask
 
 	cli      *clientapi.APIClient
 	dbClient *db.PostgresDBService
 
 	downloadMode string
 	// Control Variables
-	finishDownload bool
-	routineClosed  chan struct{}
-	eventsObj      events.Events
+	stop              bool
+	downloadFinished  bool
+	processerFinished bool
+	routineClosed     chan struct{}
+	eventsObj         events.Events
 
 	initTime           time.Time
 	enableTransactions bool
@@ -59,14 +59,6 @@ func NewBlockAnalyzer(
 	slotRanges := make([]uint64, 0)
 
 	if downloadMode == "hybrid" || downloadMode == "historical" {
-
-		epochRange := uint64(0)
-
-		// start two epochs before and end two epochs after
-		for i := initSlot; i <= finalSlot; i += 1 {
-			slotRanges = append(slotRanges, i)
-			epochRange++
-		}
 		log.Debug("slotRanges are:", slotRanges)
 	}
 	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, dbWorkerNum)
@@ -77,15 +69,13 @@ func NewBlockAnalyzer(
 	return &BlockAnalyzer{
 		ctx:                 ctx,
 		cancel:              cancel,
-		InitSlot:            initSlot,
-		FinalSlot:           finalSlot,
-		SlotRanges:          slotRanges,
-		BlockTaskChan:       make(chan *BlockTask, 1),
-		TransactionTaskChan: make(chan *TransactionTask, 1),
+		initSlot:            phase0.Slot(initSlot),
+		finalSlot:           phase0.Slot(finalSlot),
+		blockTaskChan:       make(chan *BlockTask, 1),
+		transactionTaskChan: make(chan *TransactionTask, 1),
 		cli:                 httpCli,
 		dbClient:            i_dbClient,
-		validatorWorkerNum:  workerNum,
-		routineClosed:       make(chan struct{}),
+		routineClosed:       make(chan struct{}, 1),
 		eventsObj:           events.NewEventsObj(ctx, httpCli),
 		downloadMode:        downloadMode,
 		enableTransactions:  enableTransactions,
@@ -101,11 +91,12 @@ func (s *BlockAnalyzer) Run() {
 
 	// Block requester
 	var wgDownload sync.WaitGroup
-	downloadFinishedFlag := false
 
 	// Metrics per block
 	var wgProcess sync.WaitGroup
-	// processFinishedFlag := false
+
+	// Transactions per block
+	var wgTransaction sync.WaitGroup
 
 	totalTime := int64(0)
 	start := time.Now()
@@ -122,34 +113,33 @@ func (s *BlockAnalyzer) Run() {
 		go s.runDownloadBlocksFinalized(&wgDownload)
 	}
 	wgProcess.Add(1)
-	go s.runProcessBlock(&wgProcess, &downloadFinishedFlag)
-	wgProcess.Add(1)
-	go s.runProcessTransactions(&wgProcess, &downloadFinishedFlag)
+	go s.runProcessBlock(&wgProcess)
+
+	wgTransaction.Add(1)
+	go s.runProcessTransactions(&wgTransaction)
 
 	wgDownload.Wait()
-	downloadFinishedFlag = true
-	log.Info("Beacon Blocks Downloads finished")
+	s.downloadFinished = true
 
 	wgProcess.Wait()
-	// processFinishedFlag = true
-	log.Info("Beacon Blocks Processing finished")
+	s.processerFinished = true
+	close(s.blockTaskChan)
 
-	s.dbClient.DoneTasks()
-	<-s.dbClient.FinishSignalChan
+	wgTransaction.Wait()
+	close(s.transactionTaskChan)
+
+	s.dbClient.Finish()
 
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
 	log.Info("Blocks Analyzer finished in ", analysisDuration)
-	if s.finishDownload {
-		s.routineClosed <- struct{}{}
-	}
+	s.routineClosed <- struct{}{}
 }
 
 func (s *BlockAnalyzer) Close() {
 	log.Info("Sudden closed detected, closing StateAnalyzer")
-	s.finishDownload = true
-	<-s.routineClosed
-	s.cancel()
+	s.stop = true
+	<-s.routineClosed // Wait for services to stop before returning
 }
 
 type BlockTask struct {

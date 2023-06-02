@@ -102,10 +102,12 @@ func (p *PostgresDBService) ObtainLastEpoch() (phase0.Epoch, error) {
 	// create the tables
 	rows, err := p.psqlPool.Query(p.ctx, SelectLastEpoch)
 	if err != nil {
+		rows.Close()
 		return phase0.Epoch(0), errors.Wrap(err, "error obtaining last epoch from database")
 	}
 	epoch := phase0.Epoch(0)
 	rows.Next()
 	rows.Scan(&epoch)
+	rows.Close()
 	return phase0.Epoch(epoch), nil
 }

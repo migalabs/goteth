@@ -23,30 +23,30 @@ type StateAnalyzer struct {
 	cancel   context.CancelFunc
 	initTime time.Time
 
-	ValidatorIndexes []uint64
-
 	// User inputs
-	InitSlot           phase0.Slot
-	FinalSlot          phase0.Slot
-	SlotRanges         []uint64
-	MissingVals        bool
+	initSlot  phase0.Slot
+	finalSlot phase0.Slot
+
+	missingVals        bool
 	validatorWorkerNum int
 	downloadMode       string
-	Metrics            DBMetrics
-	PoolValidators     []utils.PoolKeys
+	metrics            DBMetrics
+	poolValidators     []utils.PoolKeys
 
 	// Clients
 	cli      *clientapi.APIClient
 	dbClient *db.PostgresDBService
 
 	// Channels
-	EpochTaskChan chan *EpochTask
-	ValTaskChan   chan *ValTask
+	epochTaskChan chan *EpochTask
+	valTaskChan   chan *ValTask
 
 	// Control Variables
-	finishDownload bool
-	routineClosed  chan struct{}
-	eventsObj      events.Events
+	stop              bool
+	downloadFinished  bool
+	processerFinished bool
+	routineClosed     chan struct{}
+	eventsObj         events.Events
 }
 
 func NewStateAnalyzer(
@@ -65,8 +65,6 @@ func NewStateAnalyzer(
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
 
-	slotRanges := make([]uint64, 0)
-
 	// if historical is active
 	if downloadMode == "hybrid" || downloadMode == "historical" {
 
@@ -74,24 +72,17 @@ func NewStateAnalyzer(
 		if finalSlot <= initSlot {
 			return nil, errors.New("provided slot range isn't valid")
 		}
-		// calculate the list of slots that we will analyze
-
-		epochRange := uint64(0)
 
 		// minimum slot is 31
 		// force to be in the previous epoch than select by user
-		initEpoch := uint64(initSlot) / 32
-		finalEpoch := uint64(finalSlot / 32)
+		initEpoch := (initSlot) / 32
+		finalEpoch := (finalSlot / 32)
 
-		initSlot = (initEpoch+1)*spec.SlotsPerEpoch - 1   // take last slot of init Epoch
+		// start two epochs before and end one epoch after
+		initSlot = ((initEpoch-1)*spec.SlotsPerEpoch - 1) // take last slot of init Epoch
 		finalSlot = (finalEpoch+1)*spec.SlotsPerEpoch - 1 // take last slot of final Epoch
 
-		// start two epochs before and end two epochs after
-		for i := initSlot - (spec.SlotsPerEpoch * 2); i <= (finalSlot + spec.SlotsPerEpoch*2); i += spec.SlotsPerEpoch {
-			slotRanges = append(slotRanges, i)
-			epochRange++
-		}
-		log.Debug("slotRanges are:", slotRanges)
+		log.Debugf("slot range: %d-%d", initSlot, finalSlot)
 	}
 	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
 	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, dbWorkerNum)
@@ -119,20 +110,19 @@ func NewStateAnalyzer(
 	return &StateAnalyzer{
 		ctx:                ctx,
 		cancel:             cancel,
-		InitSlot:           phase0.Slot(initSlot),
-		FinalSlot:          phase0.Slot(finalSlot),
-		SlotRanges:         slotRanges,
-		EpochTaskChan:      make(chan *EpochTask, 1),
-		ValTaskChan:        make(chan *ValTask, workerNum), // chan length is the same as the number of workers
+		initSlot:           phase0.Slot(initSlot),
+		finalSlot:          phase0.Slot(finalSlot),
+		epochTaskChan:      make(chan *EpochTask, 1),
+		valTaskChan:        make(chan *ValTask, workerNum), // chan length is the same as the number of workers
 		cli:                httpCli,
 		dbClient:           i_dbClient,
 		validatorWorkerNum: workerNum,
-		routineClosed:      make(chan struct{}),
+		routineClosed:      make(chan struct{}, 1),
 		downloadMode:       downloadMode,
 		eventsObj:          events.NewEventsObj(ctx, httpCli),
-		PoolValidators:     poolValidators,
-		MissingVals:        missingVals,
-		Metrics:            metricsObj,
+		poolValidators:     poolValidators,
+		missingVals:        missingVals,
+		metrics:            metricsObj,
 	}, nil
 }
 
@@ -145,11 +135,9 @@ func (s *StateAnalyzer) Run() {
 
 	// State requester
 	var wgDownload sync.WaitGroup
-	downloadFinishedFlag := false
 
 	// Rewards per process
 	var wgProcess sync.WaitGroup
-	processFinishedFlag := false
 
 	// Workers to process each validator rewards
 	var wgWorkers sync.WaitGroup
@@ -169,7 +157,7 @@ func (s *StateAnalyzer) Run() {
 		go s.runDownloadStatesFinalized(&wgDownload)
 	}
 	wgProcess.Add(1)
-	go s.runProcessState(&wgProcess, &downloadFinishedFlag)
+	go s.runProcessState(&wgProcess)
 
 	for i := 0; i < s.validatorWorkerNum; i++ {
 		// state workers, receiving State and valIdx to measure performance
@@ -179,39 +167,32 @@ func (s *StateAnalyzer) Run() {
 
 		wlog.Tracef("Launching Task Worker")
 		wgWorkers.Add(1)
-		go s.runWorker(wlog, &wgWorkers, &processFinishedFlag)
+		go s.runWorker(wlog, &wgWorkers)
 	}
 
 	wgDownload.Wait()
-	downloadFinishedFlag = true
-	log.Info("Beacon State Downloads finished")
+	s.downloadFinished = true
 
 	wgProcess.Wait()
-	processFinishedFlag = true
-	log.Info("Beacon State Processing finished")
+	close(s.epochTaskChan)
+	s.processerFinished = true
 
 	wgWorkers.Wait()
-	log.Info("All validator workers finished")
-	s.dbClient.DoneTasks()
-	<-s.dbClient.FinishSignalChan
-	log.Info("All database workers finished")
-	s.dbClient.Close()
-	close(s.ValTaskChan)
+	close(s.valTaskChan)
+
+	s.dbClient.Finish()
+
 	totalTime += int64(time.Since(start).Seconds())
 	analysisDuration := time.Since(s.initTime).Seconds()
 
-	if s.finishDownload {
-		s.routineClosed <- struct{}{}
-	}
 	log.Info("State Analyzer finished in ", analysisDuration)
-
+	s.routineClosed <- struct{}{}
 }
 
 func (s *StateAnalyzer) Close() {
 	log.Info("Sudden closed detected, closing StateAnalyzer")
-	s.finishDownload = true
-	<-s.routineClosed
-	s.cancel()
+	s.stop = true
+	<-s.routineClosed // Wait for services to stop before returning
 }
 
 type EpochTask struct {
