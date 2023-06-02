@@ -169,12 +169,15 @@ func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 
 	// store transactions if it has been enabled
 	if s.enableTransactions {
-		transactionTask := &TransactionTask{
-			Slot:         uint64(slot),
-			Transactions: spec.RequestTransactionDetails(newBlock),
+		transactions, err := spec.RequestTransactionDetails(newBlock)
+		if err == nil {
+			transactionTask := &TransactionTask{
+				Slot:         uint64(slot),
+				Transactions: transactions,
+			}
+			log.Debugf("sending a new tx task for slot %d", slot)
+			s.transactionTaskChan <- transactionTask
 		}
-		log.Debugf("sending a new tx task for slot %d", slot)
-		s.transactionTaskChan <- transactionTask
 	}
 
 	<-ticker.C
