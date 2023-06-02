@@ -111,7 +111,7 @@ loop:
 				log.Debugf("filling from %d to %d", slot, nextSlot)
 				newBlock, err = s.downloadNewBlock(phase0.Slot(slot))
 				if err != nil {
-					log.Errorf("error downloading state at slot %d", slot, err)
+					log.Errorf("error downloading block at slot %d", slot, err.Error())
 					return
 				}
 				blockList = append(blockList, newBlock)
