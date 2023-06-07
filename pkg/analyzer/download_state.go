@@ -82,19 +82,19 @@ func (s *StateAnalyzer) runDownloads(
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 
 	states := NewStateQueue()
-	states.Finalized = finalized
+	states.Finalized = finalized // this will be true if we come from prepareFinalized
 	blockList := make([]local_spec.AgnosticBlock, 0)
 	nextSlot := <-triggerChan // wait to know which slot are we at
 	epoch := phase0.Epoch(nextSlot / local_spec.SlotsPerEpoch)
 
 	// slot always starts at the beginning of an epoch -> full epoch metrics
 	slot := phase0.Slot(backfill * local_spec.SlotsPerEpoch) // first slot to start downloading
-	log.Infof("downloads starting from %d to %d", slot, nextSlot)
 
 	// if no backfill provided we start 2 epochs before the current epoch
 	if slot == 0 {
 		slot = phase0.Slot(epoch-2) * local_spec.SlotsPerEpoch
 	}
+	log.Infof("downloads starting from %d to %d", slot, nextSlot)
 
 	var err error
 	var newBlock local_spec.AgnosticBlock
