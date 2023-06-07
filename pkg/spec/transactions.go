@@ -19,6 +19,7 @@ type AgnosticTransaction struct {
 	Value       phase0.Gwei     // the ether amount of the transaction.
 	Nonce       uint64          // the sender account nonce of the transaction
 	To          *common.Address // transaction recipient's address
+	From        common.Address  // transaction sender's address
 	Hash        phase0.Hash32   // the transaction hash
 	Size        uint64          // the true encoded storage size of the transaction
 	Slot        phase0.Slot     // the slot of the transaction
@@ -31,12 +32,18 @@ func (txs AgnosticTransaction) Type() ModelType {
 }
 
 // convert transactions from byte sequences to Transaction object
-func RequestTransactionDetails(block AgnosticBlock) []*AgnosticTransaction {
+func RequestTransactionDetails(block AgnosticBlock) ([]*AgnosticTransaction, error) {
 	processedTransactions := make([]*AgnosticTransaction, 0)
 	for idx := 0; idx < len(block.ExecutionPayload.Transactions); idx++ {
 		var parsedTx = &types.Transaction{}
 		if err := parsedTx.UnmarshalBinary(block.ExecutionPayload.Transactions[idx]); err != nil {
-			return nil
+			log.Warnf("unable to unmarshal transaction: %s", err)
+			return processedTransactions, err
+		}
+		from, err := types.Sender(types.LatestSignerForChainID(parsedTx.ChainId()), parsedTx)
+		if err != nil {
+			log.Warnf("unable to retrieve sender address from transaction: %s", err)
+			return processedTransactions, err
 		}
 
 		processedTransactions = append(processedTransactions, &AgnosticTransaction{
@@ -50,6 +57,7 @@ func RequestTransactionDetails(block AgnosticBlock) []*AgnosticTransaction {
 			Value:       phase0.Gwei(parsedTx.Value().Uint64()),
 			Nonce:       parsedTx.Nonce(),
 			To:          parsedTx.To(),
+			From:        from,
 			Hash:        phase0.Hash32(parsedTx.Hash()),
 			Size:        parsedTx.Size(),
 			Slot:        block.Slot,
@@ -57,5 +65,5 @@ func RequestTransactionDetails(block AgnosticBlock) []*AgnosticTransaction {
 			Timestamp:   block.ExecutionPayload.Timestamp,
 		})
 	}
-	return processedTransactions
+	return processedTransactions, nil
 }
