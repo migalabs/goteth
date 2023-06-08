@@ -60,7 +60,8 @@ func NewStateAnalyzer(
 	downloadMode string,
 	customPoolsFile string,
 	missingVals bool,
-	metrics string) (*StateAnalyzer, error) {
+	metrics string,
+	dummyWriter bool) (*StateAnalyzer, error) {
 	log.Infof("generating new State Analzyer from slots %d:%d", initSlot, finalSlot)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
@@ -85,7 +86,12 @@ func NewStateAnalyzer(
 		log.Debugf("slot range: %d-%d", initSlot, finalSlot)
 	}
 	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
-	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, dbWorkerNum)
+	i_dbClient, err := db.New(
+		db.WithContext(ctx),
+		db.WithUrl(idbUrl),
+		db.WithWorkers(dbWorkerNum),
+		db.WithDummyPersister(dummyWriter),
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}

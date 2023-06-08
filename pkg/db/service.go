@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -32,42 +31,79 @@ type PostgresDBService struct {
 	psqlPool      *pgxpool.Pool
 	wgDBWriters   sync.WaitGroup
 
+	dummy bool // For testing purposes, when we want to simulate a database service
+
 	writeChan chan Model // Receive tasks to persist
 	stop      bool
 	workerNum int
 }
 
+func New(options ...func(*PostgresDBService)) (*PostgresDBService, error) {
+	var err error
+	pService := &PostgresDBService{}
+	for _, o := range options {
+		o(pService)
+	}
+	if pService.workerNum < 1 {
+		return nil, fmt.Errorf("worker num must be over 0")
+	}
+
+	pService.writeChan = make(chan Model, pService.workerNum)
+
+	if pService.dummy {
+		pService.psqlPool = &pgxpool.Pool{}
+		go pService.runDummywriter()
+		return pService, nil
+	}
+
+	err = pService.ConnectToDB()
+
+	return pService, err
+}
+
+func WithContext(ctx context.Context) func(*PostgresDBService) {
+	return func(s *PostgresDBService) {
+		s.ctx = ctx
+	}
+}
+
+func WithUrl(url string) func(*PostgresDBService) {
+	return func(s *PostgresDBService) {
+		s.connectionUrl = url
+	}
+}
+
+func WithWorkers(workerNum int) func(*PostgresDBService) {
+	return func(s *PostgresDBService) {
+		s.workerNum = workerNum
+	}
+}
+
+func WithDummyPersister(dummy bool) func(*PostgresDBService) {
+	return func(s *PostgresDBService) {
+		s.dummy = dummy
+	}
+}
+
 // Connect to the PostgreSQL Database and get the multithread-proof connection
 // from the given url-composed credentials
-func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBService, error) {
+func (s *PostgresDBService) ConnectToDB() error {
 	// spliting the url to don't share any confidential information on wlogs
-	wlog.Infof("Connecting to postgres DB %s", url)
-	if strings.Contains(url, "@") {
-		wlog.Debugf("Connecting to PostgresDB at %s", strings.Split(url, "@")[1])
-	}
-	psqlPool, err := pgxpool.Connect(ctx, url)
+	wlog.Infof("Connecting to postgres DB %s", s.connectionUrl)
+	psqlPool, err := pgxpool.Connect(s.ctx, s.connectionUrl)
 	if err != nil {
-		return nil, err
+		return errors.Wrap(err, "error connecting to the psqldb")
 	}
-	if strings.Contains(url, "@") {
-		wlog.Infof("PostgresDB %s succesfully connected", strings.Split(url, "@")[1])
-	}
-	// filter the type of network that we are filtering
+	s.psqlPool = psqlPool
+	wlog.Infof("successfully connected to the database")
 
-	psqlDB := &PostgresDBService{
-		ctx:           ctx,
-		connectionUrl: url,
-		psqlPool:      psqlPool,
-		writeChan:     make(chan Model, workerNum),
-		workerNum:     workerNum,
-	}
 	// init the psql db
-	err = psqlDB.init(ctx, psqlDB.psqlPool)
+	err = s.init(s.ctx, s.psqlPool)
 	if err != nil {
-		return psqlDB, errors.Wrap(err, "error initializing the tables of the psqldb")
+		return errors.Wrap(err, "error initializing the tables of the psqldb")
 	}
-	go psqlDB.runWriters()
-	return psqlDB, err
+	go s.runWriters()
+	return err
 }
 
 func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error {
@@ -125,7 +161,9 @@ func (p *PostgresDBService) Finish() {
 	p.wgDBWriters.Wait()
 	wlog.Infof("Routines finished...")
 	wlog.Infof("closing connection to database server...")
-	p.psqlPool.Close()
+	if !p.dummy {
+		p.psqlPool.Close()
+	}
 	wlog.Infof("connection to database server closed...")
 	close(p.writeChan)
 }
@@ -216,6 +254,26 @@ func (p *PostgresDBService) runWriters() {
 				}
 			}
 		}(i)
+	}
+
+}
+
+func (p *PostgresDBService) runDummywriter() {
+
+	ticker := time.NewTicker(utils.RoutineFlushTimeout)
+	for {
+		select {
+		case <-p.writeChan:
+			continue
+		case <-p.ctx.Done():
+			return
+
+		case <-ticker.C:
+
+			if p.stop && len(p.writeChan) == 0 {
+				return
+			}
+		}
 	}
 
 }
