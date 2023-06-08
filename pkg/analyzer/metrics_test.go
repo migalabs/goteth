@@ -10,7 +10,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
-	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec/metrics"
 	"github.com/magiconair/properties/assert"
 )
@@ -31,66 +30,24 @@ func BuildStateAnalyzer() (StateAnalyzer, error) {
 	}, nil
 }
 
-func BuildBlockAnalyzer() (BlockAnalyzer, error) {
-
-	ctx := context.Background()
-
-	// generate the httpAPI client
-	cli, err := clientapi.NewAPIClient(ctx, "http://localhost:5052", 50*time.Second)
-	if err != nil {
-		return BlockAnalyzer{}, err
-	}
-
-	return BlockAnalyzer{
-		ctx: context.Background(),
-		cli: cli,
-	}, nil
-}
-
-func BuildEpochTask(analyzer StateAnalyzer, slot phase0.Slot) (EpochTask, error) {
+func BuildEpochTask(analyzer StateAnalyzer, slot phase0.Slot) (StateQueue, error) {
 
 	// Review slot is well positioned
 
-	epoch := slot / spec.SlotsPerEpoch
+	epoch := phase0.Epoch(slot/spec.SlotsPerEpoch - 2)
 
-	slot = ((epoch + 1) * spec.SlotsPerEpoch) - 1
+	states := NewStateQueue()
 
-	fmt.Printf("downloading state at slot: %d\n", slot-spec.SlotsPerEpoch)
-	newState, err := analyzer.RequestBeaconState(slot - spec.SlotsPerEpoch)
-	if err != nil {
-		return EpochTask{}, fmt.Errorf("could not download state: %s", err)
+	for i := epoch; i < epoch+4; i++ {
 
-	}
-	prevState, err := local_spec.GetCustomState(*newState, analyzer.cli.Api)
-	if err != nil {
-		return EpochTask{}, fmt.Errorf("could not parse state: %s", err)
+		newState, err := analyzer.cli.DownloadBeaconStateAndBlocks(i)
+		if err != nil {
+			return NewStateQueue(), fmt.Errorf("could not download state: %s", err)
+		}
+		states.AddNewState(newState)
 	}
 
-	fmt.Printf("downloading state at slot: %d\n", slot)
-	newState, err = analyzer.RequestBeaconState(slot)
-	if err != nil {
-		return EpochTask{}, fmt.Errorf("could not download state: %s", err)
-	}
-	currentState, err := local_spec.GetCustomState(*newState, analyzer.cli.Api)
-	if err != nil {
-		return EpochTask{}, fmt.Errorf("could not parse state: %s", err)
-	}
-
-	fmt.Printf("downloading state at slot: %d\n", slot+spec.SlotsPerEpoch)
-	newState, err = analyzer.RequestBeaconState(slot + spec.SlotsPerEpoch)
-	if err != nil {
-		return EpochTask{}, fmt.Errorf("could not download state: %s", err)
-	}
-	nextState, err := local_spec.GetCustomState(*newState, analyzer.cli.Api)
-	if err != nil {
-		return EpochTask{}, fmt.Errorf("could not parse state: %s", err)
-	}
-
-	return EpochTask{
-		PrevState: prevState,
-		State:     currentState,
-		NextState: nextState,
-	}, nil
+	return states, nil
 
 }
 
@@ -98,22 +55,26 @@ func TestPhase0Epoch(t *testing.T) {
 
 	analyzer, err := BuildStateAnalyzer()
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
 	epochTask, err := BuildEpochTask(analyzer, 320031) // epoch 10000
 	if err != nil {
-		fmt.Errorf("could not build epoch task: %s", err)
+		t.Errorf("could not build epoch task: %s", err)
 		return
 	}
 
 	// returns the state in a custom struct for Phase0, Altair of Bellatrix
-	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.NextState, epochTask.State, epochTask.PrevState, analyzer.cli.Api)
+	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.FirstState,
+		epochTask.SecondState,
+		epochTask.ThirdState,
+		epochTask.FourthState,
+		analyzer.cli.Api)
 
-	assert.Equal(t, stateMetrics.GetMetricsBase().CurrentState.NumActiveVals, uint(60849))
+	assert.Equal(t, stateMetrics.GetMetricsBase().ThirdState.NumActiveVals, uint(60849))
 	assert.Equal(t,
-		stateMetrics.GetMetricsBase().CurrentState.MissedBlocks,
+		stateMetrics.GetMetricsBase().ThirdState.GetMissingBlocks(),
 		[]phase0.Slot{320011, 320023})
 
 }
@@ -122,28 +83,32 @@ func TestAltairEpoch(t *testing.T) {
 
 	analyzer, err := BuildStateAnalyzer()
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
 	epochTask, err := BuildEpochTask(analyzer, 2375711) // epoch 74240
 	if err != nil {
-		fmt.Errorf("could not build epoch task: %s", err)
+		t.Errorf("could not build epoch task: %s", err)
 		return
 	}
 
 	// returns the state in a custom struct for Phase0, Altair of Bellatrix
-	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.NextState, epochTask.State, epochTask.PrevState, analyzer.cli.Api)
+	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.FirstState,
+		epochTask.SecondState,
+		epochTask.ThirdState,
+		epochTask.FourthState,
+		analyzer.cli.Api)
 
-	assert.Equal(t, stateMetrics.GetMetricsBase().CurrentState.NumActiveVals, uint(250226))
+	assert.Equal(t, stateMetrics.GetMetricsBase().ThirdState.NumActiveVals, uint(250226))
 	assert.Equal(t,
-		stateMetrics.GetMetricsBase().CurrentState.MissedBlocks,
+		stateMetrics.GetMetricsBase().ThirdState.GetMissingBlocks(),
 		[]phase0.Slot{2375681, 2375682, 2375683, 2375688, 2375692, 2375699, 2375704})
 	assert.Equal(t,
-		stateMetrics.GetMetricsBase().CurrentState.AttestingBalance[1],
+		stateMetrics.GetMetricsBase().ThirdState.AttestingBalance[1],
 		phase0.Gwei(7979389000000000))
 	assert.Equal(t,
-		stateMetrics.GetMetricsBase().CurrentState.TotalActiveBalance,
+		stateMetrics.GetMetricsBase().ThirdState.TotalActiveBalance,
 		phase0.Gwei(8007160000000000))
 }
 
@@ -151,18 +116,22 @@ func TestAltairRewards(t *testing.T) {
 
 	analyzer, err := BuildStateAnalyzer()
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
-	epochTask, err := BuildEpochTask(analyzer, 6565759) // epoch 205179
+	epochTask, err := BuildEpochTask(analyzer, 6565791) // epoch 205180
 	if err != nil {
-		fmt.Errorf("could not build epoch task: %s", err)
+		t.Errorf("could not build epoch task: %s", err)
 		return
 	}
 
 	// returns the state in a custom struct for Phase0, Altair of Bellatrix
-	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.NextState, epochTask.State, epochTask.PrevState, analyzer.cli.Api)
+	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.FirstState,
+		epochTask.SecondState,
+		epochTask.ThirdState,
+		epochTask.FourthState,
+		analyzer.cli.Api)
 
 	// Test when everything runs normal
 	rewards, err := stateMetrics.GetMaxReward(1250)
@@ -247,19 +216,22 @@ func TestAltairNegativeRewards(t *testing.T) {
 
 	analyzer, err := BuildStateAnalyzer()
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
-	epochTask, err := BuildEpochTask(analyzer, 6565823) // epoch 205181
+	epochTask, err := BuildEpochTask(analyzer, 6565855) // epoch 205182
 	if err != nil {
-		fmt.Errorf("could not build epoch task: %s", err)
+		t.Errorf("could not build epoch task: %s", err)
 		return
 	}
 
 	// returns the state in a custom struct for Phase0, Altair of Bellatrix
-	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.NextState, epochTask.State, epochTask.PrevState, analyzer.cli.Api)
-
+	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.FirstState,
+		epochTask.SecondState,
+		epochTask.ThirdState,
+		epochTask.FourthState,
+		analyzer.cli.Api)
 	// Test negative rewards
 	rewards, err := stateMetrics.GetMaxReward(9097)
 	assert.Equal(t,
@@ -302,18 +274,16 @@ func TestAltairNegativeRewards(t *testing.T) {
 
 func TestCapellaBlock(t *testing.T) {
 
-	blockAnalyzer, err := BuildBlockAnalyzer()
+	blockAnalyzer, err := BuildStateAnalyzer()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
 	// Test regular case
 
-	block, proposed, err := blockAnalyzer.RequestBeaconBlock(6564725)
-
-	assert.Equal(t, proposed, true)
+	block, err := blockAnalyzer.cli.RequestBeaconBlock(6564725)
 
 	assert.Equal(t, strings.ReplaceAll(string(block.Graffiti[:]), "\u0000", ""), "Stakewise_aonif")
 	assert.Equal(t, len(block.Attestations), 65)
@@ -334,9 +304,7 @@ func TestCapellaBlock(t *testing.T) {
 
 	// Test missed
 
-	block, proposed, err = blockAnalyzer.RequestBeaconBlock(6564753)
-
-	assert.Equal(t, proposed, false)
+	block, err = blockAnalyzer.cli.RequestBeaconBlock(6564753)
 
 	assert.Equal(t, strings.ReplaceAll(string(block.Graffiti[:]), "\u0000", ""), "")
 	assert.Equal(t, len(block.Attestations), 0)
@@ -357,18 +325,16 @@ func TestCapellaBlock(t *testing.T) {
 
 func TestBellatrixBlock(t *testing.T) {
 
-	blockAnalyzer, err := BuildBlockAnalyzer()
+	blockAnalyzer, err := BuildStateAnalyzer()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
 	// Test regular case
 
-	block, proposed, err := blockAnalyzer.RequestBeaconBlock(4709993)
-
-	assert.Equal(t, proposed, true)
+	block, err := blockAnalyzer.cli.RequestBeaconBlock(4709993)
 
 	assert.Equal(t, strings.ReplaceAll(string(block.Graffiti[:]), "\u0000", ""), "Lighthouse/v3.1.0-aa022f4")
 	assert.Equal(t, len(block.Attestations), 128)
@@ -389,9 +355,7 @@ func TestBellatrixBlock(t *testing.T) {
 
 	// Test missed
 
-	block, proposed, err = blockAnalyzer.RequestBeaconBlock(4709992)
-
-	assert.Equal(t, proposed, false)
+	block, err = blockAnalyzer.cli.RequestBeaconBlock(4709992)
 
 	assert.Equal(t, strings.ReplaceAll(string(block.Graffiti[:]), "\u0000", ""), "")
 	assert.Equal(t, len(block.Attestations), 0)
@@ -411,18 +375,16 @@ func TestBellatrixBlock(t *testing.T) {
 
 func TestAltairBlock(t *testing.T) {
 
-	blockAnalyzer, err := BuildBlockAnalyzer()
+	blockAnalyzer, err := BuildStateAnalyzer()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
 	// Test regular case
 
-	block, proposed, err := blockAnalyzer.RequestBeaconBlock(4636687)
-
-	assert.Equal(t, proposed, true)
+	block, err := blockAnalyzer.cli.RequestBeaconBlock(4636687)
 
 	assert.Equal(t, strings.ReplaceAll(string(block.Graffiti[:]), "\u0000", ""), "")
 	assert.Equal(t, len(block.Attestations), 128)
@@ -441,9 +403,7 @@ func TestAltairBlock(t *testing.T) {
 
 	// Test missed
 
-	block, proposed, err = blockAnalyzer.RequestBeaconBlock(4709992)
-
-	assert.Equal(t, proposed, false)
+	block, err = blockAnalyzer.cli.RequestBeaconBlock(4709992)
 
 	assert.Equal(t, strings.ReplaceAll(string(block.Graffiti[:]), "\u0000", ""), "")
 	assert.Equal(t, len(block.Attestations), 0)
@@ -463,18 +423,16 @@ func TestAltairBlock(t *testing.T) {
 
 func TestPhase0Block(t *testing.T) {
 
-	blockAnalyzer, err := BuildBlockAnalyzer()
+	blockAnalyzer, err := BuildStateAnalyzer()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
 	// Test regular case
 
-	block, proposed, err := blockAnalyzer.RequestBeaconBlock(2372310)
-
-	assert.Equal(t, proposed, true)
+	block, err := blockAnalyzer.cli.RequestBeaconBlock(2372310)
 
 	assert.Equal(t, strings.ReplaceAll(string(block.Graffiti[:]), "\u0000", ""), "")
 	assert.Equal(t, len(block.Attestations), 128)
@@ -493,9 +451,7 @@ func TestPhase0Block(t *testing.T) {
 
 	// Test missed
 
-	block, proposed, err = blockAnalyzer.RequestBeaconBlock(2372309)
-
-	assert.Equal(t, proposed, false)
+	block, err = blockAnalyzer.cli.RequestBeaconBlock(2372309)
 
 	assert.Equal(t, strings.ReplaceAll(string(block.Graffiti[:]), "\u0000", ""), "")
 	assert.Equal(t, len(block.Attestations), 0)
