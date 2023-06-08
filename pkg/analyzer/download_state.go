@@ -109,9 +109,9 @@ loop:
 			for slot <= nextSlot && !s.stop { // always fill from previous requested slot to current chan slot
 				epoch = phase0.Epoch(slot / local_spec.SlotsPerEpoch)
 				log.Debugf("filling from %d to %d", slot, nextSlot)
-				newBlock, err = s.downloadNewBlock(phase0.Slot(slot))
+				newBlock, err = s.cli.RequestBeaconBlock(phase0.Slot(slot))
 				if err != nil {
-					log.Errorf("error downloading block at slot %d", slot, err.Error())
+					log.Errorf("error downloading block at slot %d: %s", slot, err.Error())
 					return
 				}
 				s.persistBlockData(newBlock)
@@ -123,7 +123,7 @@ loop:
 
 					newState = local_spec.AgnosticState{} // in case no state metrics are required
 					if s.metrics.StateDownload {          // avoid downloading a new state when no need
-						newState, err = s.downloadNewState(epoch)
+						newState, err = s.cli.RequestBeaconState(epoch)
 						if err != nil {
 							log.Errorf("could not download state at epoch %d: %s", slot%local_spec.SlotsPerEpoch, err)
 						}
