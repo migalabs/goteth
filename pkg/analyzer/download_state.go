@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -61,8 +60,8 @@ func (s *StateAnalyzer) prepareFinalized(wgDownload *sync.WaitGroup) {
 	for {
 		select {
 		case slot := <-s.eventsObj.HeadChan:
-			// send justified, this is 32 blocks before head
-			slotChan <- (slot - spec.SlotsPerEpoch)
+			// TODO: To be reviewed, careful with reorgs!
+			slotChan <- (slot)
 		}
 	}
 
