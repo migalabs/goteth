@@ -11,6 +11,7 @@ var (
 	)
 )
 
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#is_active_validator
 func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
 	if validator.ActivationEpoch <= epoch &&
 		epoch < validator.ExitEpoch {

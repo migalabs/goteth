@@ -18,6 +18,9 @@ type StateMetricsBase struct {
 }
 
 func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
+	// If the validator exists in the second state
+	// and the validator exists in the third state
+	// Just t avoid any panic when getting the values from the slices
 	if valIdx < phase0.ValidatorIndex(len(p.SecondState.Balances)) && valIdx < phase0.ValidatorIndex(len(p.ThirdState.Balances)) {
 		return int64(p.ThirdState.Balances[valIdx]) - int64(p.SecondState.Balances[valIdx])
 	}
