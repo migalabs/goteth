@@ -56,20 +56,10 @@ OPTIONS:
    --workers-num value        example: 50 (default: 0)
    --db-workers-num value     example: 50 (default: 0)
    --custom-pools value       example: pools.csv. Columns: f_val_idx,pool_name (Experimental)
-   --metrics value            example: epoch,validator, epoch. Empty for all (default: epoch)
+   --missing-vals			  bool, only applicable if custom-pools is used. Whether rest of validators in the chain should be tracked in a separate group "others".
+   --metrics value            example: epoch,validator,pool_summary,block,withdrawal,transaction. (default: epoch)
+   --download-mode			  example: hybrid,historical,finalized. Default: hybrid
    --help, -h                 show help (default: false)
-
-Blocks
-OPTIONS:
-   --bn-endpoint value     beacon node endpoint (to request the Beacon Blocks)
-   --init-slot value       init slot from where to start (default: 0)
-   --final-slot value      init slot from where to finish (default: 0)
-   --log-level value       log level: debug, warn, info, error
-   --db-url value          example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states
-   --workers-num value     example: 50 (default: 0)
-   --db-workers-num value  example: 50 (default: 0)
-   --download-mode value   example: hybrid,historical,finalized. Default: hybrid
-   --help, -h              show help (default: false)
 ```
 
 Additionally, you may run using the docker-compose file (see list of services in docker-compose file):
