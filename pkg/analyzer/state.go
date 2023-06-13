@@ -87,7 +87,7 @@ func NewStateAnalyzer(
 	}
 	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
 	i_dbClient, err := db.New(
-		db.WithContext(ctx),
+		ctx,
 		db.WithUrl(idbUrl),
 		db.WithWorkers(dbWorkerNum),
 		db.WithDummyPersister(dummyWriter),

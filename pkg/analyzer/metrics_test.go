@@ -69,8 +69,7 @@ func TestPhase0Epoch(t *testing.T) {
 	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.FirstState,
 		epochTask.SecondState,
 		epochTask.ThirdState,
-		epochTask.FourthState,
-		analyzer.cli.Api)
+		epochTask.FourthState)
 
 	assert.Equal(t, stateMetrics.GetMetricsBase().ThirdState.NumActiveVals, uint(60849))
 	assert.Equal(t,
@@ -97,8 +96,7 @@ func TestAltairEpoch(t *testing.T) {
 	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.FirstState,
 		epochTask.SecondState,
 		epochTask.ThirdState,
-		epochTask.FourthState,
-		analyzer.cli.Api)
+		epochTask.FourthState)
 
 	assert.Equal(t, stateMetrics.GetMetricsBase().ThirdState.NumActiveVals, uint(250226))
 	assert.Equal(t,
@@ -130,8 +128,7 @@ func TestAltairRewards(t *testing.T) {
 	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.FirstState,
 		epochTask.SecondState,
 		epochTask.ThirdState,
-		epochTask.FourthState,
-		analyzer.cli.Api)
+		epochTask.FourthState)
 
 	// Test when everything runs normal
 	rewards, err := stateMetrics.GetMaxReward(1250)
@@ -230,8 +227,7 @@ func TestAltairNegativeRewards(t *testing.T) {
 	stateMetrics, err := metrics.StateMetricsByForkVersion(epochTask.FirstState,
 		epochTask.SecondState,
 		epochTask.ThirdState,
-		epochTask.FourthState,
-		analyzer.cli.Api)
+		epochTask.FourthState)
 	// Test negative rewards
 	rewards, err := stateMetrics.GetMaxReward(9097)
 	assert.Equal(t,

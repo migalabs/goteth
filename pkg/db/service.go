@@ -24,6 +24,8 @@ var (
 	MAX_EPOCH_BATCH_QUEUE = 1
 )
 
+type PostgresDBServiceOption func(*PostgresDBService) error
+
 type PostgresDBService struct {
 	// Control Variables
 	ctx           context.Context
@@ -38,14 +40,18 @@ type PostgresDBService struct {
 	workerNum int
 }
 
-func New(options ...func(*PostgresDBService)) (*PostgresDBService, error) {
+func New(ctx context.Context, options ...PostgresDBServiceOption) (*PostgresDBService, error) {
 	var err error
-	pService := &PostgresDBService{}
-	for _, o := range options {
-		o(pService)
+	pService := &PostgresDBService{
+		ctx:       ctx,
+		workerNum: 1,
 	}
-	if pService.workerNum < 1 {
-		return nil, fmt.Errorf("worker num must be over 0")
+	for _, o := range options {
+		err := o(pService)
+		if err != nil {
+			return pService, err
+		}
+
 	}
 
 	pService.writeChan = make(chan Model, pService.workerNum)
@@ -61,27 +67,28 @@ func New(options ...func(*PostgresDBService)) (*PostgresDBService, error) {
 	return pService, err
 }
 
-func WithContext(ctx context.Context) func(*PostgresDBService) {
-	return func(s *PostgresDBService) {
-		s.ctx = ctx
-	}
-}
-
-func WithUrl(url string) func(*PostgresDBService) {
-	return func(s *PostgresDBService) {
+func WithUrl(url string) PostgresDBServiceOption {
+	return func(s *PostgresDBService) error {
 		s.connectionUrl = url
+		return nil
 	}
 }
 
-func WithWorkers(workerNum int) func(*PostgresDBService) {
-	return func(s *PostgresDBService) {
+func WithWorkers(workerNum int) PostgresDBServiceOption {
+
+	return func(s *PostgresDBService) error {
 		s.workerNum = workerNum
+		if s.workerNum < 1 {
+			return fmt.Errorf("cannot set a negative number of workers")
+		}
+		return nil
 	}
 }
 
-func WithDummyPersister(dummy bool) func(*PostgresDBService) {
-	return func(s *PostgresDBService) {
+func WithDummyPersister(dummy bool) PostgresDBServiceOption {
+	return func(s *PostgresDBService) error {
 		s.dummy = dummy
+		return nil
 	}
 }
 
