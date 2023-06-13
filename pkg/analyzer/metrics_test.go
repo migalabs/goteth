@@ -296,7 +296,12 @@ func TestCapellaBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 222)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 16)
 
-	assert.Equal(t, spec.RequestTransactionDetails(block)[0].Hash.String(), "0xa8ee3de535f01a6df2e117af8d7142ea811ffeeda3a1b4e604ad357db2924ec4")
+	transactions, err := spec.RequestTransactionDetails(block)
+	if err != nil {
+		fmt.Errorf("could not retrieve transaction details: %s", err)
+		return
+	}
+	assert.Equal(t, transactions[0].Hash.String(), "0xa8ee3de535f01a6df2e117af8d7142ea811ffeeda3a1b4e604ad357db2924ec4")
 
 	// Test missed
 
@@ -347,7 +352,13 @@ func TestBellatrixBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 441)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 0)
 
-	assert.Equal(t, spec.RequestTransactionDetails(block)[0].Hash.String(), "0x2ec2cc18a5db329ef76b71db72f47611b49d51b780f5e0140c455320d1278d41")
+	transactions, err := spec.RequestTransactionDetails(block)
+
+	if err != nil {
+		fmt.Errorf("could not retrieve transaction details: %s", err)
+		return
+	}
+	assert.Equal(t, transactions[0].Hash.String(), "0x2ec2cc18a5db329ef76b71db72f47611b49d51b780f5e0140c455320d1278d41")
 
 	// Test missed
 

@@ -117,8 +117,11 @@ func (s *StateAnalyzer) persistBlockData(block spec.AgnosticBlock) {
 
 	// store transactions if it has been enabled
 	if s.metrics.Transaction {
-
-		for _, tx := range spec.RequestTransactionDetails(block) {
+		txList, err := spec.RequestTransactionDetails(block)
+		if err != nil {
+			log.Errorf("could not retrieve transaction details from the block: %s", err)
+		}
+		for _, tx := range txList {
 			s.dbClient.Persist(tx)
 		}
 	}
