@@ -37,7 +37,7 @@ func NewMetrics(input string) (DBMetrics, error) {
 		case "withdrawal":
 			dbMetrics.Withdrawals = true
 		case "transaction":
-			dbMetrics.Withdrawals = true
+			dbMetrics.Transaction = true
 		default:
 			return DBMetrics{}, fmt.Errorf("could not parse metric: %s", item)
 		}
