@@ -24,7 +24,7 @@ loop:
 			log.Infof("epoch task received for slot %d, epoch: %d, analyzing...", task.ThirdState.Slot, task.ThirdState.Epoch)
 
 			// returns the state in a custom struct for Phase0, Altair of Bellatrix
-			stateMetrics, err := metrics.StateMetricsByForkVersion(task.FirstState, task.SecondState, task.ThirdState, task.FourthState, s.cli.Api)
+			stateMetrics, err := metrics.StateMetricsByForkVersion(task.FirstState, task.SecondState, task.ThirdState, task.FourthState)
 
 			if err != nil {
 				log.Errorf(err.Error())

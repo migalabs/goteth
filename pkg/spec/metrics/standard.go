@@ -3,7 +3,6 @@ package metrics
 import (
 	"fmt"
 
-	"github.com/attestantio/go-eth2-client/http"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -41,8 +40,7 @@ func StateMetricsByForkVersion(
 	first local_spec.AgnosticState,
 	second local_spec.AgnosticState,
 	third local_spec.AgnosticState,
-	fourth local_spec.AgnosticState,
-	iApi *http.Service) (StateMetrics, error) {
+	fourth local_spec.AgnosticState) (StateMetrics, error) {
 	switch third.Version {
 
 	case spec.DataVersionPhase0:
