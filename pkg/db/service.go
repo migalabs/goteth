@@ -10,7 +10,6 @@ import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -52,7 +51,6 @@ func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBSer
 	if strings.Contains(url, "@") {
 		wlog.Infof("PostgresDB %s succesfully connected", strings.Split(url, "@")[1])
 	}
-	// filter the type of network that we are filtering
 
 	psqlDB := &PostgresDBService{
 		ctx:           ctx,
@@ -62,10 +60,7 @@ func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBSer
 		workerNum:     workerNum,
 	}
 	// init the psql db
-	err = psqlDB.init(ctx, psqlDB.psqlPool)
-	if err != nil {
-		return psqlDB, errors.Wrap(err, "error initializing the tables of the psqldb")
-	}
+	psqlDB.makeMigrations()
 	go psqlDB.runWriters()
 	return psqlDB, err
 }
