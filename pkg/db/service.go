@@ -24,6 +24,8 @@ var (
 	MAX_EPOCH_BATCH_QUEUE = 1
 )
 
+type PostgresDBServiceOption func(*PostgresDBService) error
+
 type PostgresDBService struct {
 	// Control Variables
 	ctx           context.Context
@@ -36,33 +38,64 @@ type PostgresDBService struct {
 	workerNum int
 }
 
-// Connect to the PostgreSQL Database and get the multithread-proof connection
-// from the given url-composed credentials
-func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBService, error) {
-	// spliting the url to don't share any confidential information on wlogs
-	wlog.Infof("Connecting to postgres DB %s", url)
-	if strings.Contains(url, "@") {
-		wlog.Debugf("Connecting to PostgresDB at %s", strings.Split(url, "@")[1])
-	}
-	psqlPool, err := pgxpool.Connect(ctx, url)
-	if err != nil {
-		return nil, err
-	}
-	if strings.Contains(url, "@") {
-		wlog.Infof("PostgresDB %s succesfully connected", strings.Split(url, "@")[1])
-	}
-
-	psqlDB := &PostgresDBService{
+func New(ctx context.Context, url string, options ...PostgresDBServiceOption) (*PostgresDBService, error) {
+	var err error
+	pService := &PostgresDBService{
 		ctx:           ctx,
 		connectionUrl: url,
-		psqlPool:      psqlPool,
-		writeChan:     make(chan Model, workerNum),
-		workerNum:     workerNum,
+		workerNum:     1,
 	}
+
+	for _, o := range options {
+		err := o(pService)
+		if err != nil {
+			return pService, err
+		}
+
+	}
+
+	pService.writeChan = make(chan Model, pService.workerNum)
+	return pService, err
+}
+
+func WithUrl(url string) PostgresDBServiceOption {
+	return func(s *PostgresDBService) error {
+		s.connectionUrl = url
+		return nil
+	}
+}
+
+func WithWorkers(workerNum int) PostgresDBServiceOption {
+
+	return func(s *PostgresDBService) error {
+		s.workerNum = workerNum
+		if s.workerNum < 1 {
+			return fmt.Errorf("cannot set a negative number of workers")
+		}
+		return nil
+	}
+}
+
+// Connect to the PostgreSQL Database and get the multithread-proof connection
+// from the given url-composed credentials
+func (s *PostgresDBService) Connect() {
+	// spliting the url to don't share any confidential information on wlogs
+	wlog.Infof("Connecting to postgres DB %s", s.connectionUrl)
+	if strings.Contains(s.connectionUrl, "@") {
+		wlog.Debugf("Connecting to PostgresDB at %s", strings.Split(s.connectionUrl, "@")[1])
+	}
+	psqlPool, err := pgxpool.Connect(s.ctx, s.connectionUrl)
+	if err != nil {
+		wlog.Fatalf("could not connect to database: %s", err.Error())
+	}
+	s.psqlPool = psqlPool
+	if strings.Contains(s.connectionUrl, "@") {
+		wlog.Infof("PostgresDB %s succesfully connected", strings.Split(s.connectionUrl, "@")[1])
+	}
+
 	// init the psql db
-	psqlDB.makeMigrations()
-	go psqlDB.runWriters()
-	return psqlDB, err
+	s.makeMigrations()
+	go s.runWriters()
 }
 
 func (p *PostgresDBService) Finish() {

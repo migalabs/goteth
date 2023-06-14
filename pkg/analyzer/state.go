@@ -85,10 +85,11 @@ func NewStateAnalyzer(
 		log.Debugf("slot range: %d-%d", initSlot, finalSlot)
 	}
 	// size of channel of maximum number of workers that read from the channel, testing have shown it works well for 500K validators
-	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, dbWorkerNum)
+	idbClient, err := db.New(ctx, idbUrl, db.WithWorkers(dbWorkerNum))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
+	idbClient.Connect()
 
 	poolValidators := make([]utils.PoolKeys, 0)
 	if customPoolsFile != "" {
@@ -115,7 +116,7 @@ func NewStateAnalyzer(
 		epochTaskChan:      make(chan *EpochTask, 1),
 		valTaskChan:        make(chan *ValTask, workerNum), // chan length is the same as the number of workers
 		cli:                httpCli,
-		dbClient:           i_dbClient,
+		dbClient:           idbClient,
 		validatorWorkerNum: workerNum,
 		routineClosed:      make(chan struct{}, 1),
 		downloadMode:       downloadMode,

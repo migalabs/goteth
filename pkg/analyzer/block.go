@@ -61,10 +61,12 @@ func NewBlockAnalyzer(
 	if downloadMode == "hybrid" || downloadMode == "historical" {
 		log.Debug("slotRanges are:", slotRanges)
 	}
-	i_dbClient, err := db.ConnectToDB(ctx, idbUrl, dbWorkerNum)
+	idbClient, err := db.New(ctx, idbUrl, db.WithWorkers(dbWorkerNum))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
+
+	idbClient.Connect()
 
 	return &BlockAnalyzer{
 		ctx:                 ctx,
@@ -74,7 +76,7 @@ func NewBlockAnalyzer(
 		blockTaskChan:       make(chan *BlockTask, 1),
 		transactionTaskChan: make(chan *TransactionTask, 1),
 		cli:                 httpCli,
-		dbClient:            i_dbClient,
+		dbClient:            idbClient,
 		routineClosed:       make(chan struct{}, 1),
 		eventsObj:           events.NewEventsObj(ctx, httpCli),
 		downloadMode:        downloadMode,
