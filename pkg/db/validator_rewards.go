@@ -2,29 +2,10 @@ package db
 
 import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
-	"github.com/pkg/errors"
 )
 
 // Postgres intregration variables
 var (
-	CreateValidatorRewardsTable = `
-	CREATE TABLE IF NOT EXISTS t_validator_rewards_summary(
-		f_val_idx INT,
-		f_epoch INT,
-		f_balance_eth REAL,
-		f_reward BIGINT,
-		f_max_reward INT,
-		f_max_att_reward INT,
-		f_max_sync_reward INT,
-		f_att_slot INT,
-		f_base_reward INT,
-		f_in_sync_committee BOOL,
-		f_missing_source BOOL,
-		f_missing_target BOOL, 
-		f_missing_head BOOL,
-		f_status SMALLINT,
-		CONSTRAINT t_validator_rewards_summary_pkey PRIMARY KEY (f_val_idx,f_epoch));`
-
 	UpsertValidator = `
 	INSERT INTO t_validator_rewards_summary (	
 		f_val_idx, 
@@ -87,13 +68,4 @@ func ValidatorOperation(inputValidator spec.ValidatorRewards) (string, []interfa
 
 	q, args := insertValidator(inputValidator)
 	return q, args
-}
-
-func (p *PostgresDBService) createRewardsTable() error {
-	// create the tables
-	_, err := p.psqlPool.Exec(p.ctx, CreateValidatorRewardsTable)
-	if err != nil {
-		return errors.Wrap(err, "error creating rewards table")
-	}
-	return nil
 }

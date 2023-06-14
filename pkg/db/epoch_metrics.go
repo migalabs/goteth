@@ -15,21 +15,6 @@ import (
 
 // Postgres intregration variables
 var (
-	CreateEpochMetricsTable = `
-	CREATE TABLE IF NOT EXISTS t_epoch_metrics_summary(
-		f_epoch INT,
-		f_slot INT,
-		f_num_att INT,
-		f_num_att_vals INT,
-		f_num_vals INT,
-		f_total_balance_eth REAL,
-		f_att_effective_balance_eth REAL,
-		f_total_effective_balance_eth REAL,
-		f_missing_source INT, 
-		f_missing_target INT,
-		f_missing_head INT,
-		CONSTRAINT PK_Epoch PRIMARY KEY (f_slot));`
-
 	UpsertEpoch = `
 	INSERT INTO t_epoch_metrics_summary (
 		f_epoch, 
@@ -85,16 +70,6 @@ func EpochOperation(inputEpoch spec.Epoch) (string, []interface{}) {
 
 	q, args := insertEpoch(inputEpoch)
 	return q, args
-}
-
-// in case the table did not exist
-func (p *PostgresDBService) createEpochMetricsTable() error {
-	// create the tables
-	_, err := p.psqlPool.Exec(p.ctx, CreateEpochMetricsTable)
-	if err != nil {
-		return errors.Wrap(err, "error creating epoch metrics table")
-	}
-	return nil
 }
 
 // in case the table did not exist

@@ -65,56 +65,6 @@ func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBSer
 	return psqlDB, err
 }
 
-func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error {
-	// create the tables
-	err := p.createRewardsTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createEpochMetricsTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createProposerDutiesTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createBlockMetricsTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createStatusTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createPoolsTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createWithdrawalsTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createLastStatusTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createTransactionsTable()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (p *PostgresDBService) Finish() {
 	p.stop = true
 	p.wgDBWriters.Wait()

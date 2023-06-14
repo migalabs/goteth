@@ -16,29 +16,6 @@ import (
 
 // Postgres intregration variables
 var (
-	CreateBlockMetricsTable = `
-	CREATE TABLE IF NOT EXISTS t_block_metrics(
-		f_timestamp INT,
-		f_epoch INT,
-		f_slot INT,
-		f_graffiti TEXT,
-		f_proposer_index INT,
-		f_proposed BOOL,
-		f_attestations INT,
-		f_deposits INT,
-		f_proposer_slashings INT,
-		f_att_slashings INT,
-		f_voluntary_exits INT,
-		f_sync_bits INT,
-		f_el_fee_recp TEXT,
-		f_el_gas_limit INT,
-		f_el_gas_used INT,
-		f_el_base_fee_per_gas INT,
-		f_el_block_hash TEXT,
-		f_el_transactions INT,
-		f_el_block_number INT,
-		CONSTRAINT PK_Slot PRIMARY KEY (f_slot));`
-
 	UpsertBlock = `
 	INSERT INTO t_block_metrics (
 		f_timestamp,
@@ -102,16 +79,6 @@ func BlockOperation(inputBlock spec.AgnosticBlock) (string, []interface{}) {
 	q, args := insertBlock(inputBlock)
 	return q, args
 
-}
-
-// in case the table did not exist
-func (p *PostgresDBService) createBlockMetricsTable() error {
-	// create the tables
-	_, err := p.psqlPool.Exec(p.ctx, CreateBlockMetricsTable)
-	if err != nil {
-		return errors.Wrap(err, "error creating block metrics table")
-	}
-	return nil
 }
 
 // in case the table did not exist
