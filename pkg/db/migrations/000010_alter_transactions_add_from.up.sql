@@ -1,1 +1,1 @@
-ALTER TABLE t_transactions ADD COLUMN t_from TEXT;
+ALTER TABLE t_transactions ADD COLUMN f_from TEXT;
