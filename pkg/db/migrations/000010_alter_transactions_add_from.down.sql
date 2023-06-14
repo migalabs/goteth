@@ -1,0 +1,1 @@
+ALTER TABLE t_transactions DROP COLUMN t_from;

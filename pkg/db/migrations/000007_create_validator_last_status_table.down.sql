@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS t_validator_last_status;
