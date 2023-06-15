@@ -49,7 +49,6 @@ func main() {
 		Commands: []*cli.Command{
 			cmd.RewardsCommand,
 			cmd.BlocksCommand,
-			cmd.MigrateCommand,
 		},
 	}
 
