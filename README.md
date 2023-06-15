@@ -84,6 +84,14 @@ The tool will export the metrics but it might take some time if the machine is n
 
 If no pools file is input to the tool, missing-vals flag is useless. If you want to track all validators under a unique pool go get pool statistics then you can add a single validator in the pools csv and add the missing-vals flag, this should put all validators in a single pool called "others". Please bear in mind this functionality is experimental and has not been tested yet.
 
+## Database migrations
+
+In case you encounter any issue with the database, you can force the database version using the golang-migrate command line. Please refer [here](https://github.com/golang-migrate/migrate) for more information.
+More specifically, one could clean the migrations by forcing the version with <br>
+```migrate force -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" <current_version>``` <br>
+If specific upgrades or downgrades need to be done manually, one could do this with <br>
+```migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" -verbose up```
+
 
 # Maintainers
 @cortze , @tdahar
