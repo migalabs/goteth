@@ -330,7 +330,7 @@ func TestCapellaBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 222)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 16)
 
-	transactions, err := spec.RequestTransactionDetails(block)
+	transactions, err := spec.RequestTransactionDetails(block, blockAnalyzer.cli)
 	if err != nil {
 		fmt.Errorf("could not retrieve transaction details: %s", err)
 		return
@@ -390,7 +390,7 @@ func TestBellatrixBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 441)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 0)
 
-	transactions, err := spec.RequestTransactionDetails(block)
+	transactions, err := spec.RequestTransactionDetails(block, blockAnalyzer.cli)
 
 	if err != nil {
 		fmt.Errorf("could not retrieve transaction details: %s", err)
