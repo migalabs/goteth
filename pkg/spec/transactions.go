@@ -56,7 +56,7 @@ func RequestTransactionDetails(block AgnosticBlock, client *clientapi.APIClient)
 		contractAddress := *&common.Address{}
 
 		if client.ELApi != nil {
-			receipt, err := clientapi.GetReceipt(parsedTx.Hash(), client)
+			receipt, err := client.GetReceipt(parsedTx.Hash())
 
 			if err != nil {
 				log.Warnf("unable to retrieve transaction receipt for hash %x: %s", parsedTx.Hash(), err.Error())
