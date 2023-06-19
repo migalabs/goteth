@@ -1,6 +1,6 @@
 module github.com/cortze/eth-cl-state-analyzer
 
-go 1.17
+go 1.19
 
 require (
 	github.com/attestantio/go-eth2-client v0.14.5
