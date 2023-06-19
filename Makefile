@@ -41,6 +41,7 @@ run:
 		$(BIN) $(ANALYZER_CMD) \
 			--log-level=${ANALYZER_LOG_LEVEL} \
 			--bn-endpoint=${ANALYZER_BN_ENDPOINT} \
+			--el-endpoint=${ANALYZER_EL_ENDPOINT} \
 			--init-slot=${BLOCK_ANALYZER_INIT_SLOT} \
 			--final-slot=${BLOCK_ANALYZER_FINAL_SLOT} \
 			--db-url=${ANALYZER_DB_URL} \

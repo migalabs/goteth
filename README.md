@@ -62,6 +62,7 @@ OPTIONS:
 Blocks
 OPTIONS:
    --bn-endpoint value     beacon node endpoint (to request the Beacon Blocks)
+   --el-endpoint value 	   execution node endpoint (to request the Transaction Receipts, optional)
    --init-slot value       init slot from where to start (default: 0)
    --final-slot value      init slot from where to finish (default: 0)
    --log-level value       log level: debug, warn, info, error
