@@ -169,7 +169,7 @@ func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 
 	// store transactions if it has been enabled
 	if s.enableTransactions {
-		transactions, err := spec.RequestTransactionDetails(newBlock)
+		transactions, err := spec.RequestTransactionDetails(newBlock, s.cli)
 		if err == nil {
 			transactionTask := &TransactionTask{
 				Slot:         uint64(slot),
