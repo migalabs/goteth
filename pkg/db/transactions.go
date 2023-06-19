@@ -8,8 +8,8 @@ var (
 	UpsertTransaction = `
 INSERT INTO t_transactions(
 	f_tx_type, f_chain_id, f_data, f_gas, f_gas_price, f_gas_tip_cap, f_gas_fee_cap, f_value, f_nonce, f_to, f_hash,
-                           f_size, f_slot, f_el_block_number, f_timestamp, f_from)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                           f_size, f_slot, f_el_block_number, f_timestamp, f_from, f_contract_address)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 ON CONFLICT DO NOTHING;`
 )
 
@@ -39,6 +39,7 @@ func insertTransaction(transaction *spec.AgnosticTransaction) (string, []interfa
 	resultArgs = append(resultArgs, transaction.BlockNumber)
 	resultArgs = append(resultArgs, transaction.Timestamp)
 	resultArgs = append(resultArgs, transaction.From.String())
+	resultArgs = append(resultArgs, transaction.ContractAddress.String())
 	return UpsertTransaction, resultArgs
 }
 
