@@ -2,9 +2,13 @@ package clientapi
 
 import (
 	"context"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/http"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog"
 	"github.com/sirupsen/logrus"
 )
@@ -15,16 +19,24 @@ var (
 		"module", "")
 )
 
+type APIClientOption func(*APIClient) error
+
 type APIClient struct {
-	ctx context.Context
-	Api *http.Service
+	ctx   context.Context
+	Api   *http.Service     // Beacon Node
+	ELApi *ethclient.Client // Execution Node
 }
 
-func NewAPIClient(ctx context.Context, cliEndpoint string, timeout time.Duration) (*APIClient, error) {
-	log.Debugf("generating http client at %s", cliEndpoint)
-	httpCli, err := http.New(
+func NewAPIClient(ctx context.Context, bnEndpoint string, timeout time.Duration, options ...APIClientOption) (*APIClient, error) {
+	log.Debugf("generating http client at %s", bnEndpoint)
+
+	apiService := &APIClient{
+		ctx: ctx,
+	}
+
+	bnCli, err := http.New(
 		ctx,
-		http.WithAddress(cliEndpoint),
+		http.WithAddress(bnEndpoint),
 		http.WithLogLevel(zerolog.WarnLevel),
 		http.WithTimeout(timeout),
 	)
@@ -32,12 +44,39 @@ func NewAPIClient(ctx context.Context, cliEndpoint string, timeout time.Duration
 		return &APIClient{}, err
 	}
 
-	hc, ok := httpCli.(*http.Service)
+	hc, ok := bnCli.(*http.Service)
 	if !ok {
 		log.Error("gernerating the http api client")
 	}
-	return &APIClient{
-		ctx: ctx,
-		Api: hc,
-	}, nil
+
+	apiService.Api = hc
+
+	for _, o := range options {
+		err := o(apiService)
+		if err != nil {
+			log.Warnf(err.Error()) // these are optional, show error and continue
+		}
+	}
+
+	return apiService, nil
+}
+
+func WithELEndpoint(url string) APIClientOption {
+	return func(s *APIClient) error {
+		if url == "" {
+			return fmt.Errorf("empty execution address, skipping...")
+		}
+		client, err := ethclient.DialContext(s.ctx, url)
+		if err != nil {
+			return err
+		}
+		s.ELApi = client
+		return nil
+	}
+}
+
+// GetReceipt retrieves receipt for the given transaction hash
+func (client APIClient) GetReceipt(txHash common.Hash) (*types.Receipt, error) {
+	receipt, err := client.ELApi.TransactionReceipt(client.ctx, txHash)
+	return receipt, err
 }

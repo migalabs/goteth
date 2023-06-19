@@ -21,7 +21,11 @@ var BlocksCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "bn-endpoint",
-			Usage: "beacon node endpoint (to request the Beacon Blocks)",
+			Usage: "beacon node endpoint (to request the Beacon States and Blocks)",
+		},
+		&cli.StringFlag{
+			Name:  "el-endpoint",
+			Usage: "execution node endpoint (to request more specific data on Blocks)",
 		},
 		&cli.IntFlag{
 			Name:  "init-slot",
@@ -67,10 +71,14 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	dbWorkers := 1
 	downloadMode := "hybrid"
 	enableTransactions := false
+	elEndpoint := "" // not mandatory
 	logBlocks.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
 		return errors.New("bn endpoint not provided")
+	}
+	if c.IsSet("el-endpoint") {
+		elEndpoint = c.String("el-endpoint")
 	}
 	if !c.IsSet("init-slot") {
 		return errors.New("final slot not provided")
@@ -108,7 +116,7 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	dbUrl := c.String("db-url")
 
 	// generate the httpAPI client
-	cli, err := clientapi.NewAPIClient(c.Context, bnEndpoint, QueryTimeout)
+	cli, err := clientapi.NewAPIClient(c.Context, bnEndpoint, QueryTimeout, clientapi.WithELEndpoint(elEndpoint))
 	if err != nil {
 		return err
 	}

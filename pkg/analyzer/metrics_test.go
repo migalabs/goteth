@@ -12,7 +12,7 @@ import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec/metrics"
-	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func BuildStateAnalyzer() (StateAnalyzer, error) {
@@ -37,6 +37,22 @@ func BuildBlockAnalyzer() (BlockAnalyzer, error) {
 
 	// generate the httpAPI client
 	cli, err := clientapi.NewAPIClient(ctx, "http://localhost:5052", 50*time.Second)
+	if err != nil {
+		return BlockAnalyzer{}, err
+	}
+
+	return BlockAnalyzer{
+		ctx: context.Background(),
+		cli: cli,
+	}, nil
+}
+
+func BuildBlockAnalyzerWithEL() (BlockAnalyzer, error) {
+
+	ctx := context.Background()
+
+	// generate the httpAPI client
+	cli, err := clientapi.NewAPIClient(ctx, "http://localhost:5052", 50*time.Second, clientapi.WithELEndpoint("http://localhost:8545"))
 	if err != nil {
 		return BlockAnalyzer{}, err
 	}
@@ -330,7 +346,7 @@ func TestCapellaBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 222)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 16)
 
-	transactions, err := spec.RequestTransactionDetails(block)
+	transactions, err := spec.RequestTransactionDetails(block, blockAnalyzer.cli)
 	if err != nil {
 		fmt.Errorf("could not retrieve transaction details: %s", err)
 		return
@@ -390,7 +406,7 @@ func TestBellatrixBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 441)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 0)
 
-	transactions, err := spec.RequestTransactionDetails(block)
+	transactions, err := spec.RequestTransactionDetails(block, blockAnalyzer.cli)
 
 	if err != nil {
 		fmt.Errorf("could not retrieve transaction details: %s", err)
@@ -522,4 +538,52 @@ func TestPhase0Block(t *testing.T) {
 	assert.Equal(t, block.ExecutionPayload.Timestamp, uint64(0))
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 0)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 0)
+}
+
+func TestTransactionHasEffectiveGasPriceWhenELIsProvided(t *testing.T) {
+	blockAnalyzer, err := BuildBlockAnalyzerWithEL()
+
+	if err != nil {
+		fmt.Errorf("could not build analyzer: %s", err)
+		return
+	}
+
+	// Test regular case
+	block, proposed, err := blockAnalyzer.RequestBeaconBlock(5610381) //block number 16442285
+	assert.Equal(t, proposed, true)
+
+	transactions, err := spec.RequestTransactionDetails(block, blockAnalyzer.cli)
+
+	if err != nil {
+		fmt.Errorf("could not retrieve transaction details: %s", err)
+		return
+	}
+
+	// Test retrieved transaction gas price is the same with that expected to be effective gas price
+	assert.Equal(t, transactions[10].Hash.String(), "0x737319e9325ddbb754908d0874dac9f95fbb6c1f49cf5f88c389b98ebb61d36c")
+	assert.Equal(t, transactions[10].GasPrice, phase0.Gwei(94245102754))
+}
+
+func TestTransactionNotEffectiveGasPriceWhenELNotProvided(t *testing.T) {
+	blockAnalyzer, err := BuildBlockAnalyzer()
+
+	if err != nil {
+		fmt.Errorf("could not build analyzer: %s", err)
+		return
+	}
+
+	// Test regular case
+	block, proposed, err := blockAnalyzer.RequestBeaconBlock(5610381) //block number 16442285
+	assert.Equal(t, proposed, true)
+
+	transactions, err := spec.RequestTransactionDetails(block, blockAnalyzer.cli)
+
+	if err != nil {
+		fmt.Errorf("could not retrieve transaction details: %s", err)
+		return
+	}
+
+	// Test retrieved transaction gas price is not same with that expected to be effective gas price
+	assert.Equal(t, transactions[10].Hash.String(), "0x737319e9325ddbb754908d0874dac9f95fbb6c1f49cf5f88c389b98ebb61d36c")
+	assert.NotEqual(t, transactions[10].GasPrice, phase0.Gwei(94245102754))
 }
