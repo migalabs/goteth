@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.17-alpine as builder
+FROM golang:1.19-alpine as builder
 RUN apk add --update git
 RUN apk add --update gcc
 RUN apk add --update g++
@@ -18,5 +18,6 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /
 COPY --from=builder /app/build/goteth ./
+COPY --from=builder /app/pkg/db/migrations ./pkg/db/migrations
 ENTRYPOINT ["/goteth"]
 

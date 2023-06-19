@@ -2,27 +2,10 @@ package db
 
 import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
-	"github.com/pkg/errors"
 )
 
 // Postgres intregration variables
 var (
-	CreatePoolSummaryTable = `
-	CREATE TABLE IF NOT EXISTS t_pool_summary(
-		f_pool_name TEXT,
-		f_epoch INT,
-		f_reward INT,
-		f_max_reward INT,
-		f_max_att_reward INT,
-		f_max_sync_reward INT,
-		f_base_reward INT,
-		f_sum_missing_source INT,
-		f_sum_missing_target INT, 
-		f_sum_missing_head INT,
-		f_num_active_vals INT,
-		f_sync_vals INT,
-		CONSTRAINT PK_EpochPool PRIMARY KEY (f_pool_name,f_epoch));`
-
 	UpsertPoolSummary = `
 	INSERT INTO t_pool_summary (
 		f_pool_name,
@@ -119,13 +102,4 @@ func PoolOperation(inputPool spec.PoolSummary) (string, []interface{}) {
 	q, args := insertPool(inputPool)
 	return q, args
 
-}
-
-func (p *PostgresDBService) createPoolsTable() error {
-	// create the tables
-	_, err := p.psqlPool.Exec(p.ctx, CreatePoolSummaryTable)
-	if err != nil {
-		return errors.Wrap(err, "error creating pools table")
-	}
-	return nil
 }

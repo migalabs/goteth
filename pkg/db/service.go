@@ -10,7 +10,6 @@ import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,6 +24,8 @@ var (
 	MAX_EPOCH_BATCH_QUEUE = 1
 )
 
+type PostgresDBServiceOption func(*PostgresDBService) error
+
 type PostgresDBService struct {
 	// Control Variables
 	ctx           context.Context
@@ -37,87 +38,64 @@ type PostgresDBService struct {
 	workerNum int
 }
 
-// Connect to the PostgreSQL Database and get the multithread-proof connection
-// from the given url-composed credentials
-func ConnectToDB(ctx context.Context, url string, workerNum int) (*PostgresDBService, error) {
-	// spliting the url to don't share any confidential information on wlogs
-	wlog.Infof("Connecting to postgres DB %s", url)
-	if strings.Contains(url, "@") {
-		wlog.Debugf("Connecting to PostgresDB at %s", strings.Split(url, "@")[1])
-	}
-	psqlPool, err := pgxpool.Connect(ctx, url)
-	if err != nil {
-		return nil, err
-	}
-	if strings.Contains(url, "@") {
-		wlog.Infof("PostgresDB %s succesfully connected", strings.Split(url, "@")[1])
-	}
-	// filter the type of network that we are filtering
-
-	psqlDB := &PostgresDBService{
+func New(ctx context.Context, url string, options ...PostgresDBServiceOption) (*PostgresDBService, error) {
+	var err error
+	pService := &PostgresDBService{
 		ctx:           ctx,
 		connectionUrl: url,
-		psqlPool:      psqlPool,
-		writeChan:     make(chan Model, workerNum),
-		workerNum:     workerNum,
+		workerNum:     1,
 	}
-	// init the psql db
-	err = psqlDB.init(ctx, psqlDB.psqlPool)
-	if err != nil {
-		return psqlDB, errors.Wrap(err, "error initializing the tables of the psqldb")
+
+	for _, o := range options {
+		err := o(pService)
+		if err != nil {
+			return pService, err
+		}
+
 	}
-	go psqlDB.runWriters()
-	return psqlDB, err
+
+	pService.writeChan = make(chan Model, pService.workerNum)
+	return pService, err
 }
 
-func (p *PostgresDBService) init(ctx context.Context, pool *pgxpool.Pool) error {
-	// create the tables
-	err := p.createRewardsTable()
+func WithUrl(url string) PostgresDBServiceOption {
+	return func(s *PostgresDBService) error {
+		s.connectionUrl = url
+		return nil
+	}
+}
+
+func WithWorkers(workerNum int) PostgresDBServiceOption {
+
+	return func(s *PostgresDBService) error {
+		s.workerNum = workerNum
+		if s.workerNum < 1 {
+			return fmt.Errorf("cannot set a negative number of workers")
+		}
+		return nil
+	}
+}
+
+// Connect to the PostgreSQL Database and get the multithread-proof connection
+// from the given url-composed credentials
+func (s *PostgresDBService) Connect() {
+	// spliting the url to don't share any confidential information on wlogs
+	wlog.Infof("Connecting to postgres DB %s", s.connectionUrl)
+	if strings.Contains(s.connectionUrl, "@") {
+		wlog.Debugf("Connecting to PostgresDB at %s", strings.Split(s.connectionUrl, "@")[1])
+	}
+	psqlPool, err := pgxpool.Connect(s.ctx, s.connectionUrl)
 	if err != nil {
-		return err
+		wlog.Fatalf("could not connect to database: %s", err.Error())
+	}
+	s.psqlPool = psqlPool
+	if strings.Contains(s.connectionUrl, "@") {
+		wlog.Infof("PostgresDB %s succesfully connected", strings.Split(s.connectionUrl, "@")[1])
 	}
 
-	err = p.createEpochMetricsTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createProposerDutiesTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createBlockMetricsTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createStatusTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createPoolsTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createWithdrawalsTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createLastStatusTable()
-	if err != nil {
-		return err
-	}
-
-	err = p.createTransactionsTable()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	// init the psql db
+	s.makeMigrations()
+	go s.runWriters()
 }
 
 func (p *PostgresDBService) Finish() {
