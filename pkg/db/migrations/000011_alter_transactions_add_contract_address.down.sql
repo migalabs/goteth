@@ -1,0 +1,1 @@
+ALTER TABLE t_transactions DROP COLUMN IF EXISTS f_contract_address;
