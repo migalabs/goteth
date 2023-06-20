@@ -3,8 +3,6 @@ package clientapi
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/http"
@@ -73,10 +71,4 @@ func WithELEndpoint(url string) APIClientOption {
 		s.ELApi = client
 		return nil
 	}
-}
-
-// GetReceipt retrieves receipt for the given transaction hash
-func (client APIClient) GetReceipt(txHash common.Hash) (*types.Receipt, error) {
-	receipt, err := client.ELApi.TransactionReceipt(client.ctx, txHash)
-	return receipt, err
 }

@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS t_transactions(
     f_value NUMERIC,
     f_nonce BIGINT,
     f_to TEXT DEFAULT '',
-    f_from TEXT DEFAULT '',
     f_hash TEXT PRIMARY KEY,
     f_size BIGINT,
 	f_slot INT,
