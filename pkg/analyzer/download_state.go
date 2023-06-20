@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
@@ -136,19 +135,6 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	}
 }
 
-func (s StateAnalyzer) RequestBeaconState(slot phase0.Slot) (*spec.VersionedBeaconState, error) {
-	newState, err := s.cli.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
-	if newState == nil {
-		return nil, fmt.Errorf("unable to retrieve Finalized Beacon State from the beacon node, closing requester routine. nil State")
-	}
-	if err != nil {
-		// close the channel (to tell other routines to stop processing and end)
-		return nil, fmt.Errorf("unable to retrieve Finalized Beacon State from the beacon node, closing requester routine. %s", err.Error())
-
-	}
-	return newState, nil
-}
-
 func (s *StateAnalyzer) DownloadNewState(
 	prevBState *local_spec.AgnosticState,
 	bstate *local_spec.AgnosticState,
@@ -167,16 +153,10 @@ func (s *StateAnalyzer) DownloadNewState(
 		*bstate = *nextBstate
 	}
 	log.Infof("requesting Beacon State from endpoint: slot %d", slot)
-	newState, err := s.RequestBeaconState(slot)
+	nextBstate, err := s.cli.RequestBeaconState(slot)
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
 		return fmt.Errorf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
-
-	}
-	*nextBstate, err = local_spec.GetCustomState(*newState, s.cli.Api)
-	if err != nil {
-		// close the channel (to tell other routines to stop processing and end)
-		return fmt.Errorf("unable to open beacon state, closing requester routine. %s", err.Error())
 	}
 
 	if prevBState.AttestingBalance != nil {
