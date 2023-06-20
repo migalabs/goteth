@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
@@ -130,30 +129,10 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	}
 }
 
-func (s BlockAnalyzer) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, bool, error) {
-	newBlock, err := s.cli.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
-	if newBlock == nil {
-		log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
-		return s.CreateMissingBlock(slot), false, nil
-	}
-	if err != nil {
-		// close the channel (to tell other routines to stop processing and end)
-		return spec.AgnosticBlock{}, false, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
-	}
-
-	customBlock, err := spec.GetCustomBlock(*newBlock)
-
-	if err != nil {
-		// close the channel (to tell other routines to stop processing and end)
-		return spec.AgnosticBlock{}, false, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
-	}
-	return customBlock, true, nil
-}
-
 func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 
 	ticker := time.NewTicker(minBlockReqTime)
-	newBlock, proposed, err := s.RequestBeaconBlock(slot)
+	newBlock, proposed, err := s.cli.RequestBeaconBlock(slot)
 	if err != nil {
 		return fmt.Errorf("block error at slot %d: %s", slot, err)
 	}
@@ -169,7 +148,7 @@ func (s BlockAnalyzer) DownloadNewBlock(slot phase0.Slot) error {
 
 	// store transactions if it has been enabled
 	if s.enableTransactions {
-		transactions, err := spec.RequestTransactionDetails(newBlock, s.cli)
+		transactions, err := s.cli.RequestTransactionDetails(newBlock)
 		if err == nil {
 			transactionTask := &TransactionTask{
 				Slot:         uint64(slot),
