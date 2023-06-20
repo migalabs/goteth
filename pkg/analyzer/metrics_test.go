@@ -10,7 +10,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
-	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec/metrics"
 	"github.com/stretchr/testify/assert"
 )
@@ -72,40 +71,28 @@ func BuildEpochTask(analyzer StateAnalyzer, slot phase0.Slot) (EpochTask, error)
 	slot = ((epoch + 1) * spec.SlotsPerEpoch) - 1
 
 	fmt.Printf("downloading state at slot: %d\n", slot-spec.SlotsPerEpoch)
-	newState, err := analyzer.RequestBeaconState(slot - spec.SlotsPerEpoch)
+	prevState, err := analyzer.cli.RequestBeaconState(slot - spec.SlotsPerEpoch)
 	if err != nil {
 		return EpochTask{}, fmt.Errorf("could not download state: %s", err)
 
-	}
-	prevState, err := local_spec.GetCustomState(*newState, analyzer.cli.Api)
-	if err != nil {
-		return EpochTask{}, fmt.Errorf("could not parse state: %s", err)
 	}
 
 	fmt.Printf("downloading state at slot: %d\n", slot)
-	newState, err = analyzer.RequestBeaconState(slot)
+	currentState, err := analyzer.cli.RequestBeaconState(slot)
 	if err != nil {
 		return EpochTask{}, fmt.Errorf("could not download state: %s", err)
-	}
-	currentState, err := local_spec.GetCustomState(*newState, analyzer.cli.Api)
-	if err != nil {
-		return EpochTask{}, fmt.Errorf("could not parse state: %s", err)
 	}
 
 	fmt.Printf("downloading state at slot: %d\n", slot+spec.SlotsPerEpoch)
-	newState, err = analyzer.RequestBeaconState(slot + spec.SlotsPerEpoch)
+	nextState, err := analyzer.cli.RequestBeaconState(slot + spec.SlotsPerEpoch)
 	if err != nil {
 		return EpochTask{}, fmt.Errorf("could not download state: %s", err)
 	}
-	nextState, err := local_spec.GetCustomState(*newState, analyzer.cli.Api)
-	if err != nil {
-		return EpochTask{}, fmt.Errorf("could not parse state: %s", err)
-	}
 
 	return EpochTask{
-		PrevState: prevState,
-		State:     currentState,
-		NextState: nextState,
+		PrevState: *prevState,
+		State:     *currentState,
+		NextState: *nextState,
 	}, nil
 
 }
@@ -327,7 +314,7 @@ func TestCapellaBlock(t *testing.T) {
 
 	// Test regular case
 
-	block, proposed, err := blockAnalyzer.RequestBeaconBlock(6564725)
+	block, proposed, err := blockAnalyzer.cli.RequestBeaconBlock(6564725)
 
 	assert.Equal(t, proposed, true)
 
@@ -346,7 +333,7 @@ func TestCapellaBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 222)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 16)
 
-	transactions, err := spec.RequestTransactionDetails(block, blockAnalyzer.cli)
+	transactions, err := blockAnalyzer.cli.RequestTransactionDetails(block)
 	if err != nil {
 		fmt.Errorf("could not retrieve transaction details: %s", err)
 		return
@@ -355,7 +342,7 @@ func TestCapellaBlock(t *testing.T) {
 
 	// Test missed
 
-	block, proposed, err = blockAnalyzer.RequestBeaconBlock(6564753)
+	block, proposed, err = blockAnalyzer.cli.RequestBeaconBlock(6564753)
 
 	assert.Equal(t, proposed, false)
 
@@ -387,7 +374,7 @@ func TestBellatrixBlock(t *testing.T) {
 
 	// Test regular case
 
-	block, proposed, err := blockAnalyzer.RequestBeaconBlock(4709993)
+	block, proposed, err := blockAnalyzer.cli.RequestBeaconBlock(4709993)
 
 	assert.Equal(t, proposed, true)
 
@@ -406,7 +393,7 @@ func TestBellatrixBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 441)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 0)
 
-	transactions, err := spec.RequestTransactionDetails(block, blockAnalyzer.cli)
+	transactions, err := blockAnalyzer.cli.RequestTransactionDetails(block)
 
 	if err != nil {
 		fmt.Errorf("could not retrieve transaction details: %s", err)
@@ -416,7 +403,7 @@ func TestBellatrixBlock(t *testing.T) {
 
 	// Test missed
 
-	block, proposed, err = blockAnalyzer.RequestBeaconBlock(4709992)
+	block, proposed, err = blockAnalyzer.cli.RequestBeaconBlock(4709992)
 
 	assert.Equal(t, proposed, false)
 
@@ -447,7 +434,7 @@ func TestAltairBlock(t *testing.T) {
 
 	// Test regular case
 
-	block, proposed, err := blockAnalyzer.RequestBeaconBlock(4636687)
+	block, proposed, err := blockAnalyzer.cli.RequestBeaconBlock(4636687)
 
 	assert.Equal(t, proposed, true)
 
@@ -468,7 +455,7 @@ func TestAltairBlock(t *testing.T) {
 
 	// Test missed
 
-	block, proposed, err = blockAnalyzer.RequestBeaconBlock(4709992)
+	block, proposed, err = blockAnalyzer.cli.RequestBeaconBlock(4709992)
 
 	assert.Equal(t, proposed, false)
 
@@ -499,7 +486,7 @@ func TestPhase0Block(t *testing.T) {
 
 	// Test regular case
 
-	block, proposed, err := blockAnalyzer.RequestBeaconBlock(2372310)
+	block, proposed, err := blockAnalyzer.cli.RequestBeaconBlock(2372310)
 
 	assert.Equal(t, proposed, true)
 
@@ -520,7 +507,7 @@ func TestPhase0Block(t *testing.T) {
 
 	// Test missed
 
-	block, proposed, err = blockAnalyzer.RequestBeaconBlock(2372309)
+	block, proposed, err = blockAnalyzer.cli.RequestBeaconBlock(2372309)
 
 	assert.Equal(t, proposed, false)
 
@@ -549,10 +536,10 @@ func TestTransactionHasEffectiveGasPriceWhenELIsProvided(t *testing.T) {
 	}
 
 	// Test regular case
-	block, proposed, err := blockAnalyzer.RequestBeaconBlock(5610381) //block number 16442285
+	block, proposed, err := blockAnalyzer.cli.RequestBeaconBlock(5610381) //block number 16442285
 	assert.Equal(t, proposed, true)
 
-	transactions, err := spec.RequestTransactionDetails(block, blockAnalyzer.cli)
+	transactions, err := blockAnalyzer.cli.RequestTransactionDetails(block)
 
 	if err != nil {
 		fmt.Errorf("could not retrieve transaction details: %s", err)
@@ -573,10 +560,10 @@ func TestTransactionNotEffectiveGasPriceWhenELNotProvided(t *testing.T) {
 	}
 
 	// Test regular case
-	block, proposed, err := blockAnalyzer.RequestBeaconBlock(5610381) //block number 16442285
+	block, proposed, err := blockAnalyzer.cli.RequestBeaconBlock(5610381) //block number 16442285
 	assert.Equal(t, proposed, true)
 
-	transactions, err := spec.RequestTransactionDetails(block, blockAnalyzer.cli)
+	transactions, err := blockAnalyzer.cli.RequestTransactionDetails(block)
 
 	if err != nil {
 		fmt.Errorf("could not retrieve transaction details: %s", err)
