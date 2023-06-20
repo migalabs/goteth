@@ -1,7 +1,6 @@
 package clientapi
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -10,7 +9,7 @@ import (
 
 func (s APIClient) NewEpochData(slot phase0.Slot) spec.EpochDuties {
 
-	epochCommittees, err := s.Api.BeaconCommittees(context.Background(), strconv.Itoa(int(slot)))
+	epochCommittees, err := s.Api.BeaconCommittees(s.ctx, strconv.Itoa(int(slot)))
 
 	if err != nil {
 		log.Errorf(err.Error())
@@ -33,7 +32,7 @@ func (s APIClient) NewEpochData(slot phase0.Slot) spec.EpochDuties {
 		}
 	}
 
-	proposerDuties, err := s.Api.ProposerDuties(context.Background(), phase0.Epoch(slot/spec.SlotsPerEpoch), nil)
+	proposerDuties, err := s.Api.ProposerDuties(s.ctx, phase0.Epoch(slot/spec.SlotsPerEpoch), nil)
 
 	if err != nil {
 		log.Errorf(err.Error())
