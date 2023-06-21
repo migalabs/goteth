@@ -23,6 +23,9 @@ func (s APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticSta
 		// close the channel (to tell other routines to stop processing and end)
 		return nil, fmt.Errorf("unable to open beacon state, closing requester routine. %s", err.Error())
 	}
+	// We have used HashTreeRoot method to hash the downloaded state, but it does not work ok
+	// meantime, we use this
+	resultState.StateRoot = s.RequestStateRoot(slot)
 
 	return &resultState, nil
 }
