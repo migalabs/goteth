@@ -26,3 +26,12 @@ func (s APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticSta
 
 	return &resultState, nil
 }
+
+func (s APIClient) RequestStateRoot(slot phase0.Slot) phase0.Root {
+	root, err := s.Api.BeaconStateRoot(s.ctx, fmt.Sprintf("%d", slot))
+	if err != nil {
+		log.Panicf("could not download the state root at %d: %s", slot, err)
+	}
+
+	return *root
+}
