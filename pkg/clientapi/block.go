@@ -82,6 +82,9 @@ func (s APIClient) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
 
 // RequestBlockByHash retrieves block from the execution client for the given hash
 func (s APIClient) RequestBlockByHash(hash common.Hash) (*types.Block, error) {
+	if s.ELApi == nil {
+		return nil, fmt.Errorf("execution layer client is not initialized")
+	}
 	block, err := s.ELApi.BlockByHash(s.ctx, hash)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve block by hash %s: %s", hash.String(), err.Error())
