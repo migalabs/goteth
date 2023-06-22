@@ -38,3 +38,20 @@ func (s APIClient) RequestStateRoot(slot phase0.Slot) phase0.Root {
 
 	return *root
 }
+
+// Finalized Checkpoints happen at the beginning of an epoch
+// This method returns the finalized slot at the end of an epoch
+// Usually, it is the slot before the finalized one
+func (s APIClient) GetFinalizedEndSlotStateRoot() (phase0.Slot, phase0.Root) {
+	currentFinalized, err := s.Api.Finality(s.ctx, "head")
+
+	if err != nil {
+		log.Panicf("could not determine the current finalized checkpoint")
+	}
+
+	finalizedSlot := phase0.Slot(currentFinalized.Finalized.Epoch*local_spec.SlotsPerEpoch - 1)
+
+	root := s.RequestStateRoot(finalizedSlot)
+
+	return finalizedSlot, root
+}

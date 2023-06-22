@@ -47,7 +47,12 @@ loop:
 func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon State Finalized Requester")
-	queue := NewStateQueue()
+
+	slot, root := s.cli.GetFinalizedEndSlotStateRoot()
+
+	queue := NewStateQueue(slot, root)
+
+	nextEpochDownload := phase0.Epoch(slot / spec.SlotsPerEpoch)
 
 	// obtain last epoch in database
 	lastRequestEpoch, err := s.dbClient.ObtainLastEpoch()
@@ -55,7 +60,6 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 		log.Errorf("could not obtain last epoch in database")
 	}
 	headEpoch := phase0.Epoch(s.cli.RequestCurrentHead() / spec.SlotsPerEpoch)
-	nextEpochDownload := headEpoch - epochsToFinalizedTentative // default, 2 epochs before head
 
 	if lastRequestEpoch > epochsToFinalizedTentative { // otherwise when we subsctract it would be less than 0
 		log.Infof("database detected, last epoch: %d", lastRequestEpoch)
@@ -94,11 +98,11 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
 			// slot must be the last slot previous to the finalized epoch
 			slot := phase0.Slot(newFinalCheckpoint.Epoch*spec.SlotsPerEpoch - 1)
-
-			finalEpoch, ok := queue.CheckFinalized(slot, s.cli.RequestStateRoot(slot))
+			root := s.cli.RequestStateRoot(slot)
+			finalEpoch, ok := queue.CheckFinalized(slot, root)
 
 			if !ok {
-				queue = NewStateQueue()
+				queue = NewStateQueue(slot, root)
 				nextEpochDownload = finalEpoch
 			}
 

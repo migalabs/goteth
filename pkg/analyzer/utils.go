@@ -36,12 +36,17 @@ type StateQueue struct {
 	LatestFinalized SlotRoot
 }
 
-func NewStateQueue() StateQueue {
+func NewStateQueue(finalizedSlot phase0.Slot, finalizedRoot phase0.Root) StateQueue {
 	return StateQueue{
 		prevState:    spec.AgnosticState{},
 		currentState: spec.AgnosticState{},
 		nextState:    spec.AgnosticState{},
 		Roots:        make([]SlotRoot, 0),
+		LatestFinalized: SlotRoot{
+			Slot:  finalizedSlot,
+			Epoch: phase0.Epoch(finalizedSlot / spec.SlotsPerEpoch),
+			Root:  finalizedRoot,
+		},
 	}
 }
 
