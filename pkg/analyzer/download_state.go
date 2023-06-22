@@ -16,9 +16,11 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 	// loop over the list of slots that we need to analyze
 
 	// We need three consecutive states to compute max rewards easier
-	prevBState := local_spec.AgnosticState{}
-	bstate := local_spec.AgnosticState{}
-	nextBstate := local_spec.AgnosticState{}
+	queue := StateQueue{
+		prevState:    local_spec.AgnosticState{},
+		currentState: local_spec.AgnosticState{},
+		nextState:    local_spec.AgnosticState{},
+	}
 loop:
 	for slot := s.initSlot; slot < s.finalSlot; slot += local_spec.SlotsPerEpoch {
 
@@ -33,11 +35,7 @@ loop:
 				break loop
 			}
 
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, phase0.Slot(slot), false)
-			if err != nil {
-				log.Errorf("error downloading state at slot %d: %s", slot, err)
-				return
-			}
+			s.DownloadNewState(&queue, phase0.Slot(slot), false)
 
 		}
 
