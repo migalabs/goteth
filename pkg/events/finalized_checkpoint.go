@@ -18,7 +18,7 @@ func (e *Events) HandleCheckpointEvent(event *api.Event) {
 	}
 
 	data := event.Data.(*api.FinalizedCheckpointEvent) // cast to head event
-	log.Infof("Received a new event: epoch %d, slot root: %s", data.Epoch, data.State.String())
+	log.Infof("Received a new event: epoch %d, state root: %s", data.Epoch, data.State.String())
 
 	select { // only notify if we can
 	case e.FinalizedChan <- *data:
