@@ -136,36 +136,29 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 }
 
 func (s *StateAnalyzer) DownloadNewState(
-	prevBState *local_spec.AgnosticState,
-	bstate *local_spec.AgnosticState,
-	nextBstate *local_spec.AgnosticState,
+	queue *StateQueue,
 	slot phase0.Slot,
-	finalized bool) error {
+	finalized bool) {
 
 	log := log.WithField("routine", "download")
 	ticker := time.NewTicker(minStateReqTime)
-	// We need three states to calculate both, rewards and maxRewards
 
-	if bstate.AttestingBalance != nil { // in case we already had a bstate
-		*prevBState = *bstate
-	}
-	if nextBstate.AttestingBalance != nil { // in case we already had a nextBstate
-		*bstate = *nextBstate
-	}
-	log.Infof("requesting Beacon State from endpoint: slot %d", slot)
+	log.Infof("requesting Beacon State from endpoint: epoch %d", slot/spec.SlotsPerEpoch)
 	nextBstate, err := s.cli.RequestBeaconState(slot)
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
-		return fmt.Errorf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
+		log.Panicf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
 	}
 
-	if prevBState.AttestingBalance != nil {
+	queue.AddNewState(*nextBstate)
+
+	if queue.Complete() {
 		// only execute tasks if prevBState is something (we have state and nextState in this case)
 
 		epochTask := &EpochTask{
-			NextState: *nextBstate,
-			State:     *bstate,
-			PrevState: *prevBState,
+			NextState: queue.nextState,
+			State:     queue.currentState,
+			PrevState: queue.prevState,
 			Finalized: finalized,
 		}
 
@@ -174,5 +167,4 @@ func (s *StateAnalyzer) DownloadNewState(
 	}
 	// check if the min Request time has been completed (to avoid spaming the API)
 	<-ticker.C
-	return nil
 }
