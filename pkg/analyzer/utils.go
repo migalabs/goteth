@@ -23,9 +23,9 @@ var (
 )
 
 type SlotRoot struct {
-	Slot  phase0.Slot
-	Epoch phase0.Epoch
-	Root  phase0.Root
+	Slot      phase0.Slot
+	Epoch     phase0.Epoch
+	StateRoot phase0.Root
 }
 
 type StateQueue struct {
@@ -43,9 +43,9 @@ func NewStateQueue(finalizedSlot phase0.Slot, finalizedRoot phase0.Root) StateQu
 		nextState:    spec.AgnosticState{},
 		Roots:        make([]SlotRoot, 0),
 		LatestFinalized: SlotRoot{
-			Slot:  finalizedSlot,
-			Epoch: phase0.Epoch(finalizedSlot / spec.SlotsPerEpoch),
-			Root:  finalizedRoot,
+			Slot:      finalizedSlot,
+			Epoch:     phase0.Epoch(finalizedSlot / spec.SlotsPerEpoch),
+			StateRoot: finalizedRoot,
 		},
 	}
 }
@@ -73,9 +73,9 @@ func (s StateQueue) Complete() bool {
 
 func (s *StateQueue) AddRoot(iSlot phase0.Slot, iRoot phase0.Root) {
 	s.Roots = append(s.Roots, SlotRoot{
-		Slot:  iSlot,
-		Epoch: phase0.Epoch(iSlot / spec.SlotsPerEpoch),
-		Root:  iRoot,
+		Slot:      iSlot,
+		Epoch:     phase0.Epoch(iSlot / spec.SlotsPerEpoch),
+		StateRoot: iRoot,
 	})
 }
 
@@ -89,7 +89,7 @@ func (s *StateQueue) CheckFinalized(iSlot phase0.Slot, iRoot phase0.Root) (phase
 	// SlotRoots are ordered ascending always
 	for i, slotRoot := range s.Roots {
 		if slotRoot.Slot == iSlot { // found it in our history
-			if slotRoot.Root == iRoot { // the root matches, finalized ok
+			if slotRoot.StateRoot == iRoot { // the root matches, finalized ok
 				s.Roots = s.Roots[i+1:] // remove all roots before this one, they are ordered asc
 
 				s.LatestFinalized = slotRoot
