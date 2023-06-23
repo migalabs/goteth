@@ -40,6 +40,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, boo
 		customBlock.Size = uint32(block.Size())
 	}
 
+	customBlock.StateRoot = s.RequestStateRoot(slot)
 	return customBlock, true, nil
 }
 
