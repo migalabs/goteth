@@ -109,3 +109,45 @@ func (s *StateQueue) CheckFinalized(iSlot phase0.Slot, iRoot phase0.Root) (phase
 	return s.LatestFinalized.Epoch, true
 
 }
+
+// Used for the block routine
+// Somehow similar to the above
+// If we merge both routines then logically we would also join to the above
+type SlotRootHistory struct {
+	Roots []SlotRoot
+}
+
+func NewSlotHistory() SlotRootHistory {
+	return SlotRootHistory{
+		Roots: make([]SlotRoot, 0),
+	}
+}
+
+func (s *SlotRootHistory) AddRoot(iSlot phase0.Slot, iRoot phase0.Root) {
+	s.Roots = append(s.Roots, SlotRoot{
+		Slot:      iSlot,
+		Epoch:     phase0.Epoch(iSlot / spec.SlotsPerEpoch),
+		StateRoot: iRoot,
+	})
+}
+
+// Returns whether the finalized root was ok
+// If not, it returns the first slot of the history
+// That slot would be the first one unverified from our history
+func (s *SlotRootHistory) CheckFinalized(iSlot phase0.Slot, iRoot phase0.Root) (bool, phase0.Slot) {
+	for i, root := range s.Roots {
+		if iSlot == root.Slot { // if slot in in the history
+			if root.StateRoot == iRoot { // if root matches
+				s.Roots = s.Roots[i+1:] // clean history up to verified root
+				log.Infof("checkpoint for slot %d verified...", iSlot)
+				return true, iSlot
+			}
+			// slot in history, but root not matched, clean all the history
+			slot := s.Roots[0].Slot
+			s.Roots = make([]SlotRoot, 0)
+			log.Infof("checkpoint for slot %d was not verified, rewinding...", iSlot)
+			return false, slot
+		}
+	}
+	return true, iSlot // slot is not in the history
+}
