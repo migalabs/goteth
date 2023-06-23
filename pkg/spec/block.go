@@ -23,7 +23,7 @@ type AgnosticBlock struct {
 	VoluntaryExits    []*phase0.SignedVoluntaryExit
 	SyncAggregate     *altair.SyncAggregate
 	ExecutionPayload  AgnosticExecutionPayload
-	Size              uint64
+	Size              uint32
 }
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs

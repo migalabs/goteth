@@ -36,7 +36,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, boo
 		log.Error(err)
 	}
 	if block != nil {
-		customBlock.Size = block.Size()
+		customBlock.Size = uint32(block.Size())
 	}
 
 	return customBlock, true, nil
