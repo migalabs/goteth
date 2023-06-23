@@ -584,7 +584,7 @@ func TestBlockSizeIsSetWhenELIsProvided(t *testing.T) {
 	}
 
 	block, _, err := blockAnalyzer.cli.RequestBeaconBlock(5610381) //block number 16442285
-	assert.Equal(t, block.Size, uint64(69157))
+	assert.Equal(t, block.Size, uint32(69157))
 }
 
 func TestBlockSizeNotSetWhenELNotProvided(t *testing.T) {
@@ -596,5 +596,5 @@ func TestBlockSizeNotSetWhenELNotProvided(t *testing.T) {
 	}
 
 	block, _, err := blockAnalyzer.cli.RequestBeaconBlock(5610381) //block number 16442285
-	assert.Equal(t, block.Size, uint64(0))
+	assert.Equal(t, block.Size, uint32(0))
 }

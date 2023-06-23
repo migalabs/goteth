@@ -1,1 +1,1 @@
-ALTER TABLE t_block_metrics DROP COLUMN IF EXISTS f_size;
+ALTER TABLE t_block_metrics DROP COLUMN IF EXISTS f_size_bytes;
