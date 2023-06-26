@@ -574,3 +574,27 @@ func TestTransactionNotEffectiveGasPriceWhenELNotProvided(t *testing.T) {
 	assert.Equal(t, transactions[10].Hash.String(), "0x737319e9325ddbb754908d0874dac9f95fbb6c1f49cf5f88c389b98ebb61d36c")
 	assert.NotEqual(t, transactions[10].GasPrice, phase0.Gwei(94245102754))
 }
+
+func TestBlockSizeIsSetWhenELIsProvided(t *testing.T) {
+	blockAnalyzer, err := BuildBlockAnalyzerWithEL()
+
+	if err != nil {
+		fmt.Errorf("could not build analyzer: %s", err)
+		return
+	}
+
+	block, _, err := blockAnalyzer.cli.RequestBeaconBlock(5610381) //block number 16442285
+	assert.Equal(t, block.Size, uint32(69157))
+}
+
+func TestBlockSizeNotSetWhenELNotProvided(t *testing.T) {
+	blockAnalyzer, err := BuildBlockAnalyzer()
+
+	if err != nil {
+		fmt.Errorf("could not build analyzer: %s", err)
+		return
+	}
+
+	block, _, err := blockAnalyzer.cli.RequestBeaconBlock(5610381) //block number 16442285
+	assert.Equal(t, block.Size, uint32(0))
+}

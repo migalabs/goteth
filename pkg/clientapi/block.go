@@ -2,6 +2,8 @@ package clientapi
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
@@ -27,6 +29,16 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, boo
 		// close the channel (to tell other routines to stop processing and end)
 		return spec.AgnosticBlock{}, false, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
 	}
+
+	// fill in block size on custom block using RequestBlockByHash
+	block, err := s.RequestBlockByHash(common.Hash(customBlock.ExecutionPayload.BlockHash))
+	if err != nil {
+		log.Error(err)
+	}
+	if block != nil {
+		customBlock.Size = uint32(block.Size())
+	}
+
 	return customBlock, true, nil
 }
 
@@ -66,4 +78,16 @@ func (s APIClient) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
 			Transactions:  make([]bellatrix.Transaction, 0),
 		},
 	}
+}
+
+// RequestBlockByHash retrieves block from the execution client for the given hash
+func (s APIClient) RequestBlockByHash(hash common.Hash) (*types.Block, error) {
+	if s.ELApi == nil {
+		return nil, fmt.Errorf("execution layer client is not initialized")
+	}
+	block, err := s.ELApi.BlockByHash(s.ctx, hash)
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve block by hash %s: %s", hash.String(), err.Error())
+	}
+	return block, nil
 }

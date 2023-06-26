@@ -36,8 +36,9 @@ var (
 		f_el_base_fee_per_gas,
 		f_el_block_hash,
 		f_el_transactions,
-		f_el_block_number)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+		f_el_block_number,
+		f_size_bytes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 		ON CONFLICT ON CONSTRAINT PK_Slot
 		DO NOTHING;
 	`
@@ -70,6 +71,7 @@ func insertBlock(inputBlock spec.AgnosticBlock) (string, []interface{}) {
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BlockHash.String())
 	resultArgs = append(resultArgs, len(inputBlock.ExecutionPayload.Transactions))
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BlockNumber)
+	resultArgs = append(resultArgs, inputBlock.Size)
 
 	return UpsertBlock, resultArgs
 }
