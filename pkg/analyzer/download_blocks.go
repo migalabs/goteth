@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
@@ -72,6 +72,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	// -----------------------------------------------------------------------------------
 	s.eventsObj.SubscribeToHeadEvents()
 	s.eventsObj.SubscribeToFinalizedCheckpointEvents()
+	s.eventsObj.SubscribeToReorgsEvents()
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 	// loop over the list of slots that we need to analyze
 
@@ -91,15 +92,14 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 					return
 				}
 			}
-		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
-			// slot must be the last slot previous to the finalized epoch
-			finalizedSlot := phase0.Slot(newFinalCheckpoint.Epoch * spec.SlotsPerEpoch)
-			root := s.cli.RequestStateRoot(finalizedSlot)
-			ok, slot := rootHistory.CheckFinalized(finalizedSlot, root)
+		// case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
+		// 	// slot must be the last slot previous to the finalized epoch
 
-			if !ok {
-				nextSlotDownload = slot
-			}
+		case newReorg := <-s.eventsObj.ReorgChan:
+			log.Info("rewinding to %d", newReorg.Slot-phase0.Slot(newReorg.Depth))
+
+			nextSlotDownload = newReorg.Slot - phase0.Slot(newReorg.Depth)
+			s.ReorgRewind(nextSlotDownload)
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
@@ -148,4 +148,12 @@ func (s BlockAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 
 	<-ticker.C
 	// check if the min Request time has been completed (to avoid spaming the API)
+}
+
+func (s *BlockAnalyzer) ReorgRewind(slot phase0.Slot) {
+
+	s.dbClient.Persist(db.BlockDropType(slot))
+	s.dbClient.Persist(db.TransactionDropType(slot))
+	s.dbClient.Persist(db.WithdrawalDropType(slot))
+
 }
