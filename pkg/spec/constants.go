@@ -39,13 +39,16 @@ type ModelType int8
 
 const (
 	BlockModel ModelType = iota
+	BlockDropModel
 	EpochModel
 	PoolSummaryModel
 	ProposerDutyModel
 	ValidatorLastStatusModel
 	ValidatorRewardsModel
 	WithdrawalModel
+	WithdrawalDropModel
 	TransactionsModel
+	TransactionDropModel
 )
 
 type ValidatorStatus int8

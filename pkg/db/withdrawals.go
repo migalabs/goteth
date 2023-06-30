@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 )
 
@@ -21,6 +22,11 @@ var (
 			f_address = excluded.f_address,
 			f_amount = excluded.f_amount;
 	`
+
+	DropWithdrawalsQuery = `
+		DROP FROM t_withdrawals
+		WHERE f_slot >= $1;
+`
 )
 
 func insertWithdrawal(inputWithdrawal spec.Withdrawal) (string, []interface{}) {
@@ -38,4 +44,16 @@ func WithdrawalOperation(inputWithdrawal spec.Withdrawal) (string, []interface{}
 
 	q, args := insertWithdrawal(inputWithdrawal)
 	return q, args
+}
+
+type WithdrawalDropType phase0.Slot
+
+func (s WithdrawalDropType) Type() spec.ModelType {
+	return spec.WithdrawalDropModel
+}
+
+func DropWitdrawals(slot WithdrawalDropType) (string, []interface{}) {
+	resultArgs := make([]interface{}, 0)
+	resultArgs = append(resultArgs, slot)
+	return DropWithdrawalsQuery, resultArgs
 }

@@ -43,10 +43,15 @@ var (
 		DO NOTHING;
 	`
 	SelectLastSlot = `
-	SELECT f_slot
-	FROM t_block_metrics
-	ORDER BY f_slot DESC
-	LIMIT 1`
+		SELECT f_slot
+		FROM t_block_metrics
+		ORDER BY f_slot DESC
+		LIMIT 1`
+
+	DropBlocksQuery = `
+		DROP FROM t_block_metrics
+		WHERE f_slot >= $1;
+`
 )
 
 func insertBlock(inputBlock spec.AgnosticBlock) (string, []interface{}) {
@@ -95,4 +100,16 @@ func (p *PostgresDBService) ObtainLastSlot() (phase0.Slot, error) {
 	rows.Scan(&slot)
 	rows.Close()
 	return phase0.Slot(slot), nil
+}
+
+type BlockDropType phase0.Slot
+
+func (s BlockDropType) Type() spec.ModelType {
+	return spec.BlockDropModel
+}
+
+func DropBlocks(slot BlockDropType) (string, []interface{}) {
+	resultArgs := make([]interface{}, 0)
+	resultArgs = append(resultArgs, slot)
+	return DropBlocksQuery, resultArgs
 }
