@@ -23,6 +23,7 @@ type Events struct {
 
 	SubscribedFinalized bool
 	FinalizedChan       chan api.FinalizedCheckpointEvent
+	ReorgChan           chan api.ChainReorgEvent
 }
 
 func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
@@ -33,5 +34,6 @@ func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
 		HeadChan:            make(chan phase0.Slot),
 		SubscribedFinalized: false,
 		FinalizedChan:       make(chan api.FinalizedCheckpointEvent),
+		ReorgChan:           make(chan api.ChainReorgEvent),
 	}
 }
