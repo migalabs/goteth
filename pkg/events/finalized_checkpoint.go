@@ -4,9 +4,9 @@ import api "github.com/attestantio/go-eth2-client/api/v1"
 
 func (e *Events) SubscribeToFinalizedCheckpointEvents() {
 	// subscribe to head event
-	err := e.cli.Api.Events(e.ctx, []string{"finalized_checkpoint"}, e.HandleCheckpointEvent) // every new head
+	err := e.cli.Api.Events(e.ctx, []string{"finalized_checkpoint"}, e.HandleCheckpointEvent) // every new checkpoint
 	if err != nil {
-		log.Panicf("failed to subscribe to head events: %s", err)
+		log.Panicf("failed to subscribe to finalized checkpoint events: %s", err)
 	}
 	log.Infof("subscribed to finalized checkpoint events")
 }
