@@ -83,7 +83,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			// make the block query
 			log.Infof("received new head signal: %d", headSlot)
 
-			for nextSlotDownload < headSlot {
+			for nextSlotDownload <= headSlot {
 				log.Infof("downloading block: %d", nextSlotDownload)
 				s.DownloadNewBlock(&rootHistory, phase0.Slot(nextSlotDownload))
 				nextSlotDownload = nextSlotDownload + 1
@@ -98,7 +98,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 		case newReorg := <-s.eventsObj.ReorgChan:
 			log.Infof("rewinding to %d", newReorg.Slot-phase0.Slot(newReorg.Depth))
 
-			nextSlotDownload = newReorg.Slot - phase0.Slot(newReorg.Depth)
+			nextSlotDownload = newReorg.Slot - phase0.Slot(newReorg.Depth) + 1
 			s.ReorgRewind(nextSlotDownload)
 
 		case <-s.ctx.Done():
