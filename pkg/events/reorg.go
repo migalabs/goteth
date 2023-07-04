@@ -20,8 +20,5 @@ func (e *Events) HandleReorgEvent(event *api.Event) {
 	data := event.Data.(*api.ChainReorgEvent) // cast to head event
 	log.Infof("Received a new event: slot %d of depth %d", data.Slot, data.Depth)
 
-	select { // only notify if we can
-	case e.ReorgChan <- *data:
-	default:
-	}
+	e.ReorgChan <- *data
 }
