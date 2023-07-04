@@ -95,16 +95,16 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 				nextEpochDownload += 1
 			}
 
-		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
-			// slot must be the last slot previous to the finalized epoch
-			slot := phase0.Slot(newFinalCheckpoint.Epoch*spec.SlotsPerEpoch - 1)
-			root := s.cli.RequestStateRoot(slot)
-			finalEpoch, ok := queue.CheckFinalized(slot, root)
+		// case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
+		// 	// slot must be the last slot previous to the finalized epoch
+		// 	slot := phase0.Slot(newFinalCheckpoint.Epoch*spec.SlotsPerEpoch - 1)
+		// 	root := s.cli.RequestStateRoot(slot)
+		// 	finalEpoch, ok := queue.CheckFinalized(slot, root)
 
-			if !ok {
-				queue = NewStateQueue(slot, root)
-				nextEpochDownload = finalEpoch
-			}
+		// 	if !ok {
+		// 		queue = NewStateQueue(slot, root)
+		// 		nextEpochDownload = finalEpoch
+		// 	}
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state requester routine")
