@@ -41,10 +41,13 @@ const (
 	BlockModel ModelType = iota
 	BlockDropModel
 	EpochModel
+	EpochDropModel
 	PoolSummaryModel
 	ProposerDutyModel
+	ProposerDutyDropModel
 	ValidatorLastStatusModel
 	ValidatorRewardsModel
+	ValidatorRewardDropModel
 	WithdrawalModel
 	WithdrawalDropModel
 	TransactionsModel
