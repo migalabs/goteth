@@ -24,7 +24,7 @@ var (
 	`
 
 	DropWithdrawalsQuery = `
-		DROP FROM t_withdrawals
+		DELETE FROM t_withdrawals
 		WHERE f_slot >= $1;
 `
 )

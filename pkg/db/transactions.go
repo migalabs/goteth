@@ -14,7 +14,7 @@ var (
 		ON CONFLICT DO NOTHING;`
 
 	DropTransactionsQuery = `
-		DROP FROM t_transactions
+		DELETE FROM t_transactions
 		WHERE f_slot >= $1;
 `
 )

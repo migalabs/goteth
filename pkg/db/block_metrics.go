@@ -49,7 +49,7 @@ var (
 		LIMIT 1`
 
 	DropBlocksQuery = `
-		DROP FROM t_block_metrics
+		DELETE FROM t_block_metrics
 		WHERE f_slot >= $1;
 `
 )
