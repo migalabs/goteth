@@ -52,6 +52,7 @@ const (
 	WithdrawalDropModel
 	TransactionsModel
 	TransactionDropModel
+	ReorgModel
 )
 
 type ValidatorStatus int8
