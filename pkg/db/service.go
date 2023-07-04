@@ -140,6 +140,10 @@ func (p *PostgresDBService) runWriters() {
 						q, args := EpochOperation(task.(spec.Epoch))
 						persis.query = q
 						persis.values = append(persis.values, args...)
+					case spec.EpochDropModel:
+						q, args := DropEpochs(task.(EpochDropType))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					case spec.PoolSummaryModel:
 						q, args := PoolOperation(task.(spec.PoolSummary))
 						persis.query = q
@@ -148,12 +152,20 @@ func (p *PostgresDBService) runWriters() {
 						q, args := ProposerDutyOperation(task.(spec.ProposerDuty))
 						persis.query = q
 						persis.values = append(persis.values, args...)
+					case spec.ProposerDutyDropModel:
+						q, args := DropProposerDuties(task.(ProposerDutiesDropType))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					case spec.ValidatorLastStatusModel:
 						q, args := ValidatorLastStatusOperation(task.(spec.ValidatorLastStatus))
 						persis.query = q
 						persis.values = append(persis.values, args...)
 					case spec.ValidatorRewardsModel:
 						q, args := ValidatorOperation(task.(spec.ValidatorRewards))
+						persis.query = q
+						persis.values = append(persis.values, args...)
+					case spec.ValidatorRewardDropModel:
+						q, args := DropValidatorRewards(task.(ValidatorRewardsDropType))
 						persis.query = q
 						persis.values = append(persis.values, args...)
 					case spec.WithdrawalModel:
