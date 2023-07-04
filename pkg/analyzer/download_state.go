@@ -97,6 +97,7 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 			}
 
 		case newReorg := <-s.eventsObj.ReorgChan:
+			s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
 			headReorgEpoch := phase0.Epoch(newReorg.Slot / spec.SlotsPerEpoch)
 			baseReorgEpoch := phase0.Epoch((newReorg.Slot - phase0.Slot(newReorg.Depth)) / spec.SlotsPerEpoch)
 
