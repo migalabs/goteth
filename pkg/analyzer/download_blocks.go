@@ -96,7 +96,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 		// 	// slot must be the last slot previous to the finalized epoch
 
 		case newReorg := <-s.eventsObj.ReorgChan:
-			log.Info("rewinding to %d", newReorg.Slot-phase0.Slot(newReorg.Depth))
+			log.Infof("rewinding to %d", newReorg.Slot-phase0.Slot(newReorg.Depth))
 
 			nextSlotDownload = newReorg.Slot - phase0.Slot(newReorg.Depth)
 			s.ReorgRewind(nextSlotDownload)
@@ -152,6 +152,7 @@ func (s BlockAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 
 func (s *BlockAnalyzer) ReorgRewind(slot phase0.Slot) {
 
+	log.Infof("deleting block data from %d (included) onwards", slot)
 	s.dbClient.Persist(db.BlockDropType(slot))
 	s.dbClient.Persist(db.TransactionDropType(slot))
 	s.dbClient.Persist(db.WithdrawalDropType(slot))
