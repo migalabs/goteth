@@ -32,10 +32,10 @@ func InsertReorg(inputReorg ReorgType) (string, []interface{}) {
 
 	resultArgs = append(resultArgs, inputReorg.Slot)
 	resultArgs = append(resultArgs, inputReorg.Depth)
-	resultArgs = append(resultArgs, inputReorg.OldHeadBlock)
-	resultArgs = append(resultArgs, inputReorg.NewHeadBlock)
-	resultArgs = append(resultArgs, inputReorg.OldHeadState)
-	resultArgs = append(resultArgs, inputReorg.NewHeadState)
+	resultArgs = append(resultArgs, inputReorg.OldHeadBlock.String())
+	resultArgs = append(resultArgs, inputReorg.NewHeadBlock.String())
+	resultArgs = append(resultArgs, inputReorg.OldHeadState.String())
+	resultArgs = append(resultArgs, inputReorg.NewHeadState.String())
 
 	return InsertReorgQuery, resultArgs
 }
