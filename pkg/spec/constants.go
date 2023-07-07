@@ -53,6 +53,7 @@ const (
 	TransactionsModel
 	TransactionDropModel
 	ReorgModel
+	FinalizedCheckpointModel
 )
 
 type ValidatorStatus int8
