@@ -20,7 +20,7 @@ var (
 		f_old_head_block_root,
 		f_new_head_block_root,
 		f_old_head_state_root,
-		f_new_head_state_root
+		f_new_head_state_root)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT ON CONSTRAINT t_reorgs_pkey
 		DO NOTHING;
