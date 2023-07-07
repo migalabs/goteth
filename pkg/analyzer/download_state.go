@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
@@ -95,16 +96,32 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 				nextEpochDownload += 1
 			}
 
-		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
-			// slot must be the last slot previous to the finalized epoch
-			slot := phase0.Slot(newFinalCheckpoint.Epoch*spec.SlotsPerEpoch - 1)
-			root := s.cli.RequestStateRoot(slot)
-			finalEpoch, ok := queue.CheckFinalized(slot, root)
+		case newReorg := <-s.eventsObj.ReorgChan:
+			s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
+			headReorgEpoch := phase0.Epoch(newReorg.Slot / spec.SlotsPerEpoch)
+			baseReorgEpoch := phase0.Epoch((newReorg.Slot - phase0.Slot(newReorg.Depth)) / spec.SlotsPerEpoch)
 
-			if !ok {
+			// if the reorg is at the end of an epoch, or an epoch boundary has been crossed
+			if newReorg.Slot%spec.SlotsPerEpoch == 31 ||
+				headReorgEpoch > baseReorgEpoch {
+
+				slot, root := s.cli.GetFinalizedEndSlotStateRoot()
 				queue = NewStateQueue(slot, root)
-				nextEpochDownload = finalEpoch
+				nextEpochDownload = phase0.Epoch(slot / spec.SlotsPerEpoch)
+				log.Infof("rewinding to finalized %d", nextEpochDownload)
+				s.ReorgRewind(baseReorgEpoch - 1) // delete metrics from next and current state (check statequeue)
 			}
+
+		// case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
+		// 	// slot must be the last slot previous to the finalized epoch
+		// 	slot := phase0.Slot(newFinalCheckpoint.Epoch*spec.SlotsPerEpoch - 1)
+		// 	root := s.cli.RequestStateRoot(slot)
+		// 	finalEpoch, ok := queue.CheckFinalized(slot, root)
+
+		// 	if !ok {
+		// 		queue = NewStateQueue(slot, root)
+		// 		nextEpochDownload = finalEpoch
+		// 	}
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state requester routine")
@@ -152,4 +169,13 @@ func (s *StateAnalyzer) DownloadNewState(
 	}
 	// check if the min Request time has been completed (to avoid spaming the API)
 	<-ticker.C
+}
+
+func (s *StateAnalyzer) ReorgRewind(epoch phase0.Epoch) {
+
+	log.Infof("deleting epoch data from %d (included) onwards", epoch)
+	s.dbClient.Persist(db.EpochDropType(epoch))
+	s.dbClient.Persist(db.ProposerDutiesDropType(epoch))
+	s.dbClient.Persist(db.ValidatorRewardsDropType(epoch))
+
 }

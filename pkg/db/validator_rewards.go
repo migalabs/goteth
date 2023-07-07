@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 )
 
@@ -39,9 +40,9 @@ var (
 				f_status = excluded.f_status;
 	`
 
-	Drop = `
+	DropValidatorRewardsQuery = `
 		DROP FROM t_validator_rewards_summary
-		WHERE f_val_idx = $1 AND f_epoch = $2;
+		WHERE f_epoch >= $1;
 	`
 )
 
@@ -68,4 +69,16 @@ func ValidatorOperation(inputValidator spec.ValidatorRewards) (string, []interfa
 
 	q, args := insertValidator(inputValidator)
 	return q, args
+}
+
+type ValidatorRewardsDropType phase0.Epoch
+
+func (s ValidatorRewardsDropType) Type() spec.ModelType {
+	return spec.ValidatorRewardDropModel
+}
+
+func DropValidatorRewards(epoch ValidatorRewardsDropType) (string, []interface{}) {
+	resultArgs := make([]interface{}, 0)
+	resultArgs = append(resultArgs, epoch)
+	return DropValidatorRewardsQuery, resultArgs
 }
