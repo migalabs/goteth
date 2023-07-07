@@ -92,8 +92,8 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 					return
 				}
 			}
-		// case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
-		// 	// slot must be the last slot previous to the finalized epoch
+		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
+			s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
 
 		case newReorg := <-s.eventsObj.ReorgChan:
 			s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
