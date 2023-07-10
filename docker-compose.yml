@@ -19,7 +19,7 @@ services:
       --custom-pools=${STATE_ANALYZER_POOLS_FILE}
       --metrics=${STATE_ANALYZER_METRICS}
       --missing-vals=${STATE_ANALYZER_MISSING_VALS}
-      --prometheus-port=${PROMETHEUS_PORT:-9080}
+      --prometheus-port=${STATE_PROMETHEUS_PORT:-9080}
     network_mode: 'host'
     restart: unless-stopped
   
@@ -40,7 +40,7 @@ services:
       --db-workers-num=${BLOCK_ANALYZER_DB_WORKERS_NUM}
       --download-mode=${BLOCK_ANALYZER_DOWNLOAD_MODE}
       --enable-transactions=${BLOCK_ENABLE_TRANSACTIONS}
-      --prometheus-port=${PROMETHEUS_PORT:-9081}
+      --prometheus-port=${BLOCK_PROMETHEUS_PORT:-9081}
     network_mode: 'host'
     restart: unless-stopped
                 
