@@ -13,6 +13,7 @@ import (
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type AgnosticState struct {
 	Version                 spec.DataVersion
+	StateRoot               phase0.Root
 	Balances                []phase0.Gwei                     // balance of each validator
 	Validators              []*phase0.Validator               // list of validators
 	TotalActiveBalance      phase0.Gwei                       // effective balance

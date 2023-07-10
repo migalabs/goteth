@@ -7,6 +7,7 @@ This file together with the model, has all the needed methods to interact with t
 */
 
 import (
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 )
 
@@ -21,6 +22,11 @@ var (
 		ON CONFLICT DO NOTHING;
 	`
 	// if there is a confilct the line already exists
+
+	DropProposerDutiesQuery = `
+	DELETE FROM t_proposer_duties
+	WHERE f_proposer_slot/32 >= $1;
+`
 )
 
 func insertProposerDuty(inputDuty spec.ProposerDuty) (string, []interface{}) {
@@ -37,4 +43,16 @@ func ProposerDutyOperation(inputDuty spec.ProposerDuty) (string, []interface{}) 
 	q, args := insertProposerDuty(inputDuty)
 	return q, args
 
+}
+
+type ProposerDutiesDropType phase0.Epoch
+
+func (s ProposerDutiesDropType) Type() spec.ModelType {
+	return spec.ProposerDutyDropModel
+}
+
+func DropProposerDuties(epoch ProposerDutiesDropType) (string, []interface{}) {
+	resultArgs := make([]interface{}, 0)
+	resultArgs = append(resultArgs, epoch)
+	return DropProposerDutiesQuery, resultArgs
 }

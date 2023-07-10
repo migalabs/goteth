@@ -1,11 +1,12 @@
 package analyzer
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
@@ -16,9 +17,11 @@ func (s *StateAnalyzer) runDownloadStates(wgDownload *sync.WaitGroup) {
 	// loop over the list of slots that we need to analyze
 
 	// We need three consecutive states to compute max rewards easier
-	prevBState := local_spec.AgnosticState{}
-	bstate := local_spec.AgnosticState{}
-	nextBstate := local_spec.AgnosticState{}
+	queue := StateQueue{
+		prevState:    local_spec.AgnosticState{},
+		currentState: local_spec.AgnosticState{},
+		nextState:    local_spec.AgnosticState{},
+	}
 loop:
 	for slot := s.initSlot; slot < s.finalSlot; slot += local_spec.SlotsPerEpoch {
 
@@ -33,11 +36,7 @@ loop:
 				break loop
 			}
 
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, phase0.Slot(slot), false)
-			if err != nil {
-				log.Errorf("error downloading state at slot %d: %s", slot, err)
-				return
-			}
+			s.DownloadNewState(&queue, phase0.Slot(slot), false)
 
 		}
 
@@ -49,78 +48,73 @@ loop:
 func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon State Finalized Requester")
-	prevBState := local_spec.AgnosticState{}
-	bstate := local_spec.AgnosticState{}
-	nextBstate := local_spec.AgnosticState{}
 
-	// ------ fill from last epoch in database to current head -------
+	slot, root := s.cli.GetFinalizedEndSlotStateRoot()
+
+	queue := NewStateQueue(slot, root)
+
+	nextEpochDownload := phase0.Epoch(slot / spec.SlotsPerEpoch)
 
 	// obtain last epoch in database
 	lastRequestEpoch, err := s.dbClient.ObtainLastEpoch()
 	if err != nil {
 		log.Errorf("could not obtain last epoch in database")
 	}
+	headEpoch := phase0.Epoch(s.cli.RequestCurrentHead() / spec.SlotsPerEpoch)
 
-	// obtain current head
-	headSlot := phase0.Slot(0)
-	header, err := s.cli.Api.BeaconBlockHeader(s.ctx, "head")
-	if err != nil {
-		log.Errorf("could not obtain current head to fill historical")
-	} else {
-		headSlot = header.Header.Message.Slot
+	if lastRequestEpoch > epochsToFinalizedTentative { // otherwise when we subsctract it would be less than 0
+		log.Infof("database detected, last epoch: %d", lastRequestEpoch)
+		nextEpochDownload = lastRequestEpoch - epochsToFinalizedTentative
 	}
 
-	// it means we could obtain both
-	if lastRequestEpoch > 0 && headSlot > 0 {
-		headEpoch := phase0.Epoch(headSlot / phase0.Slot(local_spec.EpochSlots))
-		lastRequestEpoch = lastRequestEpoch - 4 // start 4 epochs before for safety
-		for (lastRequestEpoch) < (headEpoch - 1) {
-			lastRequestEpoch = lastRequestEpoch + 1
-			log.Infof("filling missing epochs: %d", lastRequestEpoch)
-			slot := phase0.Slot(int(lastRequestEpoch)*local_spec.EpochSlots) + 31 // last slot of the epoch
-
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
-			if err != nil {
-				log.Errorf("error downloading state at slot %d: %s", slot, err)
-				continue
-			}
-			if s.stop {
-				log.Info("sudden shutdown detected, state downloader routine")
-				return
-			}
-		}
-
+	// download until the previous epoch to the head: pre-fill
+	for nextEpochDownload < headEpoch {
+		headEpoch = phase0.Epoch(s.cli.RequestCurrentHead() / spec.SlotsPerEpoch)
+		log.Infof("filling epochs until head: %d - %d", nextEpochDownload, headEpoch)
+		slot := phase0.Slot(int(nextEpochDownload)*local_spec.EpochSlots) + (spec.SlotsPerEpoch - 1) // last slot of the epoch
+		s.DownloadNewState(&queue, slot, true)
+		nextEpochDownload += 1
 	}
 
-	// -----------------------------------------------------------------------------------
 	s.eventsObj.SubscribeToHeadEvents()
+	s.eventsObj.SubscribeToFinalizedCheckpointEvents()
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
+
+	// from now on we are following the chain head
 	for {
 
 		select {
 
 		case newHead := <-s.eventsObj.HeadChan:
-			// new epoch
-			headEpoch := phase0.Epoch(newHead / phase0.Slot(local_spec.EpochSlots))
-			if lastRequestEpoch == 0 {
-				lastRequestEpoch = headEpoch
-			}
-			// reqEpoch => headEpoch - 1
-			log.Infof("Head Epoch: %d; Last Requested Epoch: %d", headEpoch, lastRequestEpoch)
-			log.Infof("Pending slots for new epoch: %d", (int(headEpoch+1)*local_spec.EpochSlots)-int(newHead))
+			headEpoch = phase0.Epoch(newHead / phase0.Slot(local_spec.EpochSlots))
 
-			if (lastRequestEpoch + 1) >= headEpoch {
-				continue // wait for new epoch to arrive
+			// download until the previous epoch to the head
+			for nextEpochDownload < headEpoch {
+				log.Infof("Head Epoch: %d; Last Requested Epoch: %d", headEpoch, nextEpochDownload-1)
+				slot := phase0.Slot(int(nextEpochDownload)*local_spec.EpochSlots) + (spec.SlotsPerEpoch - 1) // last slot of the epoch
+				s.DownloadNewState(&queue, slot, true)
+				nextEpochDownload += 1
 			}
 
-			slot := phase0.Slot(int(lastRequestEpoch+1)*local_spec.EpochSlots) + 31 // last slot of the epoch
-			lastRequestEpoch = lastRequestEpoch + 1
+		case newReorg := <-s.eventsObj.ReorgChan:
+			s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
+			headReorgEpoch := phase0.Epoch(newReorg.Slot / spec.SlotsPerEpoch)
+			baseReorgEpoch := phase0.Epoch((newReorg.Slot - phase0.Slot(newReorg.Depth)) / spec.SlotsPerEpoch)
 
-			err := s.DownloadNewState(&prevBState, &bstate, &nextBstate, slot, true)
-			if err != nil {
-				log.Errorf("error downloading state at slot %d: %s", slot, err.Error())
-				continue
+			// if the reorg is at the end of an epoch, or an epoch boundary has been crossed
+			if newReorg.Slot%spec.SlotsPerEpoch == 31 ||
+				headReorgEpoch > baseReorgEpoch {
+
+				slot, root := s.cli.GetFinalizedEndSlotStateRoot()
+				queue = NewStateQueue(slot, root)
+				nextEpochDownload = phase0.Epoch(slot / spec.SlotsPerEpoch)
+				log.Infof("rewinding to finalized %d", nextEpochDownload)
+				s.ReorgRewind(baseReorgEpoch - 1) // delete metrics from next and current state (check statequeue)
 			}
+
+		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
+			s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
+
 		case <-s.ctx.Done():
 			log.Info("context has died, closing state requester routine")
 			return
@@ -136,36 +130,29 @@ func (s *StateAnalyzer) runDownloadStatesFinalized(wgDownload *sync.WaitGroup) {
 }
 
 func (s *StateAnalyzer) DownloadNewState(
-	prevBState *local_spec.AgnosticState,
-	bstate *local_spec.AgnosticState,
-	nextBstate *local_spec.AgnosticState,
+	queue *StateQueue,
 	slot phase0.Slot,
-	finalized bool) error {
+	finalized bool) {
 
 	log := log.WithField("routine", "download")
 	ticker := time.NewTicker(minStateReqTime)
-	// We need three states to calculate both, rewards and maxRewards
 
-	if bstate.AttestingBalance != nil { // in case we already had a bstate
-		*prevBState = *bstate
-	}
-	if nextBstate.AttestingBalance != nil { // in case we already had a nextBstate
-		*bstate = *nextBstate
-	}
-	log.Infof("requesting Beacon State from endpoint: slot %d", slot)
+	log.Infof("requesting Beacon State from endpoint: epoch %d", slot/spec.SlotsPerEpoch)
 	nextBstate, err := s.cli.RequestBeaconState(slot)
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
-		return fmt.Errorf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
+		log.Panicf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
 	}
 
-	if prevBState.AttestingBalance != nil {
+	queue.AddNewState(*nextBstate)
+
+	if queue.Complete() {
 		// only execute tasks if prevBState is something (we have state and nextState in this case)
 
 		epochTask := &EpochTask{
-			NextState: *nextBstate,
-			State:     *bstate,
-			PrevState: *prevBState,
+			NextState: queue.nextState,
+			State:     queue.currentState,
+			PrevState: queue.prevState,
 			Finalized: finalized,
 		}
 
@@ -174,5 +161,13 @@ func (s *StateAnalyzer) DownloadNewState(
 	}
 	// check if the min Request time has been completed (to avoid spaming the API)
 	<-ticker.C
-	return nil
+}
+
+func (s *StateAnalyzer) ReorgRewind(epoch phase0.Epoch) {
+
+	log.Infof("deleting epoch data from %d (included) onwards", epoch)
+	s.dbClient.Persist(db.EpochDropType(epoch))
+	s.dbClient.Persist(db.ProposerDutiesDropType(epoch))
+	s.dbClient.Persist(db.ValidatorRewardsDropType(epoch))
+
 }

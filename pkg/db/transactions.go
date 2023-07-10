@@ -1,16 +1,22 @@
 package db
 
 import (
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 )
 
 var (
 	UpsertTransaction = `
-INSERT INTO t_transactions(
-	f_tx_type, f_chain_id, f_data, f_gas, f_gas_price, f_gas_tip_cap, f_gas_fee_cap, f_value, f_nonce, f_to, f_hash,
-                           f_size, f_slot, f_el_block_number, f_timestamp, f_from, f_contract_address)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-ON CONFLICT DO NOTHING;`
+		INSERT INTO t_transactions(
+			f_tx_type, f_chain_id, f_data, f_gas, f_gas_price, f_gas_tip_cap, f_gas_fee_cap, f_value, f_nonce, f_to, f_hash,
+								f_size, f_slot, f_el_block_number, f_timestamp, f_from, f_contract_address)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+		ON CONFLICT DO NOTHING;`
+
+	DropTransactionsQuery = `
+		DELETE FROM t_transactions
+		WHERE f_slot >= $1;
+`
 )
 
 /**
@@ -50,4 +56,16 @@ func TransactionOperation(transaction *spec.AgnosticTransaction) (string, []inte
 	q, args := insertTransaction(transaction)
 
 	return q, args
+}
+
+type TransactionDropType phase0.Slot
+
+func (s TransactionDropType) Type() spec.ModelType {
+	return spec.TransactionDropModel
+}
+
+func DropTransactions(slot TransactionDropType) (string, []interface{}) {
+	resultArgs := make([]interface{}, 0)
+	resultArgs = append(resultArgs, slot)
+	return DropTransactionsQuery, resultArgs
 }

@@ -1,6 +1,10 @@
 package events
 
-import api "github.com/attestantio/go-eth2-client/api/v1"
+import (
+	api "github.com/attestantio/go-eth2-client/api/v1"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+)
 
 func (e Events) SubscribeToHeadEvents() {
 	// subscribe to head event
@@ -8,6 +12,7 @@ func (e Events) SubscribeToHeadEvents() {
 	if err != nil {
 		log.Panicf("failed to subscribe to head events: %s", err)
 	}
+	log.Infof("subscribed to head events")
 }
 
 func (e *Events) HandleHeadEvent(event *api.Event) {
@@ -17,6 +22,14 @@ func (e *Events) HandleHeadEvent(event *api.Event) {
 	}
 
 	data := event.Data.(*api.HeadEvent) // cast to head event
-	log.Infof("Received a new event: slot %d", data.Slot)
-	e.HeadChan <- data.Slot
+	headEpoch := phase0.Epoch(data.Slot) / spec.SlotsPerEpoch
+
+	log.Infof("Received a new event: slot %d, epoch %d", data.Slot, data.Slot/spec.SlotsPerEpoch)
+	log.Infof("Pending slots for new epoch: %d", (int(headEpoch+1)*spec.EpochSlots)-int(data.Slot))
+
+	select { // only notify if we can
+	case e.HeadChan <- data.Slot:
+	default:
+	}
+
 }

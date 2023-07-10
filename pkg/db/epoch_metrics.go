@@ -47,6 +47,11 @@ var (
 		FROM t_epoch_metrics_summary
 		ORDER BY f_epoch DESC
 		LIMIT 1`
+
+	DropEpochsQuery = `
+	DELETE FROM t_epoch_metrics_summary
+	WHERE f_epoch >= $1;
+`
 )
 
 func insertEpoch(inputEpoch spec.Epoch) (string, []interface{}) {
@@ -85,4 +90,16 @@ func (p *PostgresDBService) ObtainLastEpoch() (phase0.Epoch, error) {
 	rows.Scan(&epoch)
 	rows.Close()
 	return phase0.Epoch(epoch), nil
+}
+
+type EpochDropType phase0.Epoch
+
+func (s EpochDropType) Type() spec.ModelType {
+	return spec.EpochDropModel
+}
+
+func DropEpochs(epoch EpochDropType) (string, []interface{}) {
+	resultArgs := make([]interface{}, 0)
+	resultArgs = append(resultArgs, epoch)
+	return DropEpochsQuery, resultArgs
 }

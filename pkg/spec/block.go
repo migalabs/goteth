@@ -13,6 +13,7 @@ import (
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type AgnosticBlock struct {
 	Slot              phase0.Slot
+	StateRoot         phase0.Root
 	ProposerIndex     phase0.ValidatorIndex
 	Graffiti          [32]byte
 	Proposed          bool

@@ -2,6 +2,7 @@ package clientapi
 
 import (
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
@@ -39,6 +40,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, boo
 		customBlock.Size = uint32(block.Size())
 	}
 
+	customBlock.StateRoot = s.RequestStateRoot(slot)
 	return customBlock, true, nil
 }
 
@@ -90,4 +92,12 @@ func (s APIClient) RequestBlockByHash(hash common.Hash) (*types.Block, error) {
 		return nil, fmt.Errorf("unable to retrieve block by hash %s: %s", hash.String(), err.Error())
 	}
 	return block, nil
+}
+func (s APIClient) RequestCurrentHead() phase0.Slot {
+	head, err := s.Api.BeaconBlockHeader(s.ctx, "head")
+	if err != nil {
+		log.Panicf("could not request current head: %s", err)
+	}
+
+	return head.Header.Message.Slot
 }
