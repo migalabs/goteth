@@ -55,7 +55,7 @@ func (p *PrometheusMetrics) Start() error {
 	go func() {
 		log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%s", p.ExposedIp, p.ExposedPort), nil))
 	}()
-
+	log.Infof("prometheus metrics listening on: %s:%s", p.ExposedIp, p.ExposedPort)
 	err := p.initPrometheusMetrics()
 	if err != nil {
 		return errors.Wrap(err, "unable to init prometheus metrics")
