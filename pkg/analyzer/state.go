@@ -62,7 +62,8 @@ func NewStateAnalyzer(
 	downloadMode string,
 	customPoolsFile string,
 	missingVals bool,
-	metrics string) (*StateAnalyzer, error) {
+	metrics string,
+	prometheusPort int) (*StateAnalyzer, error) {
 	log.Infof("generating new State Analzyer from slots %d:%d", initSlot, finalSlot)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
@@ -105,7 +106,7 @@ func NewStateAnalyzer(
 	}
 
 	// generate the central exporting service
-	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", 9080)
+	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", prometheusPort)
 
 	metricsObj, err := NewMetrics(metrics)
 	if err != nil {

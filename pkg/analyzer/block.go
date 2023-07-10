@@ -49,7 +49,8 @@ func NewBlockAnalyzer(
 	workerNum int,
 	dbWorkerNum int,
 	downloadMode string,
-	enableTransactions bool) (*BlockAnalyzer, error) {
+	enableTransactions bool,
+	prometheusPort int) (*BlockAnalyzer, error) {
 	log.Infof("generating new Block Analzyer from slots %d:%d", initSlot, finalSlot)
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
@@ -68,7 +69,7 @@ func NewBlockAnalyzer(
 	idbClient.Connect()
 
 	// generate the central exporting service
-	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", 9081)
+	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", prometheusPort)
 
 	analyzer := &BlockAnalyzer{
 		ctx:                 ctx,
