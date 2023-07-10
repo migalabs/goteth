@@ -87,6 +87,8 @@ func NewBlockAnalyzer(
 		PromMetrics:         promethMetrics,
 	}
 
+	InitGenesis(analyzer.dbClient, analyzer.cli)
+
 	analyzerMet := analyzer.GetMetrics()
 	promethMetrics.AddMeticsModule(analyzerMet)
 
