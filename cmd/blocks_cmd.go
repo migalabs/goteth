@@ -58,6 +58,10 @@ var BlocksCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:  "enable-transactions",
 			Usage: "example: true,false. Default: false",
+		},
+		&cli.IntFlag{
+			Name:  "prometheus-port",
+			Usage: "example: 9080",
 		}},
 }
 
@@ -72,6 +76,7 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	downloadMode := "hybrid"
 	enableTransactions := false
 	elEndpoint := "" // not mandatory
+	prometheusPort := 9081
 	logBlocks.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
@@ -110,6 +115,9 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	if c.IsSet("enable-transactions") {
 		enableTransactions = c.Bool("enable-transactions")
 	}
+	if c.IsSet("prometheus-port") {
+		prometheusPort = c.Int("prometheus-port")
+	}
 	bnEndpoint := c.String("bn-endpoint")
 	initSlot := uint64(c.Int("init-slot"))
 	finalSlot := uint64(c.Int("final-slot"))
@@ -122,7 +130,7 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	}
 
 	// generate the block analyzer
-	blockAnalyzer, err := analyzer.NewBlockAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, enableTransactions)
+	blockAnalyzer, err := analyzer.NewBlockAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, enableTransactions, prometheusPort)
 	if err != nil {
 		return err
 	}

@@ -64,6 +64,10 @@ var RewardsCommand = &cli.Command{
 			Name:        "metrics",
 			Usage:       "example: epoch,validator, epoch. Empty for all",
 			DefaultText: "epoch",
+		},
+		&cli.IntFlag{
+			Name:  "prometheus-port",
+			Usage: "example: 9080",
 		}},
 }
 
@@ -81,6 +85,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	customPools := ""
 	metrics := "epoch" // By default we only track epochs, other metrics consume too much disk
 	missingVals := false
+	prometheusPort := 9081
 	logRewardsRewards.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
@@ -128,6 +133,9 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	if c.IsSet("metrics") {
 		metrics = c.String("metrics")
 	}
+	if c.IsSet("prometheus-port") {
+		prometheusPort = c.Int("prometheus-port")
+	}
 
 	// generate the httpAPI client
 	cli, err := clientapi.NewAPIClient(c.Context, bnEndpoint, QueryTimeout)
@@ -136,7 +144,7 @@ func LaunchRewardsCalculator(c *cli.Context) error {
 	}
 
 	// generate the state analyzer
-	stateAnalyzer, err := analyzer.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, customPools, missingVals, metrics)
+	stateAnalyzer, err := analyzer.NewStateAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, customPools, missingVals, metrics, prometheusPort)
 	if err != nil {
 		return err
 	}
