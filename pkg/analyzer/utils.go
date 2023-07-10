@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/sirupsen/logrus"
 )
@@ -150,4 +152,19 @@ func (s *SlotRootHistory) CheckFinalized(iSlot phase0.Slot, iRoot phase0.Root) (
 		}
 	}
 	return true, iSlot // slot is not in the history
+}
+
+func InitGenesis(dbClient *db.PostgresDBService, apiClient *clientapi.APIClient) {
+	// Get genesis from the API
+	apiGenesis := apiClient.RequestGenesis()
+
+	// Insert into db, this does nothing if there was a genesis before
+	dbClient.InsertGenesis(apiGenesis.Unix())
+
+	dbGenesis := dbClient.ObtainGenesis()
+
+	if apiGenesis.Unix() != dbGenesis {
+		log.Panicf("the genesis time in the database does not match the API, is the beacon node in the correct network?")
+	}
+
 }
