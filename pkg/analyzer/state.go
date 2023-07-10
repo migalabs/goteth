@@ -12,6 +12,7 @@ import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
+	prom_metrics "github.com/cortze/eth-cl-state-analyzer/pkg/metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec/metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
@@ -47,6 +48,7 @@ type StateAnalyzer struct {
 	processerFinished bool
 	routineClosed     chan struct{}
 	eventsObj         events.Events
+	PromMetrics       *prom_metrics.PrometheusMetrics
 }
 
 func NewStateAnalyzer(
@@ -100,15 +102,17 @@ func NewStateAnalyzer(
 		for _, item := range poolValidators {
 			log.Infof("monitoring pool %s of length %d", item.PoolName, len(item.ValIdxs))
 		}
-
 	}
+
+	// generate the central exporting service
+	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", 9080)
 
 	metricsObj, err := NewMetrics(metrics)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read metric.")
 	}
 
-	return &StateAnalyzer{
+	analyzer := &StateAnalyzer{
 		ctx:                ctx,
 		cancel:             cancel,
 		initSlot:           phase0.Slot(initSlot),
@@ -124,7 +128,13 @@ func NewStateAnalyzer(
 		poolValidators:     poolValidators,
 		missingVals:        missingVals,
 		metrics:            metricsObj,
-	}, nil
+		PromMetrics:        promethMetrics,
+	}
+
+	analyzerMet := analyzer.GetMetrics()
+	promethMetrics.AddMeticsModule(analyzerMet)
+
+	return analyzer, nil
 }
 
 func (s *StateAnalyzer) Run() {
@@ -170,6 +180,8 @@ func (s *StateAnalyzer) Run() {
 		wgWorkers.Add(1)
 		go s.runWorker(wlog, &wgWorkers)
 	}
+
+	s.PromMetrics.Start()
 
 	wgDownload.Wait()
 	s.downloadFinished = true

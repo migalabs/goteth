@@ -8,6 +8,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
+	prom_metrics "github.com/cortze/eth-cl-state-analyzer/pkg/metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
@@ -36,6 +37,7 @@ type BlockAnalyzer struct {
 
 	initTime           time.Time
 	enableTransactions bool
+	PromMetrics        *prom_metrics.PrometheusMetrics
 }
 
 func NewBlockAnalyzer(
@@ -65,7 +67,10 @@ func NewBlockAnalyzer(
 
 	idbClient.Connect()
 
-	return &BlockAnalyzer{
+	// generate the central exporting service
+	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", 9081)
+
+	analyzer := &BlockAnalyzer{
 		ctx:                 ctx,
 		cancel:              cancel,
 		initSlot:            phase0.Slot(initSlot),
@@ -78,7 +83,13 @@ func NewBlockAnalyzer(
 		eventsObj:           events.NewEventsObj(ctx, httpCli),
 		downloadMode:        downloadMode,
 		enableTransactions:  enableTransactions,
-	}, nil
+		PromMetrics:         promethMetrics,
+	}
+
+	analyzerMet := analyzer.GetMetrics()
+	promethMetrics.AddMeticsModule(analyzerMet)
+
+	return analyzer, nil
 }
 
 func (s *BlockAnalyzer) Run() {
@@ -116,6 +127,8 @@ func (s *BlockAnalyzer) Run() {
 
 	wgTransaction.Add(1)
 	go s.runProcessTransactions(&wgTransaction)
+
+	s.PromMetrics.Start()
 
 	wgDownload.Wait()
 	s.downloadFinished = true
