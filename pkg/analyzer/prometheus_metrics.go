@@ -23,18 +23,19 @@ var (
 	})
 )
 
-func (c *StateAnalyzer) GetMetrics() *metrics.MetricsModule {
+func (c *ChainAnalyzer) GetMetrics() *metrics.MetricsModule {
 	metricsMod := metrics.NewMetricsModule(
 		modName,
 		modDetails,
 	)
 	// compose all the metrics
+	metricsMod.AddIndvMetric(c.lastProcessedSlotMetric())
 	metricsMod.AddIndvMetric(c.lastProcessedEpochMetric())
 
 	return metricsMod
 }
 
-func (c *StateAnalyzer) lastProcessedEpochMetric() *metrics.IndvMetrics {
+func (c *ChainAnalyzer) lastProcessedEpochMetric() *metrics.IndvMetrics {
 	initFn := func() error {
 		prometheus.MustRegister(LastProcessedEpoch)
 		return nil
@@ -58,18 +59,7 @@ func (c *StateAnalyzer) lastProcessedEpochMetric() *metrics.IndvMetrics {
 	return lastEpoch
 }
 
-func (c *BlockAnalyzer) GetMetrics() *metrics.MetricsModule {
-	metricsMod := metrics.NewMetricsModule(
-		modName,
-		modDetails,
-	)
-	// compose all the metrics
-	metricsMod.AddIndvMetric(c.lastProcessedSlotMetric())
-
-	return metricsMod
-}
-
-func (c *BlockAnalyzer) lastProcessedSlotMetric() *metrics.IndvMetrics {
+func (c *ChainAnalyzer) lastProcessedSlotMetric() *metrics.IndvMetrics {
 	initFn := func() error {
 		prometheus.MustRegister(LastProcessedSlot)
 		return nil
