@@ -74,7 +74,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 		s.DownloadNewBlock(&rootHistory, phase0.Slot(nextSlotDownload))
 		if nextSlotDownload%spec.SlotsPerEpoch == 0 {
 			// new epoch
-			s.DownloadNewState(&queue, nextSlotDownload-1, false)
+			s.DownloadNewState(&queue, nextSlotDownload-1, true)
 		}
 		nextSlotDownload = nextSlotDownload + 1
 		if s.stop {
@@ -109,7 +109,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 				// if epoch boundary, download state
 				if nextSlotDownload%spec.SlotsPerEpoch == 0 {
 					// new epoch
-					s.DownloadNewState(&queue, nextSlotDownload-1, false)
+					s.DownloadNewState(&queue, nextSlotDownload-1, true)
 				}
 				nextSlotDownload = nextSlotDownload + 1
 
