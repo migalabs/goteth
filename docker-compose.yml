@@ -11,13 +11,13 @@ services:
       --log-level=${ANALYZER_LOG_LEVEL}
       --bn-endpoint=${ANALYZER_BN_ENDPOINT}
       --el-endpoint=${ANALYZER_EL_ENDPOINT:-}
-      --init-slot=${BLOCK_ANALYZER_INIT_SLOT}
-      --final-slot=${BLOCK_ANALYZER_FINAL_SLOT}
+      --init-slot=${ANALYZER_INIT_SLOT}
+      --final-slot=${ANALYZER_FINAL_SLOT}
       --db-url=${ANALYZER_DB_URL}
-      --workers-num=${BLOCK_ANALYZER_WORKERS_NUM}
-      --db-workers-num=${BLOCK_ANALYZER_DB_WORKERS_NUM}
-      --download-mode=${BLOCK_ANALYZER_DOWNLOAD_MODE}
-      --metrics=${STATE_ANALYZER_METRICS}
+      --workers-num=${ANALYZER_WORKERS_NUM}
+      --db-workers-num=${ANALYZER_DB_WORKERS_NUM}
+      --download-mode=${ANALYZER_DOWNLOAD_MODE}
+      --metrics=${ANALYZER_METRICS}
       --prometheus-port=${BLOCK_PROMETHEUS_PORT:-9081}
     network_mode: 'host'
     restart: unless-stopped
