@@ -11,7 +11,7 @@ import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
-func (s *StateAnalyzer) runProcessState(wgProcess *sync.WaitGroup) {
+func (s *ChainAnalyzer) runProcessState(wgProcess *sync.WaitGroup) {
 	defer wgProcess.Done()
 	log.Info("Launching Beacon State Pre-Processer")
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
