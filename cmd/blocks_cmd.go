@@ -57,10 +57,6 @@ var BlocksCommand = &cli.Command{
 			Usage: "example: hybrid,historical,finalized. Default: hybrid",
 		},
 		&cli.StringFlag{
-			Name:  "enable-transactions",
-			Usage: "example: true,false. Default: false",
-		},
-		&cli.StringFlag{
 			Name:        "metrics",
 			Usage:       "example: epoch,validator, epoch. Empty for all",
 			DefaultText: "epoch",
