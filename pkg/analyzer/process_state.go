@@ -4,8 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/spec/phase0"
-
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec/metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
@@ -41,25 +39,6 @@ loop:
 				// in case no validators provided, do all the existing ones in the next epoch
 				valIdxs := stateMetrics.GetMetricsBase().NextState.GetAllVals()
 				validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
-
-				if len(s.poolValidators) > 0 { // in case the user introduces custom pools
-					validatorBatches = s.poolValidators
-
-					valMatrix := make([][]phase0.ValidatorIndex, len(validatorBatches))
-
-					for i, item := range validatorBatches {
-						valMatrix[i] = make([]phase0.ValidatorIndex, 0)
-						valMatrix[i] = item.ValIdxs
-					}
-
-					if s.missingVals {
-						othersMissingList := utils.ObtainMissing(len(valIdxs), valMatrix)
-						// now allValList should contain those validators that do not belong to any pool
-						// keep track of those in a separate pool
-						validatorBatches = utils.AddOthersPool(validatorBatches, othersMissingList)
-					}
-
-				}
 
 				for _, item := range validatorBatches {
 					valTask := &ValTask{
