@@ -6,14 +6,16 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 // This routine is able to download block by block in the slot range
-func (s *BlockAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
+func (s *ChainAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
 	rootHistory := NewSlotHistory()
+	queue := StateQueue{}
 
 loop:
 	// loop over the list of slots that we need to analyze
@@ -33,6 +35,12 @@ loop:
 			log.Infof("requesting Beacon Block from endpoint: slot %d", slot)
 			s.DownloadNewBlock(&rootHistory, phase0.Slot(slot))
 
+			// if epoch boundary, download state
+			if slot%spec.SlotsPerEpoch == 0 {
+				// new epoch
+				s.DownloadNewState(&queue, slot-1, false)
+			}
+
 		}
 
 	}
@@ -40,7 +48,7 @@ loop:
 	log.Infof("Block Download routine finished")
 }
 
-func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
+func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Finalized Requester")
 
@@ -48,20 +56,26 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	// ------ fill from last epoch in database to current head -------
 
 	// obtain current head
-	headSlot, _ := s.cli.GetFinalizedEndSlotStateRoot()
+	headSlot, headRoot := s.cli.GetFinalizedEndSlotStateRoot()
 
 	// obtain last epoch in database
 	nextSlotDownload, err := s.dbClient.ObtainLastSlot()
 	if err != nil {
 		log.Errorf("could not obtain last slot in database: %s", err)
 	}
-	if nextSlotDownload == 0 {
+	if nextSlotDownload == 0 || nextSlotDownload > headSlot {
 		nextSlotDownload = headSlot
 	}
 
+	nextSlotDownload = nextSlotDownload - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
+	queue := NewStateQueue(headSlot, headRoot)
 	for nextSlotDownload < headSlot {
 		log.Infof("filling missing blocks: %d", nextSlotDownload)
 		s.DownloadNewBlock(&rootHistory, phase0.Slot(nextSlotDownload))
+		if nextSlotDownload%spec.SlotsPerEpoch == 0 {
+			// new epoch
+			s.DownloadNewState(&queue, nextSlotDownload-1, false)
+		}
 		nextSlotDownload = nextSlotDownload + 1
 		if s.stop {
 			log.Info("sudden shutdown detected, block downloader routine")
@@ -84,13 +98,21 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			log.Infof("received new head signal: %d", headSlot)
 
 			for nextSlotDownload <= headSlot {
-				log.Infof("downloading block: %d", nextSlotDownload)
-				s.DownloadNewBlock(&rootHistory, phase0.Slot(nextSlotDownload))
-				nextSlotDownload = nextSlotDownload + 1
 				if s.stop {
 					log.Info("sudden shutdown detected, block downloader routine")
 					return
 				}
+
+				log.Infof("downloading block: %d", nextSlotDownload)
+				s.DownloadNewBlock(&rootHistory, phase0.Slot(nextSlotDownload))
+
+				// if epoch boundary, download state
+				if nextSlotDownload%spec.SlotsPerEpoch == 0 {
+					// new epoch
+					s.DownloadNewState(&queue, nextSlotDownload-1, false)
+				}
+				nextSlotDownload = nextSlotDownload + 1
+
 			}
 		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
 			s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
@@ -116,7 +138,7 @@ func (s *BlockAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	}
 }
 
-func (s BlockAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Slot) {
+func (s ChainAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Slot) {
 
 	ticker := time.NewTicker(minBlockReqTime)
 	newBlock, proposed, err := s.cli.RequestBeaconBlock(slot)
@@ -135,7 +157,7 @@ func (s BlockAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 	s.blockTaskChan <- blockTask
 
 	// store transactions if it has been enabled
-	if s.enableTransactions {
+	if s.metrics.Transactions {
 		transactions, err := s.cli.RequestTransactionDetails(newBlock)
 		if err == nil {
 			transactionTask := &TransactionTask{
@@ -151,11 +173,17 @@ func (s BlockAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 	// check if the min Request time has been completed (to avoid spaming the API)
 }
 
-func (s *BlockAnalyzer) ReorgRewind(slot phase0.Slot) {
+func (s *ChainAnalyzer) ReorgRewind(slot phase0.Slot) {
 
 	log.Infof("deleting block data from %d (included) onwards", slot)
 	s.dbClient.Persist(db.BlockDropType(slot))
 	s.dbClient.Persist(db.TransactionDropType(slot))
 	s.dbClient.Persist(db.WithdrawalDropType(slot))
+
+	epoch := slot / spec.SlotsPerEpoch
+	log.Infof("deleting epoch data from %d (included) onwards", epoch)
+	s.dbClient.Persist(db.EpochDropType(epoch))
+	s.dbClient.Persist(db.ProposerDutiesDropType(epoch))
+	s.dbClient.Persist(db.ValidatorRewardsDropType(epoch))
 
 }
