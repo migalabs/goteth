@@ -8,7 +8,7 @@ import (
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
-func (s *BlockAnalyzer) runProcessBlock(wgProcess *sync.WaitGroup) {
+func (s *ChainAnalyzer) runProcessBlock(wgProcess *sync.WaitGroup) {
 	defer wgProcess.Done()
 
 	log.Info("Launching Beacon Block Processor")

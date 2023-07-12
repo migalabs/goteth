@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (s *StateAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup) {
+func (s *ChainAnalyzer) runWorker(wlog *logrus.Entry, wgWorkers *sync.WaitGroup) {
 	defer wgWorkers.Done()
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 

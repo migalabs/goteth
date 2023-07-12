@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -56,8 +57,9 @@ var BlocksCommand = &cli.Command{
 			Usage: "example: hybrid,historical,finalized. Default: hybrid",
 		},
 		&cli.StringFlag{
-			Name:  "enable-transactions",
-			Usage: "example: true,false. Default: false",
+			Name:        "metrics",
+			Usage:       "example: epoch,validator, epoch. Empty for all",
+			DefaultText: "epoch",
 		},
 		&cli.IntFlag{
 			Name:  "prometheus-port",
@@ -65,19 +67,21 @@ var BlocksCommand = &cli.Command{
 		}},
 }
 
-var logBlocks = logrus.WithField(
-	"module", "BlocksCommand",
+var logCmdChain = logrus.WithField(
+	"module", "chainCommand",
 )
+
+var QueryTimeout = 90 * time.Second
 
 // CrawlAction is the function that is called when running `eth2`.
 func LaunchBlockMetrics(c *cli.Context) error {
 	coworkers := 1
 	dbWorkers := 1
 	downloadMode := "hybrid"
-	enableTransactions := false
 	elEndpoint := "" // not mandatory
 	prometheusPort := 9081
-	logBlocks.Info("parsing flags")
+	metrics := "epoch"
+	logCmdChain.Info("parsing flags")
 	// check if a config file is set
 	if !c.IsSet("bn-endpoint") {
 		return errors.New("bn endpoint not provided")
@@ -98,25 +102,25 @@ func LaunchBlockMetrics(c *cli.Context) error {
 		return errors.New("db-url not provided")
 	}
 	if !c.IsSet("download-mode") {
-		logRewardsRewards.Infof("download mode flag not provided, default: hybrid")
+		logCmdChain.Infof("download mode flag not provided, default: hybrid")
 	} else {
 		downloadMode = c.String("download-mode")
 	}
 	if !c.IsSet("workers-num") {
-		logBlocks.Infof("workers-num flag not provided, default: 1")
+		logCmdChain.Infof("workers-num flag not provided, default: 1")
 	} else {
 		coworkers = c.Int("workers-num")
 	}
 	if !c.IsSet("db-workers-num") {
-		logBlocks.Infof("db-workers-num flag not provided, default: 1")
+		logCmdChain.Infof("db-workers-num flag not provided, default: 1")
 	} else {
 		dbWorkers = c.Int("db-workers-num")
 	}
-	if c.IsSet("enable-transactions") {
-		enableTransactions = c.Bool("enable-transactions")
-	}
 	if c.IsSet("prometheus-port") {
 		prometheusPort = c.Int("prometheus-port")
+	}
+	if c.IsSet("metrics") {
+		metrics = c.String("metrics")
 	}
 	bnEndpoint := c.String("bn-endpoint")
 	initSlot := uint64(c.Int("init-slot"))
@@ -130,7 +134,7 @@ func LaunchBlockMetrics(c *cli.Context) error {
 	}
 
 	// generate the block analyzer
-	blockAnalyzer, err := analyzer.NewBlockAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, enableTransactions, prometheusPort)
+	blockAnalyzer, err := analyzer.NewChainAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, metrics, prometheusPort)
 	if err != nil {
 		return err
 	}
@@ -147,11 +151,11 @@ func LaunchBlockMetrics(c *cli.Context) error {
 
 	select {
 	case <-sigtermC:
-		logBlocks.Info("Sudden shutdown detected, controlled shutdown of the cli triggered")
+		logCmdChain.Info("Sudden shutdown detected, controlled shutdown of the cli triggered")
 		blockAnalyzer.Close()
 
 	case <-procDoneC:
-		logBlocks.Info("Process successfully finish!")
+		logCmdChain.Info("Process successfully finish!")
 	}
 	close(sigtermC)
 	close(procDoneC)

@@ -8,7 +8,7 @@ import (
 )
 
 // process transactions and persist the data
-func (s *BlockAnalyzer) runProcessTransactions(wgProcess *sync.WaitGroup) {
+func (s *ChainAnalyzer) runProcessTransactions(wgProcess *sync.WaitGroup) {
 	defer wgProcess.Done()
 
 	log.Info("Launching Beacon Block Transactions Processor")
