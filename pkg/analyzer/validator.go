@@ -64,17 +64,6 @@ loop:
 					s.dbClient.Persist(maxRewards)
 				}
 
-				if s.metrics.PoolSummary && valTask.PoolName != "" {
-					summaryMet.AddValidator(maxRewards)
-				}
-
-			}
-
-			if s.metrics.PoolSummary && summaryMet.PoolName != "" {
-				// only send summary batch in case pools were introduced by the user and we have a name to identify it
-
-				wlog.Debugf("Sending pool summary batch (%s) to be stored...", summaryMet.PoolName)
-				s.dbClient.Persist(summaryMet)
 			}
 			wlog.Debugf("Validator group processed, worker freed for next group. Took %f seconds", time.Since(snapshot).Seconds())
 
