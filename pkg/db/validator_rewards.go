@@ -7,7 +7,7 @@ import (
 
 // Postgres intregration variables
 var (
-	UpsertValidator = `
+	InsertValidator = `
 	INSERT INTO t_validator_rewards_summary (	
 		f_val_idx, 
 		f_epoch, 
@@ -50,7 +50,7 @@ func insertValidator(inputValidator spec.ValidatorRewards) (string, []interface{
 	resultArgs = append(resultArgs, inputValidator.MissingTarget)
 	resultArgs = append(resultArgs, inputValidator.MissingHead)
 	resultArgs = append(resultArgs, inputValidator.Status)
-	return UpsertValidator, resultArgs
+	return InsertValidator, resultArgs
 }
 
 func ValidatorOperation(inputValidator spec.ValidatorRewards) (string, []interface{}) {
