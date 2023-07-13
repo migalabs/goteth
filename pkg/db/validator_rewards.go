@@ -25,19 +25,7 @@ var (
 		f_status)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	ON CONFLICT ON CONSTRAINT t_validator_rewards_summary_pkey
-		DO 
-			UPDATE SET 
-				f_epoch = excluded.f_epoch, 
-				f_balance_eth = excluded.f_balance_eth,
-				f_reward = excluded.f_reward,
-				f_max_reward = excluded.f_max_reward,
-				f_att_slot = excluded.f_att_slot,
-				f_base_reward = excluded.f_base_reward,
-				f_in_sync_committee = excluded.f_in_sync_committee,
-				f_missing_source = excluded.f_missing_source,
-				f_missing_target = excluded.f_missing_target,
-				f_missing_head = excluded.f_missing_head,
-				f_status = excluded.f_status;
+		DO NOTHING;
 	`
 
 	DropValidatorRewardsQuery = `
