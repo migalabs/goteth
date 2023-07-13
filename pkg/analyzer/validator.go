@@ -24,12 +24,6 @@ loop:
 			// Proccess State
 			snapshot := time.Now()
 
-			// batch metrics
-			summaryMet := spec.PoolSummary{
-				PoolName: valTask.PoolName,
-				Epoch:    valTask.StateMetricsObj.GetMetricsBase().NextState.Epoch,
-			}
-
 			// process each validator
 			for _, valIdx := range valTask.ValIdxs {
 
