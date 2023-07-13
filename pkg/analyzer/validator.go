@@ -24,12 +24,6 @@ loop:
 			// Proccess State
 			snapshot := time.Now()
 
-			// batch metrics
-			summaryMet := spec.PoolSummary{
-				PoolName: valTask.PoolName,
-				Epoch:    valTask.StateMetricsObj.GetMetricsBase().NextState.Epoch,
-			}
-
 			// process each validator
 			for _, valIdx := range valTask.ValIdxs {
 
@@ -47,28 +41,23 @@ loop:
 				if valTask.Finalized {
 					// Only update validator last status on Finalized
 					// We will always receive higher epochs
+					validator := valTask.StateMetricsObj.GetMetricsBase().CurrentState.Validators[valIdx]
 					s.dbClient.Persist(spec.ValidatorLastStatus{
-						ValIdx:         phase0.ValidatorIndex(valIdx),
-						Epoch:          valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch,
-						CurrentBalance: valTask.StateMetricsObj.GetMetricsBase().NextState.Balances[valIdx],
-						CurrentStatus:  maxRewards.Status,
+						ValIdx:          phase0.ValidatorIndex(valIdx),
+						Epoch:           valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch,
+						CurrentBalance:  valTask.StateMetricsObj.GetMetricsBase().CurrentState.Balances[valIdx],
+						CurrentStatus:   maxRewards.Status,
+						Slashed:         validator.Slashed,
+						ActivationEpoch: validator.ActivationEpoch,
+						WithdrawalEpoch: validator.WithdrawableEpoch,
+						ExitEpoch:       validator.ExitEpoch,
+						PublicKey:       validator.PublicKey,
 					})
 				}
 				if s.metrics.ValidatorRewards { // only if flag is activated
 					s.dbClient.Persist(maxRewards)
 				}
 
-				if s.metrics.PoolSummary && valTask.PoolName != "" {
-					summaryMet.AddValidator(maxRewards)
-				}
-
-			}
-
-			if s.metrics.PoolSummary && summaryMet.PoolName != "" {
-				// only send summary batch in case pools were introduced by the user and we have a name to identify it
-
-				wlog.Debugf("Sending pool summary batch (%s) to be stored...", summaryMet.PoolName)
-				s.dbClient.Persist(summaryMet)
 			}
 			wlog.Debugf("Validator group processed, worker freed for next group. Took %f seconds", time.Since(snapshot).Seconds())
 
