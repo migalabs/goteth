@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_slot ON t_block_metrics(f_slot)
