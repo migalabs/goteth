@@ -23,7 +23,7 @@ var (
 	})
 )
 
-func (c *ChainAnalyzer) GetMetrics() *metrics.MetricsModule {
+func (c *ChainAnalyzer) GetPrometheusMetrics() *metrics.MetricsModule {
 	metricsMod := metrics.NewMetricsModule(
 		modName,
 		modDetails,
