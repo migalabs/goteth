@@ -15,6 +15,7 @@ var (
 	moduleName = "API-Cli"
 	log        = logrus.WithField(
 		"module", "")
+	QueryTimeout = time.Second * 90
 )
 
 type APIClientOption func(*APIClient) error
@@ -25,7 +26,7 @@ type APIClient struct {
 	ELApi *ethclient.Client // Execution Node
 }
 
-func NewAPIClient(ctx context.Context, bnEndpoint string, timeout time.Duration, options ...APIClientOption) (*APIClient, error) {
+func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOption) (*APIClient, error) {
 	log.Debugf("generating http client at %s", bnEndpoint)
 
 	apiService := &APIClient{
@@ -36,7 +37,7 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, timeout time.Duration,
 		ctx,
 		http.WithAddress(bnEndpoint),
 		http.WithLogLevel(zerolog.WarnLevel),
-		http.WithTimeout(timeout),
+		http.WithTimeout(QueryTimeout),
 	)
 	if err != nil {
 		return &APIClient{}, err
