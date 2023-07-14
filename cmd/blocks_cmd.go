@@ -6,13 +6,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/config"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/analyzer"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 var BlocksCommand = &cli.Command{
@@ -75,66 +73,12 @@ var QueryTimeout = 90 * time.Second
 
 // CrawlAction is the function that is called when running `eth2`.
 func LaunchBlockMetrics(c *cli.Context) error {
-	coworkers := 1
-	dbWorkers := 1
-	downloadMode := "hybrid"
-	elEndpoint := "" // not mandatory
-	prometheusPort := 9081
-	metrics := "epoch"
-	logCmdChain.Info("parsing flags")
-	// check if a config file is set
-	if !c.IsSet("bn-endpoint") {
-		return errors.New("bn endpoint not provided")
-	}
-	if c.IsSet("el-endpoint") {
-		elEndpoint = c.String("el-endpoint")
-	}
-	if !c.IsSet("init-slot") {
-		return errors.New("final slot not provided")
-	}
-	if !c.IsSet("final-slot") {
-		return errors.New("final slot not provided")
-	}
-	if c.IsSet("log-level") {
-		logrus.SetLevel(utils.ParseLogLevel(c.String("log-level")))
-	}
-	if !c.IsSet("db-url") {
-		return errors.New("db-url not provided")
-	}
-	if !c.IsSet("download-mode") {
-		logCmdChain.Infof("download mode flag not provided, default: hybrid")
-	} else {
-		downloadMode = c.String("download-mode")
-	}
-	if !c.IsSet("workers-num") {
-		logCmdChain.Infof("workers-num flag not provided, default: 1")
-	} else {
-		coworkers = c.Int("workers-num")
-	}
-	if !c.IsSet("db-workers-num") {
-		logCmdChain.Infof("db-workers-num flag not provided, default: 1")
-	} else {
-		dbWorkers = c.Int("db-workers-num")
-	}
-	if c.IsSet("prometheus-port") {
-		prometheusPort = c.Int("prometheus-port")
-	}
-	if c.IsSet("metrics") {
-		metrics = c.String("metrics")
-	}
-	bnEndpoint := c.String("bn-endpoint")
-	initSlot := uint64(c.Int("init-slot"))
-	finalSlot := uint64(c.Int("final-slot"))
-	dbUrl := c.String("db-url")
 
-	// generate the httpAPI client
-	cli, err := clientapi.NewAPIClient(c.Context, bnEndpoint, QueryTimeout, clientapi.WithELEndpoint(elEndpoint))
-	if err != nil {
-		return err
-	}
+	conf := config.NewAnalyzerConfig()
+	conf.Apply(c)
 
 	// generate the block analyzer
-	blockAnalyzer, err := analyzer.NewChainAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, metrics, prometheusPort)
+	blockAnalyzer, err := analyzer.NewChainAnalyzer(c.Context, *conf)
 	if err != nil {
 		return err
 	}

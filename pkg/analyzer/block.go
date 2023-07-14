@@ -7,6 +7,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/config"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	prom_metrics "github.com/cortze/eth-cl-state-analyzer/pkg/metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
@@ -52,63 +53,65 @@ type ChainAnalyzer struct {
 
 func NewChainAnalyzer(
 	pCtx context.Context,
-	httpCli *clientapi.APIClient,
-	initSlot uint64,
-	finalSlot uint64,
-	idbUrl string,
-	workerNum int,
-	dbWorkerNum int,
-	downloadMode string,
-	metrics string,
-	prometheusPort int) (*ChainAnalyzer, error) {
-	log.Infof("generating new Block Analyzer from slots %d:%d", initSlot, finalSlot)
+	iConfig config.AnalyzerConfig) (*ChainAnalyzer, error) {
+
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
 
 	// calculate the list of slots that we will analyze
-	slotRanges := make([]uint64, 0)
 
-	if downloadMode == "hybrid" || downloadMode == "historical" {
-		log.Debug("slotRanges are:", slotRanges)
+	if iConfig.DownloadMode == "hybrid" || iConfig.DownloadMode == "historical" {
+
+		if iConfig.FinalSlot <= iConfig.InitSlot {
+			return &ChainAnalyzer{}, errors.Errorf("Final Slot cannot be greater than Init Slot")
+		}
+
+		log.Infof("generating new Block Analyzer from slots %d:%d", iConfig.InitSlot, iConfig.FinalSlot)
 	}
 
-	metricsObj, err := NewMetrics(metrics)
+	metricsObj, err := NewMetrics(iConfig.Metrics)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read metric.")
 	}
 
-	idbClient, err := db.New(ctx, idbUrl, db.WithWorkers(dbWorkerNum))
+	idbClient, err := db.New(ctx, iConfig.DBUrl, db.WithWorkers(iConfig.DbWorkerNum))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate DB Client.")
 	}
 
 	idbClient.Connect()
 
+	// generate the httpAPI client
+	cli, err := clientapi.NewAPIClient(pCtx, iConfig.BnEndpoint, clientapi.WithELEndpoint(iConfig.ElEndpoint))
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to generate API Client.")
+	}
+
 	// generate the central exporting service
-	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", prometheusPort)
+	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", iConfig.PrometheusPort)
 
 	analyzer := &ChainAnalyzer{
 		ctx:                 ctx,
 		cancel:              cancel,
-		initSlot:            phase0.Slot(initSlot),
-		finalSlot:           phase0.Slot(finalSlot),
+		initSlot:            phase0.Slot(iConfig.InitSlot),
+		finalSlot:           phase0.Slot(iConfig.FinalSlot),
 		epochTaskChan:       make(chan *EpochTask, 1),
-		valTaskChan:         make(chan *ValTask, workerNum),
+		valTaskChan:         make(chan *ValTask, iConfig.WorkerNum),
 		blockTaskChan:       make(chan *BlockTask, 1),
 		transactionTaskChan: make(chan *TransactionTask, 1),
-		validatorWorkerNum:  workerNum,
-		cli:                 httpCli,
+		validatorWorkerNum:  iConfig.WorkerNum,
+		cli:                 cli,
 		dbClient:            idbClient,
 		routineClosed:       make(chan struct{}, 1),
-		eventsObj:           events.NewEventsObj(ctx, httpCli),
-		downloadMode:        downloadMode,
+		eventsObj:           events.NewEventsObj(ctx, cli),
+		downloadMode:        iConfig.DownloadMode,
 		metrics:             metricsObj,
 		PromMetrics:         promethMetrics,
 	}
 
 	InitGenesis(analyzer.dbClient, analyzer.cli)
 
-	analyzerMet := analyzer.GetMetrics()
+	analyzerMet := analyzer.GetPrometheusMetrics()
 	promethMetrics.AddMeticsModule(analyzerMet)
 
 	return analyzer, nil
