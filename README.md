@@ -33,31 +33,15 @@ To execute the tool, you can simply modify the `.env` file with your own configu
 make run
 ```
 
-
-
-
 *Available Commands*:
 ```
 COMMANDS:
-   rewards  analyze the Beacon State of a given slot range
    blocks   analyze the Beacon Block of a given slot range
    help, h  Shows a list of commands or help for one command
 ```
 
 *Available Options (configurable in the `.env` file)*
 ```
-Rewards
-OPTIONS:
-   --bn-endpoint value        beacon node endpoint (to request the BeaconStates)
-   --init-slot value          init slot from where to start (default: 0)
-   --final-slot value         init slot from where to finish (default: 0)
-   --log-level value          log level: debug, warn, info, error
-   --db-url value             example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states
-   --workers-num value        example: 50 (default: 0)
-   --db-workers-num value     example: 50 (default: 0)
-   --custom-pools value       example: pools.csv. Columns: f_val_idx,pool_name (Experimental)
-   --metrics value            example: epoch,validator, epoch. Empty for all (default: epoch)
-   --help, -h                 show help (default: false)
 
 Blocks
 OPTIONS:
@@ -70,6 +54,7 @@ OPTIONS:
    --workers-num value     example: 50 (default: 0)
    --db-workers-num value  example: 50 (default: 0)
    --download-mode value   example: hybrid,historical,finalized. Default: hybrid
+   --metrics value         example: epoch,validator,transactions. Empty for all (default: epoch)
    --help, -h              show help (default: false)
 ```
 
