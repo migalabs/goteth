@@ -122,7 +122,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			log.Infof("rewinding to %d", newReorg.Slot-phase0.Slot(newReorg.Depth))
 
 			nextSlotDownload = newReorg.Slot - phase0.Slot(newReorg.Depth) + 1
-			s.ReorgRewind(nextSlotDownload)
+			s.ReorgRewind(nextSlotDownload, newReorg.Slot)
 			queue.ReOrganizeReorg(phase0.Epoch(nextSlotDownload / spec.SlotsPerEpoch))
 
 		case <-s.ctx.Done():
@@ -174,17 +174,22 @@ func (s ChainAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 	// check if the min Request time has been completed (to avoid spaming the API)
 }
 
-func (s *ChainAnalyzer) ReorgRewind(slot phase0.Slot) {
+func (s *ChainAnalyzer) ReorgRewind(baseSlot phase0.Slot, slot phase0.Slot) {
 
 	log.Infof("deleting block data from %d (included) onwards", slot)
 	s.dbClient.Persist(db.BlockDropType(slot))
 	s.dbClient.Persist(db.TransactionDropType(slot))
 	s.dbClient.Persist(db.WithdrawalDropType(slot))
 
-	epoch := slot / spec.SlotsPerEpoch
-	log.Infof("deleting epoch data from %d (included) onwards", epoch)
-	s.dbClient.Persist(db.EpochDropType(epoch))
-	s.dbClient.Persist(db.ProposerDutiesDropType(epoch))
-	s.dbClient.Persist(db.ValidatorRewardsDropType(epoch))
+	baseEpoch := phase0.Epoch(baseSlot / spec.SlotsPerEpoch)
+	reorgEpoch := phase0.Epoch(slot / spec.SlotsPerEpoch)
+	if slot%spec.SlotsPerEpoch == 31 || // end of epoch
+		baseEpoch != reorgEpoch { // the reorg crosses and epoch boundary
+		epoch := slot / spec.SlotsPerEpoch
+		log.Infof("deleting epoch data from %d (included) onwards", epoch)
+		s.dbClient.Persist(db.EpochDropType(epoch))
+		s.dbClient.Persist(db.ProposerDutiesDropType(epoch))
+		s.dbClient.Persist(db.ValidatorRewardsDropType(epoch))
+	}
 
 }
