@@ -123,6 +123,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 
 			nextSlotDownload = newReorg.Slot - phase0.Slot(newReorg.Depth) + 1
 			s.ReorgRewind(nextSlotDownload)
+			queue.ReOrganizeReorg(phase0.Epoch(nextSlotDownload / spec.SlotsPerEpoch))
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")

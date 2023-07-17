@@ -81,6 +81,19 @@ func (s *StateQueue) AddRoot(iSlot phase0.Slot, iRoot phase0.Root) {
 	})
 }
 
+func (s *StateQueue) ReOrganizeReorg(baseEpoch phase0.Epoch) {
+
+	for s.currentState.Epoch >= baseEpoch {
+		// we need to rewrite metrics
+		// rewrite epoch metrics which are the earliest written (at the currentstate)
+		// validator metrics are written at nextstate, so they will be written anyways
+
+		s.nextState = s.currentState
+		s.currentState = s.prevState
+		s.prevState = spec.AgnosticState{} // epoch = 0, the loop will stop after three loops
+	}
+}
+
 func (s *StateQueue) CheckFinalized(iSlot phase0.Slot, iRoot phase0.Root) (phase0.Epoch, bool) {
 
 	if s.LatestFinalized.Epoch == 0 {
