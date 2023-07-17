@@ -83,7 +83,7 @@ func (s *StateQueue) AddRoot(iSlot phase0.Slot, iRoot phase0.Root) {
 
 func (s *StateQueue) ReOrganizeReorg(baseEpoch phase0.Epoch) {
 
-	for s.currentState.Epoch >= baseEpoch {
+	for s.nextState.Epoch >= baseEpoch {
 		// we need to rewrite metrics
 		// rewrite epoch metrics which are the earliest written (at the currentstate)
 		// validator metrics are written at nextstate, so they will be written anyways
