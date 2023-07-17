@@ -6,13 +6,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/config"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/analyzer"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 )
 
 var BlocksCommand = &cli.Command{
@@ -21,49 +19,70 @@ var BlocksCommand = &cli.Command{
 	Action: LaunchBlockMetrics,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "bn-endpoint",
-			Usage: "beacon node endpoint (to request the Beacon States and Blocks)",
+			Name:        "bn-endpoint",
+			Usage:       "Beacon node endpoint (to request the Beacon States and Blocks)",
+			EnvVars:     []string{"ANALYZER_BN_ENDPOINT"},
+			DefaultText: "http://localhost:5052",
 		},
 		&cli.StringFlag{
-			Name:  "el-endpoint",
-			Usage: "execution node endpoint (to request more specific data on Blocks)",
+			Name:        "el-endpoint",
+			Usage:       "Execution node endpoint (to request more specific data on Blocks)",
+			EnvVars:     []string{"ANALYZER_EL_ENDPOINT"},
+			DefaultText: "http://localhost:8545",
 		},
 		&cli.IntFlag{
-			Name:  "init-slot",
-			Usage: "init slot from where to start",
+			Name:        "init-slot",
+			Usage:       "Slot from where to start the backfill",
+			EnvVars:     []string{"ANALYZER_INIT_SLOT"},
+			DefaultText: "0",
 		},
 		&cli.IntFlag{
-			Name:  "final-slot",
-			Usage: "init slot from where to finish",
+			Name:        "final-slot",
+			Usage:       "Slot from where to finish the backfill",
+			EnvVars:     []string{"ANALYZER_FINAL_SLOT"},
+			DefaultText: "0",
 		},
 		&cli.StringFlag{
-			Name:  "log-level",
-			Usage: "log level: debug, warn, info, error",
+			Name:        "log-level",
+			Usage:       "Log level: debug, warn, info, error",
+			EnvVars:     []string{"ANALYZER_LOG_LEVEL"},
+			DefaultText: "info",
 		},
 		&cli.StringFlag{
-			Name:  "db-url",
-			Usage: "example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states",
+			Name:        "db-url",
+			Usage:       "Database where to persist the metrics",
+			EnvVars:     []string{"ANALYZER_DB_URL"},
+			DefaultText: "postgres://user:password@localhost:5432/goteth",
 		},
 		&cli.IntFlag{
-			Name:  "workers-num",
-			Usage: "example: 50",
+			Name:        "workers-num",
+			Usage:       "Number of workers to process validators",
+			EnvVars:     []string{"ANALYZER_WORKER_NUM"},
+			DefaultText: "4",
 		},
 		&cli.IntFlag{
-			Name:  "db-workers-num",
-			Usage: "example: 50",
+			Name:        "db-workers-num",
+			Usage:       "Number of workers to process database operations",
+			EnvVars:     []string{"ANALYZER_DB_WORKER_NUM"},
+			DefaultText: "4",
 		},
 		&cli.StringFlag{
-			Name:  "download-mode",
-			Usage: "example: hybrid,historical,finalized. Default: hybrid",
+			Name:        "download-mode",
+			Usage:       "Either backfill specified slots or follow the chain head example: hybrid,historical,finalized",
+			EnvVars:     []string{"ANALYZER_DOWNLOAD_MODE"},
+			DefaultText: "finalized",
 		},
 		&cli.StringFlag{
 			Name:        "metrics",
-			Usage:       "example: epoch,validator, epoch. Empty for all",
+			Usage:       "Metrics to be persisted to the database",
+			EnvVars:     []string{"ANALYZER_METRICS"},
 			DefaultText: "epoch",
 		},
 		&cli.IntFlag{
-			Name:  "prometheus-port",
-			Usage: "example: 9080",
+			Name:        "prometheus-port",
+			Usage:       "Port on which to expose prometheus metrics",
+			EnvVars:     []string{"ANALYZER_PROMETHEUS_PORT"},
+			DefaultText: "9080",
 		}},
 }
 
@@ -75,66 +94,12 @@ var QueryTimeout = 90 * time.Second
 
 // CrawlAction is the function that is called when running `eth2`.
 func LaunchBlockMetrics(c *cli.Context) error {
-	coworkers := 1
-	dbWorkers := 1
-	downloadMode := "hybrid"
-	elEndpoint := "" // not mandatory
-	prometheusPort := 9081
-	metrics := "epoch"
-	logCmdChain.Info("parsing flags")
-	// check if a config file is set
-	if !c.IsSet("bn-endpoint") {
-		return errors.New("bn endpoint not provided")
-	}
-	if c.IsSet("el-endpoint") {
-		elEndpoint = c.String("el-endpoint")
-	}
-	if !c.IsSet("init-slot") {
-		return errors.New("final slot not provided")
-	}
-	if !c.IsSet("final-slot") {
-		return errors.New("final slot not provided")
-	}
-	if c.IsSet("log-level") {
-		logrus.SetLevel(utils.ParseLogLevel(c.String("log-level")))
-	}
-	if !c.IsSet("db-url") {
-		return errors.New("db-url not provided")
-	}
-	if !c.IsSet("download-mode") {
-		logCmdChain.Infof("download mode flag not provided, default: hybrid")
-	} else {
-		downloadMode = c.String("download-mode")
-	}
-	if !c.IsSet("workers-num") {
-		logCmdChain.Infof("workers-num flag not provided, default: 1")
-	} else {
-		coworkers = c.Int("workers-num")
-	}
-	if !c.IsSet("db-workers-num") {
-		logCmdChain.Infof("db-workers-num flag not provided, default: 1")
-	} else {
-		dbWorkers = c.Int("db-workers-num")
-	}
-	if c.IsSet("prometheus-port") {
-		prometheusPort = c.Int("prometheus-port")
-	}
-	if c.IsSet("metrics") {
-		metrics = c.String("metrics")
-	}
-	bnEndpoint := c.String("bn-endpoint")
-	initSlot := uint64(c.Int("init-slot"))
-	finalSlot := uint64(c.Int("final-slot"))
-	dbUrl := c.String("db-url")
 
-	// generate the httpAPI client
-	cli, err := clientapi.NewAPIClient(c.Context, bnEndpoint, QueryTimeout, clientapi.WithELEndpoint(elEndpoint))
-	if err != nil {
-		return err
-	}
+	conf := config.NewAnalyzerConfig()
+	conf.Apply(c)
 
 	// generate the block analyzer
-	blockAnalyzer, err := analyzer.NewChainAnalyzer(c.Context, cli, initSlot, finalSlot, dbUrl, coworkers, dbWorkers, downloadMode, metrics, prometheusPort)
+	blockAnalyzer, err := analyzer.NewChainAnalyzer(c.Context, *conf)
 	if err != nil {
 		return err
 	}

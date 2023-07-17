@@ -41,11 +41,11 @@ loop:
 				if valTask.Finalized {
 					// Only update validator last status on Finalized
 					// We will always receive higher epochs
-					validator := valTask.StateMetricsObj.GetMetricsBase().CurrentState.Validators[valIdx]
+					validator := valTask.StateMetricsObj.GetMetricsBase().NextState.Validators[valIdx]
 					s.dbClient.Persist(spec.ValidatorLastStatus{
 						ValIdx:          phase0.ValidatorIndex(valIdx),
-						Epoch:           valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch,
-						CurrentBalance:  valTask.StateMetricsObj.GetMetricsBase().CurrentState.Balances[valIdx],
+						Epoch:           valTask.StateMetricsObj.GetMetricsBase().NextState.Epoch,
+						CurrentBalance:  valTask.StateMetricsObj.GetMetricsBase().NextState.Balances[valIdx],
 						CurrentStatus:   maxRewards.Status,
 						Slashed:         validator.Slashed,
 						ActivationEpoch: validator.ActivationEpoch,
