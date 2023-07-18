@@ -185,11 +185,11 @@ func (s *ChainAnalyzer) ReorgRewind(baseSlot phase0.Slot, slot phase0.Slot) {
 	reorgEpoch := phase0.Epoch(slot / spec.SlotsPerEpoch)
 	if slot%spec.SlotsPerEpoch == 31 || // end of epoch
 		baseEpoch != reorgEpoch { // the reorg crosses and epoch boundary
-		epoch := slot / spec.SlotsPerEpoch
+		epoch := baseEpoch - 1
 		log.Infof("deleting epoch data from %d (included) onwards", epoch)
 		s.dbClient.Persist(db.EpochDropType(epoch))
 		s.dbClient.Persist(db.ProposerDutiesDropType(epoch))
-		s.dbClient.Persist(db.ValidatorRewardsDropType(epoch))
+		s.dbClient.Persist(db.ValidatorRewardsDropType(epoch + 1)) // validator rewards are always written at epoch+1
 	}
 
 }
