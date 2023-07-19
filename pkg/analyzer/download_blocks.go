@@ -118,10 +118,11 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 
 		case newReorg := <-s.eventsObj.ReorgChan:
 			s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
+			baseSlot := newReorg.Slot - phase0.Slot(newReorg.Depth)
 			log.Infof("rewinding to %d", newReorg.Slot-phase0.Slot(newReorg.Depth))
 
-			nextSlotDownload = newReorg.Slot - phase0.Slot(newReorg.Depth) + 1
-			s.ReorgRewind(nextSlotDownload, newReorg.Slot)
+			nextSlotDownload = baseSlot + 1
+			s.ReorgRewind(baseSlot, newReorg.Slot)
 			queue.ReOrganizeReorg(phase0.Epoch(nextSlotDownload / spec.SlotsPerEpoch))
 
 		case <-s.ctx.Done():
@@ -180,7 +181,7 @@ func (s *ChainAnalyzer) ReorgRewind(baseSlot phase0.Slot, slot phase0.Slot) {
 	s.dbClient.Persist(db.TransactionDropType(baseSlot + 1))
 	s.dbClient.Persist(db.WithdrawalDropType(baseSlot + 1))
 
-	baseEpoch := phase0.Epoch(baseSlot / spec.SlotsPerEpoch)
+	baseEpoch := phase0.Epoch((baseSlot + 1) / spec.SlotsPerEpoch)
 	reorgEpoch := phase0.Epoch(slot / spec.SlotsPerEpoch)
 	if slot%spec.SlotsPerEpoch == 31 || // end of epoch
 		baseEpoch != reorgEpoch { // the reorg crosses and epoch boundary
