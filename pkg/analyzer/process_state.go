@@ -65,6 +65,7 @@ loop:
 				// TODO: send constructor to model package
 				epochModel := stateMetrics.GetMetricsBase().ExportToEpoch()
 
+				log.Debugf("persisting epoch metrics: epoch %d", epochModel.Epoch)
 				s.dbClient.Persist(epochModel)
 
 				// Proposer Duties

@@ -27,6 +27,7 @@ loop:
 			}
 			log.Tracef("block task received for slot %d, analyzing...", task.Slot)
 
+			log.Debugf("persisting block metrics: slot %d", task.Block.Slot)
 			s.dbClient.Persist(task.Block)
 
 			for _, item := range task.Block.ExecutionPayload.Withdrawals {

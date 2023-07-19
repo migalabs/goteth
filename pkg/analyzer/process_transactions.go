@@ -27,7 +27,7 @@ loop:
 				return
 			}
 			log.Tracef("transaction task received for slot %d, analyzing...", task.Slot)
-
+			log.Debugf("persisting transaction metrics: slot %d", task.Slot)
 			for _, tx := range task.Transactions {
 				s.dbClient.Persist(tx)
 			}
