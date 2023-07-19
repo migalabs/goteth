@@ -98,7 +98,7 @@ func NewChainAnalyzer(
 		epochTaskChan:       make(chan *EpochTask, 1),
 		valTaskChan:         make(chan *ValTask, iConfig.WorkerNum),
 		blockTaskChan:       make(chan *BlockTask, 1),
-		transactionTaskChan: make(chan *TransactionTask, 1),
+		transactionTaskChan: make(chan *TransactionTask, iConfig.WorkerNum),
 		validatorWorkerNum:  iConfig.WorkerNum,
 		cli:                 cli,
 		dbClient:            idbClient,
@@ -206,8 +206,10 @@ type BlockTask struct {
 }
 
 type TransactionTask struct {
-	Slot         uint64
-	Transactions []*spec.AgnosticTransaction
+	Slot           phase0.Slot
+	BlockNumber    uint64
+	BlockTimestamp uint64
+	Transaction    bellatrix.Transaction
 }
 
 type EpochTask struct {
