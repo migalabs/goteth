@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/config"
@@ -155,8 +156,10 @@ func (s *ChainAnalyzer) Run() {
 	wgProcess.Add(1)
 	go s.runProcessState(&wgProcess)
 
-	wgTransaction.Add(1)
-	go s.runProcessTransactions(&wgTransaction)
+	if s.metrics.Transactions {
+		wgTransaction.Add(1)
+		go s.runProcessTransactions(&wgTransaction)
+	}
 
 	for i := 0; i < s.validatorWorkerNum; i++ {
 		// state workers, receiving State and valIdx to measure performance
