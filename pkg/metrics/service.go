@@ -114,8 +114,8 @@ metricsUpdateLoop:
 
 func (p *PrometheusMetrics) Close() {
 	// Init loop for each of the Exporters
-	log.Debugf("closing %d prometheus metrics modules", len(p.Modules))
+	log.Infof("closing %d prometheus metrics modules", len(p.Modules))
 	p.closeC <- struct{}{}
 	p.wg.Wait()
-	log.Debug("prometheus metrics exporte successfully closed")
+	log.Infof("prometheus metrics exporte successfully closed")
 }
