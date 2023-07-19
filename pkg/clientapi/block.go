@@ -2,6 +2,7 @@ package clientapi
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -14,7 +15,9 @@ import (
 )
 
 func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, bool, error) {
+	startTime := time.Now()
 	newBlock, err := s.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
+	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 	if newBlock == nil {
 		log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
 		return s.CreateMissingBlock(slot), false, nil
@@ -34,7 +37,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, boo
 	// fill in block size on custom block using RequestBlockByHash
 	block, err := s.RequestBlockByHash(common.Hash(customBlock.ExecutionPayload.BlockHash))
 	if err != nil {
-		log.Error(err)
+		log.Error("cannot request block by hash: %s", err)
 	}
 	if block != nil {
 		customBlock.Size = uint32(block.Size())
