@@ -175,10 +175,10 @@ func (s ChainAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 
 func (s *ChainAnalyzer) ReorgRewind(baseSlot phase0.Slot, slot phase0.Slot) {
 
-	log.Infof("deleting block data from %d (included) onwards", slot)
-	s.dbClient.Persist(db.BlockDropType(slot))
-	s.dbClient.Persist(db.TransactionDropType(slot))
-	s.dbClient.Persist(db.WithdrawalDropType(slot))
+	log.Infof("deleting block data from %d (included) onwards", baseSlot+1)
+	s.dbClient.Persist(db.BlockDropType(baseSlot + 1))
+	s.dbClient.Persist(db.TransactionDropType(baseSlot + 1))
+	s.dbClient.Persist(db.WithdrawalDropType(baseSlot + 1))
 
 	baseEpoch := phase0.Epoch(baseSlot / spec.SlotsPerEpoch)
 	reorgEpoch := phase0.Epoch(slot / spec.SlotsPerEpoch)
