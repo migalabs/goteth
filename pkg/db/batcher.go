@@ -1,7 +1,7 @@
 package db
 
 import (
-"context"
+	"context"
 	"time"
 
 	pgx "github.com/jackc/pgx/v4"
@@ -14,25 +14,25 @@ var (
 	QueryTimeout = 5 * time.Minute
 	MaxRetries   = 1
 
-	ErrorNoConnFree = "no connection adquirable"
-	noQueryError  string = "no error"
-	noQueryResult string = "no result"
+	ErrorNoConnFree        = "no connection adquirable"
+	noQueryError    string = "no error"
+	noQueryResult   string = "no result"
 )
 
 type QueryBatch struct {
-	ctx     context.Context
-	pgxPool *pgxpool.Pool
-	batch   *pgx.Batch
-	size    int
+	ctx          context.Context
+	pgxPool      *pgxpool.Pool
+	batch        *pgx.Batch
+	size         int
 	persistables []Persistable
 }
 
 func NewQueryBatch(ctx context.Context, pgxPool *pgxpool.Pool, batchSize int) *QueryBatch {
 	return &QueryBatch{
-		ctx:     ctx,
-		pgxPool: pgxPool,
-		batch:   &pgx.Batch{},
-		size:    batchSize,
+		ctx:          ctx,
+		pgxPool:      pgxPool,
+		batch:        &pgx.Batch{},
+		size:         batchSize,
 		persistables: make([]Persistable, 0),
 	}
 }
@@ -101,8 +101,8 @@ func (q *QueryBatch) persistBatch() error {
 	// check if there was any error
 	if qerr != nil {
 		log.WithFields(log.Fields{
-			"error": qerr.Error(),
-			"query": q.persistables[cnt-1].query,
+			"error":  qerr.Error(),
+			"query":  q.persistables[cnt-1].query,
 			"values": q.persistables[cnt-1].values,
 		}).Errorf("unable to persist query [%d]", cnt-1)
 		return errors.Wrap(qerr, "error persisting batch")
@@ -115,12 +115,11 @@ func (q *QueryBatch) cleanBatch() {
 	q.persistables = make([]Persistable, 0)
 }
 
-
 // persistable is the main structure fed to the batcher
-// allows to link batching errors with the query and values 
+// allows to link batching errors with the query and values
 // that generated it
 type Persistable struct {
-	query string
+	query  string
 	values []interface{}
 }
 
@@ -133,4 +132,3 @@ func NewPersistable() Persistable {
 func (p *Persistable) isEmpty() bool {
 	return p.query == ""
 }
-
