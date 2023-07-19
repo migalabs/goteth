@@ -20,7 +20,10 @@ loop:
 		select {
 		case valTask := <-s.valTaskChan:
 
-			wlog.Debugf("task received for val %d - %d in epoch %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch)
+			wlog.Tracef("task received for val %d - %d in epoch %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch)
+			if s.metrics.ValidatorRewards { // only if flag is activated
+				wlog.Debugf("persising validator metrics: epoch %d", valTask.StateMetricsObj.GetMetricsBase().NextState.Epoch)
+			}
 			// Proccess State
 			snapshot := time.Now()
 

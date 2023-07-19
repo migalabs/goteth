@@ -2,13 +2,16 @@ package clientapi
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 )
 
 func (s APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticState, error) {
+	startTime := time.Now()
 	newState, err := s.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
+	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 	if newState == nil {
 		return nil, fmt.Errorf("unable to retrieve Beacon State from the beacon node, closing requester routine. nil State")
 	}

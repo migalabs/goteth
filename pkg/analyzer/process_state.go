@@ -20,7 +20,7 @@ loop:
 
 		case task := <-s.epochTaskChan:
 
-			log.Infof("epoch task received for slot %d, epoch: %d, analyzing...", task.State.Slot, task.State.Epoch)
+			log.Tracef("epoch task received for slot %d, epoch: %d, analyzing...", task.State.Slot, task.State.Epoch)
 
 			// returns the state in a custom struct for Phase0, Altair of Bellatrix
 			stateMetrics, err := metrics.StateMetricsByForkVersion(task.NextState, task.State, task.PrevState, s.cli.Api)
@@ -65,6 +65,7 @@ loop:
 				// TODO: send constructor to model package
 				epochModel := stateMetrics.GetMetricsBase().ExportToEpoch()
 
+				log.Debugf("persisting epoch metrics: epoch %d", epochModel.Epoch)
 				s.dbClient.Persist(epochModel)
 
 				// Proposer Duties

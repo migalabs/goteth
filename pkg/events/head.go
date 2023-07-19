@@ -24,8 +24,10 @@ func (e *Events) HandleHeadEvent(event *api.Event) {
 	data := event.Data.(*api.HeadEvent) // cast to head event
 	headEpoch := phase0.Epoch(data.Slot) / spec.SlotsPerEpoch
 
-	log.Infof("Received a new event: slot %d, epoch %d", data.Slot, data.Slot/spec.SlotsPerEpoch)
-	log.Infof("Pending slots for new epoch: %d", (int(headEpoch+1)*spec.EpochSlots)-int(data.Slot))
+	log.Infof("New event: slot %d, epoch %d. %d pending slots for new epoch",
+		data.Slot,
+		data.Slot/spec.SlotsPerEpoch,
+		(int(headEpoch+1)*spec.EpochSlots)-int(data.Slot))
 
 	select { // only notify if we can
 	case e.HeadChan <- data.Slot:

@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	moduleName = "API-Cli"
+	moduleName = "api-cli"
 	log        = logrus.WithField(
-		"module", "")
+		"module", moduleName)
 	QueryTimeout = time.Second * 90
 )
 
