@@ -157,7 +157,6 @@ func (s ChainAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 	s.blockTaskChan <- blockTask
 
 	// store transactions if it has been enabled
-	startTime := time.Now()
 	if s.metrics.Transactions {
 		transactions, err := s.cli.RequestTransactionDetails(newBlock)
 		if err == nil {
