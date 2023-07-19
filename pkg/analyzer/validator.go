@@ -20,7 +20,7 @@ loop:
 		select {
 		case valTask := <-s.valTaskChan:
 
-			wlog.Debugf("task received for val %d - %d in epoch %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch)
+			wlog.Tracef("task received for val %d - %d in epoch %d", valTask.ValIdxs[0], valTask.ValIdxs[len(valTask.ValIdxs)-1], valTask.StateMetricsObj.GetMetricsBase().CurrentState.Epoch)
 			// Proccess State
 			snapshot := time.Now()
 

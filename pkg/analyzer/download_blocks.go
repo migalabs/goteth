@@ -95,7 +95,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 
 		case headSlot := <-s.eventsObj.HeadChan: // wait for new head event
 			// make the block query
-			log.Infof("received new head signal: %d", headSlot)
+			log.Tracef("received new head signal: %d", headSlot)
 
 			for nextSlotDownload <= headSlot {
 				if s.stop {
@@ -103,7 +103,6 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 					return
 				}
 
-				log.Infof("downloading block: %d", nextSlotDownload)
 				s.DownloadNewBlock(&rootHistory, phase0.Slot(nextSlotDownload))
 
 				// if epoch boundary, download state
@@ -154,10 +153,11 @@ func (s ChainAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 		Slot:     uint64(slot),
 		Proposed: proposed,
 	}
-	log.Debugf("sending a new task for slot %d", slot)
+	log.Tracef("sending a new task for slot %d", slot)
 	s.blockTaskChan <- blockTask
 
 	// store transactions if it has been enabled
+	startTime := time.Now()
 	if s.metrics.Transactions {
 		transactions, err := s.cli.RequestTransactionDetails(newBlock)
 		if err == nil {
@@ -165,7 +165,7 @@ func (s ChainAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 				Slot:         uint64(slot),
 				Transactions: transactions,
 			}
-			log.Debugf("sending a new tx task for slot %d", slot)
+			log.Tracef("sending a new tx task for slot %d", slot)
 			s.transactionTaskChan <- transactionTask
 		}
 	}

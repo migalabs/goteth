@@ -26,7 +26,7 @@ loop:
 				log.Warn("the transactions task channel has closed, finishing transaction routine")
 				return
 			}
-			log.Debugf("transaction task received for slot %d, analyzing...", task.Slot)
+			log.Tracef("transaction task received for slot %d, analyzing...", task.Slot)
 
 			for _, tx := range task.Transactions {
 				s.dbClient.Persist(tx)

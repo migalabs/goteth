@@ -54,7 +54,7 @@ func (q *QueryBatch) PersistBatch() error {
 	logEntry := log.WithFields(log.Fields{
 		"mod": "batch-persister",
 	})
-	wlog.Debugf("persisting batch of queries with len(%d)", q.Len())
+	wlog.Tracef("persisting batch of queries with len(%d)", q.Len())
 	var err error
 persistRetryLoop:
 	for i := 0; i < MaxRetries; i++ {

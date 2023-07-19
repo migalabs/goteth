@@ -20,7 +20,7 @@ loop:
 
 		case task := <-s.epochTaskChan:
 
-			log.Infof("epoch task received for slot %d, epoch: %d, analyzing...", task.State.Slot, task.State.Epoch)
+			log.Tracef("epoch task received for slot %d, epoch: %d, analyzing...", task.State.Slot, task.State.Epoch)
 
 			// returns the state in a custom struct for Phase0, Altair of Bellatrix
 			stateMetrics, err := metrics.StateMetricsByForkVersion(task.NextState, task.State, task.PrevState, s.cli.Api)

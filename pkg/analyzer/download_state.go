@@ -34,7 +34,7 @@ func (s *ChainAnalyzer) DownloadNewState(
 			Finalized: finalized,
 		}
 
-		log.Debugf("sending task for slot: %d", epochTask.State.Slot)
+		log.Tracef("sending task for slot: %d", epochTask.State.Slot)
 		s.epochTaskChan <- epochTask
 	}
 	// check if the min Request time has been completed (to avoid spaming the API)
