@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/config"
@@ -98,7 +99,7 @@ func NewChainAnalyzer(
 		epochTaskChan:       make(chan *EpochTask, 1),
 		valTaskChan:         make(chan *ValTask, iConfig.WorkerNum),
 		blockTaskChan:       make(chan *BlockTask, 1),
-		transactionTaskChan: make(chan *TransactionTask, 1),
+		transactionTaskChan: make(chan *TransactionTask, iConfig.WorkerNum),
 		validatorWorkerNum:  iConfig.WorkerNum,
 		cli:                 cli,
 		dbClient:            idbClient,
@@ -155,8 +156,10 @@ func (s *ChainAnalyzer) Run() {
 	wgProcess.Add(1)
 	go s.runProcessState(&wgProcess)
 
-	wgTransaction.Add(1)
-	go s.runProcessTransactions(&wgTransaction)
+	if s.metrics.Transactions {
+		wgTransaction.Add(1)
+		go s.runProcessTransactions(&wgTransaction)
+	}
 
 	for i := 0; i < s.validatorWorkerNum; i++ {
 		// state workers, receiving State and valIdx to measure performance
@@ -206,8 +209,10 @@ type BlockTask struct {
 }
 
 type TransactionTask struct {
-	Slot         uint64
-	Transactions []*spec.AgnosticTransaction
+	Slot           phase0.Slot
+	BlockNumber    uint64
+	BlockTimestamp uint64
+	Transaction    bellatrix.Transaction
 }
 
 type EpochTask struct {

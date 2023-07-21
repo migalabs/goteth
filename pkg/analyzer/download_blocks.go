@@ -159,14 +159,13 @@ func (s ChainAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 
 	// store transactions if it has been enabled
 	if s.metrics.Transactions {
-		transactions, err := s.cli.RequestTransactionDetails(newBlock)
-		if err == nil {
-			transactionTask := &TransactionTask{
-				Slot:         uint64(slot),
-				Transactions: transactions,
-			}
+
+		for _, tx := range newBlock.ExecutionPayload.Transactions {
 			log.Tracef("sending a new tx task for slot %d", slot)
-			s.transactionTaskChan <- transactionTask
+			s.transactionTaskChan <- &TransactionTask{
+				Slot:        slot,
+				Transaction: tx,
+			}
 		}
 	}
 
