@@ -55,20 +55,25 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	// ------ fill from last epoch in database to current head -------
 
 	// obtain current head
-	headSlot, headRoot := s.cli.GetFinalizedEndSlotStateRoot()
+	finalizedSlot, finalizedRoot := s.cli.GetFinalizedEndSlotStateRoot()
 
 	// obtain last epoch in database
 	nextSlotDownload, err := s.dbClient.ObtainLastSlot()
 	if err != nil {
 		log.Errorf("could not obtain last slot in database: %s", err)
 	}
-	if nextSlotDownload == 0 || nextSlotDownload > headSlot {
-		nextSlotDownload = headSlot
+	if nextSlotDownload == 0 || nextSlotDownload > finalizedSlot {
+		log.Infof("continue from finalized slot %d, epoch %d", finalizedSlot, finalizedSlot/spec.SlotsPerEpoch)
+		nextSlotDownload = finalizedSlot
+	} else {
+		// database detected
+		log.Infof("database detected, continue from slot %d, epoch %d", nextSlotDownload, nextSlotDownload/spec.SlotsPerEpoch)
+		nextSlotDownload = nextSlotDownload - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
+
 	}
 
-	nextSlotDownload = nextSlotDownload - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
-	queue := NewStateQueue(headSlot, headRoot)
-	for nextSlotDownload < headSlot {
+	queue := NewStateQueue(finalizedSlot, finalizedRoot)
+	for nextSlotDownload < finalizedSlot {
 		log.Infof("filling missing blocks: %d", nextSlotDownload)
 		s.DownloadNewBlock(&queue, phase0.Slot(nextSlotDownload))
 		if nextSlotDownload%spec.SlotsPerEpoch == 0 {
