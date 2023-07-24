@@ -14,7 +14,7 @@ import (
 func (s *ChainAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
-	rootHistory := NewSlotHistory()
+	
 	queue := StateQueue{}
 
 loop:
@@ -33,7 +33,7 @@ loop:
 			}
 
 			log.Infof("requesting Beacon Block from endpoint: slot %d", slot)
-			s.DownloadNewBlock(&rootHistory, phase0.Slot(slot))
+			s.DownloadNewBlock(&queue, phase0.Slot(slot))
 
 			// if epoch boundary, download state
 			if slot%spec.SlotsPerEpoch == 0 {
@@ -52,7 +52,6 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Finalized Requester")
 
-	rootHistory := NewSlotHistory()
 	// ------ fill from last epoch in database to current head -------
 
 	// obtain current head
@@ -71,7 +70,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	queue := NewStateQueue(headSlot, headRoot)
 	for nextSlotDownload < headSlot {
 		log.Infof("filling missing blocks: %d", nextSlotDownload)
-		s.DownloadNewBlock(&rootHistory, phase0.Slot(nextSlotDownload))
+		s.DownloadNewBlock(&queue, phase0.Slot(nextSlotDownload))
 		if nextSlotDownload%spec.SlotsPerEpoch == 0 {
 			// new epoch
 			s.DownloadNewState(&queue, nextSlotDownload-1, true)
@@ -103,7 +102,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 					return
 				}
 
-				s.DownloadNewBlock(&rootHistory, phase0.Slot(nextSlotDownload))
+				s.DownloadNewBlock(&queue, phase0.Slot(nextSlotDownload))
 
 				// if epoch boundary, download state
 				if nextSlotDownload%spec.SlotsPerEpoch == 0 {
@@ -139,14 +138,14 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	}
 }
 
-func (s ChainAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Slot) {
+func (s ChainAnalyzer) DownloadNewBlock(queue *StateQueue, slot phase0.Slot) {
 
 	ticker := time.NewTicker(minBlockReqTime)
 	newBlock, proposed, err := s.cli.RequestBeaconBlock(slot)
 	if err != nil {
 		log.Panicf("block error at slot %d: %s", slot, err)
 	}
-	history.AddRoot(slot, newBlock.StateRoot)
+	queue.AddRoot(slot, newBlock.StateRoot)
 
 	// send task to be processed
 	blockTask := &BlockTask{
