@@ -234,8 +234,8 @@ func (s *ChainAnalyzer) CheckFinalized(checkpoint SlotRoot, queue *StateQueue) (
 		} else {
 
 			log.Infof("Checkpoint mismatch!")
-			log.Infof("Chain Chackpoint for slot %d: %s", i, requestedRoot)
-			log.Infof("Stored Chackpoint for slot %d: %s", i, queue.Roots[i].StateRoot.String())
+			log.Infof("Chain Checkpoint for slot %d: %s", i, requestedRoot.String())
+			log.Infof("Stored Checkpoint for slot %d: %s", i, queue.Roots[i].StateRoot.String())
 			log.Infof("rewinding to slot %d...", i)
 			// rewind until this slot
 			s.RewindBlockMetrics(i)
