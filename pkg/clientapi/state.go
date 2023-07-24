@@ -11,7 +11,7 @@ import (
 func (s APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticState, error) {
 	startTime := time.Now()
 	newState, err := s.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
-	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
+	log.Infof("state at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 	if newState == nil {
 		return nil, fmt.Errorf("unable to retrieve Beacon State from the beacon node, closing requester routine. nil State")
 	}
