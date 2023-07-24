@@ -80,90 +80,16 @@ func (s *StateQueue) AddRoot(iSlot phase0.Slot, iRoot phase0.Root) {
 	}
 }
 
-func (s *StateQueue) ReOrganizeReorg(baseEpoch phase0.Epoch) {
+func (s *StateQueue) Rewind(slot phase0.Slot) {
 
-	for s.nextState.Epoch >= baseEpoch {
-		// we need to rewrite metrics
-		// rewrite epoch metrics which are the earliest written (at the currentstate)
-		// validator metrics are written at nextstate, so they will be written anyways
-
-		s.nextState = s.currentState
-		s.currentState = s.prevState
-		s.prevState = spec.AgnosticState{} // epoch = 0, the loop will stop after three loops
-	}
-}
-
-func (s *StateQueue) CheckFinalized(iSlot phase0.Slot, iRoot phase0.Root) (phase0.Epoch, bool) {
-
-	if s.LatestFinalized.Epoch == 0 {
-		// it has not been configured yet
-		s.LatestFinalized = s.Roots[0] // the first position of our history should be the latest finalized
-	}
-
-	// SlotRoots are ordered ascending always
-	for i, slotRoot := range s.Roots {
-		if slotRoot.Slot == iSlot { // found it in our history
-			if slotRoot.StateRoot == iRoot { // the root matches, finalized ok
-				s.Roots = s.Roots[i+1:] // remove all roots before this one, they are ordered asc
-
-				s.LatestFinalized = slotRoot
-				log.Infof("finalized checkpoint at epoch %d successfully verified...", slotRoot.Epoch)
-				return slotRoot.Epoch, true
-			} else { // we found the slot in the history, but the root does not match
-				log.Errorf("the finalized checkpoint was not verfied, probably a reorg happened...")
-				log.Errorf("rewinding to epoch %d", s.LatestFinalized.Epoch-2)
-				return s.LatestFinalized.Epoch - 2, false // go 2 epochs before the finalized
-
-			}
+	for i := s.HeadRoot.Slot; i >= slot; i-- {
+		delete(s.Roots, i)
+		if i%spec.SlotsPerEpoch == 31 { // end of epoch, remove the state
+			s.nextState = s.currentState
+			s.currentState = s.prevState
+			s.prevState = spec.AgnosticState{} // epoch = 0
 		}
 	}
-	// the slot does not exist in our history
-	// continue as normal
-
-	return s.LatestFinalized.Epoch, true
-
-}
-
-// Used for the block routine
-// Somehow similar to the above
-// If we merge both routines then logically we would also join to the above
-type SlotRootHistory struct {
-	Roots []SlotRoot
-}
-
-func NewSlotHistory() SlotRootHistory {
-	return SlotRootHistory{
-		Roots: make([]SlotRoot, 0),
-	}
-}
-
-func (s *SlotRootHistory) AddRoot(iSlot phase0.Slot, iRoot phase0.Root) {
-	s.Roots = append(s.Roots, SlotRoot{
-		Slot:      iSlot,
-		Epoch:     phase0.Epoch(iSlot / spec.SlotsPerEpoch),
-		StateRoot: iRoot,
-	})
-}
-
-// Returns whether the finalized root was ok
-// If not, it returns the first slot of the history
-// That slot would be the first one unverified from our history
-func (s *SlotRootHistory) CheckFinalized(iSlot phase0.Slot, iRoot phase0.Root) (bool, phase0.Slot) {
-	for i, root := range s.Roots {
-		if iSlot == root.Slot { // if slot in in the history
-			if root.StateRoot == iRoot { // if root matches
-				s.Roots = s.Roots[i+1:] // clean history up to verified root
-				log.Infof("checkpoint for slot %d verified...", iSlot)
-				return true, iSlot
-			}
-			// slot in history, but root not matched, clean all the history
-			slot := s.Roots[0].Slot
-			s.Roots = make([]SlotRoot, 0)
-			log.Infof("checkpoint for slot %d was not verified, rewinding...", iSlot)
-			return false, slot
-		}
-	}
-	return true, iSlot // slot is not in the history
 }
 
 func InitGenesis(dbClient *db.PostgresDBService, apiClient *clientapi.APIClient) {

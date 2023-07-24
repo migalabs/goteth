@@ -173,22 +173,35 @@ func (s ChainAnalyzer) DownloadNewBlock(history *SlotRootHistory, slot phase0.Sl
 	// check if the min Request time has been completed (to avoid spaming the API)
 }
 
-func (s *ChainAnalyzer) ReorgRewind(baseSlot phase0.Slot, slot phase0.Slot) {
+func (s *ChainAnalyzer) Reorg(baseSlot phase0.Slot, slot phase0.Slot, queue *StateQueue) {
 
-	log.Infof("deleting block data from %d (included) onwards", baseSlot+1)
-	s.dbClient.Persist(db.BlockDropType(baseSlot + 1))
-	s.dbClient.Persist(db.TransactionDropType(baseSlot + 1))
-	s.dbClient.Persist(db.WithdrawalDropType(baseSlot + 1))
+	s.RewindBlockMetrics(baseSlot + 1)
 
 	baseEpoch := phase0.Epoch((baseSlot + 1) / spec.SlotsPerEpoch)
 	reorgEpoch := phase0.Epoch(slot / spec.SlotsPerEpoch)
 	if slot%spec.SlotsPerEpoch == 31 || // end of epoch
 		baseEpoch != reorgEpoch { // the reorg crosses and epoch boundary
 		epoch := baseEpoch - 1
-		log.Infof("deleting epoch data from %d (included) onwards", epoch)
-		s.dbClient.Persist(db.EpochDropType(epoch))
-		s.dbClient.Persist(db.ProposerDutiesDropType(epoch))
-		s.dbClient.Persist(db.ValidatorRewardsDropType(epoch + 1)) // validator rewards are always written at epoch+1
+		s.RewindEpochMetrics(epoch)
+
+	}
+
+	// rewind states and roots until the reorg base slot
+	queue.Rewind(baseSlot + 1)
+}
+
+func (s *ChainAnalyzer) RewindBlockMetrics(slot phase0.Slot) {
+	log.Infof("deleting block data from %d (included) onwards", slot)
+	s.dbClient.Persist(db.BlockDropType(slot))
+	s.dbClient.Persist(db.TransactionDropType(slot))
+	s.dbClient.Persist(db.WithdrawalDropType(slot))
+}
+
+func (s *ChainAnalyzer) RewindEpochMetrics(epoch phase0.Epoch) {
+	log.Infof("deleting epoch data from %d (included) onwards", epoch)
+	s.dbClient.Persist(db.EpochDropType(epoch))
+	s.dbClient.Persist(db.ProposerDutiesDropType(epoch))
+	s.dbClient.Persist(db.ValidatorRewardsDropType(epoch + 1)) // validator rewards are always written at epoch+1
 	}
 
 }

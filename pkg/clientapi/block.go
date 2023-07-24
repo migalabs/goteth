@@ -62,6 +62,7 @@ func (s APIClient) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
 
 	return spec.AgnosticBlock{
 		Slot:              slot,
+		StateRoot:         s.RequestStateRoot(slot),
 		ProposerIndex:     proposerValIdx,
 		Graffiti:          [32]byte{},
 		Proposed:          false,
