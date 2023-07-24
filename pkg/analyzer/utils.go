@@ -73,11 +73,11 @@ func (s StateQueue) Complete() bool {
 }
 
 func (s *StateQueue) AddRoot(iSlot phase0.Slot, iRoot phase0.Root) {
-	s.Roots = append(s.Roots, SlotRoot{
+	s.Roots[iSlot] = SlotRoot{
 		Slot:      iSlot,
 		Epoch:     phase0.Epoch(iSlot / spec.SlotsPerEpoch),
 		StateRoot: iRoot,
-	})
+	}
 }
 
 func (s *StateQueue) ReOrganizeReorg(baseEpoch phase0.Epoch) {
