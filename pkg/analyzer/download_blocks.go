@@ -14,7 +14,6 @@ import (
 func (s *ChainAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
-	
 	queue := StateQueue{}
 
 loop:
