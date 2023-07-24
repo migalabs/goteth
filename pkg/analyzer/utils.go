@@ -34,7 +34,8 @@ type StateQueue struct {
 	prevState       spec.AgnosticState
 	currentState    spec.AgnosticState
 	nextState       spec.AgnosticState
-	Roots           []SlotRoot
+	Roots           map[phase0.Slot]SlotRoot // Here we will store stateroots from the blocks
+	HeadRoot        SlotRoot
 	LatestFinalized SlotRoot
 }
 
@@ -43,7 +44,7 @@ func NewStateQueue(finalizedSlot phase0.Slot, finalizedRoot phase0.Root) StateQu
 		prevState:    spec.AgnosticState{},
 		currentState: spec.AgnosticState{},
 		nextState:    spec.AgnosticState{},
-		Roots:        make([]SlotRoot, 0),
+		Roots:        make(map[phase0.Slot]SlotRoot),
 		LatestFinalized: SlotRoot{
 			Slot:      finalizedSlot,
 			Epoch:     phase0.Epoch(finalizedSlot / spec.SlotsPerEpoch),
@@ -61,8 +62,6 @@ func (s *StateQueue) AddNewState(newState spec.AgnosticState) {
 	s.prevState = s.currentState
 	s.currentState = s.nextState
 	s.nextState = newState
-
-	s.AddRoot(newState.Slot, newState.StateRoot)
 }
 
 func (s StateQueue) Complete() bool {
