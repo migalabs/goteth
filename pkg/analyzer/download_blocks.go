@@ -115,6 +115,20 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
 			s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
 
+			slotRewind, ok := s.CheckFinalized(
+				SlotRoot{
+					Slot:      phase0.Slot(newFinalCheckpoint.Epoch) * spec.SlotsPerEpoch,
+					Epoch:     newFinalCheckpoint.Epoch,
+					StateRoot: newFinalCheckpoint.State,
+				},
+				&queue,
+			)
+
+			if !ok {
+				// there was a rewind
+				nextSlotDownload = slotRewind
+			}
+
 		case newReorg := <-s.eventsObj.ReorgChan:
 			s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
 			baseSlot := newReorg.Slot - phase0.Slot(newReorg.Depth)
@@ -201,6 +215,36 @@ func (s *ChainAnalyzer) RewindEpochMetrics(epoch phase0.Epoch) {
 	s.dbClient.Persist(db.EpochDropType(epoch))
 	s.dbClient.Persist(db.ProposerDutiesDropType(epoch))
 	s.dbClient.Persist(db.ValidatorRewardsDropType(epoch + 1)) // validator rewards are always written at epoch+1
+}
+
+func (s *ChainAnalyzer) CheckFinalized(checkpoint SlotRoot, queue *StateQueue) (phase0.Slot, bool) {
+
+	// A new finalized arrived, remove old roots from the list
+
+	for i := queue.LatestFinalized.Slot; i < checkpoint.Slot; i++ {
+		// for every slot, request the stateroot and compare with our list
+		requestedRoot := s.cli.RequestStateRoot(i)
+
+		if requestedRoot == queue.Roots[i].StateRoot {
+			// the roots are the same, all ok
+			delete(queue.Roots, i)
+		} else {
+
+			log.Infof("Checkpoint mismatch!")
+			log.Infof("Chain Chackpoint for slot %d: %s", i, requestedRoot)
+			log.Infof("Stored Chackpoint for slot %d: %s", i, queue.Roots[i].StateRoot.String())
+			log.Infof("rewinding to slot %d...", i)
+			// rewind until this slot
+			s.RewindBlockMetrics(i)
+			s.RewindEpochMetrics(phase0.Epoch(i/spec.SlotsPerEpoch) - 1)
+
+			newQueue := NewStateQueue(checkpoint.Slot, checkpoint.StateRoot)
+			queue = &newQueue
+			return checkpoint.Slot - (2 * spec.SlotsPerEpoch), false // return slot at which download should re-continue
+
+		}
 	}
 
+	log.Infof("state roots from %d to %d verified, advance stored finalized", queue.LatestFinalized.Slot, checkpoint.Slot)
+	return checkpoint.Slot, true
 }
