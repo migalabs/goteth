@@ -84,6 +84,7 @@ func (s *StateQueue) Rewind(slot phase0.Slot) {
 
 	for i := s.HeadRoot.Slot; i >= slot; i-- {
 		delete(s.Roots, i)
+		s.HeadRoot = s.Roots[i-1]
 		if i%spec.SlotsPerEpoch == 31 { // end of epoch, remove the state
 			s.nextState = s.currentState
 			s.currentState = s.prevState

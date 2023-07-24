@@ -53,8 +53,11 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 
 	// ------ fill from last epoch in database to current head -------
 
-	// obtain current head
+	// obtain current finalized
 	finalizedSlot, finalizedRoot := s.cli.GetFinalizedEndSlotStateRoot()
+
+	// obtain current head
+	headSlot := s.cli.RequestCurrentHead()
 
 	// obtain last epoch in database
 	nextSlotDownload, err := s.dbClient.ObtainLastSlot()
@@ -72,7 +75,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	}
 
 	queue := NewStateQueue(finalizedSlot, finalizedRoot)
-	for nextSlotDownload < finalizedSlot {
+	for nextSlotDownload < headSlot {
 		log.Infof("filling missing blocks: %d", nextSlotDownload)
 		s.DownloadNewBlock(&queue, phase0.Slot(nextSlotDownload))
 		if nextSlotDownload%spec.SlotsPerEpoch == 0 {
@@ -138,8 +141,8 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			baseSlot := newReorg.Slot - phase0.Slot(newReorg.Depth)
 			log.Infof("rewinding to %d", newReorg.Slot-phase0.Slot(newReorg.Depth))
 
-			nextSlotDownload = baseSlot + 1
 			s.Reorg(baseSlot, newReorg.Slot, &queue)
+			nextSlotDownload = queue.HeadRoot.Slot
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
@@ -228,24 +231,28 @@ func (s *ChainAnalyzer) CheckFinalized(checkpoint SlotRoot, queue *StateQueue) (
 		// for every slot, request the stateroot and compare with our list
 		requestedRoot := s.cli.RequestStateRoot(i)
 
-		if requestedRoot == queue.Roots[i].StateRoot {
-			// the roots are the same, all ok
-			delete(queue.Roots, i)
-		} else {
+		_, ok := queue.Roots[i]
+		if ok {
+			if requestedRoot == queue.Roots[i].StateRoot {
+				// the roots are the same, all ok
+				delete(queue.Roots, i)
+			} else {
 
-			log.Infof("Checkpoint mismatch!")
-			log.Infof("Chain Checkpoint for slot %d: %s", i, requestedRoot.String())
-			log.Infof("Stored Checkpoint for slot %d: %s", i, queue.Roots[i].StateRoot.String())
-			log.Infof("rewinding to slot %d...", i)
-			// rewind until this slot
-			s.RewindBlockMetrics(i)
-			s.RewindEpochMetrics(phase0.Epoch(i/spec.SlotsPerEpoch) - 1)
+				log.Infof("Checkpoint mismatch!")
+				log.Infof("Chain Checkpoint for slot %d: %s", i, requestedRoot.String())
+				log.Infof("Stored Checkpoint for slot %d: %s", i, queue.Roots[i].StateRoot.String())
+				log.Infof("rewinding to slot %d...", i)
+				// rewind until this slot
+				s.RewindBlockMetrics(i)
+				s.RewindEpochMetrics(phase0.Epoch(i/spec.SlotsPerEpoch) - 1)
 
-			newQueue := NewStateQueue(checkpoint.Slot, checkpoint.StateRoot)
-			queue = &newQueue
-			return checkpoint.Slot - (2 * spec.SlotsPerEpoch), false // return slot at which download should re-continue
+				newQueue := NewStateQueue(checkpoint.Slot, checkpoint.StateRoot)
+				queue = &newQueue
+				return checkpoint.Slot - (2 * spec.SlotsPerEpoch), false // return slot at which download should re-continue
 
+			}
 		}
+
 	}
 
 	log.Infof("state roots from %d to %d verified, advance stored finalized", queue.LatestFinalized.Slot, checkpoint.Slot)
