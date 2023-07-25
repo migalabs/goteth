@@ -235,7 +235,7 @@ func (s *ChainAnalyzer) CheckFinalized(checkpoint SlotRoot, queue *StateQueue) (
 		if ok {
 			if requestedRoot == queue.Roots[i].StateRoot {
 				// the roots are the same, all ok
-				delete(queue.Roots, i)
+				queue.AdvanceFinalized(i)
 			} else {
 
 				log.Infof("Checkpoint mismatch!")
