@@ -245,10 +245,13 @@ func (s *ChainAnalyzer) CheckFinalized(checkpoint SlotRoot, queue *StateQueue) (
 				// rewind until this slot
 				s.RewindBlockMetrics(i)
 				s.RewindEpochMetrics(phase0.Epoch(i/spec.SlotsPerEpoch) - 1)
+				// epoch metrics are written a current state (next state epoch -1)
 
 				newQueue := NewStateQueue(checkpoint.Slot, checkpoint.StateRoot)
-				queue = &newQueue
-				return checkpoint.Slot - (2 * spec.SlotsPerEpoch), false // return slot at which download should re-continue
+				*queue = newQueue
+				return checkpoint.Slot - (3 * spec.SlotsPerEpoch), false
+				// redownload from two epochs before the epoch metrics were deleted
+				// return slot at which download should re-continue
 
 			}
 		}
