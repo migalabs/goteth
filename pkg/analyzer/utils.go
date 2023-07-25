@@ -73,10 +73,30 @@ func (s StateQueue) Complete() bool {
 }
 
 func (s *StateQueue) AddRoot(iSlot phase0.Slot, iRoot phase0.Root) {
-	s.Roots[iSlot] = SlotRoot{
+
+	// check previous slot exists
+
+	_, ok := s.Roots[iSlot-1]
+
+	if !ok {
+		log.Panicf("root at slot %d:%s is not consecutive to %d", iSlot, iRoot, iSlot-1)
+	}
+
+	newRoot := SlotRoot{
 		Slot:      iSlot,
 		Epoch:     phase0.Epoch(iSlot / spec.SlotsPerEpoch),
 		StateRoot: iRoot,
+	}
+	s.Roots[iSlot] = newRoot
+	s.HeadRoot = newRoot
+}
+
+// Advances the finalized checkpoint to the given slot
+func (s *StateQueue) AdvanceFinalized(slot phase0.Slot) {
+
+	for i := s.LatestFinalized.Slot; i <= slot; i++ {
+		delete(s.Roots, i)
+		s.LatestFinalized = s.Roots[i+1] // we assume all roots exist in the array
 	}
 }
 
