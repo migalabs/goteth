@@ -255,9 +255,8 @@ func (s *ChainAnalyzer) CheckFinalized(checkpoint SlotRoot, queue *StateQueue) (
 
 			}
 		}
-
 	}
 
-	log.Infof("state roots from %d to %d verified, advance stored finalized", queue.LatestFinalized.Slot, checkpoint.Slot)
+	log.Infof("state roots verified, advance stored finalized to %d", queue.LatestFinalized.Slot)
 	return checkpoint.Slot, true
 }
