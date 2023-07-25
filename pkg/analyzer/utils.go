@@ -78,7 +78,7 @@ func (s *StateQueue) AddRoot(iSlot phase0.Slot, iRoot phase0.Root) {
 
 	_, ok := s.Roots[iSlot-1]
 
-	if !ok {
+	if !ok && len(s.Roots) > 0 { // if there are roots and we did not find the previous one
 		log.Panicf("root at slot %d:%s is not consecutive to %d", iSlot, iRoot, iSlot-1)
 	}
 
