@@ -17,7 +17,7 @@ import (
 func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, bool, error) {
 	startTime := time.Now()
 	newBlock, err := s.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
-	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
+
 	if newBlock == nil {
 		log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
 		return s.CreateMissingBlock(slot), false, nil
@@ -27,6 +27,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, boo
 		return spec.AgnosticBlock{}, false, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
 	}
 
+	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 	customBlock, err := spec.GetCustomBlock(*newBlock)
 
 	if err != nil {
