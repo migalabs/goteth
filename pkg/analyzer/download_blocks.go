@@ -197,19 +197,29 @@ func (s ChainAnalyzer) DownloadNewBlock(queue *StateQueue, slot phase0.Slot) {
 
 func (s *ChainAnalyzer) Reorg(baseSlot phase0.Slot, slot phase0.Slot, queue *StateQueue) {
 
-	s.RewindBlockMetrics(baseSlot + 1)
+	s.RewindBlockMetrics(baseSlot)
 
-	baseEpoch := phase0.Epoch((baseSlot + 1) / spec.SlotsPerEpoch)
+	baseEpoch := phase0.Epoch((baseSlot) / spec.SlotsPerEpoch)
 	reorgEpoch := phase0.Epoch(slot / spec.SlotsPerEpoch)
 	if slot%spec.SlotsPerEpoch == 31 || // end of epoch
 		baseEpoch != reorgEpoch { // the reorg crosses and epoch boundary
 		epoch := baseEpoch - 1
-		s.RewindEpochMetrics(epoch)
+		s.RewindEpochMetrics(epoch) // epoch metrics are written at epoch(nextstate)-1
+
+	}
+
+	// persist orphans
+	var orphanBlock db.OrphanBlock
+	for i := baseSlot; i < slot; i++ {
+
+		orphanBlock = db.OrphanBlock(queue.BlockHistory[i])
+		s.dbClient.Persist(orphanBlock)
 
 	}
 
 	// rewind states and roots until the reorg base slot
-	queue.Rewind(baseSlot + 1)
+	queue.Rewind(baseSlot)
+
 }
 
 func (s *ChainAnalyzer) RewindBlockMetrics(slot phase0.Slot) {
