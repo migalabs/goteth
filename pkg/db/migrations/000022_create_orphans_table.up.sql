@@ -17,4 +17,5 @@ CREATE TABLE IF NOT EXISTS t_orphans(
 	f_el_base_fee_per_gas INT,
 	f_el_block_hash TEXT,
 	f_el_transactions INT,
-	f_el_block_number INT);
+	f_el_block_number INT,
+	f_size_bytes numeric DEFAULT 0);
