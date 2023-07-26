@@ -249,8 +249,8 @@ func (s *ChainAnalyzer) CheckFinalized(checkpoint SlotRoot, queue *StateQueue) (
 
 				newQueue := NewStateQueue(checkpoint.Slot, checkpoint.StateRoot)
 				*queue = newQueue
-				return checkpoint.Slot - (3 * spec.SlotsPerEpoch), false
-				// redownload from two epochs before the epoch metrics were deleted
+				return i - (2 * spec.SlotsPerEpoch), false
+				// redownload from one epoch before the epoch metrics were deleted
 				// return slot at which download should re-continue
 
 			}
