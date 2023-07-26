@@ -4,10 +4,12 @@ import (
 	"sync"
 	"time"
 
+	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
+	"github.com/pkg/errors"
 )
 
 // This routine is able to download block by block in the slot range
@@ -54,7 +56,10 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	// ------ fill from last epoch in database to current head -------
 
 	// obtain current finalized
-	finalizedSlot, finalizedRoot := s.cli.GetFinalizedEndSlotStateRoot()
+	finalizedBlock, _, err := s.cli.RequestFinalizedBeaconBlock()
+	if err != nil {
+		log.Panicf("could not request the finalized block: %s", err)
+	}
 
 	// obtain current head
 	headSlot := s.cli.RequestCurrentHead()
@@ -64,9 +69,9 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	if err != nil {
 		log.Errorf("could not obtain last slot in database: %s", err)
 	}
-	if nextSlotDownload == 0 || nextSlotDownload > finalizedSlot {
-		log.Infof("continue from finalized slot %d, epoch %d", finalizedSlot, finalizedSlot/spec.SlotsPerEpoch)
-		nextSlotDownload = finalizedSlot
+	if nextSlotDownload == 0 || nextSlotDownload > finalizedBlock.Slot {
+		log.Infof("continue from finalized slot %d, epoch %d", finalizedBlock.Slot, finalizedBlock.Slot/spec.SlotsPerEpoch)
+		nextSlotDownload = finalizedBlock.Slot
 	} else {
 		// database detected
 		log.Infof("database detected, continue from slot %d, epoch %d", nextSlotDownload, nextSlotDownload/spec.SlotsPerEpoch)
@@ -74,7 +79,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 
 	}
 
-	queue := NewStateQueue(finalizedSlot, finalizedRoot)
+	queue := NewStateQueue(finalizedBlock)
 	for nextSlotDownload < headSlot {
 		log.Infof("filling missing blocks: %d", nextSlotDownload)
 		s.DownloadNewBlock(&queue, phase0.Slot(nextSlotDownload))
@@ -122,14 +127,12 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
 			s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
 
-			slotRewind, ok := s.CheckFinalized(
-				SlotRoot{
-					Slot:      phase0.Slot(newFinalCheckpoint.Epoch) * spec.SlotsPerEpoch,
-					Epoch:     newFinalCheckpoint.Epoch,
-					StateRoot: newFinalCheckpoint.State,
-				},
-				&queue,
-			)
+			slotRewind, ok, err := s.CheckFinalized(newFinalCheckpoint, &queue)
+
+			if err != nil {
+				log.Errorf("error checking finalized: %s", err)
+				s.stop = true
+			}
 
 			if !ok {
 				// there was a rewind
@@ -142,7 +145,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			log.Infof("rewinding to %d", newReorg.Slot-phase0.Slot(newReorg.Depth))
 
 			s.Reorg(baseSlot, newReorg.Slot, &queue)
-			nextSlotDownload = queue.HeadRoot.Slot + 1
+			nextSlotDownload = queue.HeadBlock.Slot + 1
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
@@ -165,7 +168,7 @@ func (s ChainAnalyzer) DownloadNewBlock(queue *StateQueue, slot phase0.Slot) {
 	if err != nil {
 		log.Panicf("block error at slot %d: %s", slot, err)
 	}
-	queue.AddRoot(slot, newBlock.StateRoot)
+	queue.AddNewSlot(newBlock)
 
 	// send task to be processed
 	blockTask := &BlockTask{
@@ -223,33 +226,39 @@ func (s *ChainAnalyzer) RewindEpochMetrics(epoch phase0.Epoch) {
 	s.dbClient.Persist(db.ValidatorRewardsDropType(epoch + 1)) // validator rewards are always written at epoch+1
 }
 
-func (s *ChainAnalyzer) CheckFinalized(checkpoint SlotRoot, queue *StateQueue) (phase0.Slot, bool) {
+func (s *ChainAnalyzer) CheckFinalized(checkpoint v1.FinalizedCheckpointEvent, queue *StateQueue) (phase0.Slot, bool, error) {
+
+	finalizedBlock, _, err := s.cli.RequestBeaconBlock(phase0.Slot(checkpoint.Epoch * spec.SlotsPerEpoch))
+
+	if err != nil {
+		return 0, false, errors.Wrap(err, "error requesting finalized checkpoint block")
+	}
 
 	// A new finalized arrived, remove old roots from the list
 
-	for i := queue.LatestFinalized.Slot; i < checkpoint.Slot; i++ {
+	for i := queue.LatestFinalized.Slot; i < finalizedBlock.Slot; i++ {
 		// for every slot, request the stateroot and compare with our list
 		requestedRoot := s.cli.RequestStateRoot(i)
 
-		_, ok := queue.Roots[i]
+		_, ok := queue.BlockHistory[i]
 		if ok {
-			if requestedRoot == queue.Roots[i].StateRoot {
+			if requestedRoot == queue.BlockHistory[i].StateRoot {
 				// the roots are the same, all ok
 				queue.AdvanceFinalized(i)
 			} else {
 
 				log.Infof("Checkpoint mismatch!")
 				log.Infof("Chain Checkpoint for slot %d: %s", i, requestedRoot.String())
-				log.Infof("Stored Checkpoint for slot %d: %s", i, queue.Roots[i].StateRoot.String())
+				log.Infof("Stored Checkpoint for slot %d: %s", i, queue.BlockHistory[i].StateRoot.String())
 				log.Infof("rewinding to slot %d...", i)
 				// rewind until this slot
 				s.RewindBlockMetrics(i)
 				s.RewindEpochMetrics(phase0.Epoch(i/spec.SlotsPerEpoch) - 1)
 				// epoch metrics are written a current state (next state epoch -1)
 
-				newQueue := NewStateQueue(checkpoint.Slot, checkpoint.StateRoot)
+				newQueue := NewStateQueue(finalizedBlock)
 				*queue = newQueue
-				return i - (2 * spec.SlotsPerEpoch), false
+				return i - (2 * spec.SlotsPerEpoch), false, nil
 				// redownload from one epoch before the epoch metrics were deleted
 				// return slot at which download should re-continue
 
@@ -258,5 +267,5 @@ func (s *ChainAnalyzer) CheckFinalized(checkpoint SlotRoot, queue *StateQueue) (
 	}
 
 	log.Infof("state roots verified, advance stored finalized to %d", queue.LatestFinalized.Slot)
-	return checkpoint.Slot, true
+	return finalizedBlock.Slot, true, nil
 }
