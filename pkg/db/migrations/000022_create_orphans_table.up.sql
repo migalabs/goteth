@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS t_orphans(
 	f_timestamp INT,
 	f_epoch INT,
-	f_slot INT,
+	f_slot INT PRIMARY KEY,
 	f_graffiti TEXT,
 	f_proposer_index INT,
 	f_proposed BOOL,
@@ -17,5 +17,4 @@ CREATE TABLE IF NOT EXISTS t_orphans(
 	f_el_base_fee_per_gas INT,
 	f_el_block_hash TEXT,
 	f_el_transactions INT,
-	f_el_block_number INT,
-	CONSTRAINT PK_Slot PRIMARY KEY (f_slot));
+	f_el_block_number INT);
