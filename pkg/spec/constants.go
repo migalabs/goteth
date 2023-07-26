@@ -40,6 +40,7 @@ type ModelType int8
 const (
 	BlockModel ModelType = iota
 	BlockDropModel
+	OrphanModel
 	EpochModel
 	EpochDropModel
 	PoolSummaryModel
