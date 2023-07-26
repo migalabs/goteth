@@ -48,6 +48,15 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, boo
 	return customBlock, true, nil
 }
 
+func (s APIClient) RequestFinalizedBeaconBlock() (spec.AgnosticBlock, bool, error) {
+
+	finalityCheckpoint, _ := s.Api.Finality(s.ctx, "head")
+
+	finalizedSlot := finalityCheckpoint.Finalized.Epoch * spec.SlotsPerEpoch
+
+	return s.RequestBeaconBlock(phase0.Slot(finalizedSlot))
+}
+
 func (s APIClient) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
 	duties, err := s.Api.ProposerDuties(s.ctx, phase0.Epoch(slot/32), []phase0.ValidatorIndex{})
 	proposerValIdx := phase0.ValidatorIndex(0)
