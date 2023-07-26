@@ -79,7 +79,7 @@ func (s *StateQueue) AddNewSlot(block spec.AgnosticBlock) {
 // Advances the finalized checkpoint to the given slot
 func (s *StateQueue) AdvanceFinalized(slot phase0.Slot) {
 
-	for i := s.LatestFinalized.Slot; i <= slot; i++ {
+	for i := s.LatestFinalized.Slot; i < slot; i++ {
 		delete(s.BlockHistory, i)
 		s.LatestFinalized = s.BlockHistory[i+1] // we assume all roots exist in the array
 	}
