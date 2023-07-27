@@ -91,7 +91,7 @@ func (s *StateQueue) Rewind(slot phase0.Slot) {
 		delete(s.BlockHistory, i)
 		s.HeadBlock = s.BlockHistory[i-1]
 		log.Infof("new head at %d", s.HeadBlock.Slot)
-		if i%spec.SlotsPerEpoch == 31 { // end of epoch, remove the state
+		if i%spec.SlotsPerEpoch == 0 { // start of epoch, remove the state of previous epoch
 			s.nextState = s.currentState
 			s.currentState = s.prevState
 			s.prevState = spec.AgnosticState{} // epoch = 0
