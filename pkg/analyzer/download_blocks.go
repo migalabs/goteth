@@ -149,7 +149,12 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 			if nextSlotDownload > baseSlot {
 				log.Infof("rewinding to %d", newReorg.Slot-phase0.Slot(newReorg.Depth))
 
-				s.Reorg(baseSlot, newReorg.Slot, &queue)
+				err := s.Reorg(baseSlot, newReorg.Slot, &queue)
+
+				if err != nil {
+					s.stop = true
+					return
+				}
 				nextSlotDownload = queue.HeadBlock.Slot + 1
 			}
 
@@ -243,6 +248,7 @@ func (s *ChainAnalyzer) Reorg(baseSlot phase0.Slot, slot phase0.Slot, queue *Sta
 		}
 	}
 
+	return nil
 }
 
 func (s *ChainAnalyzer) RewindBlockMetrics(slot phase0.Slot) {
