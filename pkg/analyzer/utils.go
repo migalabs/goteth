@@ -85,20 +85,6 @@ func (s *StateQueue) AdvanceFinalized(slot phase0.Slot) {
 	}
 }
 
-func (s *StateQueue) Rewind(slot phase0.Slot) {
-
-	for i := s.HeadBlock.Slot; i >= slot; i-- {
-		delete(s.BlockHistory, i)
-		s.HeadBlock = s.BlockHistory[i-1]
-		log.Infof("new head at %d", s.HeadBlock.Slot)
-		if i%spec.SlotsPerEpoch == 0 { // start of epoch, remove the state of previous epoch
-			s.nextState = s.currentState
-			s.currentState = s.prevState
-			s.prevState = spec.AgnosticState{} // epoch = 0
-		}
-	}
-}
-
 func InitGenesis(dbClient *db.PostgresDBService, apiClient *clientapi.APIClient) {
 	// Get genesis from the API
 	apiGenesis := apiClient.RequestGenesis()

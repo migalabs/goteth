@@ -201,7 +201,7 @@ func (s ChainAnalyzer) DownloadNewBlock(queue *StateQueue, slot phase0.Slot) {
 	// check if the min Request time has been completed (to avoid spaming the API)
 }
 
-func (s *ChainAnalyzer) Reorg(baseSlot phase0.Slot, slot phase0.Slot, queue *StateQueue) {
+func (s *ChainAnalyzer) Reorg(baseSlot phase0.Slot, slot phase0.Slot, queue *StateQueue) error {
 
 	s.RewindBlockMetrics(baseSlot)
 
@@ -211,7 +211,6 @@ func (s *ChainAnalyzer) Reorg(baseSlot phase0.Slot, slot phase0.Slot, queue *Sta
 		baseEpoch != reorgEpoch { // the reorg crosses and epoch boundary
 		epoch := baseEpoch - 1
 		s.RewindEpochMetrics(epoch) // epoch metrics are written at epoch(nextstate)-1
-
 	}
 
 	// persist orphans
@@ -227,8 +226,22 @@ func (s *ChainAnalyzer) Reorg(baseSlot phase0.Slot, slot phase0.Slot, queue *Sta
 
 	}
 
-	// rewind states and roots until the reorg base slot
-	queue.Rewind(baseSlot)
+	// rewind states and roots until the reorg base slot (only modify queue)
+	for i := queue.HeadBlock.Slot; i >= slot; i-- {
+		delete(queue.BlockHistory, i)
+		queue.HeadBlock = queue.BlockHistory[i-1]
+		log.Infof("new head at %d", queue.HeadBlock.Slot)
+		if i%spec.SlotsPerEpoch == 0 { // start of epoch, remove the state of previous epoch
+			queue.nextState = queue.currentState
+			queue.currentState = queue.prevState
+			state, err := s.cli.RequestBeaconState(queue.currentState.Slot - spec.SlotsPerEpoch)
+			if err != nil {
+				return errors.Wrap(err, "reorg: could not download state")
+			}
+
+			queue.prevState = *state
+		}
+	}
 
 }
 
