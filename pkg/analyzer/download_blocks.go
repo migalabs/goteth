@@ -69,6 +69,8 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	if err != nil {
 		log.Errorf("could not obtain last slot in database: %s", err)
 	}
+	// if we did not get a last slot from the database, or we were too close to the head
+	// then start from the current finalized in the chain
 	if nextSlotDownload == 0 || nextSlotDownload > finalizedBlock.Slot {
 		log.Infof("continue from finalized slot %d, epoch %d", finalizedBlock.Slot, finalizedBlock.Slot/spec.SlotsPerEpoch)
 		nextSlotDownload = finalizedBlock.Slot
@@ -260,6 +262,7 @@ func (s *ChainAnalyzer) CheckFinalized(checkpoint v1.FinalizedCheckpointEvent, q
 
 		_, ok := queue.BlockHistory[i]
 		if ok {
+			// we dont review parent roots, so we need to review block by block
 			if requestedRoot == queue.BlockHistory[i].StateRoot {
 				// the roots are the same, all ok
 				queue.AdvanceFinalized(i)
@@ -276,7 +279,7 @@ func (s *ChainAnalyzer) CheckFinalized(checkpoint v1.FinalizedCheckpointEvent, q
 
 				newQueue := NewStateQueue(finalizedBlock)
 				*queue = newQueue
-				return i - (2 * spec.SlotsPerEpoch), false, nil
+				return i - (epochsToFinalizedTentative * spec.SlotsPerEpoch), false, nil
 				// redownload from one epoch before the epoch metrics were deleted
 				// return slot at which download should re-continue
 
