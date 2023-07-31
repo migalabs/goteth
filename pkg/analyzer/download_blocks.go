@@ -56,7 +56,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 	// ------ fill from last epoch in database to current head -------
 
 	// obtain current finalized
-	finalizedBlock, _, err := s.cli.RequestFinalizedBeaconBlock()
+	finalizedBlock, err := s.cli.RequestFinalizedBeaconBlock()
 	if err != nil {
 		log.Panicf("could not request the finalized block: %s", err)
 	}
@@ -168,7 +168,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 func (s ChainAnalyzer) DownloadNewBlock(queue *StateQueue, slot phase0.Slot) {
 
 	ticker := time.NewTicker(minBlockReqTime)
-	newBlock, proposed, err := s.cli.RequestBeaconBlock(slot)
+	newBlock, err := s.cli.RequestBeaconBlock(slot)
 	if err != nil {
 		log.Panicf("block error at slot %d: %s", slot, err)
 	}
@@ -178,7 +178,7 @@ func (s ChainAnalyzer) DownloadNewBlock(queue *StateQueue, slot phase0.Slot) {
 	blockTask := &BlockTask{
 		Block:    newBlock,
 		Slot:     uint64(slot),
-		Proposed: proposed,
+		Proposed: newBlock.Proposed,
 	}
 	log.Tracef("sending a new task for slot %d", slot)
 	s.blockTaskChan <- blockTask
@@ -246,7 +246,7 @@ func (s *ChainAnalyzer) RewindEpochMetrics(epoch phase0.Epoch) {
 
 func (s *ChainAnalyzer) CheckFinalized(checkpoint v1.FinalizedCheckpointEvent, queue *StateQueue) (phase0.Slot, bool, error) {
 
-	finalizedBlock, _, err := s.cli.RequestBeaconBlock(phase0.Slot(checkpoint.Epoch * spec.SlotsPerEpoch))
+	finalizedBlock, err := s.cli.RequestBeaconBlock(phase0.Slot(checkpoint.Epoch * spec.SlotsPerEpoch))
 
 	if err != nil {
 		return 0, false, errors.Wrap(err, "error requesting finalized checkpoint block")
