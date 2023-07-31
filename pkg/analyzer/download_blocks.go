@@ -172,7 +172,7 @@ func (s ChainAnalyzer) DownloadNewBlock(queue *StateQueue, slot phase0.Slot) {
 	if err != nil {
 		log.Panicf("block error at slot %d: %s", slot, err)
 	}
-	queue.AddNewSlot(newBlock)
+	queue.AddNewBlock(newBlock)
 
 	// send task to be processed
 	blockTask := &BlockTask{

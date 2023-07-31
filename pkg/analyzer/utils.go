@@ -62,7 +62,7 @@ func (s StateQueue) Complete() bool {
 	return false
 }
 
-func (s *StateQueue) AddNewSlot(block spec.AgnosticBlock) {
+func (s *StateQueue) AddNewBlock(block spec.AgnosticBlock) {
 
 	// check previous slot exists
 
