@@ -16,7 +16,14 @@ import (
 func (s *ChainAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 	defer wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
-	queue := StateQueue{}
+
+	block, err := s.cli.RequestBeaconBlock(s.initSlot)
+	if err != nil {
+		log.Errorf("could not request first block in bacfill process: %s", err)
+		return
+	}
+
+	queue := NewStateQueue(block)
 
 loop:
 	// loop over the list of slots that we need to analyze
@@ -41,6 +48,9 @@ loop:
 				// new epoch
 				s.DownloadNewState(&queue, slot-1, false)
 			}
+
+			// refresh map as we dont need to store the history
+			queue.BlockHistory = make(map[phase0.Slot]spec.AgnosticBlock)
 
 		}
 
