@@ -14,24 +14,25 @@ import (
 	"github.com/prysmaticlabs/go-bitfield"
 )
 
-func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, bool, error) {
+func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, error) {
 	startTime := time.Now()
 	newBlock, err := s.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
-	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
+
 	if newBlock == nil {
 		log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
-		return s.CreateMissingBlock(slot), false, nil
+		return s.CreateMissingBlock(slot), nil
 	}
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
-		return spec.AgnosticBlock{}, false, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
+		return spec.AgnosticBlock{}, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
 	}
 
+	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 	customBlock, err := spec.GetCustomBlock(*newBlock)
 
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
-		return spec.AgnosticBlock{}, false, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
+		return spec.AgnosticBlock{}, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
 	}
 
 	// fill in block size on custom block using RequestBlockByHash
@@ -44,7 +45,16 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, boo
 	}
 
 	customBlock.StateRoot = s.RequestStateRoot(slot)
-	return customBlock, true, nil
+	return customBlock, nil
+}
+
+func (s APIClient) RequestFinalizedBeaconBlock() (spec.AgnosticBlock, error) {
+
+	finalityCheckpoint, _ := s.Api.Finality(s.ctx, "head")
+
+	finalizedSlot := finalityCheckpoint.Finalized.Epoch * spec.SlotsPerEpoch
+
+	return s.RequestBeaconBlock(phase0.Slot(finalizedSlot))
 }
 
 func (s APIClient) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
@@ -62,6 +72,7 @@ func (s APIClient) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
 
 	return spec.AgnosticBlock{
 		Slot:              slot,
+		StateRoot:         s.RequestStateRoot(slot),
 		ProposerIndex:     proposerValIdx,
 		Graffiti:          [32]byte{},
 		Proposed:          false,

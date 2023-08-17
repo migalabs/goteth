@@ -132,6 +132,10 @@ func (p *PostgresDBService) runWriters() {
 						q, args := BlockOperation(task.(spec.AgnosticBlock))
 						persis.query = q
 						persis.values = append(persis.values, args...)
+					case spec.OrphanModel:
+						q, args := OrphanOperation(task.(OrphanBlock))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					case spec.BlockDropModel:
 						q, args := DropBlocks(task.(BlockDropType))
 						persis.query = q
