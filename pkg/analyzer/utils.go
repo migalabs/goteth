@@ -24,32 +24,22 @@ var (
 	)
 )
 
-type SlotRoot struct {
-	Slot      phase0.Slot
-	Epoch     phase0.Epoch
-	StateRoot phase0.Root
-}
-
 type StateQueue struct {
 	prevState       spec.AgnosticState
 	currentState    spec.AgnosticState
 	nextState       spec.AgnosticState
-	Roots           map[phase0.Slot]SlotRoot // Here we will store stateroots from the blocks
-	HeadRoot        SlotRoot
-	LatestFinalized SlotRoot
+	BlockHistory    map[phase0.Slot]spec.AgnosticBlock // Here we will store stateroots from the blocks
+	HeadBlock       spec.AgnosticBlock
+	LatestFinalized spec.AgnosticBlock
 }
 
-func NewStateQueue(finalizedSlot phase0.Slot, finalizedRoot phase0.Root) StateQueue {
+func NewStateQueue(finalizedBlock spec.AgnosticBlock) StateQueue {
 	return StateQueue{
-		prevState:    spec.AgnosticState{},
-		currentState: spec.AgnosticState{},
-		nextState:    spec.AgnosticState{},
-		Roots:        make(map[phase0.Slot]SlotRoot),
-		LatestFinalized: SlotRoot{
-			Slot:      finalizedSlot,
-			Epoch:     phase0.Epoch(finalizedSlot / spec.SlotsPerEpoch),
-			StateRoot: finalizedRoot,
-		},
+		prevState:       spec.AgnosticState{},
+		currentState:    spec.AgnosticState{},
+		nextState:       spec.AgnosticState{},
+		BlockHistory:    make(map[phase0.Slot]spec.AgnosticBlock),
+		LatestFinalized: finalizedBlock,
 	}
 }
 
@@ -72,45 +62,26 @@ func (s StateQueue) Complete() bool {
 	return false
 }
 
-func (s *StateQueue) AddRoot(iSlot phase0.Slot, iRoot phase0.Root) {
+func (s *StateQueue) AddNewBlock(block spec.AgnosticBlock) {
 
 	// check previous slot exists
 
-	_, ok := s.Roots[iSlot-1]
+	_, ok := s.BlockHistory[block.Slot-1]
 
-	if !ok && len(s.Roots) > 0 { // if there are roots and we did not find the previous one
-		log.Panicf("root at slot %d:%s is not consecutive to %d", iSlot, iRoot, iSlot-1)
+	if !ok && len(s.BlockHistory) > 0 { // if there are roots and we did not find the previous one
+		log.Panicf("root at slot %d:%s is not consecutive to %d", block.Slot, block.StateRoot, block.Slot-1)
 	}
 
-	newRoot := SlotRoot{
-		Slot:      iSlot,
-		Epoch:     phase0.Epoch(iSlot / spec.SlotsPerEpoch),
-		StateRoot: iRoot,
-	}
-	s.Roots[iSlot] = newRoot
-	s.HeadRoot = newRoot
+	s.BlockHistory[block.Slot] = block
+	s.HeadBlock = block
 }
 
 // Advances the finalized checkpoint to the given slot
 func (s *StateQueue) AdvanceFinalized(slot phase0.Slot) {
 
-	for i := s.LatestFinalized.Slot; i <= slot; i++ {
-		delete(s.Roots, i)
-		s.LatestFinalized = s.Roots[i+1] // we assume all roots exist in the array
-	}
-}
-
-func (s *StateQueue) Rewind(slot phase0.Slot) {
-
-	for i := s.HeadRoot.Slot; i >= slot; i-- {
-		delete(s.Roots, i)
-		s.HeadRoot = s.Roots[i-1]
-		log.Infof("new head at %d", s.HeadRoot.Slot)
-		if i%spec.SlotsPerEpoch == 31 { // end of epoch, remove the state
-			s.nextState = s.currentState
-			s.currentState = s.prevState
-			s.prevState = spec.AgnosticState{} // epoch = 0
-		}
+	for i := s.LatestFinalized.Slot; i < slot; i++ {
+		delete(s.BlockHistory, i)
+		s.LatestFinalized = s.BlockHistory[i+1] // we assume all roots exist in the array
 	}
 }
 
