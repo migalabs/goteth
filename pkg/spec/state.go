@@ -30,7 +30,7 @@ type AgnosticState struct {
 	AttestedValsPerSlot     map[phase0.Slot][]uint64          // for each slot in the epoch, how many vals attested
 	Epoch                   phase0.Epoch                      // Epoch of the state
 	Slot                    phase0.Slot                       // Slot of the state
-	BlockRoots              [][]byte                          // array of block roots at this point (8192)
+	BlockRoots              []phase0.Root                     // array of block roots at this point (8192)
 	MissedBlocks            []phase0.Slot                     // blocks missed in the epoch until this point
 	SyncCommittee           altair.SyncCommittee              // list of pubkeys in the current sync committe
 }
@@ -49,6 +49,8 @@ func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (Agnos
 
 	case spec.DataVersionCapella:
 		return NewCapellaState(bstate, duties), nil
+	case spec.DataVersionDeneb:
+		return NewDenebState(bstate, duties), nil
 	default:
 		return AgnosticState{}, fmt.Errorf("could not figure out the Beacon State Fork Version: %s", bstate.Version)
 	}
@@ -150,7 +152,7 @@ func (p AgnosticState) TrackPrevMissingBlock() phase0.Slot {
 
 	lastItem := p.BlockRoots[firstIndex-1]
 	item := p.BlockRoots[firstIndex]
-	res := bytes.Compare(lastItem, item)
+	res := bytes.Compare(lastItem[:], item[:])
 
 	if res == 0 {
 		// both consecutive roots were the same ==> missed block
@@ -173,7 +175,7 @@ func (p *AgnosticState) TrackMissingBlocks() {
 		}
 		lastItem := p.BlockRoots[i-1]
 		item := p.BlockRoots[i]
-		res := bytes.Compare(lastItem, item)
+		res := bytes.Compare(lastItem[:], item[:])
 
 		if res == 0 {
 			// both consecutive roots were the same ==> missed block
@@ -297,7 +299,7 @@ func NewAltairState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnost
 		EpochStructs:  duties,
 		Epoch:         phase0.Epoch(bstate.Altair.Slot / SlotsPerEpoch),
 		Slot:          bstate.Altair.Slot,
-		BlockRoots:    RootToByte(bstate.Altair.BlockRoots),
+		BlockRoots:    bstate.Altair.BlockRoots,
 		SyncCommittee: *bstate.Altair.CurrentSyncCommittee,
 	}
 
@@ -352,7 +354,7 @@ func NewBellatrixState(bstate spec.VersionedBeaconState, duties EpochDuties) Agn
 		EpochStructs:  duties,
 		Epoch:         phase0.Epoch(bstate.Bellatrix.Slot / SlotsPerEpoch),
 		Slot:          bstate.Bellatrix.Slot,
-		BlockRoots:    RootToByte(bstate.Bellatrix.BlockRoots),
+		BlockRoots:    bstate.Bellatrix.BlockRoots,
 		SyncCommittee: *bstate.Bellatrix.CurrentSyncCommittee,
 	}
 
@@ -373,7 +375,7 @@ func NewCapellaState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnos
 		EpochStructs:  duties,
 		Epoch:         phase0.Epoch(bstate.Capella.Slot / SlotsPerEpoch),
 		Slot:          bstate.Capella.Slot,
-		BlockRoots:    RootToByte(bstate.Capella.BlockRoots),
+		BlockRoots:    bstate.Capella.BlockRoots,
 		SyncCommittee: *bstate.Capella.CurrentSyncCommittee,
 	}
 
@@ -382,4 +384,25 @@ func NewCapellaState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnos
 	ProcessAltairAttestations(&capellaObj, bstate.Capella.PreviousEpochParticipation)
 
 	return capellaObj
+}
+
+// This Wrapper is meant to include all necessary data from the Capella Fork
+func NewDenebState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
+
+	denebObj := AgnosticState{
+		Version:       bstate.Version,
+		Balances:      bstate.Deneb.Balances,
+		Validators:    bstate.Deneb.Validators,
+		EpochStructs:  duties,
+		Epoch:         phase0.Epoch(bstate.Deneb.Slot / SlotsPerEpoch),
+		Slot:          bstate.Deneb.Slot,
+		BlockRoots:    bstate.Deneb.BlockRoots,
+		SyncCommittee: *bstate.Deneb.CurrentSyncCommittee,
+	}
+
+	denebObj.Setup()
+
+	ProcessAltairAttestations(&denebObj, bstate.Deneb.PreviousEpochParticipation)
+
+	return denebObj
 }

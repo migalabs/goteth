@@ -61,6 +61,8 @@ func GetCustomBlock(block spec.VersionedSignedBeaconBlock) (AgnosticBlock, error
 		return NewBellatrixBlock(block), nil
 	case spec.DataVersionCapella:
 		return NewCapellaBlock(block), nil
+	case spec.DataVersionDeneb:
+		return NewDenebBlock(block), nil
 	default:
 		return AgnosticBlock{}, fmt.Errorf("could not figure out the Beacon Block Fork Version: %s", block.Version)
 	}
@@ -166,6 +168,32 @@ func NewCapellaBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			Transactions:  block.Capella.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Capella.Message.Body.ExecutionPayload.BlockNumber,
 			Withdrawals:   block.Capella.Message.Body.ExecutionPayload.Withdrawals,
+		},
+	}
+}
+
+func NewDenebBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
+	return AgnosticBlock{
+		Slot:              block.Deneb.Message.Slot,
+		ProposerIndex:     block.Deneb.Message.ProposerIndex,
+		Graffiti:          block.Deneb.Message.Body.Graffiti,
+		Proposed:          true,
+		Attestations:      block.Deneb.Message.Body.Attestations,
+		Deposits:          block.Deneb.Message.Body.Deposits,
+		ProposerSlashings: block.Deneb.Message.Body.ProposerSlashings,
+		AttesterSlashings: block.Deneb.Message.Body.AttesterSlashings,
+		VoluntaryExits:    block.Deneb.Message.Body.VoluntaryExits,
+		SyncAggregate:     block.Deneb.Message.Body.SyncAggregate,
+		ExecutionPayload: AgnosticExecutionPayload{
+			FeeRecipient:  block.Deneb.Message.Body.ExecutionPayload.FeeRecipient,
+			GasLimit:      block.Deneb.Message.Body.ExecutionPayload.GasLimit,
+			GasUsed:       block.Deneb.Message.Body.ExecutionPayload.GasUsed,
+			Timestamp:     block.Deneb.Message.Body.ExecutionPayload.Timestamp,
+			BaseFeePerGas: block.Deneb.Message.Body.ExecutionPayload.BaseFeePerGas.Bytes32(),
+			BlockHash:     block.Deneb.Message.Body.ExecutionPayload.BlockHash,
+			Transactions:  block.Deneb.Message.Body.ExecutionPayload.Transactions,
+			BlockNumber:   block.Deneb.Message.Body.ExecutionPayload.BlockNumber,
+			Withdrawals:   block.Deneb.Message.Body.ExecutionPayload.Withdrawals,
 		},
 	}
 }
