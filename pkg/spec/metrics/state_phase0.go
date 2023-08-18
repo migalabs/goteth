@@ -194,7 +194,7 @@ func (p Phase0Metrics) IsCorrectTarget(attestation phase0.PendingAttestation) bo
 	slot = slot * spec.SlotsPerEpoch
 	expected := p.baseMetrics.PrevState.BlockRoots[slot%spec.SlotsPerHistoricalRoot]
 
-	res := bytes.Compare(target[:], expected)
+	res := bytes.Compare(target[:], expected[:])
 
 	return res == 0 // if 0, then block roots are the same
 }
@@ -206,7 +206,7 @@ func (p Phase0Metrics) IsCorrectHead(attestation phase0.PendingAttestation) bool
 	index := attestation.Data.Slot % spec.SlotsPerHistoricalRoot
 	expected := p.baseMetrics.CurrentState.BlockRoots[index]
 
-	res := bytes.Compare(head[:], expected)
+	res := bytes.Compare(head[:], expected[:])
 	return res == 0 // if 0, then block roots are the same
 }
 
