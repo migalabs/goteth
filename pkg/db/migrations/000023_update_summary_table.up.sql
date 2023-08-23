@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS t_pool_summary(
 		count_missing_source INT,
 		count_missing_target INT,
 		count_missing_head INT,
-		count_attestations INT,
+		count_expected_attestations INT,
 		proposed_blocks_performance INT,
 		missed_blocks_performance INT,
 		number_active_vals INT,

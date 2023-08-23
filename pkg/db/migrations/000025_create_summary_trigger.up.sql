@@ -42,7 +42,7 @@ CREATE OR REPLACE FUNCTION notify_epoch_insert() RETURNS TRIGGER AS $$
 			COUNT(CASE WHEN f_missing_source = TRUE THEN 1 ELSE null END) as count_missing_source,
 			COUNT(CASE WHEN f_missing_target = TRUE THEN 1 ELSE null END) as count_missing_target,
 			COUNT(CASE WHEN f_missing_head = TRUE THEN 1 ELSE null END) as count_missing_head,
-			COUNT(*) as count_attestations,
+			COUNT(*) as count_expected_attestations,
 			SUM(CASE WHEN t_proposer_duties.f_proposed = TRUE THEN 1 ELSE 0 END) as proposed_blocks_performance,
 			SUM(CASE WHEN t_proposer_duties.f_proposed = FALSE THEN 1 ELSE 0 END) as missed_blocks_performance,
 			count(distinct(t_validator_rewards_summary.f_val_idx)) as number_active_vals
