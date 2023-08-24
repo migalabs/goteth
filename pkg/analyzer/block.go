@@ -220,6 +220,7 @@ type EpochTask struct {
 	State     spec.AgnosticState
 	PrevState spec.AgnosticState
 	Finalized bool
+	BlockList []spec.AgnosticBlock
 }
 
 type ValTask struct {

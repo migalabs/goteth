@@ -22,6 +22,16 @@ func (s *ChainAnalyzer) DownloadNewState(
 		log.Panicf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
 	}
 
+	blockList := make([]spec.AgnosticBlock, 0)
+	epochStartSlot := phase0.Slot(nextBstate.Epoch * spec.SlotsPerEpoch)
+	epochEndSlot := phase0.Slot((nextBstate.Epoch+1)*spec.SlotsPerEpoch - 1)
+
+	for i := epochStartSlot; i <= epochEndSlot; i++ {
+		blockList = append(blockList, queue.BlockHistory[i])
+	}
+	nextBstate.Blocks = blockList
+	nextBstate.CalculateWithdrawals()
+
 	queue.AddNewState(*nextBstate)
 
 	if queue.Complete() {
