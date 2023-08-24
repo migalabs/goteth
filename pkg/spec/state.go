@@ -33,6 +33,8 @@ type AgnosticState struct {
 	BlockRoots              [][]byte                          // array of block roots at this point (8192)
 	MissedBlocks            []phase0.Slot                     // blocks missed in the epoch until this point
 	SyncCommittee           altair.SyncCommittee              // list of pubkeys in the current sync committe
+	Blocks                  []AgnosticBlock                   // list of blocks in the epoch
+	Withdrawals             []phase0.Gwei                     // one position per validator
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -70,6 +72,7 @@ func (p *AgnosticState) Setup() error {
 	p.MissedBlocks = make([]phase0.Slot, 0)
 	p.ValAttestationInclusion = make(map[phase0.ValidatorIndex]ValVote)
 	p.AttestedValsPerSlot = make(map[phase0.Slot][]uint64)
+	p.Withdrawals = make([]phase0.Gwei, len(p.Validators))
 
 	for i := range p.CorrectFlags {
 		p.CorrectFlags[i] = make([]uint, arrayLen)
@@ -79,6 +82,16 @@ func (p *AgnosticState) Setup() error {
 	p.TotalActiveRealBalance = p.GetTotalActiveRealBalance()
 	p.TrackMissingBlocks()
 	return nil
+}
+
+func (p AgnosticState) CalculateWithdrawals() {
+
+	for _, block := range p.Blocks {
+		for _, withdrawal := range block.ExecutionPayload.Withdrawals {
+			p.Withdrawals[withdrawal.ValidatorIndex] += withdrawal.Amount
+		}
+
+	}
 }
 
 // the length of the valList = number of validators
