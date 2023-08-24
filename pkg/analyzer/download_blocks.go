@@ -47,10 +47,10 @@ loop:
 			if slot%spec.SlotsPerEpoch == 0 {
 				// new epoch
 				s.DownloadNewState(&queue, slot-1, false)
+				// refresh map as we dont need to store the history
+				// only store history of last epoch processed
+				queue.AdvanceFinalized(slot - spec.SlotsPerEpoch)
 			}
-
-			// refresh map as we dont need to store the history
-			queue.BlockHistory = make(map[phase0.Slot]spec.AgnosticBlock)
 
 		}
 
