@@ -45,6 +45,14 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, err
 	}
 
 	customBlock.StateRoot = s.RequestStateRoot(slot)
+
+	reward, err := s.RequestBlockRewards(slot)
+	if err != nil {
+		log.Error("cannot request block reward: %s", err)
+	}
+
+	customBlock.Reward = reward
+
 	return customBlock, nil
 }
 

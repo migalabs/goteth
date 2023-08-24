@@ -25,6 +25,7 @@ type AgnosticBlock struct {
 	SyncAggregate     *altair.SyncAggregate
 	ExecutionPayload  AgnosticExecutionPayload
 	Size              uint32
+	Reward            BlockRewards
 }
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
