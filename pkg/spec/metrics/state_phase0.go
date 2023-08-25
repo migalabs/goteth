@@ -169,7 +169,7 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		MissingSource:       false,
 		MissingTarget:       false,
 		MissingHead:         false,
-		Status:              0,
+		Status:              p.baseMetrics.NextState.GetValStatus(valIdx),
 		BaseReward:          baseReward,
 		ProposerSlot:        proposerSlot,
 		InSyncCommittee:     false,

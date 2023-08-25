@@ -70,7 +70,7 @@ loop:
 
 				// Proposer Duties
 
-				for _, item := range stateMetrics.GetMetricsBase().CurrentState.EpochStructs.ProposerDuties {
+				for _, item := range stateMetrics.GetMetricsBase().NextState.EpochStructs.ProposerDuties {
 
 					newDuty := spec.ProposerDuty{
 						ValIdx:       item.ValidatorIndex,
