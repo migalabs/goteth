@@ -22,8 +22,9 @@ var (
 		f_missing_source,
 		f_missing_target,
 		f_missing_head,
-		f_status)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		f_status,
+		f_block_api_reward)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 	ON CONFLICT ON CONSTRAINT t_validator_rewards_summary_pkey
 		DO NOTHING;
 	`
@@ -50,6 +51,7 @@ func insertValidator(inputValidator spec.ValidatorRewards) (string, []interface{
 	resultArgs = append(resultArgs, inputValidator.MissingTarget)
 	resultArgs = append(resultArgs, inputValidator.MissingHead)
 	resultArgs = append(resultArgs, inputValidator.Status)
+	resultArgs = append(resultArgs, inputValidator.ProposerReward)
 	return InsertValidator, resultArgs
 }
 
