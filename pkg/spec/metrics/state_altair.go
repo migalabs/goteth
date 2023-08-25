@@ -156,6 +156,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		Status:              p.baseMetrics.NextState.GetValStatus(valIdx),
 		BaseReward:          baseReward,
 		ProposerSlot:        proposerSlot,
+		ProposerReward:      int64(proposerReward),
 		InSyncCommittee:     inSyncCommitte,
 	}
 	return result, nil
