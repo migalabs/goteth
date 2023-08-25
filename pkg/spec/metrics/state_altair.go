@@ -57,30 +57,25 @@ func (p AltairMetrics) GetMaxProposerSyncReward(valIdx uint64, valPubKey phase0.
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#sync-aggregate-processing
 func (p AltairMetrics) GetMaxSyncComReward(valIdx phase0.ValidatorIndex) phase0.Gwei {
 
-	inCommittee := false
-
 	valPubKey := p.baseMetrics.NextState.Validators[valIdx].PublicKey
 
 	syncCommitteePubKeys := p.baseMetrics.NextState.SyncCommittee
+	reward := phase0.Gwei(0)
 
 	for _, item := range syncCommitteePubKeys.Pubkeys {
-		if valPubKey == item {
-			inCommittee = true
+		if valPubKey == item { // hit, one validator can be multiple times in the same committee
+			// at this point we know the validator was inside the sync committee and, therefore, active at that point
+
+			totalActiveInc := p.baseMetrics.NextState.TotalActiveBalance / spec.EffectiveBalanceInc
+			totalBaseRewards := p.GetBaseRewardPerInc(p.baseMetrics.NextState.TotalActiveBalance) * totalActiveInc
+			maxParticipantRewards := totalBaseRewards * phase0.Gwei(spec.SyncRewardWeight) / phase0.Gwei(spec.WeightDenominator) / spec.SlotsPerEpoch
+			participantReward := maxParticipantRewards / phase0.Gwei(spec.SyncCommitteeSize) // this is the participantReward for a single slot
+
+			reward += participantReward * phase0.Gwei(spec.SlotsPerEpoch-len(p.baseMetrics.NextState.MissedBlocks)) // max reward would be 32 perfect slots
 		}
 	}
 
-	if !inCommittee {
-		return 0
-	}
-
-	// at this point we know the validator was inside the sync committee and, therefore, active at that point
-
-	totalActiveInc := p.baseMetrics.NextState.TotalActiveBalance / spec.EffectiveBalanceInc
-	totalBaseRewards := p.GetBaseRewardPerInc(p.baseMetrics.NextState.TotalActiveBalance) * totalActiveInc
-	maxParticipantRewards := totalBaseRewards * phase0.Gwei(spec.SyncRewardWeight) / phase0.Gwei(spec.WeightDenominator) / spec.SlotsPerEpoch
-	participantReward := maxParticipantRewards / phase0.Gwei(spec.SyncCommitteeSize) // this is the participantReward for a single slot
-
-	return participantReward * phase0.Gwei(spec.SlotsPerEpoch-len(p.baseMetrics.NextState.MissedBlocks)) // max reward would be 32 perfect slots
+	return reward
 
 }
 
