@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/cortze/eth-cl-state-analyzer/pkg/config"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
+
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
@@ -97,6 +99,8 @@ func LaunchBlockMetrics(c *cli.Context) error {
 
 	conf := config.NewAnalyzerConfig()
 	conf.Apply(c)
+
+	logrus.SetLevel(utils.ParseLogLevel(conf.LogLevel))
 
 	// generate the block analyzer
 	blockAnalyzer, err := analyzer.NewChainAnalyzer(c.Context, *conf)

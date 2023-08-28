@@ -31,7 +31,7 @@ func (p AltairMetrics) GetMetricsBase() StateMetricsBase {
 func (p AltairMetrics) GetMaxProposerAttReward(valIdx phase0.ValidatorIndex) (phase0.Gwei, phase0.Slot) {
 
 	proposerSlot := phase0.Slot(0)
-	reward := phase0.Gwei(0)
+
 	duties := p.baseMetrics.NextState.EpochStructs.ProposerDuties
 	// validator will only have duties it is active at this point
 	for _, duty := range duties {
@@ -40,6 +40,7 @@ func (p AltairMetrics) GetMaxProposerAttReward(valIdx phase0.ValidatorIndex) (ph
 			break
 		}
 	}
+	reward := p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.Attestations
 
 	return reward, proposerSlot
 
@@ -47,9 +48,9 @@ func (p AltairMetrics) GetMaxProposerAttReward(valIdx phase0.ValidatorIndex) (ph
 
 // TODO: to be implemented once we can process each block
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#sync-aggregate-processing
-func (p AltairMetrics) GetMaxProposerSyncReward(valIdx uint64, valPubKey phase0.BLSPubKey, valEffectiveBalance uint64, totalEffectiveBalance uint64) int64 {
+func (p AltairMetrics) GetMaxProposerSyncReward(proposerSlot phase0.Slot) phase0.Gwei {
 
-	return 0
+	return p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.SyncAggregate
 
 }
 
@@ -126,8 +127,12 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 
 	_, proposerSlot := p.GetMaxProposerAttReward(
 		valIdx)
+	proposerReward := phase0.Gwei(0)
+	if proposerSlot > 0 {
+		proposerReward = p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.Total
+	}
 
-	maxReward := flagIndexMaxReward + syncComMaxReward
+	maxReward := flagIndexMaxReward + syncComMaxReward + proposerReward
 
 	flags := p.baseMetrics.CurrentState.MissingFlags(valIdx)
 
@@ -135,7 +140,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		ValidatorIndex:      valIdx,
 		Epoch:               p.baseMetrics.NextState.Epoch,
 		ValidatorBalance:    p.baseMetrics.NextState.Balances[valIdx],
-		Reward:              p.baseMetrics.EpochReward(valIdx),
+		Reward:              p.baseMetrics.EpochReward(valIdx) + int64(p.baseMetrics.NextState.Withdrawals[valIdx]),
 		MaxReward:           maxReward,
 		AttestationReward:   flagIndexMaxReward,
 		SyncCommitteeReward: syncComMaxReward,
@@ -146,6 +151,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		Status:              p.baseMetrics.NextState.GetValStatus(valIdx),
 		BaseReward:          baseReward,
 		ProposerSlot:        proposerSlot,
+		ProposerReward:      int64(proposerReward),
 		InSyncCommittee:     inSyncCommitte,
 	}
 	return result, nil
