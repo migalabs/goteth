@@ -70,7 +70,7 @@ func NewChainAnalyzer(
 		log.Infof("generating new Block Analyzer from slots %d:%d", iConfig.InitSlot, iConfig.FinalSlot)
 	}
 
-	metricsObj, err := NewMetrics(iConfig.Metrics)
+	metricsObj, err := db.NewMetrics(iConfig.Metrics)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read metric.")
 	}
@@ -83,7 +83,10 @@ func NewChainAnalyzer(
 	idbClient.Connect()
 
 	// generate the httpAPI client
-	cli, err := clientapi.NewAPIClient(pCtx, iConfig.BnEndpoint, clientapi.WithELEndpoint(iConfig.ElEndpoint))
+	cli, err := clientapi.NewAPIClient(pCtx,
+		iConfig.BnEndpoint,
+		clientapi.WithELEndpoint(iConfig.ElEndpoint),
+		clientapi.WithDBMetrics(metricsObj))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate API Client.")
 	}
