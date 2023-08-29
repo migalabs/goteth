@@ -40,7 +40,7 @@ type ChainAnalyzer struct {
 
 	downloadMode       string
 	validatorWorkerNum int
-	metrics            DBMetrics
+	metrics            db.DBMetrics
 
 	// Control Variables
 	stop              bool
