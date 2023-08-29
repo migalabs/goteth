@@ -42,7 +42,7 @@ func (p AltairMetrics) GetMaxProposerAttReward(valIdx phase0.ValidatorIndex) (ph
 	}
 	reward := p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.Attestations
 
-	return reward, proposerSlot
+	return phase0.Gwei(reward), proposerSlot
 
 }
 
@@ -50,7 +50,7 @@ func (p AltairMetrics) GetMaxProposerAttReward(valIdx phase0.ValidatorIndex) (ph
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#sync-aggregate-processing
 func (p AltairMetrics) GetMaxProposerSyncReward(proposerSlot phase0.Slot) phase0.Gwei {
 
-	return p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.SyncAggregate
+	return phase0.Gwei(p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.SyncAggregate)
 
 }
 
@@ -129,7 +129,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		valIdx)
 	proposerReward := phase0.Gwei(0)
 	if proposerSlot > 0 {
-		proposerReward = p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.Total
+		proposerReward = phase0.Gwei(p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.Total)
 	}
 
 	maxReward := flagIndexMaxReward + syncComMaxReward + proposerReward

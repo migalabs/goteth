@@ -1,7 +1,6 @@
 package spec
 
 import (
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/sirupsen/logrus"
 )
 
@@ -13,14 +12,15 @@ var (
 
 type BlockRewards struct {
 	ExecutionOptimistic bool                `json:"execution_optimistic"`
+	Finalized           bool                `json:"finalized"`
 	Data                BlockRewardsContent `json:"data"`
 }
 
 type BlockRewardsContent struct {
-	ProposerIndex     phase0.ValidatorIndex `json:"proposer_index,string"`
-	Total             phase0.Gwei           `json:"total,string"`
-	Attestations      phase0.Gwei           `json:"attestations,string"`
-	SyncAggregate     phase0.Gwei           `json:"sync_aggregate,string"`
-	ProposerSlashings phase0.Gwei           `json:"proposer_slashings,string"`
-	AttesterSlashings phase0.Gwei           `json:"attester_slashings,string"`
+	ProposerIndex     uint64 `json:"proposer_index,string"`
+	Total             uint64 `json:"total,string"`
+	Attestations      uint64 `json:"attestations,string"`
+	SyncAggregate     uint64 `json:"sync_aggregate,string"`
+	ProposerSlashings uint64 `json:"proposer_slashings,string"`
+	AttesterSlashings uint64 `json:"attester_slashings,string"`
 }
