@@ -36,6 +36,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, err
 	}
 
 	// fill in block size on custom block using RequestBlockByHash
+	// shows error inside function if ELApi is not defined
 	block, err := s.RequestBlockByHash(common.Hash(customBlock.ExecutionPayload.BlockHash))
 	if err != nil {
 		log.Error("cannot request block by hash: %s", err)
@@ -46,12 +47,14 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, err
 
 	customBlock.StateRoot = s.RequestStateRoot(slot)
 
-	reward, err := s.RequestBlockRewards(slot)
-	if err != nil {
-		log.Error("cannot request block reward: %s", err)
-	}
+	if s.Metrics.RewardsDownload {
+		reward, err := s.RequestBlockRewards(slot)
+		if err != nil {
+			log.Error("cannot request block reward: %s", err)
+		}
 
-	customBlock.Reward = reward
+		customBlock.Reward = reward
+	}
 
 	return customBlock, nil
 }
