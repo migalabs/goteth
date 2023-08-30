@@ -43,7 +43,7 @@ loop:
 			s.DownloadNewBlock(&queue, phase0.Slot(slot))
 
 			// if epoch boundary, download state
-			if slot%spec.SlotsPerEpoch == 0 {
+			if slot%spec.SlotsPerEpoch == 0 && slot > 0 {
 				// new epoch
 				s.DownloadNewState(&queue, slot-1, false)
 				// refresh map as we dont need to store the history
@@ -128,7 +128,7 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 				s.DownloadNewBlock(&queue, phase0.Slot(nextSlotDownload))
 
 				// if epoch boundary, download state
-				if nextSlotDownload%spec.SlotsPerEpoch == 0 {
+				if nextSlotDownload%spec.SlotsPerEpoch == 0 && nextSlotDownload > 0 {
 					// new epoch
 					s.DownloadNewState(&queue, nextSlotDownload-1, true)
 				}
