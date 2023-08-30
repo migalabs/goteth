@@ -47,7 +47,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, err
 
 	customBlock.StateRoot = s.RequestStateRoot(slot)
 
-	if s.Metrics.RewardsDownload {
+	if s.Metrics.ValidatorRewards {
 		reward, err := s.RequestBlockRewards(slot)
 		if err != nil {
 			log.Error("cannot request block reward: %s", err)
@@ -111,6 +111,11 @@ func (s APIClient) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
 func (s APIClient) RequestBlockByHash(hash common.Hash) (*types.Block, error) {
 	if s.ELApi == nil {
 		return nil, fmt.Errorf("execution layer client is not initialized")
+	}
+	emptyHash := common.Hash{}
+
+	if hash == emptyHash {
+		return nil, nil // empty hash, not even try (probably we are before Bellatrix)
 	}
 	block, err := s.ELApi.BlockByHash(s.ctx, hash)
 	if err != nil {

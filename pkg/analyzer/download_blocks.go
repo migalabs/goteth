@@ -40,7 +40,6 @@ loop:
 				break loop
 			}
 
-			log.Infof("requesting Beacon Block from endpoint: slot %d", slot)
 			s.DownloadNewBlock(&queue, phase0.Slot(slot))
 
 			// if epoch boundary, download state
@@ -183,6 +182,11 @@ func (s *ChainAnalyzer) runDownloadBlocksFinalized(wgDownload *sync.WaitGroup) {
 }
 
 func (s ChainAnalyzer) DownloadNewBlock(queue *StateQueue, slot phase0.Slot) {
+
+	if !s.metrics.Block {
+		log.Infof("skipping block download at slot %d: no metrics activated for block...", slot)
+		return
+	}
 
 	ticker := time.NewTicker(minBlockReqTime)
 	newBlock, err := s.cli.RequestBeaconBlock(slot)

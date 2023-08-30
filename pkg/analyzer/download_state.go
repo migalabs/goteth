@@ -12,7 +12,7 @@ func (s *ChainAnalyzer) DownloadNewState(
 	slot phase0.Slot,
 	finalized bool) {
 
-	if !s.metrics.StateDownload {
+	if !s.metrics.Epoch {
 		log.Infof("skipping state download: no metrics activated for state...")
 		return
 	}
