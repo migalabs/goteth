@@ -56,7 +56,7 @@ func (s *StateQueue) AddNewState(newState spec.AgnosticState) {
 
 func (s StateQueue) Complete() bool {
 	emptyRoot := phase0.Root{}
-	if s.prevState.StateRoot != emptyRoot {
+	if s.currentState.StateRoot != emptyRoot { // if we have currentState we can already write epoch metrics
 		return true
 	}
 	return false
