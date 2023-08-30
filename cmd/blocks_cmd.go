@@ -76,9 +76,9 @@ var BlocksCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:        "metrics",
-			Usage:       "Metrics to be persisted to the database",
+			Usage:       "Metrics to be persisted to the database: epoch,block,rewards,transactions",
 			EnvVars:     []string{"ANALYZER_METRICS"},
-			DefaultText: "epoch",
+			DefaultText: "epoch,block",
 		},
 		&cli.IntFlag{
 			Name:        "prometheus-port",
