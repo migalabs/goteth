@@ -24,8 +24,10 @@ func NewMetrics(input string) (DBMetrics, error) {
 			dbMetrics.Epoch = true
 		case "rewards":
 			dbMetrics.ValidatorRewards = true
+			dbMetrics.Epoch = true
 		case "transactions":
 			dbMetrics.Transactions = true
+			dbMetrics.Block = true
 		default:
 			return DBMetrics{}, fmt.Errorf("could not parse metric: %s", item)
 		}
