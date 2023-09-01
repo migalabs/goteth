@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec/metrics"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
@@ -29,7 +30,10 @@ loop:
 				log.Errorf(err.Error())
 				continue
 			}
-			if task.NextState.Slot <= s.finalSlot || task.Finalized {
+			emptyRoot := phase0.Root{}
+			if (task.NextState.Slot <= s.finalSlot || task.Finalized) &&
+				stateMetrics.GetMetricsBase().PrevState.StateRoot != emptyRoot { // we cannot calculate validator rewards without prevstate
+
 				log.Debugf("Creating validator batches for slot %d...", task.State.Slot)
 				// divide number of validators into number of workers equally
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/http"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog"
 	"github.com/sirupsen/logrus"
@@ -21,9 +22,10 @@ var (
 type APIClientOption func(*APIClient) error
 
 type APIClient struct {
-	ctx   context.Context
-	Api   *http.Service     // Beacon Node
-	ELApi *ethclient.Client // Execution Node
+	ctx     context.Context
+	Api     *http.Service     // Beacon Node
+	ELApi   *ethclient.Client // Execution Node
+	Metrics db.DBMetrics
 }
 
 func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOption) (*APIClient, error) {
@@ -70,6 +72,13 @@ func WithELEndpoint(url string) APIClientOption {
 			return err
 		}
 		s.ELApi = client
+		return nil
+	}
+}
+
+func WithDBMetrics(metrics db.DBMetrics) APIClientOption {
+	return func(s *APIClient) error {
+		s.Metrics = metrics
 		return nil
 	}
 }

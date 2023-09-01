@@ -25,6 +25,13 @@ Or if you prefer to install the client locally type:
 make install
 ```
 
+### Metrics: database tables
+
+- block: downloads withdrawals, blocks and block rewards
+- epoch: download epoch metrics, proposer duties, validator last status,
+- rewards: persists validator rewards metrics to database (activates epoch metrics)
+- transactions: requests transaction receipts from the execution layer (activates block metrics)
+
 ### Running the tool
 To execute the tool, you can simply modify the `.env` file with your own configuration. The `.env` file first exports all the variables as system environment variables, and then uses them as arguments when calling the tool.
 
@@ -51,10 +58,10 @@ OPTIONS:
    --final-slot value      init slot from where to finish (default: 0)
    --log-level value       log level: debug, warn, info, error
    --db-url value          example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states
-   --workers-num value     example: 50 (default: 0)
-   --db-workers-num value  example: 50 (default: 0)
+   --workers-num value     example: 3 (default: 4)
+   --db-workers-num value  example: 3 (default: 4)
    --download-mode value   example: hybrid,historical,finalized. Default: hybrid
-   --metrics value         example: epoch,validator,transactions. Empty for all (default: epoch)
+   --metrics value         example: epoch,block,rewards,transactions. Empty for all (default: epoch,block)
    --help, -h              show help (default: false)
 ```
 

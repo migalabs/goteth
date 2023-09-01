@@ -1,4 +1,4 @@
-package analyzer
+package db
 
 import (
 	"fmt"
@@ -6,14 +6,10 @@ import (
 )
 
 type DBMetrics struct {
-	Block               bool
-	Epoch               bool
-	PoolSummary         bool
-	ProposerDuties      bool
-	ValidatorLastStatus bool
-	ValidatorRewards    bool
-	Withdrawals         bool
-	Transactions        bool
+	Block            bool
+	Epoch            bool
+	ValidatorRewards bool
+	Transactions     bool
 }
 
 func NewMetrics(input string) (DBMetrics, error) {
@@ -26,16 +22,12 @@ func NewMetrics(input string) (DBMetrics, error) {
 			dbMetrics.Block = true
 		case "epoch":
 			dbMetrics.Epoch = true
-		case "pool_summary":
-			dbMetrics.PoolSummary = true
-		case "validator_last_status":
-			dbMetrics.ValidatorLastStatus = true
-		case "validator":
+		case "rewards":
 			dbMetrics.ValidatorRewards = true
-		case "withdrawals":
-			dbMetrics.Withdrawals = true
+			dbMetrics.Epoch = true
 		case "transactions":
 			dbMetrics.Transactions = true
+			dbMetrics.Block = true
 		default:
 			return DBMetrics{}, fmt.Errorf("could not parse metric: %s", item)
 		}

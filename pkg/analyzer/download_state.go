@@ -12,6 +12,10 @@ func (s *ChainAnalyzer) DownloadNewState(
 	slot phase0.Slot,
 	finalized bool) {
 
+	if !s.metrics.Epoch {
+		log.Infof("skipping state download: no metrics activated for state...")
+		return
+	}
 	log := log.WithField("routine", "download")
 	ticker := time.NewTicker(minStateReqTime)
 
