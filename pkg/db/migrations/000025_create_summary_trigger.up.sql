@@ -50,10 +50,11 @@ CREATE OR REPLACE FUNCTION notify_epoch_insert() RETURNS TRIGGER AS $$
 		LEFT JOIN t_proposer_duties 
 			ON t_validator_rewards_summary.f_val_idx = t_proposer_duties.f_val_idx 
 			AND t_validator_rewards_summary.f_epoch = t_proposer_duties.f_proposer_slot/32
-		LEFT JOIN t_eth2_pubkeys 
+		INNER JOIN t_eth2_pubkeys 
 			ON t_validator_rewards_summary.f_val_idx = t_eth2_pubkeys.f_val_idx
 		WHERE f_epoch = row.f_epoch AND f_status IN (1, 3)
-		GROUP BY t_eth2_pubkeys.f_pool_name, f_epoch;
+		GROUP BY t_eth2_pubkeys.f_pool_name, f_epoch
+	ON CONFLICT DO NOTHING;
 		
 		
     -- Returning null because it is an after trigger. 
