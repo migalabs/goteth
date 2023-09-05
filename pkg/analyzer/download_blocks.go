@@ -246,7 +246,7 @@ func (s *ChainAnalyzer) Reorg(baseSlot phase0.Slot, slot phase0.Slot, queue *Sta
 	}
 
 	// rewind states and roots until the reorg base slot (only modify queue)
-	for i := queue.HeadBlock.Slot; i >= slot; i-- {
+	for i := queue.HeadBlock.Slot; i >= baseSlot; i-- {
 		delete(queue.BlockHistory, i)
 		queue.HeadBlock = queue.BlockHistory[i-1]
 		log.Infof("new head at %d", queue.HeadBlock.Slot)
