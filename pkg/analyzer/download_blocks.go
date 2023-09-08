@@ -236,9 +236,9 @@ func (s *ChainAnalyzer) Reorg(baseSlot phase0.Slot, slot phase0.Slot, queue *Sta
 	var orphanBlock db.OrphanBlock
 	for i := baseSlot; i < slot; i++ {
 
-		_, ok := queue.BlockHistory[i]
+		block, ok := queue.BlockHistory[i]
 
-		if ok { // only persist orphans if we had downloaded them
+		if ok && block.Proposed { // only persist orphans if we had downloaded them and they were proposed
 			orphanBlock = db.OrphanBlock(queue.BlockHistory[i])
 			s.dbClient.Persist(orphanBlock)
 		}
