@@ -40,8 +40,14 @@ var (
 		f_size_bytes)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 		ON CONFLICT ON CONSTRAINT PK_Slot
-		DO NOTHING;
+			DO UPDATE
+			SET f_proposed = excluded.f_proposed;
 	`
+	// update f_proposed is a quick fix that will solve some edgy cases where the drop block
+	// reaches before the orphaned block, so it is never dropped
+	// with this, the empty block (after removing the orphaned) will conflict
+	// and update the proposed.
+	// TODO: solve it in next releases with a better task commander
 	SelectLastSlot = `
 		SELECT f_slot
 		FROM t_block_metrics
