@@ -1,4 +1,3 @@
-DROP TRIGGER IF EXISTS trigger_notify_new_epoch ON t_epoch_metrics_summary;
 DROP function IF EXISTS notify_epoch_insert;
 
 CREATE OR REPLACE FUNCTION notify_epoch_insert() RETURNS TRIGGER AS $$ 
@@ -61,10 +60,3 @@ CREATE OR REPLACE FUNCTION notify_epoch_insert() RETURNS TRIGGER AS $$
     RETURN NEW; 
     END; 
 $$ LANGUAGE plpgsql; 
-
-
-CREATE TRIGGER trigger_notify_new_epoch
-  BEFORE INSERT 
-  ON t_epoch_metrics_summary 
-  FOR EACH ROW 
-  EXECUTE PROCEDURE notify_epoch_insert();
