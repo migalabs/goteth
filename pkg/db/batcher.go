@@ -112,7 +112,7 @@ func (q *QueryBatch) persistBatch() error {
 			"error":  ctx.Err().Error(),
 			"query":  q.persistables[cnt-1].query,
 			"values": q.persistables[cnt-1].values,
-		}).Errorf("timed-out (query number %d)", cnt-1)
+		}).Errorf("timed-out [query %d]", cnt-1)
 		return errors.Wrap(ctx.Err(), "error persisting batch")
 	}
 	return nil
