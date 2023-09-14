@@ -107,7 +107,7 @@ func (q *QueryBatch) persistBatch() error {
 		}).Errorf("unable to persist query [%d]", cnt-1)
 		return errors.Wrap(qerr, "error persisting batch")
 	}
-	if ctx.Err() != nil {
+	if ctx.Err() == context.DeadlineExceeded {
 		log.WithFields(log.Fields{
 			"error":  qerr.Error(),
 			"query":  q.persistables[cnt-1].query,
