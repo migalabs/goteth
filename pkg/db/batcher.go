@@ -93,7 +93,7 @@ func (q *QueryBatch) persistBatch() error {
 	var rows pgx.Rows
 	nextQuery := true
 	cnt := 0
-	for nextQuery {
+	for nextQuery && qerr == nil {
 		rows, qerr = batchResults.Query()
 		nextQuery = rows.Next() // it closes all the rows if all the rows are readed
 		cnt++
@@ -106,6 +106,14 @@ func (q *QueryBatch) persistBatch() error {
 			"values": q.persistables[cnt-1].values,
 		}).Errorf("unable to persist query [%d]", cnt-1)
 		return errors.Wrap(qerr, "error persisting batch")
+	}
+	if ctx.Err() == context.DeadlineExceeded {
+		log.WithFields(log.Fields{
+			"error":  ctx.Err().Error(),
+			"query":  q.persistables[cnt-1].query,
+			"values": q.persistables[cnt-1].values,
+		}).Errorf("timed-out [query %d]", cnt-1)
+		return errors.Wrap(ctx.Err(), "error persisting batch")
 	}
 	return nil
 }

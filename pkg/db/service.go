@@ -208,7 +208,7 @@ func (p *PostgresDBService) runWriters() {
 					if batcher.IsReadyToPersist() {
 						err := batcher.PersistBatch()
 						if err != nil {
-							wlogWriter.Errorf("Error processing batch", err.Error())
+							wlogWriter.Error("Error processing batch", err.Error())
 						}
 					}
 
@@ -221,6 +221,7 @@ func (p *PostgresDBService) runWriters() {
 						wlog.Tracef("flushing batcher")
 						err := batcher.PersistBatch()
 						if err != nil {
+							wlogWriter.Error("Error processing batch", err.Error())
 						}
 					}
 
