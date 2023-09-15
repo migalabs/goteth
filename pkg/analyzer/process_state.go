@@ -59,7 +59,7 @@ loop:
 				log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
 				// create a model to be inserted into the db, we only insert previous epoch metrics
 
-				missedBlocks := stateMetrics.GetMetricsBase().CurrentState.MissedBlocks
+				missedBlocks := stateMetrics.GetMetricsBase().NextState.MissedBlocks
 				// take into accoutn epoch transition
 				nextMissedBlock := stateMetrics.GetMetricsBase().NextState.TrackPrevMissingBlock()
 				if nextMissedBlock != 0 {
