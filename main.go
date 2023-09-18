@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	Version = "v0.0.1"
-	CliName = "Eth2 State Analyzer"
+	Version = "v2.0.0"
+	CliName = "GotEth"
 	log     = logrus.WithField(
 		"cli", "CliName",
 	)
