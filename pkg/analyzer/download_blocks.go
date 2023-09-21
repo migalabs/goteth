@@ -210,8 +210,10 @@ func (s ChainAnalyzer) DownloadNewBlock(queue *StateQueue, slot phase0.Slot) {
 		for _, tx := range newBlock.ExecutionPayload.Transactions {
 			log.Tracef("sending a new tx task for slot %d", slot)
 			s.transactionTaskChan <- &TransactionTask{
-				Slot:        slot,
-				Transaction: tx,
+				Slot:           slot,
+				Transaction:    tx,
+				BlockNumber:    newBlock.ExecutionPayload.BlockNumber,
+				BlockTimestamp: newBlock.ExecutionPayload.Timestamp,
 			}
 		}
 	}
