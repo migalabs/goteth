@@ -63,6 +63,20 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
 
+    def test_missing_transactions_from_block(self):
+        """ Check if there are no blocks that is not present in the transaction table, but had transactions and was proposed """
+        sql_query = """
+        select *
+        from t_block_metrics
+        where f_slot not in (
+            select distinct(f_slot)
+            from t_transactions
+        ) and f_el_transactions > 0 and f_proposed = true
+        order by f_slot desc
+        """
+        df = self.db.get_df_from_sql_query(sql_query)
+        self.assertNoRows(df)
+
 if __name__ == '__main__':
     unittest.main()
 
