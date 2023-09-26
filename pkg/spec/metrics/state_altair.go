@@ -37,7 +37,6 @@ func (p AltairMetrics) GetProposerApiReward(valIdx phase0.ValidatorIndex) phase0
 	for _, duty := range duties {
 		if duty.ValidatorIndex == phase0.ValidatorIndex(valIdx) {
 			reward += phase0.Gwei(p.baseMetrics.NextState.Blocks[duty.Slot%spec.SlotsPerEpoch].Reward.Data.Total)
-			break
 		}
 	}
 	return phase0.Gwei(reward)
