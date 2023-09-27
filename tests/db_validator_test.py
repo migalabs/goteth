@@ -17,21 +17,21 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
     def test_unpersisted_queries_for_validator_duties(self):
         """ There shouldn't be less proposer duties than the 32 slots per epoch, if so, there were some DB queries lost on the way """
         sql_query = """
-        select f_proposed, count(*)
+        select f_proposer_slot/32 as epoch, count(*)
         from t_proposer_duties
-        group by f_proposed
-        having count(*) < 32 
+        group by f_proposer_slot/32
+        having count(*) < 32
         """
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
 
-    def test_craicy_error_tracking_validator_duties(self):
+    def test_weird_error_tracking_validator_duties(self):
         """ We could expect less that 32 duties/epoch because some queries were lost, but if we have more, there is something weird going on """
         sql_query = """
-        select f_proposed, count(*)
+        select f_proposer_slot/32 as epoch, count(*)
         from t_proposer_duties
-        group by f_proposed
-        having count(*) > 32 
+        group by f_proposer_slot/32
+        having count(*) > 32
         """
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
