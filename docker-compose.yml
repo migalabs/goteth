@@ -20,7 +20,6 @@ services:
       --metrics=${ANALYZER_METRICS}
       --prometheus-port=${BLOCK_PROMETHEUS_PORT:-9081}
     network_mode: 'host'
-    restart: unless-stopped
                 
 
                 

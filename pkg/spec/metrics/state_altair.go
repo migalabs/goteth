@@ -28,29 +28,18 @@ func (p AltairMetrics) GetMetricsBase() StateMetricsBase {
 
 // TODO: to be implemented once we can process each block
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#modified-process_attestation
-func (p AltairMetrics) GetMaxProposerAttReward(valIdx phase0.ValidatorIndex) (phase0.Gwei, phase0.Slot) {
+func (p AltairMetrics) GetProposerApiReward(valIdx phase0.ValidatorIndex) phase0.Gwei {
 
-	proposerSlot := phase0.Slot(0)
+	reward := phase0.Gwei(0)
 
 	duties := p.baseMetrics.NextState.EpochStructs.ProposerDuties
 	// validator will only have duties it is active at this point
 	for _, duty := range duties {
 		if duty.ValidatorIndex == phase0.ValidatorIndex(valIdx) {
-			proposerSlot = duty.Slot
-			break
+			reward += phase0.Gwei(p.baseMetrics.NextState.Blocks[duty.Slot%spec.SlotsPerEpoch].Reward.Data.Total)
 		}
 	}
-	reward := p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.Attestations
-
-	return phase0.Gwei(reward), proposerSlot
-
-}
-
-// TODO: to be implemented once we can process each block
-// https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#sync-aggregate-processing
-func (p AltairMetrics) GetMaxProposerSyncReward(proposerSlot phase0.Slot) phase0.Gwei {
-
-	return phase0.Gwei(p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.SyncAggregate)
+	return phase0.Gwei(reward)
 
 }
 
@@ -125,12 +114,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		inSyncCommitte = true
 	}
 
-	_, proposerSlot := p.GetMaxProposerAttReward(
-		valIdx)
-	proposerReward := phase0.Gwei(0)
-	if proposerSlot > 0 {
-		proposerReward = phase0.Gwei(p.baseMetrics.NextState.Blocks[proposerSlot%spec.SlotsPerEpoch].Reward.Data.Total)
-	}
+	proposerReward := p.GetProposerApiReward(valIdx)
 
 	maxReward := flagIndexMaxReward + syncComMaxReward + proposerReward
 
@@ -150,7 +134,6 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		MissingHead:         flags[2],
 		Status:              p.baseMetrics.NextState.GetValStatus(valIdx),
 		BaseReward:          baseReward,
-		ProposerSlot:        proposerSlot,
 		ProposerReward:      int64(proposerReward),
 		InSyncCommittee:     inSyncCommitte,
 	}

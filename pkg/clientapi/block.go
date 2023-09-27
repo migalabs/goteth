@@ -27,7 +27,6 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, err
 		return spec.AgnosticBlock{}, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
 	}
 
-	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 	customBlock, err := spec.GetCustomBlock(*newBlock)
 
 	if err != nil {
@@ -55,6 +54,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, err
 
 		customBlock.Reward = reward
 	}
+	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 
 	return customBlock, nil
 }
