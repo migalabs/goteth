@@ -50,6 +50,19 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
 
+    def test_integrity_of_block_count(self):
+        """Check if the total number of blocks present in the db correspond with the (proposed_with_tx+proposed_without_tx+not_proposed)"""
+        sql_query = """
+        select
+            SUM(CASE WHEN f_proposed = true and f_el_transactions > 0 THEN 1 ELSE 0 END) as sum_block_with_tx,
+            SUM(CASE WHEN f_proposed = true and f_el_transactions = 0 THEN 1 ELSE 0 END) as sum_block_no_tx,
+            SUM(CASE WHEN f_proposed = false THEN 1 ELSE 0 END) as sum_missed,
+            count(*) as blocks_in_range
+        from t_block_metrics
+        """
+        df = self.db.get_df_from_sql_query(sql_query)
+        df['total_present'] = df['sum_block_with_tx'] + df['sum_block_no_tx'] + df['sum_missed']
+        self.assertEqual(df['total_present'].to_numpy(), df['blocks_in_range'].to_numpy())
 
 if __name__ == '__main__':
     unittest.main()
