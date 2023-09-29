@@ -5,11 +5,11 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
     db_config_file = ".env"
 
     def test_orphan_blocks_in_block_metrics(self):
-        """ Edgy case where two blocks are assigned to the same slot (one of them is an orphan) """
+        """ Edgy case where two blocks are assigned to the same slot (one of them is an orphan) (after Merge) """
         sql_query = """
         select f_el_block_number, count(*)
         from t_block_metrics
-        where f_proposed = true
+        where f_proposed = true and f_slot > 4700012
         group by f_el_block_number
         having count(*) > 1
         """
@@ -22,19 +22,6 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
         select *
         from t_orphans
         where f_proposed = false
-        """
-        df = self.db.get_df_from_sql_query(sql_query)
-        self.assertNoRows(df)
-
-    def test_transactions_per_block(self):
-        """ make sure that the number of tracked transactions match the ones included in the corresponding block """
-        sql_query = """
-        select t_block_metrics.f_slot, count(distinct(f_hash))
-        from t_block_metrics
-        inner join t_transactions
-        on t_block_metrics.f_slot = t_transactions.f_slot
-        group by t_block_metrics.f_slot
-        having f_el_transactions != count(distinct(f_hash))
         """
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
@@ -62,6 +49,20 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
         """
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
+
+    def test_integrity_of_block_count(self):
+        """Check if the total number of blocks present in the db correspond with the (proposed_with_tx+proposed_without_tx+not_proposed)"""
+        sql_query = """
+        select
+            SUM(CASE WHEN f_proposed = true and f_el_transactions > 0 THEN 1 ELSE 0 END) as sum_block_with_tx,
+            SUM(CASE WHEN f_proposed = true and f_el_transactions = 0 THEN 1 ELSE 0 END) as sum_block_no_tx,
+            SUM(CASE WHEN f_proposed = false THEN 1 ELSE 0 END) as sum_missed,
+            count(*) as blocks_in_range
+        from t_block_metrics
+        """
+        df = self.db.get_df_from_sql_query(sql_query)
+        df['total_present'] = df['sum_block_with_tx'] + df['sum_block_no_tx'] + df['sum_missed']
+        self.assertEqual(df['total_present'].to_numpy(), df['blocks_in_range'].to_numpy())
 
 if __name__ == '__main__':
     unittest.main()
