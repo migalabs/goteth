@@ -17,7 +17,7 @@ func (s *PostgresDBService) makeMigrations() {
 	}
 	wlog.Infof("applying database migrations...")
 	if err := m.Up(); err != nil {
-		if err.Error() != "no change" {
+		if err != migrate.ErrNoChange {
 			wlog.Fatalf(err.Error())
 		}
 	}
