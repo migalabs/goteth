@@ -53,7 +53,7 @@ func snappyCompress(rawB []byte) (compSize uint32, compTime, decompTime time.Dur
 
 	// decompression
 	startT = time.Now()
-	_, err = snappy.Decode(nil, rawB)
+	_, err = snappy.Decode(nil, compressBytes)
 	decompTime = time.Since(startT)
 	if err != nil {
 		return compSize, compTime, decompTime, errors.Wrap(err, "unable to decode block")
