@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
+	"github.com/migalabs/goteth/pkg/spec"
+	"github.com/migalabs/goteth/pkg/utils"
 )
 
 func (s *ChainAnalyzer) runProcessBlock(wgProcess *sync.WaitGroup) {

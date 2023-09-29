@@ -1,7 +1,7 @@
 package analyzer
 
 import (
-	"github.com/cortze/eth-cl-state-analyzer/pkg/metrics"
+	"github.com/migalabs/goteth/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

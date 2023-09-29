@@ -7,7 +7,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	local_spec "github.com/migalabs/goteth/pkg/spec"
 )
 
 type StateMetricsBase struct {

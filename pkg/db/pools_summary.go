@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/migalabs/goteth/pkg/spec"
 )
 
 // Postgres intregration variables

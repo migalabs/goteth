@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/http"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/migalabs/goteth/pkg/db"
 	"github.com/rs/zerolog"
 	"github.com/sirupsen/logrus"
 )

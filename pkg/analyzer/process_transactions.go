@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
+	"github.com/migalabs/goteth/pkg/utils"
 )
 
 // process transactions and persist the data

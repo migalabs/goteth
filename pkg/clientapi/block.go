@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/migalabs/goteth/pkg/spec"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"

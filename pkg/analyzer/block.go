@@ -7,15 +7,15 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/config"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
-	prom_metrics "github.com/cortze/eth-cl-state-analyzer/pkg/metrics"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec/metrics"
+	"github.com/migalabs/goteth/pkg/clientapi"
+	"github.com/migalabs/goteth/pkg/config"
+	"github.com/migalabs/goteth/pkg/db"
+	prom_metrics "github.com/migalabs/goteth/pkg/metrics"
+	"github.com/migalabs/goteth/pkg/spec"
+	"github.com/migalabs/goteth/pkg/spec/metrics"
 	"github.com/sirupsen/logrus"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/events"
+	"github.com/migalabs/goteth/pkg/events"
 	"github.com/pkg/errors"
 )
 

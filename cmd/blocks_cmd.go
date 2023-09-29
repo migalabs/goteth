@@ -6,13 +6,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/config"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
+	"github.com/migalabs/goteth/pkg/config"
+	"github.com/migalabs/goteth/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/analyzer"
+	"github.com/migalabs/goteth/pkg/analyzer"
 )
 
 var BlocksCommand = &cli.Command{

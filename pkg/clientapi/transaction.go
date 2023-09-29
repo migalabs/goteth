@@ -5,9 +5,9 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/migalabs/goteth/pkg/spec"
 )
 
 // GetReceipt retrieves receipt for the given transaction hash
