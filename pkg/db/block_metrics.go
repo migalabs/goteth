@@ -7,11 +7,11 @@ This file together with the model, has all the needed methods to interact with t
 */
 
 import (
-	"strings"
-
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/pkg/errors"
+	"strings"
 )
 
 // Postgres intregration variables
@@ -91,8 +91,8 @@ func insertBlock(inputBlock spec.AgnosticBlock) (string, []interface{}) {
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BlockNumber)
 	resultArgs = append(resultArgs, inputBlock.SSZsize)
 	resultArgs = append(resultArgs, inputBlock.SnappySize)
-	resultArgs = append(resultArgs, inputBlock.CompressionTime.Milliseconds())
-	resultArgs = append(resultArgs, inputBlock.DecompressionTime.Milliseconds())
+	resultArgs = append(resultArgs, utils.DurationToFloat64Millis(inputBlock.CompressionTime))
+	resultArgs = append(resultArgs, utils.DurationToFloat64Millis(inputBlock.DecompressionTime))
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.PayloadSize)
 
 	return UpsertBlock, resultArgs
