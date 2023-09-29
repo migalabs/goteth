@@ -2,12 +2,16 @@ package spec
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/sirupsen/logrus"
 )
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
@@ -24,8 +28,11 @@ type AgnosticBlock struct {
 	VoluntaryExits    []*phase0.SignedVoluntaryExit
 	SyncAggregate     *altair.SyncAggregate
 	ExecutionPayload  AgnosticExecutionPayload
-	Size              uint32
 	Reward            BlockRewards
+	SSZsize           uint32
+	SnappySize        uint32
+	CompressionTime   time.Duration
+	DecompressionTime time.Duration
 }
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
@@ -39,6 +46,7 @@ type AgnosticExecutionPayload struct {
 	Transactions  []bellatrix.Transaction
 	BlockNumber   uint64
 	Withdrawals   []*capella.Withdrawal
+	PayloadSize   uint32
 }
 
 func (f AgnosticBlock) Type() ModelType {
@@ -51,13 +59,10 @@ func (p AgnosticExecutionPayload) BaseFeeToInt() int {
 
 func GetCustomBlock(block spec.VersionedSignedBeaconBlock) (AgnosticBlock, error) {
 	switch block.Version {
-
 	case spec.DataVersionPhase0:
 		return NewPhase0Block(block), nil
-
 	case spec.DataVersionAltair:
 		return NewAltairBlock(block), nil
-
 	case spec.DataVersionBellatrix:
 		return NewBellatrixBlock(block), nil
 	case spec.DataVersionCapella:
@@ -70,6 +75,11 @@ func GetCustomBlock(block spec.VersionedSignedBeaconBlock) (AgnosticBlock, error
 }
 
 func NewPhase0Block(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
+	// make the compression of the block
+	compressionMetrics, err := utils.CompressConsensusSignedBlock(block.Phase0)
+	if err != nil {
+		logrus.Errorf("unable to compress phase0 block %d - %s", block.Phase0.Message.Slot, err.Error())
+	}
 	return AgnosticBlock{
 		Slot:              block.Phase0.Message.Slot,
 		ProposerIndex:     block.Phase0.Message.ProposerIndex,
@@ -91,11 +101,21 @@ func NewPhase0Block(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			Transactions:  make([]bellatrix.Transaction, 0),
 			BlockNumber:   0,
 			Withdrawals:   make([]*capella.Withdrawal, 0),
-		},
+			PayloadSize:   uint32(0),
+		}, // snappy
+		SSZsize:           compressionMetrics.SSZsize,
+		SnappySize:        compressionMetrics.SnappySize,
+		CompressionTime:   compressionMetrics.CompressionTime,
+		DecompressionTime: compressionMetrics.DecompressionTime,
 	}
 }
 
 func NewAltairBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
+	// make the compression of the block
+	compressionMetrics, err := utils.CompressConsensusSignedBlock(block.Altair)
+	if err != nil {
+		logrus.Errorf("unable to compress altair block %d - %s", block.Altair.Message.Slot, err.Error())
+	}
 	return AgnosticBlock{
 		Slot:              block.Altair.Message.Slot,
 		ProposerIndex:     block.Altair.Message.ProposerIndex,
@@ -117,11 +137,21 @@ func NewAltairBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			Transactions:  make([]bellatrix.Transaction, 0),
 			BlockNumber:   0,
 			Withdrawals:   make([]*capella.Withdrawal, 0),
-		},
+			PayloadSize:   uint32(0),
+		}, // snappy
+		SSZsize:           compressionMetrics.SSZsize,
+		SnappySize:        compressionMetrics.SnappySize,
+		CompressionTime:   compressionMetrics.CompressionTime,
+		DecompressionTime: compressionMetrics.DecompressionTime,
 	}
 }
 
 func NewBellatrixBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
+	// make the compression of the block
+	compressionMetrics, err := utils.CompressConsensusSignedBlock(block.Bellatrix)
+	if err != nil {
+		logrus.Errorf("unable to compress bellatrix block %d - %s", block.Bellatrix.Message.Slot, err.Error())
+	}
 	return AgnosticBlock{
 		Slot:              block.Bellatrix.Message.Slot,
 		ProposerIndex:     block.Bellatrix.Message.ProposerIndex,
@@ -143,11 +173,21 @@ func NewBellatrixBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			Transactions:  block.Bellatrix.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Bellatrix.Message.Body.ExecutionPayload.BlockNumber,
 			Withdrawals:   make([]*capella.Withdrawal, 0),
-		},
+			PayloadSize:   uint32(0),
+		}, // snappy
+		SSZsize:           compressionMetrics.SSZsize,
+		SnappySize:        compressionMetrics.SnappySize,
+		CompressionTime:   compressionMetrics.CompressionTime,
+		DecompressionTime: compressionMetrics.DecompressionTime,
 	}
 }
 
 func NewCapellaBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
+	// make the compression of the block
+	compressionMetrics, err := utils.CompressConsensusSignedBlock(block.Capella)
+	if err != nil {
+		logrus.Errorf("unable to compress capella block %d - %s", block.Capella.Message.Slot, err.Error())
+	}
 	return AgnosticBlock{
 		Slot:              block.Capella.Message.Slot,
 		ProposerIndex:     block.Capella.Message.ProposerIndex,
@@ -169,11 +209,21 @@ func NewCapellaBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			Transactions:  block.Capella.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Capella.Message.Body.ExecutionPayload.BlockNumber,
 			Withdrawals:   block.Capella.Message.Body.ExecutionPayload.Withdrawals,
-		},
+			PayloadSize:   uint32(0),
+		}, // snappy
+		SSZsize:           compressionMetrics.SSZsize,
+		SnappySize:        compressionMetrics.SnappySize,
+		CompressionTime:   compressionMetrics.CompressionTime,
+		DecompressionTime: compressionMetrics.DecompressionTime,
 	}
 }
 
 func NewDenebBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
+	// make the compression of the block
+	compressionMetrics, err := utils.CompressConsensusSignedBlock(block.Deneb)
+	if err != nil {
+		logrus.Errorf("unable to compress deneb block %d - %s", block.Deneb.Message.Slot, err.Error())
+	}
 	return AgnosticBlock{
 		Slot:              block.Deneb.Message.Slot,
 		ProposerIndex:     block.Deneb.Message.ProposerIndex,
@@ -195,6 +245,11 @@ func NewDenebBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			Transactions:  block.Deneb.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Deneb.Message.Body.ExecutionPayload.BlockNumber,
 			Withdrawals:   block.Deneb.Message.Body.ExecutionPayload.Withdrawals,
-		},
+			PayloadSize:   uint32(0),
+		}, // snappy
+		SSZsize:           compressionMetrics.SSZsize,
+		SnappySize:        compressionMetrics.SnappySize,
+		CompressionTime:   compressionMetrics.CompressionTime,
+		DecompressionTime: compressionMetrics.DecompressionTime,
 	}
 }

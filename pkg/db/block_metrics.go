@@ -85,7 +85,7 @@ func insertBlock(inputBlock spec.AgnosticBlock) (string, []interface{}) {
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BlockHash.String())
 	resultArgs = append(resultArgs, len(inputBlock.ExecutionPayload.Transactions))
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BlockNumber)
-	resultArgs = append(resultArgs, inputBlock.Size)
+	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.PayloadSize)
 
 	return UpsertBlock, resultArgs
 }
