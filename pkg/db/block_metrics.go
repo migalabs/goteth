@@ -91,8 +91,8 @@ func insertBlock(inputBlock spec.AgnosticBlock) (string, []interface{}) {
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BlockNumber)
 	resultArgs = append(resultArgs, inputBlock.SSZsize)
 	resultArgs = append(resultArgs, inputBlock.SnappySize)
-	resultArgs = append(resultArgs, inputBlock.CompressionTime)
-	resultArgs = append(resultArgs, inputBlock.DecompressionTime)
+	resultArgs = append(resultArgs, inputBlock.CompressionTime.Milliseconds())
+	resultArgs = append(resultArgs, inputBlock.DecompressionTime.Milliseconds())
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.PayloadSize)
 
 	return UpsertBlock, resultArgs
