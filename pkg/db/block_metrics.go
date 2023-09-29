@@ -37,8 +37,12 @@ var (
 		f_el_block_hash,
 		f_el_transactions,
 		f_el_block_number,
-		f_size_bytes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+		f_ssz_size_bytes,
+		f_snappy_size_bytes,
+		f_compression_time_ms,
+		f_decompression_time_ms,
+		f_payload_size_bytes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
 		ON CONFLICT ON CONSTRAINT PK_Slot
 			DO UPDATE
 			SET f_proposed = excluded.f_proposed;
@@ -85,6 +89,10 @@ func insertBlock(inputBlock spec.AgnosticBlock) (string, []interface{}) {
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BlockHash.String())
 	resultArgs = append(resultArgs, len(inputBlock.ExecutionPayload.Transactions))
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BlockNumber)
+	resultArgs = append(resultArgs, inputBlock.SSZsize)
+	resultArgs = append(resultArgs, inputBlock.SnappySize)
+	resultArgs = append(resultArgs, inputBlock.CompressionTime)
+	resultArgs = append(resultArgs, inputBlock.DecompressionTime)
 	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.PayloadSize)
 
 	return UpsertBlock, resultArgs
