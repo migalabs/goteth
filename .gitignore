@@ -1,20 +1,21 @@
-eth2-state-analyzer
-test*.json
+# DB test related python stuff
 .ipynb_checkpoints/**
-metrika/**
+**/venv
+**/__pycache__
 
-# results
+# custon files and configurations
 results/
+metrika/**
 *.csv
+test*.json
 
 # configurations
 .config
 .env
 
+# build binaries
+build/*
+
 # IDE configurations
 .idea
 .vscode/**
-
-# DB Testing
-**/venv
-**/__pycache__
