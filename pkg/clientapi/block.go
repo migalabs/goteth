@@ -46,7 +46,7 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, err
 
 	customBlock.StateRoot = s.RequestStateRoot(slot)
 
-	if s.Metrics.ValidatorRewards {
+	if s.Metrics.APIRewards {
 		reward, err := s.RequestBlockRewards(slot)
 		if err != nil {
 			log.Error("cannot request block reward: %s", err)
