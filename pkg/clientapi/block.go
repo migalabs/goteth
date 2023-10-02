@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
-	"github.com/prysmaticlabs/go-bitfield"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	bitfield "github.com/prysmaticlabs/go-bitfield"
 )
 
 func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, error) {
@@ -36,12 +36,12 @@ func (s APIClient) RequestBeaconBlock(slot phase0.Slot) (spec.AgnosticBlock, err
 
 	// fill in block size on custom block using RequestBlockByHash
 	// shows error inside function if ELApi is not defined
-	block, err := s.RequestBlockByHash(common.Hash(customBlock.ExecutionPayload.BlockHash))
+	block, err := s.RequestExecutionBlockByHash(common.Hash(customBlock.ExecutionPayload.BlockHash))
 	if err != nil {
 		log.Error("cannot request block by hash: %s", err)
 	}
 	if block != nil {
-		customBlock.Size = uint32(block.Size())
+		customBlock.ExecutionPayload.PayloadSize = uint32(block.Size())
 	}
 
 	customBlock.StateRoot = s.RequestStateRoot(slot)
@@ -94,7 +94,8 @@ func (s APIClient) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
 		VoluntaryExits:    make([]*phase0.SignedVoluntaryExit, 0),
 		SyncAggregate: &altair.SyncAggregate{
 			SyncCommitteeBits:      bitfield.NewBitvector512(),
-			SyncCommitteeSignature: phase0.BLSSignature{}},
+			SyncCommitteeSignature: phase0.BLSSignature{},
+		},
 		ExecutionPayload: spec.AgnosticExecutionPayload{
 			FeeRecipient:  bellatrix.ExecutionAddress{},
 			GasLimit:      0,
@@ -103,12 +104,17 @@ func (s APIClient) CreateMissingBlock(slot phase0.Slot) spec.AgnosticBlock {
 			BaseFeePerGas: [32]byte{},
 			BlockHash:     phase0.Hash32{},
 			Transactions:  make([]bellatrix.Transaction, 0),
-		},
+			PayloadSize:   uint32(0),
+		}, // snappy
+		SSZsize:           uint32(0),
+		SnappySize:        uint32(0),
+		CompressionTime:   0 * time.Second,
+		DecompressionTime: 0 * time.Second,
 	}
 }
 
 // RequestBlockByHash retrieves block from the execution client for the given hash
-func (s APIClient) RequestBlockByHash(hash common.Hash) (*types.Block, error) {
+func (s APIClient) RequestExecutionBlockByHash(hash common.Hash) (*types.Block, error) {
 	if s.ELApi == nil {
 		return nil, fmt.Errorf("execution layer client is not initialized")
 	}
