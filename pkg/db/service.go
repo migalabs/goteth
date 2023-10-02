@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/utils"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/migalabs/goteth/pkg/spec"
+	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 

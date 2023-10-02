@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	local_spec "github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	local_spec "github.com/migalabs/goteth/pkg/spec"
 )
 
 func (s APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticState, error) {

@@ -1,4 +1,4 @@
-module github.com/cortze/eth-cl-state-analyzer
+module github.com/migalabs/goteth
 
 go 1.19
 

@@ -4,9 +4,9 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/db"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/migalabs/goteth/pkg/clientapi"
+	"github.com/migalabs/goteth/pkg/db"
+	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/sirupsen/logrus"
 )
 

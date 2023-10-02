@@ -7,7 +7,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/migalabs/goteth/pkg/spec"
 )
 
 type Phase0Metrics struct {

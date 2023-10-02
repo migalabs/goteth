@@ -3,7 +3,7 @@ package events
 import (
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/spec"
+	"github.com/migalabs/goteth/pkg/spec"
 )
 
 func (e Events) SubscribeToHeadEvents() {

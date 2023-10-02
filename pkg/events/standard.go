@@ -5,7 +5,7 @@ import (
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/cortze/eth-cl-state-analyzer/pkg/clientapi"
+	"github.com/migalabs/goteth/pkg/clientapi"
 	"github.com/sirupsen/logrus"
 )
 
