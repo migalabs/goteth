@@ -131,6 +131,7 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 
 	}
 
+	log.Infof("filling to head: %d - %d", nextSlotDownload, headSlot)
 	s.runHistorical(nextSlotDownload, headSlot)
 	return headSlot
 }
