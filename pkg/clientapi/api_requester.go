@@ -18,7 +18,7 @@ var (
 	log        = logrus.WithField(
 		"module", moduleName)
 	QueryTimeout     = time.Second * 90
-	maxParallelConns = 1
+	maxParallelConns = 3
 	maxRetries       = 3
 )
 
@@ -89,4 +89,9 @@ func WithDBMetrics(metrics db.DBMetrics) APIClientOption {
 		s.Metrics = metrics
 		return nil
 	}
+}
+
+func (s APIClient) ActiveReqNum() int {
+
+	return s.apiBook.ActivePages() + s.elApiBook.ActivePages()
 }

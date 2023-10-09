@@ -33,9 +33,9 @@ type ChainAnalyzer struct {
 	dbClient  *db.PostgresDBService
 
 	// Control Variables
+	wgMainRoutine      *sync.WaitGroup
+	wgDownload         *sync.WaitGroup
 	stop               bool
-	downloadFinished   bool
-	processerFinished  bool
 	routineClosed      chan struct{}
 	downloadMode       string
 	validatorWorkerNum int
@@ -106,6 +106,8 @@ func NewChainAnalyzer(
 		PromMetrics:        promethMetrics,
 		queue:              NewQueue(),
 		processerBook:      utils.NewRoutineBook(100),
+		wgMainRoutine:      &sync.WaitGroup{},
+		wgDownload:         &sync.WaitGroup{},
 	}
 
 	InitGenesis(analyzer.dbClient, analyzer.cli)
@@ -123,30 +125,32 @@ func (s *ChainAnalyzer) Run() {
 
 	log.Info("Blocks Analyzer initialized at ", s.initTime)
 
-	// Block requester
-	var wgDownload sync.WaitGroup
-
 	totalTime := int64(0)
 	start := time.Now()
 
-	wgDownload.Add(1)
-	go s.runDownloadBlocks(&wgDownload)
+	s.wgDownload.Add(1)
+	go s.runDownloadBlocks()
 	if s.downloadMode == "historical" {
 		// Block requester + Task generator
-		wgDownload.Add(1)
+		s.wgMainRoutine.Add(1)
 		go s.runHistorical(s.initSlot, s.finalSlot)
 	}
 
 	if s.downloadMode == "finalized" {
 		// Block requester in finalized slots, not used for now
-		wgDownload.Add(1)
+		s.wgMainRoutine.Add(1)
 		go s.runHead()
 	}
 
 	s.PromMetrics.Start()
 
-	wgDownload.Wait()
+	s.wgMainRoutine.Wait()
 	s.stop = true
+	log.Infof("main routine finished, waiting for downloader...")
+
+	s.wgDownload.Wait()
+
+	log.Infof("downloader finished, waiting for db client...")
 
 	s.dbClient.Finish()
 

@@ -1,7 +1,6 @@
 package analyzer
 
 import (
-	"sync"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -13,16 +12,14 @@ var (
 	rateLimit = 5 // limits the number of goroutines per second
 )
 
-func (s *ChainAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
-	defer wgDownload.Done()
+func (s *ChainAnalyzer) runDownloadBlocks() {
+	defer s.wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
+	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 
 downloadRoutine:
 	for {
 
-		if s.stop && len(s.downloadTaskChan) == 0 {
-			break downloadRoutine
-		}
 		select {
 
 		case downloadSlot := <-s.downloadTaskChan: // wait for new head event
@@ -38,6 +35,10 @@ downloadRoutine:
 				go s.DownloadState(downloadSlot)
 				go s.ProcessStateTransitionMetrics(phase0.Epoch(downloadSlot % spec.SlotsPerEpoch))
 			}
+		case <-ticker.C:
+			if s.stop && len(s.downloadTaskChan) == 0 && s.cli.ActiveReqNum() == 0 {
+				break downloadRoutine
+			}
 
 		}
 	}
@@ -45,8 +46,11 @@ downloadRoutine:
 }
 
 func (s *ChainAnalyzer) runHead() {
+	defer s.wgMainRoutine.Done()
 	log.Info("launching head routine")
 	nextSlotDownload := s.fillToHead()
+
+	log.Infof("Switch to head mode: following chain head")
 
 	// -----------------------------------------------------------------------------------
 	s.eventsObj.SubscribeToHeadEvents()
@@ -131,13 +135,16 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 
 	}
 
-	log.Infof("filling to head: %d - %d", nextSlotDownload, headSlot)
+	log.Infof("filling to head")
+	s.wgMainRoutine.Add(1)
 	s.runHistorical(nextSlotDownload, headSlot)
 	return headSlot
 }
 
 func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
+	defer s.wgMainRoutine.Done()
 
+	log.Infof("Switch to historical mode: %d - %d", init, end)
 	rate := 0 // x stasks per second
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 	for i := init; i <= end; i++ {
@@ -153,5 +160,6 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 
 		s.downloadTaskChan <- i
 	}
+	log.Infof("historical mode: all download tasks sent")
 
 }

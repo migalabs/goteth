@@ -66,3 +66,14 @@ func (r *RoutineBook) Set(pos int, key string) {
 	r.arr[pos] = key // book page
 	r.Unlock()
 }
+
+func (r *RoutineBook) ActivePages() int {
+	result := 0
+	for _, item := range r.arr {
+		if item != emptyKey {
+			result += 1
+		}
+	}
+
+	return result
+}
