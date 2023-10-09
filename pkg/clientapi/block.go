@@ -42,10 +42,10 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (local_spec.AgnosticBlo
 		}
 		if errors.Is(err, context.DeadlineExceeded) {
 			log.Warnf("retrying request: %s", routineKey)
+			<-ticker.C
 
 		}
 		attempts += 1
-		<-ticker.C
 
 	}
 	if err != nil {

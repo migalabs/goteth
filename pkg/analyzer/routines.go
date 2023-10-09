@@ -19,15 +19,15 @@ func (s *ChainAnalyzer) runDownloadBlocks(wgDownload *sync.WaitGroup) {
 
 downloadRoutine:
 	for {
+
+		if s.stop && len(s.downloadTaskChan) == 0 {
+			break downloadRoutine
+		}
 		select {
 
 		case downloadSlot := <-s.downloadTaskChan: // wait for new head event
 			// make the block query
 			log.Tracef("received new download signal: %d", downloadSlot)
-
-			if s.stop {
-				break downloadRoutine
-			}
 
 			go s.DownloadBlock(phase0.Slot(downloadSlot))
 			go s.ProcessBlock(downloadSlot)
@@ -142,7 +142,7 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 	for i := init; i <= end; i++ {
 		rate += 1
-		if rate > rateLimit { // if limit reached
+		if rate >= rateLimit { // if limit reached
 			rate = 0
 			<-ticker.C // wait for ticker
 		}

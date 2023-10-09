@@ -146,7 +146,7 @@ func (s *ChainAnalyzer) Run() {
 	s.PromMetrics.Start()
 
 	wgDownload.Wait()
-	s.downloadFinished = true
+	s.stop = true
 
 	s.dbClient.Finish()
 
