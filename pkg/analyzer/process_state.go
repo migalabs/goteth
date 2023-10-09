@@ -1,103 +1,139 @@
 package analyzer
 
 import (
-	"sync"
-	"time"
-
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/spec/metrics"
-	"github.com/migalabs/goteth/pkg/utils"
+	"github.com/pkg/errors"
 )
 
-func (s *ChainAnalyzer) runProcessState(wgProcess *sync.WaitGroup) {
-	defer wgProcess.Done()
-	log.Info("Launching Beacon State Pre-Processer")
-	ticker := time.NewTicker(utils.RoutineFlushTimeout)
-loop:
-	for {
+// We always provide the epoch we transition to
+// To process the transition from epoch 9 to 10, we provide 10 and we retrieve 8, 9, 10
+func (s ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) error {
 
-		select {
+	if !s.metrics.Epoch {
+		return nil
+	}
 
-		case task := <-s.epochTaskChan:
+	// Retrieve states to process metrics
 
-			log.Tracef("epoch task received for slot %d, epoch: %d, analyzing...", task.State.Slot, task.State.Epoch)
+	prevState := spec.AgnosticState{}
+	currentState := spec.AgnosticState{}
+	nextState := spec.AgnosticState{}
 
-			// returns the state in a custom struct for Phase0, Altair of Bellatrix
-			stateMetrics, err := metrics.StateMetricsByForkVersion(task.NextState, task.State, task.PrevState, s.cli.Api)
+	if epoch-2 >= 0 {
+		prevState = s.queue.StateHistory.Wait(epoch - 2)
+	}
+	if epoch-1 >= 0 {
+		currentState = s.queue.StateHistory.Wait(epoch - 1)
+	}
+	if epoch >= 0 {
+		nextState = s.queue.StateHistory.Wait(epoch)
+	}
 
-			if err != nil {
-				log.Errorf(err.Error())
-				continue
+	bundle, err := metrics.StateMetricsByForkVersion(nextState, currentState, prevState, s.cli.Api)
+	if err != nil {
+		return errors.Wrap(err, "could not parse bundle metrics at epoch")
+	}
+
+	// For Epoch metrics we only need current and nextState
+	emptyRoot := phase0.Root{}
+
+	// If nextState is filled, we can process proposer duties
+	if nextState.StateRoot != emptyRoot {
+		s.processEpochDuties(bundle)
+		s.processValLastStatus(bundle)
+
+		// If currentState and nextState are filled, we can process epoch metrics
+		if currentState.StateRoot != emptyRoot {
+			s.processEpochMetrics(bundle)
+
+			// If prevState, currentState and nextState are filled, we can process validator rewards
+			if prevState.StateRoot != emptyRoot && s.metrics.ValidatorRewards {
+				s.processEpochValRewards(bundle)
 			}
-			emptyRoot := phase0.Root{}
-			if (task.NextState.Slot <= s.finalSlot || task.Finalized) &&
-				stateMetrics.GetMetricsBase().PrevState.StateRoot != emptyRoot { // we cannot calculate validator rewards without prevstate
+		}
+	}
 
-				log.Debugf("Creating validator batches for slot %d...", task.State.Slot)
-				// divide number of validators into number of workers equally
+	return nil
 
-				var validatorBatches []utils.PoolKeys
+}
 
-				// first of all see if there user input any validator list
-				// in case no validators provided, do all the existing ones in the next epoch
-				valIdxs := stateMetrics.GetMetricsBase().NextState.GetAllVals()
-				validatorBatches = utils.DivideValidatorsBatches(valIdxs, s.validatorWorkerNum)
+func (s *ChainAnalyzer) processEpochMetrics(bundle metrics.StateMetrics) {
+	// we need sameEpoch and nextEpoch
 
-				for _, item := range validatorBatches {
-					valTask := &ValTask{
-						ValIdxs:         item.ValIdxs,
-						StateMetricsObj: stateMetrics,
-						PoolName:        item.PoolName,
-						Finalized:       task.Finalized,
-					}
-					s.valTaskChan <- valTask
-				}
+	epochModel := bundle.GetMetricsBase().ExportToEpoch()
+
+	log.Debugf("persisting epoch metrics: epoch %d", epochModel.Epoch)
+	s.dbClient.Persist(epochModel)
+
+}
+
+func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
+
+	missedBlocks := bundle.GetMetricsBase().NextState.MissedBlocks
+
+	for _, item := range bundle.GetMetricsBase().NextState.EpochStructs.ProposerDuties {
+
+		newDuty := spec.ProposerDuty{
+			ValIdx:       item.ValidatorIndex,
+			ProposerSlot: item.Slot,
+			Proposed:     true,
+		}
+		for _, item := range missedBlocks {
+			if newDuty.ProposerSlot == item { // we found the proposer slot in the missed blocks
+				newDuty.Proposed = false
 			}
-			if task.PrevState.Slot >= s.initSlot || task.Finalized { // only write epoch metrics inside the defined range
+		}
+		s.dbClient.Persist(newDuty)
+	}
 
-				log.Debugf("Writing epoch metrics to DB for slot %d...", task.State.Slot)
-				// create a model to be inserted into the db, we only insert previous epoch metrics
+}
 
-				missedBlocks := stateMetrics.GetMetricsBase().NextState.MissedBlocks
-				// take into accoutn epoch transition
-				nextMissedBlock := stateMetrics.GetMetricsBase().NextState.TrackPrevMissingBlock()
-				if nextMissedBlock != 0 {
-					missedBlocks = append(missedBlocks, nextMissedBlock)
-				}
+func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 
-				// TODO: send constructor to model package
-				epochModel := stateMetrics.GetMetricsBase().ExportToEpoch()
+	if s.downloadMode == "finalized" {
+		for valIdx, validator := range bundle.GetMetricsBase().NextState.Validators {
 
-				log.Debugf("persisting epoch metrics: epoch %d", epochModel.Epoch)
-				s.dbClient.Persist(epochModel)
-
-				// Proposer Duties
-
-				for _, item := range stateMetrics.GetMetricsBase().NextState.EpochStructs.ProposerDuties {
-
-					newDuty := spec.ProposerDuty{
-						ValIdx:       item.ValidatorIndex,
-						ProposerSlot: item.Slot,
-						Proposed:     true,
-					}
-					for _, item := range missedBlocks {
-						if newDuty.ProposerSlot == item { // we found the proposer slot in the missed blocks
-							newDuty.Proposed = false
-						}
-					}
-					s.dbClient.Persist(newDuty)
-				}
-			}
-		case <-ticker.C:
-			// in case the downloads have finished, and there are no more tasks to execute
-			if s.downloadFinished && len(s.epochTaskChan) == 0 {
-				break loop
-			}
-		case <-s.ctx.Done():
-			break loop
+			s.dbClient.Persist(spec.ValidatorLastStatus{
+				ValIdx:          phase0.ValidatorIndex(valIdx),
+				Epoch:           bundle.GetMetricsBase().NextState.Epoch,
+				CurrentBalance:  bundle.GetMetricsBase().NextState.Balances[valIdx],
+				CurrentStatus:   bundle.GetMetricsBase().NextState.GetValStatus(phase0.ValidatorIndex(valIdx)),
+				Slashed:         validator.Slashed,
+				ActivationEpoch: validator.ActivationEpoch,
+				WithdrawalEpoch: validator.WithdrawableEpoch,
+				ExitEpoch:       validator.ExitEpoch,
+				PublicKey:       validator.PublicKey,
+			})
 		}
 
 	}
-	log.Infof("Pre process routine finished...")
+}
+
+func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
+
+	if s.metrics.ValidatorRewards { // only if flag is activated
+		log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
+
+		// process each validator
+		for valIdx := range bundle.GetMetricsBase().NextState.Validators {
+
+			if valIdx >= len(bundle.GetMetricsBase().NextState.Validators) {
+				continue // validator is not in the chain yet
+			}
+			// get max reward at given epoch using the formulas
+			maxRewards, err := bundle.GetMaxReward(phase0.ValidatorIndex(valIdx))
+
+			if err != nil {
+				log.Errorf("Error obtaining max reward: %s", err.Error())
+				continue
+			}
+
+			if s.metrics.ValidatorRewards { // only if flag is activated
+				s.dbClient.Persist(maxRewards)
+			}
+
+		}
+	}
 }

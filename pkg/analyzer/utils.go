@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"sync"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -24,67 +25,6 @@ var (
 	)
 )
 
-type StateQueue struct {
-	prevState       spec.AgnosticState
-	currentState    spec.AgnosticState
-	nextState       spec.AgnosticState
-	BlockHistory    map[phase0.Slot]spec.AgnosticBlock // Here we will store stateroots from the blocks
-	HeadBlock       spec.AgnosticBlock
-	LatestFinalized spec.AgnosticBlock
-}
-
-func NewStateQueue(finalizedBlock spec.AgnosticBlock) StateQueue {
-	return StateQueue{
-		prevState:       spec.AgnosticState{},
-		currentState:    spec.AgnosticState{},
-		nextState:       spec.AgnosticState{},
-		BlockHistory:    make(map[phase0.Slot]spec.AgnosticBlock),
-		LatestFinalized: finalizedBlock,
-	}
-}
-
-func (s *StateQueue) AddNewState(newState spec.AgnosticState) {
-
-	if s.nextState.Epoch != phase0.Epoch(0) && newState.Epoch != s.nextState.Epoch+1 {
-		log.Panicf("state at epoch %d is not consecutive to %d...", newState.Epoch, s.nextState.Epoch)
-	}
-
-	s.prevState = s.currentState
-	s.currentState = s.nextState
-	s.nextState = newState
-}
-
-func (s StateQueue) Complete() bool {
-	emptyRoot := phase0.Root{}
-	if s.currentState.StateRoot != emptyRoot { // if we have currentState we can already write epoch metrics
-		return true
-	}
-	return false
-}
-
-func (s *StateQueue) AddNewBlock(block spec.AgnosticBlock) {
-
-	// check previous slot exists
-
-	_, ok := s.BlockHistory[block.Slot-1]
-
-	if !ok && len(s.BlockHistory) > 0 { // if there are roots and we did not find the previous one
-		log.Panicf("root at slot %d:%s is not consecutive to %d", block.Slot, block.StateRoot, block.Slot-1)
-	}
-
-	s.BlockHistory[block.Slot] = block
-	s.HeadBlock = block
-}
-
-// Advances the finalized checkpoint to the given slot
-func (s *StateQueue) AdvanceFinalized(slot phase0.Slot) {
-
-	for i := s.LatestFinalized.Slot; i < slot; i++ {
-		delete(s.BlockHistory, i)
-		s.LatestFinalized = s.BlockHistory[i+1] // we assume all roots exist in the array
-	}
-}
-
 func InitGenesis(dbClient *db.PostgresDBService, apiClient *clientapi.APIClient) {
 	// Get genesis from the API
 	apiGenesis := apiClient.RequestGenesis()
@@ -98,4 +38,92 @@ func InitGenesis(dbClient *db.PostgresDBService, apiClient *clientapi.APIClient)
 		log.Panicf("the genesis time in the database does not match the API, is the beacon node in the correct network?")
 	}
 
+}
+
+type BlocksMap struct {
+	sync.Mutex
+
+	m    map[phase0.Slot]spec.AgnosticBlock
+	subs map[phase0.Slot][]chan spec.AgnosticBlock
+}
+
+func (m *BlocksMap) Set(key phase0.Slot, value spec.AgnosticBlock) {
+	m.Lock()
+	defer m.Unlock()
+
+	m.m[key] = value
+
+	// Send the new value to all waiting subscribers of the key
+	for _, sub := range m.subs[key] {
+		sub <- value
+	}
+	delete(m.subs, key)
+}
+
+func (m *BlocksMap) Wait(key phase0.Slot) spec.AgnosticBlock {
+	m.Lock()
+	// Unlock cannot be deferred so we can unblock Set() while waiting
+
+	value, ok := m.m[key]
+	if ok {
+		m.Unlock()
+		return value
+	}
+
+	// if there is no value yet, subscribe to any new values for this key
+	ch := make(chan spec.AgnosticBlock)
+	m.subs[key] = append(m.subs[key], ch)
+	m.Unlock()
+
+	return <-ch
+}
+
+func (m *BlocksMap) Delete(key phase0.Slot) {
+	m.Lock()
+	delete(m.m, key)
+	delete(m.subs, key)
+	m.Unlock()
+}
+
+type StatesMap struct {
+	sync.Mutex
+
+	m    map[phase0.Epoch]spec.AgnosticState
+	subs map[phase0.Epoch][]chan spec.AgnosticState
+}
+
+func (m *StatesMap) Set(key phase0.Epoch, value spec.AgnosticState) {
+	m.Lock()
+	defer m.Unlock()
+
+	m.m[key] = value
+
+	// Send the new value to all waiting subscribers of the key
+	for _, sub := range m.subs[key] {
+		sub <- value
+	}
+	delete(m.subs, key)
+}
+
+func (m *StatesMap) Wait(key phase0.Epoch) spec.AgnosticState {
+	m.Lock()
+	// Unlock cannot be deferred so we can unblock Set() while waiting
+
+	value, ok := m.m[key]
+	if ok {
+		m.Unlock()
+		return value
+	}
+
+	// if there is no value yet, subscribe to any new values for this key
+	ch := make(chan spec.AgnosticState)
+	m.subs[key] = append(m.subs[key], ch)
+	m.Unlock()
+
+	return <-ch
+}
+
+func (m *StatesMap) Delete(key phase0.Epoch) {
+	delete(m.m, key)
+	delete(m.subs, key)
 }
