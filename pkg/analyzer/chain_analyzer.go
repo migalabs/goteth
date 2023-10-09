@@ -134,7 +134,7 @@ func (s *ChainAnalyzer) Run() {
 	if s.downloadMode == "historical" {
 		// Block requester + Task generator
 		wgDownload.Add(1)
-		go s.runHistorical()
+		go s.runHistorical(s.initSlot, s.finalSlot)
 	}
 
 	if s.downloadMode == "finalized" {

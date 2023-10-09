@@ -131,30 +131,22 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 
 	}
 
-fillLoop:
-	for nextSlotDownload < headSlot {
-		log.Infof("filling missing blocks: %d", nextSlotDownload)
-		s.downloadTaskChan <- nextSlotDownload
-		nextSlotDownload = nextSlotDownload + 1
-		if s.stop {
-			log.Info("sudden shutdown detected, block downloader routine")
-			break fillLoop
-		}
-	}
-	return nextSlotDownload
+	s.runHistorical(nextSlotDownload, headSlot)
+	return headSlot
 }
 
-func (s *ChainAnalyzer) runHistorical() {
+func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 
 	rate := 0 // x stasks per second
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
-	for i := s.initSlot; i <= s.finalSlot; i++ {
+	for i := init; i <= end; i++ {
 		rate += 1
 		if rate > rateLimit { // if limit reached
 			rate = 0
 			<-ticker.C // wait for ticker
 		}
 		if s.stop {
+			log.Info("sudden shutdown detected, block downloader routine")
 			return
 		}
 
