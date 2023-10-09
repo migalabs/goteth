@@ -33,14 +33,13 @@ type ChainAnalyzer struct {
 	dbClient  *db.PostgresDBService
 
 	// Control Variables
-	wgMainRoutine      *sync.WaitGroup
-	wgDownload         *sync.WaitGroup
-	stop               bool
-	routineClosed      chan struct{}
-	downloadMode       string
-	validatorWorkerNum int
-	metrics            db.DBMetrics
-	processerBook      *utils.RoutineBook
+	wgMainRoutine *sync.WaitGroup
+	wgDownload    *sync.WaitGroup
+	stop          bool
+	routineClosed chan struct{}
+	downloadMode  string
+	metrics       db.DBMetrics
+	processerBook *utils.RoutineBook
 
 	queue Queue
 
@@ -91,23 +90,22 @@ func NewChainAnalyzer(
 	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", iConfig.PrometheusPort)
 
 	analyzer := &ChainAnalyzer{
-		ctx:                ctx,
-		cancel:             cancel,
-		initSlot:           phase0.Slot(iConfig.InitSlot),
-		finalSlot:          phase0.Slot(iConfig.FinalSlot),
-		downloadTaskChan:   make(chan phase0.Slot),
-		validatorWorkerNum: iConfig.WorkerNum,
-		cli:                cli,
-		dbClient:           idbClient,
-		routineClosed:      make(chan struct{}, 1),
-		eventsObj:          events.NewEventsObj(ctx, cli),
-		downloadMode:       iConfig.DownloadMode,
-		metrics:            metricsObj,
-		PromMetrics:        promethMetrics,
-		queue:              NewQueue(),
-		processerBook:      utils.NewRoutineBook(100),
-		wgMainRoutine:      &sync.WaitGroup{},
-		wgDownload:         &sync.WaitGroup{},
+		ctx:              ctx,
+		cancel:           cancel,
+		initSlot:         phase0.Slot(iConfig.InitSlot),
+		finalSlot:        phase0.Slot(iConfig.FinalSlot),
+		downloadTaskChan: make(chan phase0.Slot),
+		cli:              cli,
+		dbClient:         idbClient,
+		routineClosed:    make(chan struct{}, 1),
+		eventsObj:        events.NewEventsObj(ctx, cli),
+		downloadMode:     iConfig.DownloadMode,
+		metrics:          metricsObj,
+		PromMetrics:      promethMetrics,
+		queue:            NewQueue(),
+		processerBook:    utils.NewRoutineBook(100),
+		wgMainRoutine:    &sync.WaitGroup{},
+		wgDownload:       &sync.WaitGroup{},
 	}
 
 	InitGenesis(analyzer.dbClient, analyzer.cli)

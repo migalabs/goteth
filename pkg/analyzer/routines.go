@@ -33,10 +33,10 @@ downloadRoutine:
 			if (downloadSlot % spec.SlotsPerEpoch) == (spec.SlotsPerEpoch - 1) { // last slot of epoch
 				// new epoch
 				go s.DownloadState(downloadSlot)
-				go s.ProcessStateTransitionMetrics(phase0.Epoch(downloadSlot % spec.SlotsPerEpoch))
+				go s.ProcessStateTransitionMetrics(phase0.Epoch(downloadSlot / spec.SlotsPerEpoch))
 			}
 		case <-ticker.C:
-			if s.stop && len(s.downloadTaskChan) == 0 && s.cli.ActiveReqNum() == 0 {
+			if s.stop && len(s.downloadTaskChan) == 0 && s.cli.ActiveReqNum() == 0 && s.processerBook.ActivePages() == 0 {
 				break downloadRoutine
 			}
 
