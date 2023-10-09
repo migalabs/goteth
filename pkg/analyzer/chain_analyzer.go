@@ -10,6 +10,7 @@ import (
 	"github.com/migalabs/goteth/pkg/config"
 	"github.com/migalabs/goteth/pkg/db"
 	prom_metrics "github.com/migalabs/goteth/pkg/metrics"
+	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/utils"
 
 	"github.com/migalabs/goteth/pkg/events"
@@ -61,7 +62,8 @@ func NewChainAnalyzer(
 		if iConfig.FinalSlot <= iConfig.InitSlot {
 			return &ChainAnalyzer{}, errors.Errorf("Final Slot cannot be greater than Init Slot")
 		}
-
+		iConfig.InitSlot = iConfig.InitSlot / spec.SlotsPerEpoch * spec.SlotsPerEpoch
+		iConfig.FinalSlot = iConfig.FinalSlot / spec.SlotsPerEpoch * spec.SlotsPerEpoch
 		log.Infof("generating new Block Analyzer from slots %d:%d", iConfig.InitSlot, iConfig.FinalSlot)
 	}
 

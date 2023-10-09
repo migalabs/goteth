@@ -17,6 +17,7 @@ const (
 	minBlockReqTime            = 100 * time.Millisecond // max 10 queries per second, dont spam beacon node
 	minStateReqTime            = 1 * time.Second        // max 1 query per second, dont spam beacon node
 	epochsToFinalizedTentative = 3                      // usually, 2 full epochs before the head it is finalized
+	waitMaxTimeout             = 60 * time.Second
 )
 
 var (
@@ -70,12 +71,20 @@ func (m *BlocksMap) Wait(key phase0.Slot) spec.AgnosticBlock {
 		return value
 	}
 
+	ticker := time.NewTicker(waitMaxTimeout)
+
 	// if there is no value yet, subscribe to any new values for this key
 	ch := make(chan spec.AgnosticBlock)
 	m.subs[key] = append(m.subs[key], ch)
 	m.Unlock()
 
-	return <-ch
+	select {
+	case <-ticker.C:
+		log.Fatalf("Waiting for too long for slot %d...", key)
+		return spec.AgnosticBlock{}
+	case block := <-ch:
+		return block
+	}
 }
 
 func (m *BlocksMap) Delete(key phase0.Slot) {
@@ -115,12 +124,20 @@ func (m *StatesMap) Wait(key phase0.Epoch) spec.AgnosticState {
 		return value
 	}
 
+	ticker := time.NewTicker(waitMaxTimeout)
+
 	// if there is no value yet, subscribe to any new values for this key
 	ch := make(chan spec.AgnosticState)
 	m.subs[key] = append(m.subs[key], ch)
 	m.Unlock()
 
-	return <-ch
+	select {
+	case <-ticker.C:
+		log.Fatalf("Waiting for too long for slot %d...", key)
+		return spec.AgnosticState{}
+	case state := <-ch:
+		return state
+	}
 }
 
 func (m *StatesMap) Delete(key phase0.Epoch) {
