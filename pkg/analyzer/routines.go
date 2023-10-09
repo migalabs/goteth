@@ -135,6 +135,8 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 
 	}
 
+	s.initSlot = nextSlotDownload
+
 	log.Infof("filling to head")
 	s.wgMainRoutine.Add(1)
 	s.runHistorical(nextSlotDownload, headSlot)
