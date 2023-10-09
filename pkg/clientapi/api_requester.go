@@ -8,6 +8,7 @@ import (
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/migalabs/goteth/pkg/db"
+	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/rs/zerolog"
 	"github.com/sirupsen/logrus"
 )
@@ -16,7 +17,9 @@ var (
 	moduleName = "api-cli"
 	log        = logrus.WithField(
 		"module", moduleName)
-	QueryTimeout = time.Second * 90
+	QueryTimeout     = time.Second * 90
+	maxParallelConns = 1
+	maxRetries       = 3
 )
 
 type APIClientOption func(*APIClient) error
@@ -26,13 +29,18 @@ type APIClient struct {
 	Api     *http.Service     // Beacon Node
 	ELApi   *ethclient.Client // Execution Node
 	Metrics db.DBMetrics
+
+	apiBook   *utils.RoutineBook // Book to track what is being downloaded through the CL API
+	elApiBook *utils.RoutineBook // Book to track what is being downloaded through the EL API
 }
 
 func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOption) (*APIClient, error) {
 	log.Debugf("generating http client at %s", bnEndpoint)
 
 	apiService := &APIClient{
-		ctx: ctx,
+		ctx:       ctx,
+		apiBook:   utils.NewRoutineBook(maxParallelConns),
+		elApiBook: utils.NewRoutineBook(maxParallelConns),
 	}
 
 	bnCli, err := http.New(

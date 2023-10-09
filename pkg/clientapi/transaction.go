@@ -11,13 +11,18 @@ import (
 )
 
 // GetReceipt retrieves receipt for the given transaction hash
-func (client APIClient) GetReceipt(txHash common.Hash) (*types.Receipt, error) {
+func (client *APIClient) GetReceipt(txHash common.Hash) (*types.Receipt, error) {
+
+	// routineKey := "txreceipt=" + txHash.String()
+	// client.elApiBook.Acquire(routineKey)
+	// defer client.elApiBook.FreePage(routineKey)
+
 	receipt, err := client.ELApi.TransactionReceipt(client.ctx, txHash)
 	return receipt, err
 }
 
 // convert transactions from byte sequences to Transaction object
-func (s APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
+func (s *APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
 	iSlot phase0.Slot,
 	iBlockNumber uint64,
 	iTimestamp uint64) (*spec.AgnosticTransaction, error) {
@@ -44,7 +49,7 @@ func (s APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
 		receipt, err := s.GetReceipt(parsedTx.Hash())
 
 		if err != nil {
-			log.Warnf("unable to retrieve transaction receipt for hash %x: %s", parsedTx.Hash(), err.Error())
+			log.Fatalf("unable to retrieve transaction receipt for hash %x: %s", parsedTx.Hash(), err.Error())
 		} else {
 			gasUsed = receipt.GasUsed
 			gasPrice = receipt.EffectiveGasPrice.Uint64()

@@ -8,7 +8,12 @@ import (
 	local_spec "github.com/migalabs/goteth/pkg/spec"
 )
 
-func (s APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticState, error) {
+func (s *APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticState, error) {
+
+	routineKey := "state=" + fmt.Sprintf("%d", slot)
+	s.apiBook.Acquire(routineKey)
+	defer s.apiBook.FreePage(routineKey)
+
 	startTime := time.Now()
 	newState, err := s.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
 
@@ -34,7 +39,12 @@ func (s APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticSta
 	return &resultState, nil
 }
 
-func (s APIClient) RequestStateRoot(slot phase0.Slot) phase0.Root {
+func (s *APIClient) RequestStateRoot(slot phase0.Slot) phase0.Root {
+
+	// routineKey := "stateroot=" + fmt.Sprintf("%d", slot)
+	// s.apiBook.Acquire(routineKey)
+	// defer s.apiBook.FreePage(routineKey)
+
 	root, err := s.Api.BeaconStateRoot(s.ctx, fmt.Sprintf("%d", slot))
 	if err != nil {
 		log.Panicf("could not download the state root at %d: %s", slot, err)
@@ -46,7 +56,12 @@ func (s APIClient) RequestStateRoot(slot phase0.Slot) phase0.Root {
 // Finalized Checkpoints happen at the beginning of an epoch
 // This method returns the finalized slot at the end of an epoch
 // Usually, it is the slot before the finalized one
-func (s APIClient) GetFinalizedEndSlotStateRoot() (phase0.Slot, phase0.Root) {
+func (s *APIClient) GetFinalizedEndSlotStateRoot() (phase0.Slot, phase0.Root) {
+
+	// routineKey := "finality=head"
+	// s.apiBook.Acquire(routineKey)
+	// defer s.apiBook.FreePage(routineKey)
+
 	currentFinalized, err := s.Api.Finality(s.ctx, "head")
 
 	if err != nil {
