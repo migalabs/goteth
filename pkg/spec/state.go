@@ -86,6 +86,11 @@ func (p *AgnosticState) Setup() error {
 	return nil
 }
 
+func (p AgnosticState) AddBlocks(blockList []AgnosticBlock) {
+	p.Blocks = blockList
+	p.CalculateWithdrawals()
+}
+
 func (p AgnosticState) CalculateWithdrawals() {
 
 	for _, block := range p.Blocks {
@@ -179,7 +184,7 @@ func (p AgnosticState) TrackPrevMissingBlock() phase0.Slot {
 
 // We use blockroots to track missed blocks. When there is a missed block, the block root is repeated
 func (p *AgnosticState) TrackMissingBlocks() {
-	firstIndex := (p.Slot - SlotsPerEpoch + 1) % SlotsPerHistoricalRoot
+	firstIndex := (p.Slot - SlotsPerEpoch) % SlotsPerHistoricalRoot
 	lastIndex := (p.Slot) % SlotsPerHistoricalRoot
 
 	for i := firstIndex; i <= lastIndex; i++ {
