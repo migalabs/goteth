@@ -6,15 +6,14 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/spec/metrics"
-	"github.com/pkg/errors"
 )
 
 // We always provide the epoch we transition to
 // To process the transition from epoch 9 to 10, we provide 10 and we retrieve 8, 9, 10
-func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) error {
+func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 
 	if !s.metrics.Epoch {
-		return nil
+		return
 	}
 
 	routineKey := "epoch=" + fmt.Sprintf("%d", epoch)
@@ -37,7 +36,8 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) error 
 	bundle, err := metrics.StateMetricsByForkVersion(nextState, currentState, prevState, s.cli.Api)
 	if err != nil {
 		s.processerBook.FreePage(routineKey)
-		return errors.Wrap(err, "could not parse bundle metrics at epoch")
+		log.Errorf("could not parse bundle metrics at epoch: %s", err)
+		s.stop = true
 	}
 
 	// For Epoch metrics we only need current and nextState
@@ -61,7 +61,7 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) error 
 
 	s.processerBook.FreePage(routineKey)
 
-	return nil
+	return
 
 }
 

@@ -34,7 +34,7 @@ type StateMetrics interface {
 }
 
 func StateMetricsByForkVersion(nextBstate local_spec.AgnosticState, bstate local_spec.AgnosticState, prevBstate local_spec.AgnosticState, iApi *http.Service) (StateMetrics, error) {
-	switch bstate.Version {
+	switch nextBstate.Version { // rewards are written at nextState epoch
 
 	case spec.DataVersionPhase0:
 		return NewPhase0Metrics(nextBstate, bstate, prevBstate), nil
