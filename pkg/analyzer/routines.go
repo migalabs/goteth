@@ -147,14 +147,7 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 	defer s.wgMainRoutine.Done()
 
 	log.Infof("Switch to historical mode: %d - %d", init, end)
-	rate := 0 // x stasks per second
-	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 	for i := init; i <= end; i++ {
-		rate += 1
-		if rate >= rateLimit { // if limit reached
-			rate = 0
-			<-ticker.C // wait for ticker
-		}
 		if s.stop {
 			log.Info("sudden shutdown detected, block downloader routine")
 			return

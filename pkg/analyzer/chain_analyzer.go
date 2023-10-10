@@ -96,7 +96,7 @@ func NewChainAnalyzer(
 		cancel:           cancel,
 		initSlot:         phase0.Slot(iConfig.InitSlot),
 		finalSlot:        phase0.Slot(iConfig.FinalSlot),
-		downloadTaskChan: make(chan phase0.Slot),
+		downloadTaskChan: make(chan phase0.Slot, rateLimit), // TODO: define size of buffer depending on performance
 		cli:              cli,
 		dbClient:         idbClient,
 		routineClosed:    make(chan struct{}, 1),
