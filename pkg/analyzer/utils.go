@@ -133,7 +133,7 @@ func (m *StatesMap) Wait(key phase0.Epoch) spec.AgnosticState {
 
 	select {
 	case <-ticker.C:
-		log.Fatalf("Waiting for too long for slot %d...", key)
+		log.Fatalf("Waiting for too long for state from epoch %d...", key)
 		return spec.AgnosticState{}
 	case state := <-ch:
 		return state
