@@ -48,11 +48,11 @@ func (s *Queue) AddNewBlock(block spec.AgnosticBlock) {
 	s.BlockHistory.Set(block.Slot, block)
 }
 
-// Advances the finalized checkpoint to the given slot
-func (s *Queue) AdvanceFinalized(slot phase0.Slot) {
+// // Advances the finalized checkpoint to the given slot
+// func (s *Queue) AdvanceFinalized(slot phase0.Slot) {
 
-	for i := s.LatestFinalized.Slot; i < slot; i++ {
-		s.BlockHistory.Delete(i)
-		s.LatestFinalized = s.BlockHistory.Wait(i + 1)
-	}
-}
+// 	for i := s.LatestFinalized.Slot; i < slot; i++ {
+// 		s.BlockHistory.Delete(i)
+// 		s.LatestFinalized = s.BlockHistory.Wait(i + 1)
+// 	}
+// }

@@ -17,7 +17,7 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 	}
 
 	routineKey := "epoch=" + fmt.Sprintf("%d", epoch)
-	s.processerBook.Acquire(routineKey)
+	s.processerBook.Acquire(routineKey) // resgiter we are about to process metrics for epoch
 
 	// Retrieve states to process metrics
 
@@ -25,6 +25,7 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 	currentState := spec.AgnosticState{}
 	nextState := spec.AgnosticState{}
 
+	// this state may never be downloaded if it is below initSlot
 	if epoch-2 >= 0 && epoch-2 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
 		prevState = s.queue.StateHistory.Wait(epoch - 2)
 	}
@@ -40,7 +41,6 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		s.stop = true
 	}
 
-	// For Epoch metrics we only need current and nextState
 	emptyRoot := phase0.Root{}
 
 	// If nextState is filled, we can process proposer duties

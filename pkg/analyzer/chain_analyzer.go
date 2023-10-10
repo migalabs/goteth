@@ -21,31 +21,31 @@ type ChainAnalyzer struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	// Slot Range
+	// Slot Range for historical
 	initSlot  phase0.Slot
 	finalSlot phase0.Slot
 
 	// Channels
-	downloadTaskChan chan phase0.Slot
+	downloadTaskChan chan phase0.Slot // channel to send download tasks
 
 	// Connections
-	cli       *clientapi.APIClient
-	eventsObj events.Events
-	dbClient  *db.PostgresDBService
+	cli       *clientapi.APIClient  // client to request data to the CL and EL clients
+	eventsObj events.Events         // object to receive signals from beacon node
+	dbClient  *db.PostgresDBService // client to communicate with psql
 
 	// Control Variables
-	wgMainRoutine *sync.WaitGroup
-	wgDownload    *sync.WaitGroup
-	stop          bool
-	routineClosed chan struct{}
-	downloadMode  string
-	metrics       db.DBMetrics
-	processerBook *utils.RoutineBook
+	wgMainRoutine *sync.WaitGroup    // wait group for main routine (either historical or head)
+	wgDownload    *sync.WaitGroup    // wait group for download routine
+	stop          bool               // flag to notify all routine to finish
+	routineClosed chan struct{}      // signal that everything was closed succesfully
+	downloadMode  string             // whether to download historical blocks (defined by user) or follow chain head
+	metrics       db.DBMetrics       // waht metrics to be downloaded / processed
+	processerBook *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
 
-	queue Queue
+	queue Queue // store the blocks and states downloaded
 
 	initTime    time.Time
-	PromMetrics *prom_metrics.PrometheusMetrics
+	PromMetrics *prom_metrics.PrometheusMetrics // metrics to be stored to prometheus
 }
 
 func NewChainAnalyzer(
@@ -57,10 +57,13 @@ func NewChainAnalyzer(
 
 	// calculate the list of slots that we will analyze
 
-	if iConfig.DownloadMode == "hybrid" || iConfig.DownloadMode == "historical" {
+	if iConfig.DownloadMode == "historical" {
 
 		if iConfig.FinalSlot <= iConfig.InitSlot {
-			return &ChainAnalyzer{}, errors.Errorf("Final Slot cannot be greater than Init Slot")
+			return &ChainAnalyzer{
+				ctx:    ctx,
+				cancel: cancel,
+			}, errors.Errorf("Final Slot cannot be greater than Init Slot")
 		}
 		iConfig.InitSlot = iConfig.InitSlot / spec.SlotsPerEpoch * spec.SlotsPerEpoch
 		iConfig.FinalSlot = iConfig.FinalSlot / spec.SlotsPerEpoch * spec.SlotsPerEpoch
@@ -69,12 +72,18 @@ func NewChainAnalyzer(
 
 	metricsObj, err := db.NewMetrics(iConfig.Metrics)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to read metric.")
+		return &ChainAnalyzer{
+			ctx:    ctx,
+			cancel: cancel,
+		}, errors.Wrap(err, "unable to read metric.")
 	}
 
 	idbClient, err := db.New(ctx, iConfig.DBUrl, db.WithWorkers(iConfig.DbWorkerNum))
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to generate DB Client.")
+		return &ChainAnalyzer{
+			ctx:    ctx,
+			cancel: cancel,
+		}, errors.Wrap(err, "unable to generate DB Client.")
 	}
 
 	idbClient.Connect()
@@ -85,7 +94,10 @@ func NewChainAnalyzer(
 		clientapi.WithELEndpoint(iConfig.ElEndpoint),
 		clientapi.WithDBMetrics(metricsObj))
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to generate API Client.")
+		return &ChainAnalyzer{
+			ctx:    ctx,
+			cancel: cancel,
+		}, errors.Wrap(err, "unable to generate API Client.")
 	}
 
 	// generate the central exporting service

@@ -23,7 +23,6 @@ downloadRoutine:
 		select {
 
 		case downloadSlot := <-s.downloadTaskChan: // wait for new head event
-			// make the block query
 			log.Tracef("received new download signal: %d", downloadSlot)
 
 			go s.DownloadBlock(phase0.Slot(downloadSlot))
@@ -35,11 +34,10 @@ downloadRoutine:
 				go s.DownloadState(downloadSlot)
 				go s.ProcessStateTransitionMetrics(phase0.Epoch(downloadSlot / spec.SlotsPerEpoch))
 			}
-		case <-ticker.C:
+		case <-ticker.C: // every certain amount of time check if need to finish
 			if s.stop && len(s.downloadTaskChan) == 0 && s.cli.ActiveReqNum() == 0 && s.processerBook.ActivePages() == 0 {
 				break downloadRoutine
 			}
-
 		}
 	}
 	log.Infof("Block Download routine finished")
@@ -67,12 +65,7 @@ func (s *ChainAnalyzer) runHead() {
 			log.Tracef("received new head signal: %d", headSlot)
 
 			for nextSlotDownload <= headSlot {
-				if s.stop {
-					log.Info("finalizing head routine")
-					return
-				}
 				s.downloadTaskChan <- nextSlotDownload
-
 				nextSlotDownload = nextSlotDownload + 1
 
 			}
@@ -118,7 +111,7 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 	// obtain current head
 	headSlot := s.cli.RequestCurrentHead()
 
-	// obtain last epoch in database
+	// obtain last slot in database
 	nextSlotDownload, err := s.dbClient.ObtainLastSlot()
 	if err != nil {
 		log.Errorf("could not obtain last slot in database: %s", err)
@@ -137,8 +130,8 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 
 	s.initSlot = nextSlotDownload
 
-	log.Infof("filling to head")
-	s.wgMainRoutine.Add(1)
+	log.Infof("filling to head...")
+	s.wgMainRoutine.Add(1) // add because historical will defer it
 	s.runHistorical(nextSlotDownload, headSlot)
 	return headSlot
 }
