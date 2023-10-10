@@ -29,7 +29,6 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (local_spec.AgnosticBlo
 	startTime := time.Now()
 	err := errors.New("first attempt")
 	var newBlock *spec.VersionedSignedBeaconBlock
-	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 
 	attempts := 0
 	for err != nil && attempts < maxRetries {
@@ -41,6 +40,7 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (local_spec.AgnosticBlo
 			return s.CreateMissingBlock(slot), nil
 		}
 		if errors.Is(err, context.DeadlineExceeded) {
+			ticker := time.NewTicker(utils.RoutineFlushTimeout)
 			log.Warnf("retrying request: %s", routineKey)
 			<-ticker.C
 

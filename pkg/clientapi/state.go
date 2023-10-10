@@ -1,11 +1,15 @@
 package clientapi
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	local_spec "github.com/migalabs/goteth/pkg/spec"
+	"github.com/migalabs/goteth/pkg/utils"
 )
 
 func (s *APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticState, error) {
@@ -15,10 +19,26 @@ func (s *APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticSt
 	defer s.apiBook.FreePage(routineKey)
 
 	startTime := time.Now()
-	newState, err := s.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
 
-	if newState == nil {
-		return nil, fmt.Errorf("unable to retrieve Beacon State from the beacon node, closing requester routine. nil State")
+	err := errors.New("first attempt")
+	var newState *spec.VersionedBeaconState
+
+	attempts := 0
+	for err != nil && attempts < maxRetries {
+
+		newState, err = s.Api.BeaconState(s.ctx, fmt.Sprintf("%d", slot))
+
+		if newState == nil {
+			return nil, fmt.Errorf("unable to retrieve Beacon State from the beacon node, closing requester routine. nil State")
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			ticker := time.NewTicker(utils.RoutineFlushTimeout)
+			log.Warnf("retrying request: %s", routineKey)
+			<-ticker.C
+
+		}
+		attempts += 1
+
 	}
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
