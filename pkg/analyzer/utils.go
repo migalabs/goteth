@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/clientapi"
 	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
@@ -41,17 +40,62 @@ func InitGenesis(dbClient *db.PostgresDBService, apiClient *clientapi.APIClient)
 
 }
 
-type BlocksMap struct {
-	sync.Mutex
+type AgnosticMapOption[T spec.AgnosticBlock | spec.AgnosticState] func(*AgnosticMap[T]) error
 
-	m    map[phase0.Slot]spec.AgnosticBlock
-	subs map[phase0.Slot][]chan spec.AgnosticBlock
+type AgnosticMap[T spec.AgnosticBlock | spec.AgnosticState] struct {
+	sync.Mutex
+	// both spec.Slot and spec.Epoch are uint64
+	m    map[uint64]T
+	subs map[uint64][]chan T
+
+	setCollisionF func(T) // extra code we would like to do depending on an existing collision between an existing key and a new one
+	deleteF       func(T) // extra code we want to run when deleting a key from the map
 }
 
-func (m *BlocksMap) Set(key phase0.Slot, value spec.AgnosticBlock) {
+func NewAgnosticMap[T spec.AgnosticBlock | spec.AgnosticState](
+	mapSize int, opts ...AgnosticMapOption[T]) (*AgnosticMap[T], error) {
+	// init by default with empty functions
+	emptyF := func(_ T) {}
+	agnosticMap := &AgnosticMap[T]{
+		m:             make(map[uint64]T, mapSize),
+		subs:          make(map[uint64][]chan T, mapSize),
+		setCollisionF: emptyF,
+		deleteF:       emptyF,
+	}
+
+	// apply options
+	for _, opt := range opts {
+		err := opt(agnosticMap)
+		if err != nil {
+			return agnosticMap, err
+		}
+
+	}
+	return agnosticMap, nil
+}
+
+func WithSetCollisionF[T spec.AgnosticBlock | spec.AgnosticState](f func(T)) AgnosticMapOption[T] {
+	return func(m *AgnosticMap[T]) error {
+		m.setCollisionF = f
+		return nil
+	}
+}
+
+func WithDeleteF[T spec.AgnosticBlock | spec.AgnosticState](f func(T)) AgnosticMapOption[T] {
+	return func(m *AgnosticMap[T]) error {
+		m.deleteF = f
+		return nil
+	}
+}
+
+func (m *AgnosticMap[T]) Set(key uint64, value T) {
 	m.Lock()
 	defer m.Unlock()
 
+	prevItem, ok := m.m[key]
+	if ok {
+		m.setCollisionF(prevItem)
+	}
 	m.m[key] = value
 
 	// Send the new value to all waiting subscribers of the key
@@ -61,7 +105,7 @@ func (m *BlocksMap) Set(key phase0.Slot, value spec.AgnosticBlock) {
 	delete(m.subs, key)
 }
 
-func (m *BlocksMap) Wait(key phase0.Slot) spec.AgnosticBlock {
+func (m *AgnosticMap[T]) Wait(key uint64) T {
 	m.Lock()
 	// Unlock cannot be deferred so we can unblock Set() while waiting
 
@@ -74,73 +118,28 @@ func (m *BlocksMap) Wait(key phase0.Slot) spec.AgnosticBlock {
 	ticker := time.NewTicker(waitMaxTimeout)
 
 	// if there is no value yet, subscribe to any new values for this key
-	ch := make(chan spec.AgnosticBlock)
+	ch := make(chan T)
 	m.subs[key] = append(m.subs[key], ch)
 	m.Unlock()
 
+	var item T
 	select {
 	case <-ticker.C:
 		log.Fatalf("Waiting for too long for slot %d...", key)
-		return spec.AgnosticBlock{}
-	case block := <-ch:
-		return block
+		return item
+	case item = <-ch:
+		return item
 	}
 }
 
-func (m *BlocksMap) Delete(key phase0.Slot) {
+func (m *AgnosticMap[T]) Delete(key uint64) {
 	m.Lock()
-	delete(m.m, key)
-	delete(m.subs, key)
-	m.Unlock()
-}
-
-type StatesMap struct {
-	sync.Mutex
-
-	m    map[phase0.Epoch]spec.AgnosticState
-	subs map[phase0.Epoch][]chan spec.AgnosticState
-}
-
-func (m *StatesMap) Set(key phase0.Epoch, value spec.AgnosticState) {
-	m.Lock()
-	defer m.Unlock()
-
-	m.m[key] = value
-
-	// Send the new value to all waiting subscribers of the key
-	for _, sub := range m.subs[key] {
-		sub <- value
-	}
-	delete(m.subs, key)
-}
-
-func (m *StatesMap) Wait(key phase0.Epoch) spec.AgnosticState {
-	m.Lock()
-	// Unlock cannot be deferred so we can unblock Set() while waiting
-
-	value, ok := m.m[key]
+	prevItem, ok := m.m[key]
 	if ok {
-		m.Unlock()
-		return value
+		m.setCollisionF(prevItem)
 	}
-
-	ticker := time.NewTicker(waitMaxTimeout)
-
-	// if there is no value yet, subscribe to any new values for this key
-	ch := make(chan spec.AgnosticState)
-	m.subs[key] = append(m.subs[key], ch)
-	m.Unlock()
-
-	select {
-	case <-ticker.C:
-		log.Fatalf("Waiting for too long for state from epoch %d...", key)
-		return spec.AgnosticState{}
-	case state := <-ch:
-		return state
-	}
-}
-
-func (m *StatesMap) Delete(key phase0.Epoch) {
 	delete(m.m, key)
 	delete(m.subs, key)
+	m.Unlock()
+
 }
