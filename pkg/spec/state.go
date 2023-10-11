@@ -86,12 +86,12 @@ func (p *AgnosticState) Setup() error {
 	return nil
 }
 
-func (p AgnosticState) AddBlocks(blockList []AgnosticBlock) {
+func (p *AgnosticState) AddBlocks(blockList []AgnosticBlock) {
 	p.Blocks = blockList
 	p.CalculateWithdrawals()
 }
 
-func (p AgnosticState) CalculateWithdrawals() {
+func (p *AgnosticState) CalculateWithdrawals() {
 
 	for _, block := range p.Blocks {
 		for _, withdrawal := range block.ExecutionPayload.Withdrawals {
