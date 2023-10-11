@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/clientapi"
 	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
@@ -37,10 +38,21 @@ func InitGenesis(dbClient *db.PostgresDBService, apiClient *clientapi.APIClient)
 	if apiGenesis.Unix() != dbGenesis {
 		log.Panicf("the genesis time in the database does not match the API, is the beacon node in the correct network?")
 	}
-
 }
 
-type AgnosticMapOption[T spec.AgnosticBlock | spec.AgnosticState] func(*AgnosticMap[T]) error
+// --- Ethereum Type Converteres ----
+
+func SlotTo[T uint64 | int64 | int](slot phase0.Slot) T {
+	return T(slot)
+}
+
+func EpochTo[T uint64 | int64 | int](epoch phase0.Epoch) T {
+	return T(epoch)
+}
+
+// --- Map ---
+
+type AgnosticMapOption[T spec.AgnosticBlock | spec.AgnosticState] func(*AgnosticMap[T])
 
 type AgnosticMap[T spec.AgnosticBlock | spec.AgnosticState] struct {
 	sync.Mutex
@@ -52,39 +64,32 @@ type AgnosticMap[T spec.AgnosticBlock | spec.AgnosticState] struct {
 	deleteF       func(T) // extra code we want to run when deleting a key from the map
 }
 
-func NewAgnosticMap[T spec.AgnosticBlock | spec.AgnosticState](
-	mapSize int, opts ...AgnosticMapOption[T]) (*AgnosticMap[T], error) {
+func NewAgnosticMap[T spec.AgnosticBlock | spec.AgnosticState](opts ...AgnosticMapOption[T]) *AgnosticMap[T] {
 	// init by default with empty functions
 	emptyF := func(_ T) {}
 	agnosticMap := &AgnosticMap[T]{
-		m:             make(map[uint64]T, mapSize),
-		subs:          make(map[uint64][]chan T, mapSize),
+		m:             make(map[uint64]T),
+		subs:          make(map[uint64][]chan T),
 		setCollisionF: emptyF,
 		deleteF:       emptyF,
 	}
 
 	// apply options
 	for _, opt := range opts {
-		err := opt(agnosticMap)
-		if err != nil {
-			return agnosticMap, err
-		}
-
+		opt(agnosticMap)
 	}
-	return agnosticMap, nil
+	return agnosticMap
 }
 
 func WithSetCollisionF[T spec.AgnosticBlock | spec.AgnosticState](f func(T)) AgnosticMapOption[T] {
-	return func(m *AgnosticMap[T]) error {
+	return func(m *AgnosticMap[T]) {
 		m.setCollisionF = f
-		return nil
 	}
 }
 
 func WithDeleteF[T spec.AgnosticBlock | spec.AgnosticState](f func(T)) AgnosticMapOption[T] {
-	return func(m *AgnosticMap[T]) error {
+	return func(m *AgnosticMap[T]) {
 		m.deleteF = f
-		return nil
 	}
 }
 
