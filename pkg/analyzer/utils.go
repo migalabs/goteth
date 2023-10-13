@@ -130,7 +130,7 @@ func (m *AgnosticMap[T]) Wait(key uint64) T {
 	var item T
 	select {
 	case <-ticker.C:
-		log.Fatalf("Waiting for too long for slot %d...", key)
+		log.Fatalf("Waiting for too long for %T %d...", *new(T), key)
 		return item
 	case item = <-ch:
 		return item
@@ -141,7 +141,7 @@ func (m *AgnosticMap[T]) Delete(key uint64) {
 	m.Lock()
 	prevItem, ok := m.m[key]
 	if ok {
-		m.setCollisionF(prevItem)
+		m.deleteF(prevItem)
 	}
 	delete(m.m, key)
 	delete(m.subs, key)
