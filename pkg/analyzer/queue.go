@@ -6,22 +6,16 @@ import (
 )
 
 type Queue struct {
-	StateHistory    *StatesMap
-	BlockHistory    *BlocksMap // Here we will store stateroots from the blocks
+	StateHistory    *AgnosticMap[spec.AgnosticState]
+	BlockHistory    *AgnosticMap[spec.AgnosticBlock] // Here we will store stateroots from the blocks
 	HeadBlock       spec.AgnosticBlock
 	LatestFinalized spec.AgnosticBlock
 }
 
 func NewQueue() Queue {
 	return Queue{
-		StateHistory: &StatesMap{
-			m:    make(map[phase0.Epoch]spec.AgnosticState),
-			subs: make(map[phase0.Epoch][]chan spec.AgnosticState),
-		},
-		BlockHistory: &BlocksMap{
-			m:    make(map[phase0.Slot]spec.AgnosticBlock),
-			subs: make(map[phase0.Slot][]chan spec.AgnosticBlock),
-		},
+		StateHistory: NewAgnosticMap[spec.AgnosticState](),
+		BlockHistory: NewAgnosticMap[spec.AgnosticBlock](),
 	}
 }
 
@@ -32,7 +26,7 @@ func (s *Queue) AddNewState(newState spec.AgnosticState) {
 	epochEndSlot := phase0.Slot((newState.Epoch+1)*spec.SlotsPerEpoch - 1)
 
 	for i := epochStartSlot; i <= epochEndSlot; i++ {
-		block := s.BlockHistory.Wait(i)
+		block := s.BlockHistory.Wait(SlotTo[uint64](i))
 
 		blockList = append(blockList, block)
 	}
@@ -40,12 +34,12 @@ func (s *Queue) AddNewState(newState spec.AgnosticState) {
 	// the 32 blocks were retrieved
 	newState.AddBlocks(blockList)
 
-	s.StateHistory.Set(newState.Epoch, newState)
+	s.StateHistory.Set(EpochTo[uint64](newState.Epoch), newState)
 }
 
 func (s *Queue) AddNewBlock(block spec.AgnosticBlock) {
 
-	s.BlockHistory.Set(block.Slot, block)
+	s.BlockHistory.Set(SlotTo[uint64](block.Slot), block)
 }
 
 // // Advances the finalized checkpoint to the given slot
