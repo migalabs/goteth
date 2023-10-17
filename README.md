@@ -1,4 +1,4 @@
-# Eth CL State Analyzer
+# GotEth
 
 The CL State Analyzer is a go-written client that indexes all validator-related duties and parameters from Ethereum's beaconchain by fetching the CL States from a node (preferable a locally running archival node).
 
@@ -8,7 +8,7 @@ This tool has been used to power the [pandametrics.xyz](https://pandametrics.xyz
 
 ### Prerequisites
 To use the tool, the following requirements need to be installed in the machine:
-- [go](https://go.dev/doc/install) preferably on its 1.17 version or above. Go also needs to be executable from the terminal.
+- [go](https://go.dev/doc/install) preferably on its 1.19 version or above. Go also needs to be executable from the terminal.
 - PostgreSQL DB
 - Access to a Ethereum CL beacon node (preferably an archive node to index the slots faster)
 
@@ -34,11 +34,11 @@ make install
 - transactions: requests transaction receipts from the execution layer (activates block metrics)
 
 ### Running the tool
-To execute the tool, you can simply modify the `.env` file with your own configuration. The `.env` file first exports all the variables as system environment variables, and then uses them as arguments when calling the tool.
+To execute the tool, you can simply modify the `.env` file with your own configuration.
 
 *Running the tool (configurable in the `.env` file)*:
 ```
-make run
+docker-compose up
 ```
 
 *Available Commands*:
@@ -63,12 +63,8 @@ OPTIONS:
    --db-workers-num value  example: 3 (default: 4)
    --download-mode value   example: hybrid,historical,finalized. Default: hybrid
    --metrics value         example: epoch,block,rewards,transactions. Empty for all (default: epoch,block)
+   --prometheus-port value Port on which to expose prometheus metrics (default: 9081)
    --help, -h              show help (default: false)
-```
-
-Additionally, you may run using the docker-compose file (see list of services in docker-compose file):
-```
-docker-compose up
 ```
 
 # Notes
@@ -76,7 +72,7 @@ docker-compose up
 Validator metrics consume 95% of the database size. Please bear in mind that for 1k epochs of data, validator metrics consume around 100GB and CPU load will also increase. Exporting validator metrics has been tested using LH archival (states every 32 slots) and 32 core (AMD Ryzen 9500X) 128GB RAM machine.
 The tool will export the metrics but it might take some time if the machine is not as powerful.
 
-If no pools file is input to the tool, missing-vals flag is useless. If you want to track all validators under a unique pool go get pool statistics then you can add a single validator in the pools csv and add the missing-vals flag, this should put all validators in a single pool called "others". Please bear in mind this functionality is experimental and has not been tested yet.
+Keep in mind rewards data also downloads block rewards from the Beacon API. This is very slow on historical blocks (3 seconds per block), but very fast on blocks near the head.
 
 ## Database migrations
 
@@ -88,7 +84,7 @@ If specific upgrades or downgrades need to be done manually, one could do this w
 
 
 # Maintainers
-@cortze , @tdahar
+@cortze @tdahar
 
 # Contributing
 The project is open for everyone to contribute! 
