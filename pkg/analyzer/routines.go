@@ -49,7 +49,12 @@ func (s *ChainAnalyzer) runHead() {
 	log.Info("launching head routine")
 	nextSlotDownload := s.fillToHead()
 
+	s.queue.BlockHistory.Wait(SlotTo[uint64](nextSlotDownload))
+	// do not continue until fill is done
+
 	log.Infof("Switch to head mode: following chain head")
+
+	nextSlotDownload = nextSlotDownload + 1
 
 	// -----------------------------------------------------------------------------------
 	s.eventsObj.SubscribeToHeadEvents()
