@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/utils"
 )
@@ -72,10 +73,11 @@ func (s *ChainAnalyzer) runHead() {
 				nextSlotDownload = nextSlotDownload + 1
 
 			}
-		// case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
-		// 	s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
+		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
+			s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
+			finalizedSlot := phase0.Slot(newFinalCheckpoint.Epoch * spec.SlotsPerEpoch)
 
-		// 	go s.CheckFinalized(newFinalCheckpoint)
+			go s.queue.CleanQueue(finalizedSlot - (2 * spec.SlotsPerEpoch))
 
 		// case newReorg := <-s.eventsObj.ReorgChan:
 		// 	s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
