@@ -1,6 +1,6 @@
 # GotEth
 
-The CL State Analyzer is a go-written client that indexes all validator-related duties and parameters from Ethereum's beaconchain by fetching the CL States from a node (preferable a locally running archival node).
+GotEth is a go-written client that indexes all validator-related duties and parameters from Ethereum's beaconchain by fetching the CL States from a node (preferable a locally running archival node).
 
 The client indexes all the validator/epoch related metrics into a set of postgreSQL tables. Which later on can be used to monitor the performance of validators in the beaconchain.
 
