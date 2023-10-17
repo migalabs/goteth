@@ -1,13 +1,17 @@
 package analyzer
 
 import (
+	"sync"
+
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
 type Queue struct {
-	StateHistory    *AgnosticMap[spec.AgnosticState]
-	BlockHistory    *AgnosticMap[spec.AgnosticBlock] // Here we will store stateroots from the blocks
+	StateHistory *AgnosticMap[spec.AgnosticState]
+	BlockHistory *AgnosticMap[spec.AgnosticBlock] // Here we will store stateroots from the blocks
+
+	sync.Mutex
 	HeadBlock       spec.AgnosticBlock
 	LatestFinalized spec.AgnosticBlock
 }
@@ -39,7 +43,21 @@ func (s *Queue) AddNewState(newState spec.AgnosticState) {
 
 func (s *Queue) AddNewBlock(block spec.AgnosticBlock) {
 
+	keys := s.BlockHistory.GetKeyList()
+
 	s.BlockHistory.Set(SlotTo[uint64](block.Slot), block)
+
+	for _, key := range keys {
+		if key >= uint64(block.Slot) { // if there is any key greater than the current evaluated block
+			return // no more tasks
+		}
+	}
+
+	// if we are here, the new block is greater than the rest
+	s.Lock()
+	s.HeadBlock = block
+	s.Unlock()
+
 }
 
 // // Advances the finalized checkpoint to the given slot
@@ -50,3 +68,24 @@ func (s *Queue) AddNewBlock(block spec.AgnosticBlock) {
 // 		s.LatestFinalized = s.BlockHistory.Wait(i + 1)
 // 	}
 // }
+
+func (s *Queue) CleanQueue(maxSlot phase0.Slot) {
+
+	stateKeys := s.StateHistory.GetKeyList()
+	keys := s.BlockHistory.GetKeyList()
+
+	for _, key := range keys {
+		if key < uint64(maxSlot) { // && s.StateHistory.Available(key/spec.SlotsPerEpoch) {
+			// whenever the key is lt maxSlot
+			// and the state was already saved
+			s.BlockHistory.Delete(key)
+		}
+	}
+
+	for _, key := range stateKeys { // key is an epoch
+		if (key * spec.SlotsPerEpoch) < uint64(maxSlot) { // we need to erase this from the queue
+			s.StateHistory.Delete(key)
+		}
+	}
+
+}

@@ -65,7 +65,10 @@ func (s *ChainAnalyzer) runHead() {
 			log.Tracef("received new head signal: %d", headSlot)
 
 			for nextSlotDownload <= headSlot {
-				s.downloadTaskChan <- nextSlotDownload
+
+				if s.processerBook.NumFreePages() > 0 {
+					s.downloadTaskChan <- nextSlotDownload
+				}
 				nextSlotDownload = nextSlotDownload + 1
 
 			}
@@ -139,14 +142,30 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 	defer s.wgMainRoutine.Done()
 
+	ticker := time.NewTicker(20 * utils.RoutineFlushTimeout)
+
 	log.Infof("Switch to historical mode: %d - %d", init, end)
-	for i := init; i <= end; i++ {
+
+	i := init
+
+	for i <= end {
 		if s.stop {
 			log.Info("sudden shutdown detected, block downloader routine")
 			return
 		}
+		if len(ticker.C) > 0 { // every ticker, clean queue
+			<-ticker.C
+			s.queue.CleanQueue(s.queue.HeadBlock.Slot - (5 * spec.SlotsPerEpoch))
+		}
 
+		if s.processerBook.NumFreePages() == 0 {
+			log.Warnf("hit limit of concurrent processers")
+			limitTicker := time.NewTicker(utils.RoutineFlushTimeout)
+			<-limitTicker.C // if rate limit, wait for ticker
+		}
 		s.downloadTaskChan <- i
+		i += 1
+
 	}
 	log.Infof("historical mode: all download tasks sent")
 

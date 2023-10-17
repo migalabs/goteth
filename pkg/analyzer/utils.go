@@ -148,3 +148,28 @@ func (m *AgnosticMap[T]) Delete(key uint64) {
 	m.Unlock()
 
 }
+
+func (m *AgnosticMap[T]) Available(key uint64) bool {
+	m.Lock()
+	// Unlock cannot be deferred so we can unblock Set() while waiting
+
+	_, ok := m.m[key]
+	m.Unlock()
+	if ok {
+		return true
+	}
+	return false
+}
+
+func (m *AgnosticMap[T]) GetKeyList() []uint64 {
+	m.Lock()
+	// Unlock cannot be deferred so we can unblock Set() while waiting
+
+	result := make([]uint64, 0)
+	for key := range m.m {
+		result = append(result, key)
+	}
+
+	m.Unlock()
+	return result
+}
