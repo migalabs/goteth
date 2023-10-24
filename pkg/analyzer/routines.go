@@ -82,7 +82,7 @@ func (s *ChainAnalyzer) runHead() {
 			s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
 			finalizedSlot := phase0.Slot(newFinalCheckpoint.Epoch * spec.SlotsPerEpoch)
 
-			go s.queue.CleanQueue(finalizedSlot - (2 * spec.SlotsPerEpoch))
+			go s.AdvanceFinalized(finalizedSlot - (2 * spec.SlotsPerEpoch))
 
 		// case newReorg := <-s.eventsObj.ReorgChan:
 		// 	s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))

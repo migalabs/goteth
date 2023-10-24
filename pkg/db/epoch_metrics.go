@@ -50,7 +50,7 @@ var (
 
 	DropEpochsQuery = `
 	DELETE FROM t_epoch_metrics_summary
-	WHERE f_epoch >= $1;
+	WHERE f_epoch = $1;
 `
 )
 
@@ -102,4 +102,21 @@ func DropEpochs(epoch EpochDropType) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, epoch)
 	return DropEpochsQuery, resultArgs
+}
+
+// delete metrics that use the state at epoch x
+func (s *PostgresDBService) DeleteStateMetrics(epoch phase0.Epoch) {
+
+	// epochs are written at currentState using current state and nextState
+	s.SingleQuery(DropEpochsQuery, epoch-1) // when deleteState -> nextState
+	s.SingleQuery(DropEpochsQuery, epoch)   // when deleteState -> currentState
+
+	// proposer duties are writter using nextState
+	s.SingleQuery(DropProposerDutiesQuery, epoch)
+
+	// valRewards are written at nextState using prevState, currentState and nextState
+	s.SingleQuery(DropValidatorRewardsQuery, epoch+2) // when deleteState -> prevState
+	s.SingleQuery(DropValidatorRewardsQuery, epoch+1) // when deleteState -> currentState
+	s.SingleQuery(DropValidatorRewardsQuery, epoch)   // when deleteState -> nextState
+
 }

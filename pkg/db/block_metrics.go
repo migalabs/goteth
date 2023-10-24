@@ -61,7 +61,7 @@ var (
 
 	DropBlocksQuery = `
 		DELETE FROM t_block_metrics
-		WHERE f_slot >= $1;
+		WHERE f_slot = $1;
 `
 )
 
@@ -130,4 +130,9 @@ func DropBlocks(slot BlockDropType) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, slot)
 	return DropBlocksQuery, resultArgs
+}
+
+func (s *PostgresDBService) DeleteBlockMetrics(slot phase0.Slot) {
+	s.SingleQuery(DropBlocksQuery, slot)
+	s.SingleQuery(DropTransactionsQuery, slot)
 }

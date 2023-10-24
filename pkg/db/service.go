@@ -243,3 +243,12 @@ type Model interface { // simply to enforce a Model interface
 	// For now we simply support insert operations
 	Type() spec.ModelType // whether insert is activated for this model
 }
+
+func (p *PostgresDBService) SingleQuery(query string, args ...interface{}) error {
+	rows, err := p.psqlPool.Query(p.ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("error executing query %s: %s", query, err.Error())
+	}
+	rows.Close()
+	return nil
+}
