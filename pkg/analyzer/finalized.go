@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
@@ -38,7 +39,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		for slot := (epoch * spec.SlotsPerEpoch); slot < ((epoch + 1) * spec.SlotsPerEpoch); slot++ {
 
 			// Retrieve stored root and redownload root once finalized
-			queueBlock := s.queue.StateHistory.Wait(slot)
+			queueBlock := s.queue.BlockHistory.Wait(slot)
 			finalizedBlockRoot := s.cli.RequestStateRoot(phase0.Slot(queueBlock.Slot))
 			historyBlockRoot := queueBlock.StateRoot
 
@@ -50,6 +51,11 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 				// keep track of the rewrite metrics
 				rewriteSlots = append(rewriteSlots, phase0.Slot(slot))
+
+				// keep orphans
+				if queueBlock.Proposed {
+					s.dbClient.Persist(db.OrphanBlock(queueBlock))
+				}
 			}
 
 		}
