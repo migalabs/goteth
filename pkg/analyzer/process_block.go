@@ -24,7 +24,7 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	s.processerBook.FreePage(routineKey)
 }
 
-func (s ChainAnalyzer) processTransactions(block spec.AgnosticBlock) {
+func (s *ChainAnalyzer) processTransactions(block spec.AgnosticBlock) {
 
 	for idx, tx := range block.ExecutionPayload.Transactions {
 		go func(txID int, transaction bellatrix.Transaction) {
@@ -34,7 +34,7 @@ func (s ChainAnalyzer) processTransactions(block spec.AgnosticBlock) {
 				block.ExecutionPayload.BlockNumber,
 				block.ExecutionPayload.Timestamp)
 			if err != nil {
-				log.Errorf("could not request transaction details in slot %s for transaction %d: %s", block.Slot, txID, err)
+				log.Errorf("could not request transaction details in slot %d for transaction %d: %s", block.Slot, txID, err)
 			}
 			log.Tracef("persisting transaction metrics: slot %d, tx number: %d", block.Slot, txID)
 			s.dbClient.Persist(detailedTx)

@@ -29,7 +29,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 			log.Warnf("state root for state (slot=%d) incorrect, redownload", queueState.Slot)
 			// need to redownload the epoch
 			s.queue.StateHistory.Delete(epoch)
-			s.cli.RequestBeaconState(queueState.Slot) // -> inserts into the queue
+			s.DownloadState(queueState.Slot) // -> inserts into the queue
 
 			// keep track of the rewrite metrics
 			rewriteEpochs = append(rewriteEpochs, phase0.Epoch(epoch))
@@ -47,7 +47,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 				log.Warnf("state root for block (slot=%d) incorrect, redownload", queueBlock.Slot)
 				// need to redownload the epoch
 				s.queue.BlockHistory.Delete(slot)
-				s.cli.RequestBeaconBlock(phase0.Slot(slot)) // -> inserts into the queue
+				s.DownloadBlock(phase0.Slot(slot)) // -> inserts into the queue
 
 				// keep track of the rewrite metrics
 				rewriteSlots = append(rewriteSlots, phase0.Slot(slot))
