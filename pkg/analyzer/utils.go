@@ -8,6 +8,7 @@ import (
 	"github.com/migalabs/goteth/pkg/clientapi"
 	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
+	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,7 +18,7 @@ const (
 	minBlockReqTime            = 100 * time.Millisecond // max 10 queries per second, dont spam beacon node
 	minStateReqTime            = 1 * time.Second        // max 1 query per second, dont spam beacon node
 	epochsToFinalizedTentative = 3                      // usually, 2 full epochs before the head it is finalized
-	waitMaxTimeout             = 60 * time.Second
+
 )
 
 var (
@@ -120,7 +121,7 @@ func (m *AgnosticMap[T]) Wait(key uint64) T {
 		return value
 	}
 
-	ticker := time.NewTicker(waitMaxTimeout)
+	ticker := time.NewTicker(utils.WaitMaxTimeout)
 
 	// if there is no value yet, subscribe to any new values for this key
 	ch := make(chan T)

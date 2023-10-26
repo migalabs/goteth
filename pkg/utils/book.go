@@ -2,11 +2,11 @@ package utils
 
 import (
 	"sync"
+	"time"
 )
 
 var (
 	emptyKey = ""
-	nullPos  = -1
 )
 
 type RoutineBook struct {
@@ -36,8 +36,13 @@ func (r *RoutineBook) Init() {
 
 func (r *RoutineBook) Acquire(key string) {
 
-	<-r.freeSpaceChan
-	r.Set(key, "active")
+	ticker := time.NewTicker(WaitMaxTimeout)
+	select {
+	case <-ticker.C:
+		log.Fatalf("Waiting for too long to acquire page %s...", key)
+	case <-r.freeSpaceChan:
+		r.Set(key, "active")
+	}
 
 }
 
