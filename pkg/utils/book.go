@@ -14,9 +14,10 @@ type RoutineBook struct {
 	pages         map[string]string
 	freeSpaceChan chan struct{}
 	size          int64
+	bookTag       string
 }
 
-func NewRoutineBook(size int) *RoutineBook {
+func NewRoutineBook(size int, tag string) *RoutineBook {
 
 	r := &RoutineBook{
 		pages:         make(map[string]string, size), // contains a list of keys identifying routines
@@ -39,7 +40,7 @@ func (r *RoutineBook) Acquire(key string) {
 	ticker := time.NewTicker(WaitMaxTimeout)
 	select {
 	case <-ticker.C:
-		log.Fatalf("Waiting for too long to acquire page %s...", key)
+		log.WithField("bookTag", r.bookTag).Fatalf("Waiting for too long to acquire page %s...", key)
 	case <-r.freeSpaceChan:
 		r.Set(key, "active")
 	}

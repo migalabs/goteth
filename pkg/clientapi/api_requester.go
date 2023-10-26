@@ -39,8 +39,8 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOp
 
 	apiService := &APIClient{
 		ctx:       ctx,
-		apiBook:   utils.NewRoutineBook(maxParallelConns),
-		elApiBook: utils.NewRoutineBook(maxParallelConns),
+		apiBook:   utils.NewRoutineBook(maxParallelConns, "api-cli"),
+		elApiBook: utils.NewRoutineBook(maxParallelConns, "api-cli"),
 	}
 
 	bnCli, err := http.New(
