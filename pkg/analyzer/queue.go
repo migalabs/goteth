@@ -32,7 +32,7 @@ func (s *Queue) AddNewState(newState spec.AgnosticState) {
 	for i := epochStartSlot; i <= epochEndSlot; i++ {
 		block := s.BlockHistory.Wait(SlotTo[uint64](i))
 
-		blockList = append(blockList, block)
+		blockList = append(blockList, *block)
 	}
 
 	// the 32 blocks were retrieved

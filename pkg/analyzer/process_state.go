@@ -21,15 +21,15 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 
 	// Retrieve states to process metrics
 
-	prevState := spec.AgnosticState{}
-	currentState := spec.AgnosticState{}
-	nextState := spec.AgnosticState{}
+	prevState := &spec.AgnosticState{}
+	currentState := &spec.AgnosticState{}
+	nextState := &spec.AgnosticState{}
 
 	// this state may never be downloaded if it is below initSlot
-	if epoch-2 >= 0 && epoch-2 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
+	if epoch >= 2 && epoch-2 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
 		prevState = s.queue.StateHistory.Wait(EpochTo[uint64](epoch) - 2)
 	}
-	if epoch-1 >= 0 && epoch-1 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
+	if epoch >= 1 && epoch-1 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
 		currentState = s.queue.StateHistory.Wait(EpochTo[uint64](epoch) - 1)
 	}
 	nextState = s.queue.StateHistory.Wait(EpochTo[uint64](epoch))

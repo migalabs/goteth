@@ -54,7 +54,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 				// keep orphans
 				if queueBlock.Proposed {
-					s.dbClient.Persist(db.OrphanBlock(queueBlock))
+					s.dbClient.Persist(db.OrphanBlock(*queueBlock))
 				}
 			}
 

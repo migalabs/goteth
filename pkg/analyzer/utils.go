@@ -111,14 +111,14 @@ func (m *AgnosticMap[T]) Set(key uint64, value T) {
 	delete(m.subs, key)
 }
 
-func (m *AgnosticMap[T]) Wait(key uint64) T {
+func (m *AgnosticMap[T]) Wait(key uint64) *T {
 	m.Lock()
 	// Unlock cannot be deferred so we can unblock Set() while waiting
 
 	value, ok := m.m[key]
 	if ok {
 		m.Unlock()
-		return value
+		return &value
 	}
 
 	ticker := time.NewTicker(utils.WaitMaxTimeout)
@@ -132,9 +132,9 @@ func (m *AgnosticMap[T]) Wait(key uint64) T {
 	select {
 	case <-ticker.C:
 		log.Fatalf("Waiting for too long for %T %d...", *new(T), key)
-		return item
+		return &item
 	case item = <-ch:
-		return item
+		return &item
 	}
 }
 

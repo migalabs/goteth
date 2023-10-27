@@ -24,7 +24,7 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	s.processerBook.FreePage(routineKey)
 }
 
-func (s *ChainAnalyzer) processTransactions(block spec.AgnosticBlock) {
+func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
 
 	for idx, tx := range block.ExecutionPayload.Transactions {
 		go func(txID int, transaction bellatrix.Transaction) {
