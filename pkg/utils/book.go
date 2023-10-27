@@ -23,6 +23,7 @@ func NewRoutineBook(size int, tag string) *RoutineBook {
 		pages:         make(map[string]string, size), // contains a list of keys identifying routines
 		freeSpaceChan: make(chan struct{}, size),     // indicates the free position in the array
 		size:          int64(size),
+		bookTag:       tag,
 	}
 	r.Init()
 	return r
@@ -33,6 +34,14 @@ func (r *RoutineBook) Init() {
 	for i := 0; i < int(r.size); i++ {
 		r.freeSpaceChan <- struct{}{}
 	}
+	go func() {
+		ticker := time.NewTicker(5 * RoutineFlushTimeout)
+
+		for range ticker.C {
+			log.WithField("book=", r.bookTag).Warnf("states book: %+v", r.GetKeys())
+		}
+	}()
+
 }
 
 func (r *RoutineBook) Acquire(key string) {
@@ -44,7 +53,6 @@ func (r *RoutineBook) Acquire(key string) {
 	case <-r.freeSpaceChan:
 		r.Set(key, "active")
 	}
-
 }
 
 func (r *RoutineBook) FreePage(key string) {
@@ -85,4 +93,14 @@ func (r *RoutineBook) NumFreePages() int {
 	r.Lock()
 	defer r.Unlock()
 	return int(r.size) - len(r.pages)
+}
+
+func (r *RoutineBook) GetKeys() []string {
+	r.Lock()
+	defer r.Unlock()
+	keys := make([]string, 0, len(r.pages))
+	for k := range r.pages {
+		keys = append(keys, k)
+	}
+	return keys
 }
