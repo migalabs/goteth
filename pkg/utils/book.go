@@ -38,7 +38,7 @@ func (r *RoutineBook) Init() {
 		ticker := time.NewTicker(5 * RoutineFlushTimeout)
 
 		for range ticker.C {
-			log.WithField("book=", r.bookTag).Warnf("states book: %+v", r.GetKeys())
+			log.Warnf("%s book: %+v", r.bookTag, r.GetKeys())
 		}
 	}()
 
