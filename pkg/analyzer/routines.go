@@ -137,8 +137,8 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 		nextSlotDownload = nextSlotDownload - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
 
 	}
-
-	s.initSlot = nextSlotDownload
+	nextSlotDownload = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
+	s.initSlot = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
 
 	log.Infof("filling to head...")
 	s.wgMainRoutine.Add(1) // add because historical will defer it
