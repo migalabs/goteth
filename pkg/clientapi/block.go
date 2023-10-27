@@ -17,14 +17,12 @@ import (
 	bitfield "github.com/prysmaticlabs/go-bitfield"
 )
 
-var (
-	asset = "block"
-)
-
 func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (local_spec.AgnosticBlock, error) {
 	routineKey := "slot=" + fmt.Sprintf("%d", slot)
 	s.blocksBook.Acquire(routineKey)
 	defer s.blocksBook.FreePage(routineKey)
+
+	log.Debugf("downloading block at slot %d", slot)
 
 	startTime := time.Now()
 	err := errors.New("first attempt")

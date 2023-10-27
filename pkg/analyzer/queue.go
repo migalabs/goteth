@@ -39,6 +39,7 @@ func (s *Queue) AddNewState(newState spec.AgnosticState) {
 	newState.AddBlocks(blockList)
 
 	s.StateHistory.Set(EpochTo[uint64](newState.Epoch), newState)
+	log.Tracef("state at slot %d successfully added to the queue", newState.Slot)
 }
 
 func (s *Queue) AddNewBlock(block spec.AgnosticBlock) {
@@ -46,6 +47,7 @@ func (s *Queue) AddNewBlock(block spec.AgnosticBlock) {
 	keys := s.BlockHistory.GetKeyList()
 
 	s.BlockHistory.Set(SlotTo[uint64](block.Slot), block)
+	log.Tracef("block at slot %d successfully added to the queue", block.Slot)
 
 	for _, key := range keys {
 		if key >= uint64(block.Slot) { // if there is any key greater than the current evaluated block
