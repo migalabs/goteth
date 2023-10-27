@@ -17,9 +17,9 @@ import (
 // GetReceipt retrieves receipt for the given transaction hash
 func (client *APIClient) GetReceipt(txHash common.Hash) (*types.Receipt, error) {
 
-	// routineKey := "txreceipt=" + txHash.String()
-	// client.elApiBook.Acquire(routineKey)
-	// defer client.elApiBook.FreePage(routineKey)
+	routineKey := "txreceipt=" + txHash.String()
+	client.elApiBook.Acquire(routineKey)
+	defer client.elApiBook.FreePage(routineKey)
 
 	receipt, err := client.ELApi.TransactionReceipt(client.ctx, txHash)
 	return receipt, err
