@@ -15,9 +15,10 @@ func (s *ChainAnalyzer) DownloadBlock(slot phase0.Slot) {
 	}
 
 	prevStateAvailable := s.queue.StateHistory.Available(uint64(slot/spec.SlotsPerEpoch) - 1)
+	prevStateSlot := slot/spec.SlotsPerEpoch*spec.SlotsPerEpoch - 1
 
 	// do not continue until previous state is available
-	if !prevStateAvailable {
+	if !prevStateAvailable && prevStateSlot >= s.initSlot {
 		ticker := time.NewTicker(utils.RoutineFlushTimeout)
 		for range ticker.C {
 			if slot%spec.SlotsPerEpoch == 0 { // only show warning for the first slot in the epoch
