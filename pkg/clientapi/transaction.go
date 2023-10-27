@@ -2,12 +2,16 @@ package clientapi
 
 import (
 	"encoding/hex"
+	"errors"
+	"syscall"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/migalabs/goteth/pkg/spec"
+	"github.com/migalabs/goteth/pkg/utils"
 )
 
 // GetReceipt retrieves receipt for the given transaction hash
@@ -46,15 +50,30 @@ func (s *APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
 	contractAddress := *&common.Address{}
 
 	if s.ELApi != nil {
-		receipt, err := s.GetReceipt(parsedTx.Hash())
+
+		var receipt *types.Receipt
+		err := errors.New("first attempt")
+
+		attempts := 0
+		for err != nil && attempts < maxRetries {
+			receipt, err = s.GetReceipt(parsedTx.Hash())
+
+			if errors.Is(err, syscall.ECONNRESET) {
+				ticker := time.NewTicker(utils.RoutineFlushTimeout)
+				log.Warnf("retrying transaction request: %s", parsedTx.Hash().String())
+				<-ticker.C
+			}
+			attempts += 1
+
+		}
 
 		if err != nil {
+
 			log.Fatalf("unable to retrieve transaction receipt for hash %x: %s", parsedTx.Hash(), err.Error())
-		} else {
-			gasUsed = receipt.GasUsed
-			gasPrice = receipt.EffectiveGasPrice.Uint64()
-			contractAddress = receipt.ContractAddress
 		}
+		gasUsed = receipt.GasUsed
+		gasPrice = receipt.EffectiveGasPrice.Uint64()
+		contractAddress = receipt.ContractAddress
 
 	}
 

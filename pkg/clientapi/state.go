@@ -15,8 +15,8 @@ import (
 func (s *APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticState, error) {
 
 	routineKey := "state=" + fmt.Sprintf("%d", slot)
-	s.apiBook.Acquire(routineKey)
-	defer s.apiBook.FreePage(routineKey)
+	s.statesBook.Acquire(routineKey)
+	defer s.statesBook.FreePage(routineKey)
 
 	startTime := time.Now()
 

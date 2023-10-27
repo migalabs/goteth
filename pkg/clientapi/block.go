@@ -23,8 +23,8 @@ var (
 
 func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (local_spec.AgnosticBlock, error) {
 	routineKey := "slot=" + fmt.Sprintf("%d", slot)
-	s.apiBook.Acquire(routineKey)
-	defer s.apiBook.FreePage(routineKey)
+	s.blocksBook.Acquire(routineKey)
+	defer s.blocksBook.FreePage(routineKey)
 
 	startTime := time.Now()
 	err := errors.New("first attempt")

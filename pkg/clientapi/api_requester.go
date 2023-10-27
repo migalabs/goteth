@@ -30,17 +30,19 @@ type APIClient struct {
 	ELApi   *ethclient.Client // Execution Node
 	Metrics db.DBMetrics
 
-	apiBook   *utils.RoutineBook // Book to track what is being downloaded through the CL API
-	elApiBook *utils.RoutineBook // Book to track what is being downloaded through the EL API
+	statesBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: states
+	blocksBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: blocks
+	elApiBook  *utils.RoutineBook // Book to track what is being downloaded through the EL API
 }
 
 func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOption) (*APIClient, error) {
 	log.Debugf("generating http client at %s", bnEndpoint)
 
 	apiService := &APIClient{
-		ctx:       ctx,
-		apiBook:   utils.NewRoutineBook(maxParallelConns, "api-cli"),
-		elApiBook: utils.NewRoutineBook(maxParallelConns, "api-cli"),
+		ctx:        ctx,
+		statesBook: utils.NewRoutineBook(1, "api-cli"),
+		blocksBook: utils.NewRoutineBook(1, "api-cli"),
+		elApiBook:  utils.NewRoutineBook(maxParallelConns, "api-cli"),
 	}
 
 	bnCli, err := http.New(
@@ -93,5 +95,5 @@ func WithDBMetrics(metrics db.DBMetrics) APIClientOption {
 
 func (s APIClient) ActiveReqNum() int {
 
-	return s.apiBook.ActivePages() + s.elApiBook.ActivePages()
+	return s.blocksBook.ActivePages() + s.elApiBook.ActivePages()
 }
