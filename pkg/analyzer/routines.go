@@ -166,7 +166,7 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 		}
 
 		if s.processerBook.NumFreePages() == 0 {
-			log.Warnf("hit limit of concurrent processers")
+			log.Debugf("hit limit of concurrent processers")
 			limitTicker := time.NewTicker(utils.RoutineFlushTimeout)
 			<-limitTicker.C // if rate limit, wait for ticker
 		}
