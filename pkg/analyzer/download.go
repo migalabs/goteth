@@ -8,27 +8,15 @@ import (
 	"github.com/migalabs/goteth/pkg/utils"
 )
 
+func (s *ChainAnalyzer) DownloadBlockCotrolled(slot phase0.Slot) {
+	s.WaitForPrevState(slot)
+	s.DownloadBlock(slot)
+}
+
 func (s *ChainAnalyzer) DownloadBlock(slot phase0.Slot) {
 	if !s.metrics.Block {
 		log.Infof("skipping block download at slot %d: no metrics activated for block...", slot)
 		return
-	}
-
-	prevStateAvailable := s.queue.StateHistory.Available(uint64(slot/spec.SlotsPerEpoch) - 1)
-	prevStateSlot := slot/spec.SlotsPerEpoch*spec.SlotsPerEpoch - 1
-
-	// do not continue until previous state is available
-	if !prevStateAvailable && prevStateSlot >= s.initSlot {
-		ticker := time.NewTicker(utils.RoutineFlushTimeout)
-	stateWaitLoop:
-		for range ticker.C {
-			log.Tracef("slot %d waiting for state at slot %d (epoch %d) to be downloaded...", slot, prevStateSlot, (slot/spec.SlotsPerEpoch)-1)
-			prevStateAvailable = s.queue.StateHistory.Available(uint64(slot/spec.SlotsPerEpoch) - 1)
-			if prevStateAvailable {
-				ticker.Stop()
-				break stateWaitLoop
-			}
-		}
 	}
 
 	newBlock, err := s.cli.RequestBeaconBlock(slot)
@@ -56,4 +44,23 @@ func (s *ChainAnalyzer) DownloadState(slot phase0.Slot) {
 
 	s.queue.AddNewState(*state)
 	// check if the min Request time has been completed (to avoid spaming the API)
+}
+
+func (s *ChainAnalyzer) WaitForPrevState(slot phase0.Slot) {
+	prevStateAvailable := s.queue.StateHistory.Available(uint64(slot/spec.SlotsPerEpoch) - 1)
+	prevStateSlot := slot/spec.SlotsPerEpoch*spec.SlotsPerEpoch - 1
+
+	// do not continue until previous state is available
+	if !prevStateAvailable && prevStateSlot >= s.initSlot {
+		ticker := time.NewTicker(utils.RoutineFlushTimeout)
+	stateWaitLoop:
+		for range ticker.C {
+			log.Tracef("slot %d waiting for state at slot %d (epoch %d) to be downloaded...", slot, prevStateSlot, (slot/spec.SlotsPerEpoch)-1)
+			prevStateAvailable = s.queue.StateHistory.Available(uint64(slot/spec.SlotsPerEpoch) - 1)
+			if prevStateAvailable {
+				ticker.Stop()
+				break stateWaitLoop
+			}
+		}
+	}
 }

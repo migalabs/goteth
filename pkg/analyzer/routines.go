@@ -26,7 +26,7 @@ downloadRoutine:
 		case downloadSlot := <-s.downloadTaskChan: // wait for new head event
 			log.Tracef("received new download signal: %d", downloadSlot)
 
-			go s.DownloadBlock(phase0.Slot(downloadSlot))
+			go s.DownloadBlockCotrolled(phase0.Slot(downloadSlot))
 			go s.ProcessBlock(downloadSlot)
 
 			// if epoch boundary, download state
