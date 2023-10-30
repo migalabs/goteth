@@ -16,7 +16,7 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	s.processerBook.Acquire(routineKey) // register a new slot to process, good for monitoring
 
 	block := s.queue.BlockHistory.Wait(SlotTo[uint64](slot))
-	s.dbClient.Persist(block)
+	s.dbClient.Persist(*block)
 
 	if s.metrics.Transactions {
 		s.processTransactions(block)
