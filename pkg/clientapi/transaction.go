@@ -14,10 +14,14 @@ import (
 	"github.com/migalabs/goteth/pkg/utils"
 )
 
+var (
+	txKeyTag string = "txreceipt="
+)
+
 // GetReceipt retrieves receipt for the given transaction hash
 func (client *APIClient) GetReceipt(txHash common.Hash) (*types.Receipt, error) {
 
-	routineKey := "txreceipt=" + txHash.String()
+	routineKey := txKeyTag + txHash.String()
 	client.txBook.Acquire(routineKey)
 	defer client.txBook.FreePage(routineKey)
 

@@ -17,8 +17,12 @@ import (
 	bitfield "github.com/prysmaticlabs/go-bitfield"
 )
 
+var (
+	slotKeyTag string = "slot="
+)
+
 func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (local_spec.AgnosticBlock, error) {
-	routineKey := "slot=" + fmt.Sprintf("%d", slot)
+	routineKey := fmt.Sprintf("%s%d", slotKeyTag, slot)
 	s.blocksBook.Acquire(routineKey)
 	defer s.blocksBook.FreePage(routineKey)
 
