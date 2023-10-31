@@ -82,18 +82,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		s.ProcessStateTransitionMetrics(epoch + 2)
 	}
 
-	// Delete from History
-
-	for _, epoch := range stateKeys {
-		if epoch >= uint64(finalizedEpoch) {
-			continue // only process epochs that are before the finalized
-		}
-		s.downloadCache.StateHistory.Delete(epoch)
-		// loop over slots in the epoch
-		for slot := (epoch * spec.SlotsPerEpoch); slot < ((epoch + 1) * spec.SlotsPerEpoch); slot++ {
-			s.downloadCache.BlockHistory.Delete(slot)
-		}
-	}
+	s.downloadCache.CleanUpTo(newFinalizedSlot)
 
 	log.Infof("checked states until slot %d, epoch %d", newFinalizedSlot, newFinalizedSlot/spec.SlotsPerEpoch)
 }

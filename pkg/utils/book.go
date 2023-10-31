@@ -37,7 +37,6 @@ func (r *RoutineBook) Init() {
 	for i := 0; i < int(r.size); i++ {
 		r.freeSpaceChan <- struct{}{}
 	}
-
 }
 
 func (r *RoutineBook) Acquire(key string) {
@@ -61,6 +60,16 @@ func (r *RoutineBook) FreePage(key string) {
 		delete(r.pages, key)
 		r.freeSpaceChan <- struct{}{}
 	}
+
+}
+
+func (r *RoutineBook) CheckPageActive(key string) bool {
+	r.Lock()
+
+	_, ok := r.pages[key]
+
+	r.Unlock()
+	return ok
 
 }
 

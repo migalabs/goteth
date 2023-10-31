@@ -160,7 +160,17 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 		}
 		if len(ticker.C) > 0 { // every ticker, clean queue
 			<-ticker.C
-			s.downloadCache.CleanQueue(s.downloadCache.HeadBlock.Slot - (5 * spec.SlotsPerEpoch))
+			finalizedSlot, err := s.cli.RequestFinalizedBeaconBlock()
+
+			if err != nil {
+				log.Fatalf("could not request finalized slot: %s", err)
+			}
+
+			if i >= finalizedSlot.Slot {
+				s.AdvanceFinalized(finalizedSlot.Slot - spec.SlotsPerEpoch*2) // includes check and clean
+			} else {
+				s.downloadCache.CleanUpTo(s.downloadCache.HeadBlock.Slot - (5 * spec.SlotsPerEpoch)) // only clean, no check
+			}
 		}
 
 		if s.processerBook.NumFreePages() == 0 {

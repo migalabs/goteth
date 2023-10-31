@@ -62,31 +62,21 @@ func (s *ChainCache) AddNewBlock(block spec.AgnosticBlock) {
 
 }
 
-// // Advances the finalized checkpoint to the given slot
-// func (s *Queue) AdvanceFinalized(slot phase0.Slot) {
-
-// 	for i := s.LatestFinalized.Slot; i < slot; i++ {
-// 		s.BlockHistory.Delete(i)
-// 		s.LatestFinalized = s.BlockHistory.Wait(i + 1)
-// 	}
-// }
-
-func (s *ChainCache) CleanQueue(maxSlot phase0.Slot) {
+func (s *ChainCache) CleanUpTo(maxSlot phase0.Slot) {
 
 	stateKeys := s.StateHistory.GetKeyList()
-	keys := s.BlockHistory.GetKeyList()
 
-	for _, key := range keys {
-		if key < uint64(maxSlot) { // && s.StateHistory.Available(key/spec.SlotsPerEpoch) {
-			// whenever the key is lt maxSlot
-			// and the state was already saved
-			s.BlockHistory.Delete(key)
+	// Delete from History
+
+	for _, epoch := range stateKeys {
+		if epoch >= uint64(maxSlot) {
+			continue // only process epochs that are before the finalized
 		}
-	}
 
-	for _, key := range stateKeys { // key is an epoch
-		if (key * spec.SlotsPerEpoch) < uint64(maxSlot) { // we need to erase this from the queue
-			s.StateHistory.Delete(key)
+		s.StateHistory.Delete(epoch)
+		// loop over slots in the epoch
+		for slot := (epoch * spec.SlotsPerEpoch); slot < ((epoch + 1) * spec.SlotsPerEpoch); slot++ {
+			s.BlockHistory.Delete(slot)
 		}
 	}
 
