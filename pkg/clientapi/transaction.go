@@ -18,8 +18,8 @@ import (
 func (client *APIClient) GetReceipt(txHash common.Hash) (*types.Receipt, error) {
 
 	routineKey := "txreceipt=" + txHash.String()
-	client.elApiBook.Acquire(routineKey)
-	defer client.elApiBook.FreePage(routineKey)
+	client.txBook.Acquire(routineKey)
+	defer client.txBook.FreePage(routineKey)
 
 	receipt, err := client.ELApi.TransactionReceipt(client.ctx, txHash)
 	return receipt, err

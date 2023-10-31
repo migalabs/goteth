@@ -32,7 +32,7 @@ type APIClient struct {
 
 	statesBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: states
 	blocksBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: blocks
-	elApiBook  *utils.RoutineBook // Book to track what is being downloaded through the EL API
+	txBook     *utils.RoutineBook // Book to track what is being downloaded through the EL API
 }
 
 func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOption) (*APIClient, error) {
@@ -42,7 +42,7 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOp
 		ctx:        ctx,
 		statesBook: utils.NewRoutineBook(1, "api-cli-states"),
 		blocksBook: utils.NewRoutineBook(1, "api-cli-blocks"),
-		elApiBook:  utils.NewRoutineBook(maxParallelConns, "api-cli-tx"),
+		txBook:     utils.NewRoutineBook(maxParallelConns, "api-cli-tx"),
 	}
 
 	bnCli, err := http.New(
@@ -95,5 +95,5 @@ func WithDBMetrics(metrics db.DBMetrics) APIClientOption {
 
 func (s APIClient) ActiveReqNum() int {
 
-	return s.blocksBook.ActivePages() + s.elApiBook.ActivePages()
+	return s.blocksBook.ActivePages() + s.statesBook.ActivePages() + s.txBook.ActivePages()
 }

@@ -153,8 +153,8 @@ func (s *APIClient) RequestExecutionBlockByHash(hash common.Hash) (*types.Block,
 	}
 
 	routineKey := "block=" + hash.String()
-	s.elApiBook.Acquire(routineKey)
-	defer s.elApiBook.FreePage(routineKey)
+	s.txBook.Acquire(routineKey)
+	defer s.txBook.FreePage(routineKey)
 
 	block, err := s.ELApi.BlockByHash(s.ctx, hash)
 	if err != nil {
