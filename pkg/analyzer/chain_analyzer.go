@@ -55,6 +55,9 @@ func NewChainAnalyzer(
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
 
+	// generate the central exporting service
+	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", iConfig.PrometheusPort)
+
 	// calculate the list of slots that we will analyze
 
 	if iConfig.DownloadMode == "historical" {
@@ -92,16 +95,14 @@ func NewChainAnalyzer(
 	cli, err := clientapi.NewAPIClient(pCtx,
 		iConfig.BnEndpoint,
 		clientapi.WithELEndpoint(iConfig.ElEndpoint),
-		clientapi.WithDBMetrics(metricsObj))
+		clientapi.WithDBMetrics(metricsObj),
+		clientapi.WithPromMetrics(promethMetrics))
 	if err != nil {
 		return &ChainAnalyzer{
 			ctx:    ctx,
 			cancel: cancel,
 		}, errors.Wrap(err, "unable to generate API Client.")
 	}
-
-	// generate the central exporting service
-	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", iConfig.PrometheusPort)
 
 	analyzer := &ChainAnalyzer{
 		ctx:              ctx,

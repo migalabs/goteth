@@ -17,7 +17,7 @@ var (
 	// TODO: Just hardcoded, move to config
 	EndpointUrl string = "metrics"
 
-	MetricLoopInterval time.Duration = 15 * time.Second
+	MetricLoopInterval time.Duration = 5 * time.Second
 )
 
 type PrometheusMetrics struct {

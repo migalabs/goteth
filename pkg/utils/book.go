@@ -3,10 +3,13 @@ package utils
 import (
 	"sync"
 	"time"
+
+	"github.com/migalabs/goteth/pkg/metrics"
 )
 
 var (
-	emptyKey = ""
+	emptyKey   = ""
+	structName = "routinebook"
 )
 
 type RoutineBook struct {
@@ -34,13 +37,6 @@ func (r *RoutineBook) Init() {
 	for i := 0; i < int(r.size); i++ {
 		r.freeSpaceChan <- struct{}{}
 	}
-	go func() {
-		ticker := time.NewTicker(5 * RoutineFlushTimeout)
-
-		for range ticker.C {
-			log.Infof("%s book: %+v", r.bookTag, r.GetKeys())
-		}
-	}()
 
 }
 
@@ -103,4 +99,34 @@ func (r *RoutineBook) GetKeys() []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func (r *RoutineBook) GetPrometheusMetrics() *metrics.MetricsModule {
+	metricsMod := metrics.NewMetricsModule(
+		structName,
+		r.bookTag,
+	)
+	// compose all the metrics
+	metricsMod.AddIndvMetric(r.getCurrentKeys())
+
+	return metricsMod
+}
+
+func (r *RoutineBook) getCurrentKeys() *metrics.IndvMetrics {
+	initFn := func() error {
+		return nil
+	}
+	updateFn := func() (interface{}, error) {
+		keyList := r.GetKeys()
+		return keyList, nil
+	}
+	currentKeys, err := metrics.NewIndvMetrics(
+		r.bookTag+"current_keys",
+		initFn,
+		updateFn,
+	)
+	if err != nil {
+		return nil
+	}
+	return currentKeys
 }

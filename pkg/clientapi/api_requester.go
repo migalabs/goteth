@@ -8,6 +8,7 @@ import (
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/migalabs/goteth/pkg/db"
+	prom_metrics "github.com/migalabs/goteth/pkg/metrics"
 	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/rs/zerolog"
 	"github.com/sirupsen/logrus"
@@ -32,7 +33,7 @@ type APIClient struct {
 
 	statesBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: states
 	blocksBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: blocks
-	txBook     *utils.RoutineBook // Book to track what is being downloaded through the EL API
+	txBook     *utils.RoutineBook // Book to track what is being downloaded through the EL API: transactions
 }
 
 func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOption) (*APIClient, error) {
@@ -89,6 +90,17 @@ func WithELEndpoint(url string) APIClientOption {
 func WithDBMetrics(metrics db.DBMetrics) APIClientOption {
 	return func(s *APIClient) error {
 		s.Metrics = metrics
+		return nil
+	}
+}
+
+func WithPromMetrics(metrics *prom_metrics.PrometheusMetrics) APIClientOption {
+	return func(s *APIClient) error {
+
+		metrics.AddMeticsModule(s.statesBook.GetPrometheusMetrics())
+		metrics.AddMeticsModule(s.blocksBook.GetPrometheusMetrics())
+		metrics.AddMeticsModule(s.txBook.GetPrometheusMetrics())
+
 		return nil
 	}
 }
