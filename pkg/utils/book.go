@@ -130,7 +130,7 @@ func (r *RoutineBook) getCurrentKeys() *metrics.IndvMetrics {
 		return keyList, nil
 	}
 	currentKeys, err := metrics.NewIndvMetrics(
-		r.bookTag+"current_keys",
+		r.bookTag+"-current_keys",
 		initFn,
 		updateFn,
 	)
