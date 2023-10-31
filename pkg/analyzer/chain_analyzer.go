@@ -127,6 +127,7 @@ func NewChainAnalyzer(
 
 	analyzerMet := analyzer.GetPrometheusMetrics()
 	promethMetrics.AddMeticsModule(analyzerMet)
+	promethMetrics.AddMeticsModule(analyzer.processerBook.GetPrometheusMetrics())
 
 	return analyzer, nil
 }
@@ -146,6 +147,7 @@ func (s *ChainAnalyzer) Run() {
 	if s.downloadMode == "historical" {
 		// Block requester + Task generator
 		s.wgMainRoutine.Add(1)
+
 		go s.runHistorical(s.initSlot, s.finalSlot)
 	}
 
