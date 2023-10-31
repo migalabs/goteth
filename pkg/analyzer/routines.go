@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	rateLimit = 5 // limits the number of goroutines per second
+	rateLimit               = 5 // limits the number of goroutines per second
+	historicalCleanInterval = 5 * time.Second
 )
 
 func (s *ChainAnalyzer) runDownloadBlocks() {
@@ -149,7 +150,7 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 	defer s.wgMainRoutine.Done()
 
-	ticker := time.NewTicker(20 * utils.RoutineFlushTimeout)
+	ticker := time.NewTicker(historicalCleanInterval)
 
 	log.Infof("Switch to historical mode: %d - %d", init, end)
 
@@ -167,9 +168,12 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 			}
 
 			if i >= finalizedSlot.Slot {
+				// keep 2 epochs before finalized, needed to calculate epoch metrics
 				s.AdvanceFinalized(finalizedSlot.Slot - spec.SlotsPerEpoch*2) // includes check and clean
 			} else {
-				s.downloadCache.CleanUpTo(s.downloadCache.HeadBlock.Slot - (5 * spec.SlotsPerEpoch)) // only clean, no check
+				// keep 5 epochs before current downloading slot, need 3 at least for epoch metrics
+				// magic number, 2 extra if processer takes long
+				s.downloadCache.CleanUpTo(s.downloadCache.HeadBlock.Slot - (5 * spec.SlotsPerEpoch)) // only clean, no check, keep
 			}
 		}
 
