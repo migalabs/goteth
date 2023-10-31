@@ -27,12 +27,12 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 
 	// this state may never be downloaded if it is below initSlot
 	if epoch >= 2 && epoch-2 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
-		prevState = s.queue.StateHistory.Wait(EpochTo[uint64](epoch) - 2)
+		prevState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch) - 2)
 	}
 	if epoch >= 1 && epoch-1 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
-		currentState = s.queue.StateHistory.Wait(EpochTo[uint64](epoch) - 1)
+		currentState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch) - 1)
 	}
-	nextState = s.queue.StateHistory.Wait(EpochTo[uint64](epoch))
+	nextState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))
 
 	bundle, err := metrics.StateMetricsByForkVersion(nextState, currentState, prevState, s.cli.Api)
 	if err != nil {

@@ -24,7 +24,7 @@ func (s *ChainAnalyzer) DownloadBlock(slot phase0.Slot) {
 		log.Errorf("block error at slot %d: %s", slot, err)
 		s.stop = true
 	}
-	s.queue.AddNewBlock(newBlock)
+	s.downloadCache.AddNewBlock(newBlock)
 	// check if the min Request time has been completed (to avoid spaming the API)
 }
 
@@ -42,12 +42,12 @@ func (s *ChainAnalyzer) DownloadState(slot phase0.Slot) {
 		s.stop = true
 	}
 
-	s.queue.AddNewState(*state)
+	s.downloadCache.AddNewState(*state)
 	// check if the min Request time has been completed (to avoid spaming the API)
 }
 
 func (s *ChainAnalyzer) WaitForPrevState(slot phase0.Slot) {
-	prevStateAvailable := s.queue.StateHistory.Available(uint64(slot/spec.SlotsPerEpoch) - 1)
+	prevStateAvailable := s.downloadCache.StateHistory.Available(uint64(slot/spec.SlotsPerEpoch) - 1)
 	prevStateSlot := slot/spec.SlotsPerEpoch*spec.SlotsPerEpoch - 1
 
 	// do not continue until previous state is available
@@ -56,7 +56,7 @@ func (s *ChainAnalyzer) WaitForPrevState(slot phase0.Slot) {
 	stateWaitLoop:
 		for range ticker.C {
 			log.Tracef("slot %d waiting for state at slot %d (epoch %d) to be downloaded...", slot, prevStateSlot, (slot/spec.SlotsPerEpoch)-1)
-			prevStateAvailable = s.queue.StateHistory.Available(uint64(slot/spec.SlotsPerEpoch) - 1)
+			prevStateAvailable = s.downloadCache.StateHistory.Available(uint64(slot/spec.SlotsPerEpoch) - 1)
 			if prevStateAvailable {
 				ticker.Stop()
 				break stateWaitLoop

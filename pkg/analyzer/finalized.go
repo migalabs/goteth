@@ -13,7 +13,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 	rewriteSlots := make([]phase0.Slot, 0)
 	rewriteEpochs := make([]phase0.Epoch, 0)
 
-	stateKeys := s.queue.StateHistory.GetKeyList()
+	stateKeys := s.downloadCache.StateHistory.GetKeyList()
 
 	for _, epoch := range stateKeys {
 		if epoch >= uint64(finalizedEpoch) {
@@ -21,14 +21,14 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		}
 
 		// Retrieve stored root and redownload root once finalized
-		queueState := s.queue.StateHistory.Wait(epoch)
+		queueState := s.downloadCache.StateHistory.Wait(epoch)
 		finalizedStateRoot := s.cli.RequestStateRoot(phase0.Slot(queueState.Slot))
 		historyStateRoot := queueState.StateRoot
 
 		if finalizedStateRoot != historyStateRoot { // no match, reorg happened
 			log.Warnf("state root for state (slot=%d) incorrect, redownload", queueState.Slot)
 			// need to redownload the epoch
-			s.queue.StateHistory.Delete(epoch)
+			s.downloadCache.StateHistory.Delete(epoch)
 			s.DownloadState(queueState.Slot) // -> inserts into the queue
 
 			// keep track of the rewrite metrics
@@ -39,14 +39,14 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		for slot := (epoch * spec.SlotsPerEpoch); slot < ((epoch + 1) * spec.SlotsPerEpoch); slot++ {
 
 			// Retrieve stored root and redownload root once finalized
-			queueBlock := s.queue.BlockHistory.Wait(slot)
+			queueBlock := s.downloadCache.BlockHistory.Wait(slot)
 			finalizedBlockRoot := s.cli.RequestStateRoot(phase0.Slot(queueBlock.Slot))
 			historyBlockRoot := queueBlock.StateRoot
 
 			if finalizedBlockRoot != historyBlockRoot {
 				log.Warnf("state root for block (slot=%d) incorrect, redownload", queueBlock.Slot)
 				// need to redownload the epoch
-				s.queue.BlockHistory.Delete(slot)
+				s.downloadCache.BlockHistory.Delete(slot)
 				s.DownloadBlock(phase0.Slot(slot)) // -> inserts into the queue
 
 				// keep track of the rewrite metrics
@@ -88,10 +88,10 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		if epoch >= uint64(finalizedEpoch) {
 			continue // only process epochs that are before the finalized
 		}
-		s.queue.StateHistory.Delete(epoch)
+		s.downloadCache.StateHistory.Delete(epoch)
 		// loop over slots in the epoch
 		for slot := (epoch * spec.SlotsPerEpoch); slot < ((epoch + 1) * spec.SlotsPerEpoch); slot++ {
-			s.queue.BlockHistory.Delete(slot)
+			s.downloadCache.BlockHistory.Delete(slot)
 		}
 	}
 

@@ -7,7 +7,7 @@ import (
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
-type Queue struct {
+type ChainCache struct {
 	StateHistory *AgnosticMap[spec.AgnosticState]
 	BlockHistory *AgnosticMap[spec.AgnosticBlock] // Here we will store stateroots from the blocks
 
@@ -16,14 +16,14 @@ type Queue struct {
 	LatestFinalized spec.AgnosticBlock
 }
 
-func NewQueue() Queue {
-	return Queue{
+func NewQueue() ChainCache {
+	return ChainCache{
 		StateHistory: NewAgnosticMap[spec.AgnosticState](),
 		BlockHistory: NewAgnosticMap[spec.AgnosticBlock](),
 	}
 }
 
-func (s *Queue) AddNewState(newState spec.AgnosticState) {
+func (s *ChainCache) AddNewState(newState spec.AgnosticState) {
 
 	blockList := make([]spec.AgnosticBlock, 0)
 	epochStartSlot := phase0.Slot(newState.Epoch * spec.SlotsPerEpoch)
@@ -42,7 +42,7 @@ func (s *Queue) AddNewState(newState spec.AgnosticState) {
 	log.Tracef("state at slot %d successfully added to the queue", newState.Slot)
 }
 
-func (s *Queue) AddNewBlock(block spec.AgnosticBlock) {
+func (s *ChainCache) AddNewBlock(block spec.AgnosticBlock) {
 
 	keys := s.BlockHistory.GetKeyList()
 
@@ -71,7 +71,7 @@ func (s *Queue) AddNewBlock(block spec.AgnosticBlock) {
 // 	}
 // }
 
-func (s *Queue) CleanQueue(maxSlot phase0.Slot) {
+func (s *ChainCache) CleanQueue(maxSlot phase0.Slot) {
 
 	stateKeys := s.StateHistory.GetKeyList()
 	keys := s.BlockHistory.GetKeyList()

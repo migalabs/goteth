@@ -104,7 +104,7 @@ func (p *ChainAnalyzer) getStateHistoryLength() *metrics.IndvMetrics {
 	}
 
 	updateFn := func() (interface{}, error) {
-		numberStates := len(p.queue.StateHistory.GetKeyList())
+		numberStates := len(p.downloadCache.StateHistory.GetKeyList())
 		StateQueueLength.Set(float64(numberStates))
 		return numberStates, nil
 	}
@@ -130,7 +130,7 @@ func (p *ChainAnalyzer) getBlockHistoryLength() *metrics.IndvMetrics {
 	}
 
 	updateFn := func() (interface{}, error) {
-		numberBlocks := len(p.queue.BlockHistory.GetKeyList())
+		numberBlocks := len(p.downloadCache.BlockHistory.GetKeyList())
 		BlockQueueLength.Set(float64(numberBlocks))
 		return numberBlocks, nil
 	}

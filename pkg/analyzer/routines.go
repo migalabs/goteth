@@ -49,7 +49,7 @@ func (s *ChainAnalyzer) runHead() {
 	log.Info("launching head routine")
 	nextSlotDownload := s.fillToHead()
 
-	s.queue.BlockHistory.Wait(SlotTo[uint64](nextSlotDownload))
+	s.downloadCache.BlockHistory.Wait(SlotTo[uint64](nextSlotDownload))
 	// do not continue until fill is done
 
 	log.Infof("Switch to head mode: following chain head")
@@ -160,7 +160,7 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 		}
 		if len(ticker.C) > 0 { // every ticker, clean queue
 			<-ticker.C
-			s.queue.CleanQueue(s.queue.HeadBlock.Slot - (5 * spec.SlotsPerEpoch))
+			s.downloadCache.CleanQueue(s.downloadCache.HeadBlock.Slot - (5 * spec.SlotsPerEpoch))
 		}
 
 		if s.processerBook.NumFreePages() == 0 {

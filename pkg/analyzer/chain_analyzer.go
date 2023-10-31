@@ -42,7 +42,7 @@ type ChainAnalyzer struct {
 	metrics       db.DBMetrics       // waht metrics to be downloaded / processed
 	processerBook *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
 
-	queue Queue // store the blocks and states downloaded
+	downloadCache ChainCache // store the blocks and states downloaded
 
 	initTime    time.Time
 	PromMetrics *prom_metrics.PrometheusMetrics // metrics to be stored to prometheus
@@ -116,7 +116,7 @@ func NewChainAnalyzer(
 		downloadMode:     iConfig.DownloadMode,
 		metrics:          metricsObj,
 		PromMetrics:      promethMetrics,
-		queue:            NewQueue(),
+		downloadCache:    NewQueue(),
 		processerBook:    utils.NewRoutineBook(50, "processer"),
 		wgMainRoutine:    &sync.WaitGroup{},
 		wgDownload:       &sync.WaitGroup{},
