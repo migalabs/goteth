@@ -1,6 +1,8 @@
 package db
 
 import (
+	"time"
+
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	pgx "github.com/jackc/pgx/v4"
@@ -76,6 +78,8 @@ func DropValidatorRewards(epoch ValidatorRewardsDropType) (string, []interface{}
 }
 
 func (p *PostgresDBService) ValRewardsBulkInsert(rows [][]interface{}) {
+
+	startTime := time.Now()
 	copyCount, queryErr := p.psqlPool.CopyFrom(
 		p.ctx,
 		pgx.Identifier{"t_validator_rewards_summary"},
@@ -107,4 +111,5 @@ func (p *PostgresDBService) ValRewardsBulkInsert(rows [][]interface{}) {
 		wlog.Fatalf("not all validator rewards were persisted")
 		return
 	}
+	wlog.Infof("persisted %d validator rewards in %ds", len(rows), time.Since(startTime).Seconds())
 }
