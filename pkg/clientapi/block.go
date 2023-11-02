@@ -21,7 +21,7 @@ var (
 	slotKeyTag string = "slot="
 )
 
-func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (local_spec.AgnosticBlock, error) {
+func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBlock, error) {
 	routineKey := fmt.Sprintf("%s%d", slotKeyTag, slot)
 	s.blocksBook.Acquire(routineKey)
 	defer s.blocksBook.FreePage(routineKey)
@@ -52,13 +52,13 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (local_spec.AgnosticBlo
 	}
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
-		return local_spec.AgnosticBlock{}, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
+		return &local_spec.AgnosticBlock{}, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
 	}
 	customBlock, err := local_spec.GetCustomBlock(*newBlock)
 
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
-		return local_spec.AgnosticBlock{}, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
+		return &local_spec.AgnosticBlock{}, fmt.Errorf("unable to parse Beacon Block at slot %d: %s", slot, err.Error())
 	}
 
 	// fill in block size on custom block using RequestBlockByHash
@@ -83,10 +83,10 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (local_spec.AgnosticBlo
 	}
 	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 
-	return customBlock, nil
+	return &customBlock, nil
 }
 
-func (s *APIClient) RequestFinalizedBeaconBlock() (local_spec.AgnosticBlock, error) {
+func (s *APIClient) RequestFinalizedBeaconBlock() (*local_spec.AgnosticBlock, error) {
 
 	// routineKey := "block=finalized"
 	// s.apiBook.Acquire(routineKey)
@@ -99,7 +99,7 @@ func (s *APIClient) RequestFinalizedBeaconBlock() (local_spec.AgnosticBlock, err
 	return s.RequestBeaconBlock(phase0.Slot(finalizedSlot))
 }
 
-func (s *APIClient) CreateMissingBlock(slot phase0.Slot) local_spec.AgnosticBlock {
+func (s *APIClient) CreateMissingBlock(slot phase0.Slot) *local_spec.AgnosticBlock {
 	duties, err := s.Api.ProposerDuties(s.ctx, phase0.Epoch(slot/32), []phase0.ValidatorIndex{})
 	proposerValIdx := phase0.ValidatorIndex(0)
 	if err != nil {
@@ -112,7 +112,7 @@ func (s *APIClient) CreateMissingBlock(slot phase0.Slot) local_spec.AgnosticBloc
 		}
 	}
 
-	return local_spec.AgnosticBlock{
+	return &local_spec.AgnosticBlock{
 		Slot:              slot,
 		StateRoot:         s.RequestStateRoot(slot),
 		ProposerIndex:     proposerValIdx,

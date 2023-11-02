@@ -41,7 +41,7 @@ func (s *ChainAnalyzer) DownloadState(slot phase0.Slot) {
 		s.stop = true
 	}
 
-	s.downloadCache.AddNewState(*state)
+	s.downloadCache.AddNewState(state)
 	// check if the min Request time has been completed (to avoid spaming the API)
 }
 
