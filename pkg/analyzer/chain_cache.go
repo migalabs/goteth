@@ -39,7 +39,7 @@ func (s *ChainCache) AddNewState(newState *spec.AgnosticState) {
 	newState.AddBlocks(blockList)
 
 	s.StateHistory.Set(EpochTo[uint64](newState.Epoch), newState)
-	log.Tracef("state at slot %d successfully added to the queue", newState.Slot)
+	log.Debugf("state at slot %d successfully added to the queue", newState.Slot)
 }
 
 func (s *ChainCache) AddNewBlock(block *spec.AgnosticBlock) {
