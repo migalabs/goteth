@@ -154,7 +154,8 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 
 	log.Infof("Switch to historical mode: %d - %d", init, end)
 
-	for i := init; i <= end; i++ {
+	i := init
+	for i <= end {
 		if s.stop {
 			log.Info("sudden shutdown detected, block downloader routine")
 			return
@@ -181,8 +182,10 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 			log.Debugf("hit limit of concurrent processers")
 			limitTicker := time.NewTicker(utils.RoutineFlushTimeout)
 			<-limitTicker.C // if rate limit, wait for ticker
+			continue
 		}
 		s.downloadTaskChan <- i
+		i += 1
 
 	}
 	log.Infof("historical mode: all download tasks sent")
