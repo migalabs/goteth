@@ -35,7 +35,7 @@ func (f ValidatorRewards) ToArray() []interface{} {
 	rows := []interface{}{
 		f.ValidatorIndex,
 		f.Epoch,
-		f.ValidatorBalance,
+		f.BalanceToEth(),
 		f.Reward,
 		f.MaxReward,
 		f.AttestationReward,

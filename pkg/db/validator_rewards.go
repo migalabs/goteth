@@ -103,7 +103,7 @@ func (p *PostgresDBService) ValRewardsBulkInsert(rows [][]interface{}) {
 	)
 
 	if queryErr != nil {
-		wlog.Fatalf("could not persist validator rewards properly")
+		wlog.Fatalf("could not persist validator rewards properly: %s", queryErr)
 		return
 	}
 
