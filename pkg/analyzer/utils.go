@@ -17,7 +17,8 @@ const (
 	minBlockReqTime            = 100 * time.Millisecond // max 10 queries per second, dont spam beacon node
 	minStateReqTime            = 1 * time.Second        // max 1 query per second, dont spam beacon node
 	epochsToFinalizedTentative = 3                      // usually, 2 full epochs before the head it is finalized
-	waitMaxTimeout             = 60 * time.Second
+	dataWaitInterval           = 1 * time.Minute        // wait for block or epoch to be in the cache
+	maxDataRetries             = 3                      // maximum number of intervals to wait for data in the cache
 )
 
 var (
@@ -57,19 +58,19 @@ type AgnosticMapOption[T spec.AgnosticBlock | spec.AgnosticState] func(*Agnostic
 type AgnosticMap[T spec.AgnosticBlock | spec.AgnosticState] struct {
 	sync.Mutex
 	// both spec.Slot and spec.Epoch are uint64
-	m    map[uint64]T
-	subs map[uint64][]chan T
+	m    map[uint64]*T
+	subs map[uint64][]chan *T
 
-	setCollisionF func(T) // extra code we would like to do depending on an existing collision between an existing key and a new one
-	deleteF       func(T) // extra code we want to run when deleting a key from the map
+	setCollisionF func(*T) // extra code we would like to do depending on an existing collision between an existing key and a new one
+	deleteF       func(*T) // extra code we want to run when deleting a key from the map
 }
 
 func NewAgnosticMap[T spec.AgnosticBlock | spec.AgnosticState](opts ...AgnosticMapOption[T]) *AgnosticMap[T] {
 	// init by default with empty functions
-	emptyF := func(_ T) {}
+	emptyF := func(_ *T) {}
 	agnosticMap := &AgnosticMap[T]{
-		m:             make(map[uint64]T),
-		subs:          make(map[uint64][]chan T),
+		m:             make(map[uint64]*T),
+		subs:          make(map[uint64][]chan *T),
 		setCollisionF: emptyF,
 		deleteF:       emptyF,
 	}
@@ -81,19 +82,19 @@ func NewAgnosticMap[T spec.AgnosticBlock | spec.AgnosticState](opts ...AgnosticM
 	return agnosticMap
 }
 
-func WithSetCollisionF[T spec.AgnosticBlock | spec.AgnosticState](f func(T)) AgnosticMapOption[T] {
+func WithSetCollisionF[T spec.AgnosticBlock | spec.AgnosticState](f func(*T)) AgnosticMapOption[T] {
 	return func(m *AgnosticMap[T]) {
 		m.setCollisionF = f
 	}
 }
 
-func WithDeleteF[T spec.AgnosticBlock | spec.AgnosticState](f func(T)) AgnosticMapOption[T] {
+func WithDeleteF[T spec.AgnosticBlock | spec.AgnosticState](f func(*T)) AgnosticMapOption[T] {
 	return func(m *AgnosticMap[T]) {
 		m.deleteF = f
 	}
 }
 
-func (m *AgnosticMap[T]) Set(key uint64, value T) {
+func (m *AgnosticMap[T]) Set(key uint64, value *T) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -105,12 +106,12 @@ func (m *AgnosticMap[T]) Set(key uint64, value T) {
 
 	// Send the new value to all waiting subscribers of the key
 	for _, sub := range m.subs[key] {
-		sub <- value
+		sub <- m.m[key]
 	}
 	delete(m.subs, key)
 }
 
-func (m *AgnosticMap[T]) Wait(key uint64) T {
+func (m *AgnosticMap[T]) Wait(key uint64) *T {
 	m.Lock()
 	// Unlock cannot be deferred so we can unblock Set() while waiting
 
@@ -120,21 +121,28 @@ func (m *AgnosticMap[T]) Wait(key uint64) T {
 		return value
 	}
 
-	ticker := time.NewTicker(waitMaxTimeout)
+	ticker := time.NewTicker(dataWaitInterval)
 
 	// if there is no value yet, subscribe to any new values for this key
-	ch := make(chan T)
+	ch := make(chan *T)
 	m.subs[key] = append(m.subs[key], ch)
 	m.Unlock()
 
-	var item T
-	select {
-	case <-ticker.C:
-		log.Fatalf("Waiting for too long for %T %d...", *new(T), key)
-		return item
-	case item = <-ch:
-		return item
+	retries := 0
+	for {
+		select {
+		case <-ticker.C:
+			log.Warnf("Waiting for %T %d...", *new(T), key)
+			retries += 1
+			if retries >= maxDataRetries {
+				log.Fatalf("Waiting too long for %T %d...", *new(T), key)
+			}
+
+		case item := <-ch:
+			return item
+		}
 	}
+
 }
 
 func (m *AgnosticMap[T]) Delete(key uint64) {

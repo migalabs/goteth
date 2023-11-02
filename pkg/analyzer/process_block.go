@@ -15,8 +15,8 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	routineKey := "slot=" + fmt.Sprintf("%d", slot)
 	s.processerBook.Acquire(routineKey) // register a new slot to process, good for monitoring
 
-	block := s.queue.BlockHistory.Wait(SlotTo[uint64](slot))
-	s.dbClient.Persist(block)
+	block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](slot))
+	s.dbClient.Persist(*block)
 
 	if s.metrics.Transactions {
 		s.processTransactions(block)
@@ -24,7 +24,7 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	s.processerBook.FreePage(routineKey)
 }
 
-func (s ChainAnalyzer) processTransactions(block spec.AgnosticBlock) {
+func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
 
 	for idx, tx := range block.ExecutionPayload.Transactions {
 		go func(txID int, transaction bellatrix.Transaction) {
@@ -34,7 +34,7 @@ func (s ChainAnalyzer) processTransactions(block spec.AgnosticBlock) {
 				block.ExecutionPayload.BlockNumber,
 				block.ExecutionPayload.Timestamp)
 			if err != nil {
-				log.Errorf("could not request transaction details in slot %s for transaction %d: %s", block.Slot, txID, err)
+				log.Errorf("could not request transaction details in slot %d for transaction %d: %s", block.Slot, txID, err)
 			}
 			log.Tracef("persisting transaction metrics: slot %d, tx number: %d", block.Slot, txID)
 			s.dbClient.Persist(detailedTx)

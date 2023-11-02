@@ -8,6 +8,7 @@ import (
 	"github.com/attestantio/go-eth2-client/http"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/migalabs/goteth/pkg/db"
+	prom_metrics "github.com/migalabs/goteth/pkg/metrics"
 	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/rs/zerolog"
 	"github.com/sirupsen/logrus"
@@ -30,17 +31,19 @@ type APIClient struct {
 	ELApi   *ethclient.Client // Execution Node
 	Metrics db.DBMetrics
 
-	apiBook   *utils.RoutineBook // Book to track what is being downloaded through the CL API
-	elApiBook *utils.RoutineBook // Book to track what is being downloaded through the EL API
+	statesBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: states
+	blocksBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: blocks
+	txBook     *utils.RoutineBook // Book to track what is being downloaded through the EL API: transactions
 }
 
 func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOption) (*APIClient, error) {
 	log.Debugf("generating http client at %s", bnEndpoint)
 
 	apiService := &APIClient{
-		ctx:       ctx,
-		apiBook:   utils.NewRoutineBook(maxParallelConns),
-		elApiBook: utils.NewRoutineBook(maxParallelConns),
+		ctx:        ctx,
+		statesBook: utils.NewRoutineBook(1, "api-cli-states"),
+		blocksBook: utils.NewRoutineBook(1, "api-cli-blocks"),
+		txBook:     utils.NewRoutineBook(maxParallelConns, "api-cli-tx"),
 	}
 
 	bnCli, err := http.New(
@@ -91,7 +94,18 @@ func WithDBMetrics(metrics db.DBMetrics) APIClientOption {
 	}
 }
 
+func WithPromMetrics(metrics *prom_metrics.PrometheusMetrics) APIClientOption {
+	return func(s *APIClient) error {
+
+		metrics.AddMeticsModule(s.statesBook.GetPrometheusMetrics())
+		metrics.AddMeticsModule(s.blocksBook.GetPrometheusMetrics())
+		metrics.AddMeticsModule(s.txBook.GetPrometheusMetrics())
+
+		return nil
+	}
+}
+
 func (s APIClient) ActiveReqNum() int {
 
-	return s.apiBook.ActivePages() + s.elApiBook.ActivePages()
+	return s.blocksBook.ActivePages() + s.statesBook.ActivePages() + s.txBook.ActivePages()
 }

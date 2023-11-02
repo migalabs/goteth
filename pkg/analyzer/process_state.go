@@ -8,6 +8,10 @@ import (
 	"github.com/migalabs/goteth/pkg/spec/metrics"
 )
 
+var (
+	epochProcesserTag = "epoch="
+)
+
 // We always provide the epoch we transition to
 // To process the transition from epoch 9 to 10, we provide 10 and we retrieve 8, 9, 10
 func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
@@ -16,23 +20,23 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		return
 	}
 
-	routineKey := "epoch=" + fmt.Sprintf("%d", epoch)
+	routineKey := fmt.Sprintf("%s%d", epochProcesserTag, epoch)
 	s.processerBook.Acquire(routineKey) // resgiter we are about to process metrics for epoch
 
 	// Retrieve states to process metrics
 
-	prevState := spec.AgnosticState{}
-	currentState := spec.AgnosticState{}
-	nextState := spec.AgnosticState{}
+	prevState := &spec.AgnosticState{}
+	currentState := &spec.AgnosticState{}
+	nextState := &spec.AgnosticState{}
 
 	// this state may never be downloaded if it is below initSlot
-	if epoch-2 >= 0 && epoch-2 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
-		prevState = s.queue.StateHistory.Wait(EpochTo[uint64](epoch) - 2)
+	if epoch >= 2 && epoch-2 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
+		prevState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch) - 2)
 	}
-	if epoch-1 >= 0 && epoch-1 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
-		currentState = s.queue.StateHistory.Wait(EpochTo[uint64](epoch) - 1)
+	if epoch >= 1 && epoch-1 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
+		currentState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch) - 1)
 	}
-	nextState = s.queue.StateHistory.Wait(EpochTo[uint64](epoch))
+	nextState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))
 
 	bundle, err := metrics.StateMetricsByForkVersion(nextState, currentState, prevState, s.cli.Api)
 	if err != nil {

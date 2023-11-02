@@ -25,7 +25,7 @@ var (
 
 	DropProposerDutiesQuery = `
 	DELETE FROM t_proposer_duties
-	WHERE f_proposer_slot/32 >= $1;
+	WHERE f_proposer_slot/32 = $1;
 `
 )
 

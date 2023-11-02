@@ -12,7 +12,10 @@ type AltairMetrics struct {
 	baseMetrics StateMetricsBase
 }
 
-func NewAltairMetrics(nextBstate spec.AgnosticState, bstate spec.AgnosticState, prevBstate spec.AgnosticState) AltairMetrics {
+func NewAltairMetrics(
+	nextBstate *spec.AgnosticState,
+	bstate *spec.AgnosticState,
+	prevBstate *spec.AgnosticState) AltairMetrics {
 
 	altairObj := AltairMetrics{}
 	altairObj.baseMetrics.CurrentState = bstate

@@ -42,7 +42,7 @@ type ChainAnalyzer struct {
 	metrics       db.DBMetrics       // waht metrics to be downloaded / processed
 	processerBook *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
 
-	queue Queue // store the blocks and states downloaded
+	downloadCache ChainCache // store the blocks and states downloaded
 
 	initTime    time.Time
 	PromMetrics *prom_metrics.PrometheusMetrics // metrics to be stored to prometheus
@@ -54,6 +54,9 @@ func NewChainAnalyzer(
 
 	// gen new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
+
+	// generate the central exporting service
+	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", iConfig.PrometheusPort)
 
 	// calculate the list of slots that we will analyze
 
@@ -92,16 +95,14 @@ func NewChainAnalyzer(
 	cli, err := clientapi.NewAPIClient(pCtx,
 		iConfig.BnEndpoint,
 		clientapi.WithELEndpoint(iConfig.ElEndpoint),
-		clientapi.WithDBMetrics(metricsObj))
+		clientapi.WithDBMetrics(metricsObj),
+		clientapi.WithPromMetrics(promethMetrics))
 	if err != nil {
 		return &ChainAnalyzer{
 			ctx:    ctx,
 			cancel: cancel,
 		}, errors.Wrap(err, "unable to generate API Client.")
 	}
-
-	// generate the central exporting service
-	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", iConfig.PrometheusPort)
 
 	analyzer := &ChainAnalyzer{
 		ctx:              ctx,
@@ -116,8 +117,8 @@ func NewChainAnalyzer(
 		downloadMode:     iConfig.DownloadMode,
 		metrics:          metricsObj,
 		PromMetrics:      promethMetrics,
-		queue:            NewQueue(),
-		processerBook:    utils.NewRoutineBook(10),
+		downloadCache:    NewQueue(),
+		processerBook:    utils.NewRoutineBook(32, "processer"), // one whole epoch
 		wgMainRoutine:    &sync.WaitGroup{},
 		wgDownload:       &sync.WaitGroup{},
 	}
@@ -126,6 +127,7 @@ func NewChainAnalyzer(
 
 	analyzerMet := analyzer.GetPrometheusMetrics()
 	promethMetrics.AddMeticsModule(analyzerMet)
+	promethMetrics.AddMeticsModule(analyzer.processerBook.GetPrometheusMetrics())
 
 	return analyzer, nil
 }
@@ -145,6 +147,7 @@ func (s *ChainAnalyzer) Run() {
 	if s.downloadMode == "historical" {
 		// Block requester + Task generator
 		s.wgMainRoutine.Add(1)
+
 		go s.runHistorical(s.initSlot, s.finalSlot)
 	}
 

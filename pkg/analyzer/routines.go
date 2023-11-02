@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	rateLimit = 5 // limits the number of goroutines per second
+	rateLimit               = 5 // limits the number of goroutines per second
+	historicalCleanInterval = 5 * time.Second
 )
 
 func (s *ChainAnalyzer) runDownloadBlocks() {
@@ -26,7 +27,7 @@ downloadRoutine:
 		case downloadSlot := <-s.downloadTaskChan: // wait for new head event
 			log.Tracef("received new download signal: %d", downloadSlot)
 
-			go s.DownloadBlock(phase0.Slot(downloadSlot))
+			go s.DownloadBlockCotrolled(phase0.Slot(downloadSlot))
 			go s.ProcessBlock(downloadSlot)
 
 			// if epoch boundary, download state
@@ -49,7 +50,7 @@ func (s *ChainAnalyzer) runHead() {
 	log.Info("launching head routine")
 	nextSlotDownload := s.fillToHead()
 
-	s.queue.BlockHistory.Wait(SlotTo[uint64](nextSlotDownload))
+	s.downloadCache.BlockHistory.Wait(SlotTo[uint64](nextSlotDownload))
 	// do not continue until fill is done
 
 	log.Infof("Switch to head mode: following chain head")
@@ -82,7 +83,7 @@ func (s *ChainAnalyzer) runHead() {
 			s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
 			finalizedSlot := phase0.Slot(newFinalCheckpoint.Epoch * spec.SlotsPerEpoch)
 
-			go s.queue.CleanQueue(finalizedSlot - (2 * spec.SlotsPerEpoch))
+			go s.AdvanceFinalized(finalizedSlot - (2 * spec.SlotsPerEpoch))
 
 		// case newReorg := <-s.eventsObj.ReorgChan:
 		// 	s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
@@ -137,8 +138,8 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 		nextSlotDownload = nextSlotDownload - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
 
 	}
-
-	s.initSlot = nextSlotDownload
+	nextSlotDownload = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
+	s.initSlot = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
 
 	log.Infof("filling to head...")
 	s.wgMainRoutine.Add(1) // add because historical will defer it
@@ -149,12 +150,11 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 	defer s.wgMainRoutine.Done()
 
-	ticker := time.NewTicker(20 * utils.RoutineFlushTimeout)
+	ticker := time.NewTicker(historicalCleanInterval)
 
 	log.Infof("Switch to historical mode: %d - %d", init, end)
 
 	i := init
-
 	for i <= end {
 		if s.stop {
 			log.Info("sudden shutdown detected, block downloader routine")
@@ -162,13 +162,27 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 		}
 		if len(ticker.C) > 0 { // every ticker, clean queue
 			<-ticker.C
-			s.queue.CleanQueue(s.queue.HeadBlock.Slot - (5 * spec.SlotsPerEpoch))
+			finalizedSlot, err := s.cli.RequestFinalizedBeaconBlock()
+
+			if err != nil {
+				log.Fatalf("could not request finalized slot: %s", err)
+			}
+
+			if i >= finalizedSlot.Slot {
+				// keep 2 epochs before finalized, needed to calculate epoch metrics
+				s.AdvanceFinalized(finalizedSlot.Slot - spec.SlotsPerEpoch*2) // includes check and clean
+			} else {
+				// keep 5 epochs before current downloading slot, need 3 at least for epoch metrics
+				// magic number, 2 extra if processer takes long
+				s.downloadCache.CleanUpTo(s.downloadCache.HeadBlock.Slot - (5 * spec.SlotsPerEpoch)) // only clean, no check, keep
+			}
 		}
 
 		if s.processerBook.NumFreePages() == 0 {
-			log.Warnf("hit limit of concurrent processers")
+			log.Debugf("hit limit of concurrent processers")
 			limitTicker := time.NewTicker(utils.RoutineFlushTimeout)
 			<-limitTicker.C // if rate limit, wait for ticker
+			continue
 		}
 		s.downloadTaskChan <- i
 		i += 1
