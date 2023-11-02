@@ -69,8 +69,8 @@ func (s *ChainCache) CleanUpTo(maxSlot phase0.Slot) {
 	// Delete from History
 
 	for _, epoch := range stateKeys {
-		if epoch >= uint64(maxSlot) {
-			continue // only process epochs that are before the finalized
+		if (epoch * spec.SlotsPerEpoch) >= uint64(maxSlot) {
+			continue // only process epochs that are before the maxSlot
 		}
 
 		s.StateHistory.Delete(epoch)
