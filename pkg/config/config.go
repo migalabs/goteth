@@ -68,12 +68,12 @@ func (c *AnalyzerConfig) Apply(ctx *cli.Context) {
 		c.DownloadMode = ctx.String("download-mode")
 	}
 	// worker num
-	if ctx.IsSet("worker-num") {
-		c.WorkerNum = ctx.Int("worker-num")
+	if ctx.IsSet("workers-num") {
+		c.WorkerNum = ctx.Int("workers-num")
 	}
 	// db worker num
-	if ctx.IsSet("db-worker-num") {
-		c.DbWorkerNum = ctx.Int("db-worker-num")
+	if ctx.IsSet("db-workers-num") {
+		c.DbWorkerNum = ctx.Int("db-workers-num")
 	}
 	// metrics
 	if ctx.IsSet("metrics") {
