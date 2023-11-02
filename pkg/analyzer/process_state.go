@@ -146,8 +146,8 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 				//s.dbClient.Persist(maxRewards)
 				rows = append(rows, maxRewards.ToArray())
 			}
-
 		}
+		s.dbClient.ValRewardsBulkInsert(rows)
 
 	}
 }

@@ -111,5 +111,5 @@ func (p *PostgresDBService) ValRewardsBulkInsert(rows [][]interface{}) {
 		wlog.Fatalf("not all validator rewards were persisted")
 		return
 	}
-	wlog.Infof("persisted %d validator rewards in %ds", len(rows), time.Since(startTime).Seconds())
+	wlog.Infof("persisted %d validator rewards in %fs", len(rows), time.Since(startTime).Seconds())
 }
