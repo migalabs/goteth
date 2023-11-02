@@ -8,7 +8,6 @@ import (
 	"github.com/migalabs/goteth/pkg/clientapi"
 	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
-	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -122,7 +121,7 @@ func (m *AgnosticMap[T]) Wait(key uint64) *T {
 		return value
 	}
 
-	ticker := time.NewTicker(utils.WaitMaxTimeout)
+	ticker := time.NewTicker(dataWaitInterval)
 
 	// if there is no value yet, subscribe to any new values for this key
 	ch := make(chan *T)
