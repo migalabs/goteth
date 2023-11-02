@@ -4,7 +4,7 @@ import unit_db_test.testcase as dbtest
 class CheckIntegrityOfDB(dbtest.DBintegrityTest):
     db_config_file = ".env"
 
-    def test_orphan_blocks_in_block_metrics(self):
+    def test_reward_not_gt_than_max(self):
         """ After the last update to v2.0.0 the rewards must never exceed the f_max_reward """
         sql_query = """
         select *
