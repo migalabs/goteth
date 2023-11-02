@@ -5,7 +5,6 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
-	"github.com/migalabs/goteth/pkg/utils"
 )
 
 func (s *ChainAnalyzer) DownloadBlockCotrolled(slot phase0.Slot) {
@@ -57,10 +56,13 @@ func (s *ChainAnalyzer) WaitForPrevState(slot phase0.Slot) {
 
 	// do not continue until previous state is available
 	if !prevStateAvailable && prevStateSlot >= s.initSlot {
-		ticker := time.NewTicker(utils.RoutineFlushTimeout)
+		ticker := time.NewTicker(4 * time.Second) // average max time for a state to be downloaded
 	stateWaitLoop:
 		for range ticker.C {
-			log.Tracef("slot %d waiting for state at slot %d (epoch %d) to be downloaded...", slot, prevStateSlot, prevStateEpoch)
+			if slot%spec.SlotsPerEpoch == 0 { // only print for first slot of epoch
+				log.Debugf("slot %d waiting for state at slot %d (epoch %d) to be downloaded...", slot, prevStateSlot, prevStateEpoch)
+			}
+
 			prevStateAvailable = s.downloadCache.StateHistory.Available(uint64(prevStateEpoch))
 			if prevStateAvailable {
 				ticker.Stop()

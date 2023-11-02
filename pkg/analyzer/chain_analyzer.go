@@ -118,7 +118,7 @@ func NewChainAnalyzer(
 		metrics:          metricsObj,
 		PromMetrics:      promethMetrics,
 		downloadCache:    NewQueue(),
-		processerBook:    utils.NewRoutineBook(50, "processer"),
+		processerBook:    utils.NewRoutineBook(32, "processer"), // one whole epoch
 		wgMainRoutine:    &sync.WaitGroup{},
 		wgDownload:       &sync.WaitGroup{},
 	}
