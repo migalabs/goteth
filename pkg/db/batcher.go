@@ -14,9 +14,7 @@ var (
 	QueryTimeout = 5 * time.Minute
 	MaxRetries   = 1
 
-	ErrorNoConnFree        = "no connection adquirable"
-	noQueryError    string = "no error"
-	noQueryResult   string = "no result"
+	ErrorNoConnFree = "no connection adquirable"
 )
 
 type QueryBatch struct {
@@ -25,6 +23,7 @@ type QueryBatch struct {
 	batch        *pgx.Batch
 	size         int
 	persistables []Persistable
+	metrics      BatchMetrics
 }
 
 func NewQueryBatch(ctx context.Context, pgxPool *pgxpool.Pool, batchSize int) *QueryBatch {
@@ -34,6 +33,7 @@ func NewQueryBatch(ctx context.Context, pgxPool *pgxpool.Pool, batchSize int) *Q
 		batch:        &pgx.Batch{},
 		size:         batchSize,
 		persistables: make([]Persistable, 0),
+		metrics:      BatchMetrics{},
 	}
 }
 
@@ -64,6 +64,7 @@ persistRetryLoop:
 		switch err {
 		case nil:
 			logEntry.Debugf("persisted %d queries in %s seconds", q.Len(), duration)
+			q.metrics.AddPersistStas(duration)
 			break persistRetryLoop
 		default:
 			logEntry.Tracef("attempt numb %d failed %s", i+1, err.Error())
@@ -139,4 +140,19 @@ func NewPersistable() Persistable {
 
 func (p *Persistable) isEmpty() bool {
 	return p.query == ""
+}
+
+type BatchMetrics struct {
+	numPersists uint64        // number of times this batch persisted
+	timeMs      time.Duration // accumulated time this batch has been persisting queries
+
+}
+
+func (b *BatchMetrics) AddPersistStas(newTime time.Duration) {
+	b.numPersists += 1
+	b.timeMs += newTime
+}
+
+func (b BatchMetrics) Average() uint64 { // return miliseconds
+	return uint64(b.timeMs.Milliseconds()) / b.numPersists
 }

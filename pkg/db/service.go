@@ -33,6 +33,7 @@ type PostgresDBService struct {
 	connectionUrl string // the url might not be necessary (better to remove it?¿)
 	psqlPool      *pgxpool.Pool
 	wgDBWriters   sync.WaitGroup
+	writerBatches []*QueryBatch
 
 	writeChan chan Model // Receive tasks to persist
 	stop      bool
@@ -52,9 +53,9 @@ func New(ctx context.Context, url string, options ...PostgresDBServiceOption) (*
 		if err != nil {
 			return pService, err
 		}
-
 	}
 
+	pService.writerBatches = make([]*QueryBatch, pService.workerNum)
 	pService.writeChan = make(chan Model, pService.workerNum)
 	return pService, err
 }
@@ -118,6 +119,7 @@ func (p *PostgresDBService) runWriters() {
 		go func(dbWriterID int) {
 			defer p.wgDBWriters.Done()
 			batcher := NewQueryBatch(p.ctx, p.psqlPool, MAX_BATCH_QUEUE)
+			p.writerBatches[dbWriterID] = batcher
 			wlogWriter := wlog.WithField("DBWriter", dbWriterID)
 			ticker := time.NewTicker(utils.RoutineFlushTimeout)
 		loop:
@@ -252,4 +254,13 @@ func (p *PostgresDBService) SingleQuery(query string, args ...interface{}) error
 	}
 	rows.Close()
 	return nil
+}
+
+func (p *PostgresDBService) GetBatcherStats() []string {
+	result := make([]string, 0)
+
+	for idx, batcher := range p.writerBatches {
+		result = append(result, fmt.Sprintf("idx %d=%dms", idx, batcher.metrics.Average()))
+	}
+	return result
 }
