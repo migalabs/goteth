@@ -42,7 +42,7 @@ func (r *PostgresDBService) getBatcherMetrics() *metrics.IndvMetrics {
 		return listAvg, nil
 	}
 	batchAverages, err := metrics.NewIndvMetrics(
-		"average_batch_time_ms",
+		"last_persist",
 		initFn,
 		updateFn,
 	)

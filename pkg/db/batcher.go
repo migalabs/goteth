@@ -64,7 +64,8 @@ persistRetryLoop:
 		switch err {
 		case nil:
 			logEntry.Debugf("persisted %d queries in %s seconds", q.Len(), duration)
-			q.metrics.AddPersistStas(duration)
+			q.metrics.NumQueries = uint64(q.Len())
+			q.metrics.PersistTime = duration
 			break persistRetryLoop
 		default:
 			logEntry.Tracef("attempt numb %d failed %s", i+1, err.Error())
@@ -143,16 +144,7 @@ func (p *Persistable) isEmpty() bool {
 }
 
 type BatchMetrics struct {
-	numPersists uint64        // number of times this batch persisted
-	timeMs      time.Duration // accumulated time this batch has been persisting queries
+	PersistTime time.Duration // accumulated time this batch has been persisting queries
+	NumQueries  uint64        // number of queries executed
 
-}
-
-func (b *BatchMetrics) AddPersistStas(newTime time.Duration) {
-	b.numPersists += 1
-	b.timeMs += newTime
-}
-
-func (b BatchMetrics) Average() uint64 { // return miliseconds
-	return uint64(b.timeMs.Milliseconds()) / b.numPersists
 }

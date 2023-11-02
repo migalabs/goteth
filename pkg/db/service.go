@@ -260,7 +260,10 @@ func (p *PostgresDBService) GetBatcherStats() []string {
 	result := make([]string, 0)
 
 	for idx, batcher := range p.writerBatches {
-		result = append(result, fmt.Sprintf("idx %d=%dms", idx, batcher.metrics.Average()))
+		result = append(result, fmt.Sprintf("batcher %d=%dms(%d queries)",
+			idx,
+			batcher.metrics.PersistTime.Milliseconds(),
+			batcher.metrics.NumQueries))
 	}
 	return result
 }
