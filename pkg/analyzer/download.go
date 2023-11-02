@@ -63,7 +63,7 @@ func (s *ChainAnalyzer) WaitForPrevState(slot phase0.Slot) {
 	stateWaitLoop:
 		for range ticker.C {
 			if slot%spec.SlotsPerEpoch == 0 { // only print for first slot of epoch
-				log.Debugf("slot %d waiting for state at slot %d (epoch %d) to be downloaded...", slot, prevStateSlot, prevStateEpoch)
+				log.Debugf("slot %d waiting for state at slot %d (epoch %d) to be downloaded or processed...", slot, prevStateSlot, prevStateEpoch)
 			}
 
 			prevStateAvailable = s.downloadCache.StateHistory.Available(uint64(prevStateEpoch))
