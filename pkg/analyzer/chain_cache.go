@@ -38,7 +38,7 @@ func (s *ChainCache) AddNewState(newState spec.AgnosticState) {
 	// the 32 blocks were retrieved
 	newState.AddBlocks(blockList)
 
-	s.StateHistory.Set(EpochTo[uint64](newState.Epoch), newState)
+	s.StateHistory.Set(EpochTo[uint64](newState.Epoch), &newState)
 	log.Tracef("state at slot %d successfully added to the queue", newState.Slot)
 }
 
@@ -46,7 +46,7 @@ func (s *ChainCache) AddNewBlock(block spec.AgnosticBlock) {
 
 	keys := s.BlockHistory.GetKeyList()
 
-	s.BlockHistory.Set(SlotTo[uint64](block.Slot), block)
+	s.BlockHistory.Set(SlotTo[uint64](block.Slot), &block)
 	log.Tracef("block at slot %d successfully added to the queue", block.Slot)
 
 	for _, key := range keys {
