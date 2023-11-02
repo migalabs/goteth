@@ -2,6 +2,8 @@ package db
 
 import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+
+	pgx "github.com/jackc/pgx/v4"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
@@ -71,4 +73,38 @@ func DropValidatorRewards(epoch ValidatorRewardsDropType) (string, []interface{}
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, epoch)
 	return DropValidatorRewardsQuery, resultArgs
+}
+
+func (p *PostgresDBService) ValRewardsBulkInsert(rows [][]interface{}) {
+	copyCount, queryErr := p.psqlPool.CopyFrom(
+		p.ctx,
+		pgx.Identifier{"t_validator_rewards_summary"},
+		[]string{
+			"f_val_idx",
+			"f_epoch",
+			"f_balance_eth",
+			"f_reward",
+			"f_max_reward",
+			"f_max_att_reward",
+			"f_max_sync_reward",
+			"f_att_slot",
+			"f_base_reward",
+			"f_in_sync_committee",
+			"f_missing_source",
+			"f_missing_target",
+			"f_missing_head",
+			"f_status",
+			"f_block_api_reward"},
+		pgx.CopyFromRows(rows),
+	)
+
+	if queryErr != nil {
+		wlog.Fatalf("could not persist validator rewards properly")
+		return
+	}
+
+	if int(copyCount) != len(rows) {
+		wlog.Fatalf("not all validator rewards were persisted")
+		return
+	}
 }

@@ -30,3 +30,24 @@ func (f ValidatorRewards) Type() ModelType {
 func (f ValidatorRewards) BalanceToEth() float32 {
 	return float32(f.ValidatorBalance) / EffectiveBalanceInc
 }
+
+func (f ValidatorRewards) ToArray() []interface{} {
+	rows := []interface{}{
+		f.ValidatorIndex,
+		f.Epoch,
+		f.ValidatorBalance,
+		f.Reward,
+		f.MaxReward,
+		f.AttestationReward,
+		f.SyncCommitteeReward,
+		f.BaseReward,
+		f.AttSlot,
+		f.InSyncCommittee,
+		f.MissingSource,
+		f.MissingTarget,
+		f.MissingHead,
+		f.Status,
+		f.ProposerReward,
+	}
+	return rows
+}
