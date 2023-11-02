@@ -128,6 +128,7 @@ func NewChainAnalyzer(
 	analyzerMet := analyzer.GetPrometheusMetrics()
 	promethMetrics.AddMeticsModule(analyzerMet)
 	promethMetrics.AddMeticsModule(analyzer.processerBook.GetPrometheusMetrics())
+	promethMetrics.AddMeticsModule(idbClient.GetPrometheusMetrics())
 
 	return analyzer, nil
 }

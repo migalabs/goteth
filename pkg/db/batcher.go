@@ -63,7 +63,7 @@ persistRetryLoop:
 		duration := time.Since(t)
 		switch err {
 		case nil:
-			logEntry.Tracef("persisted %d queries in %s seconds", q.Len(), duration)
+			logEntry.Debugf("persisted %d queries in %s seconds", q.Len(), duration)
 			break persistRetryLoop
 		default:
 			logEntry.Tracef("attempt numb %d failed %s", i+1, err.Error())

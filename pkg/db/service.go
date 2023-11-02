@@ -16,6 +16,7 @@ import (
 // Static postgres queries, for each modification in the tables, the table needs to be reseted
 var (
 	// wlogrus associated with the postgres db
+	modName  = "db"
 	PsqlType = "postgres-db"
 	wlog     = logrus.WithField(
 		"module", PsqlType,
