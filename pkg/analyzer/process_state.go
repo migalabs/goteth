@@ -126,8 +126,6 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 	if s.metrics.ValidatorRewards { // only if flag is activated
 		log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
 
-		rows := [][]interface{}{}
-
 		// process each validator
 		for valIdx := range bundle.GetMetricsBase().NextState.Validators {
 
@@ -142,12 +140,9 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 				continue
 			}
 
-			if s.metrics.ValidatorRewards { // only if flag is activated
-				//s.dbClient.Persist(maxRewards)
-				rows = append(rows, maxRewards.ToArray())
-			}
+			s.dbClient.Persist(maxRewards)
+
 		}
-		s.dbClient.ValRewardsBulkInsert(rows)
 
 	}
 }
