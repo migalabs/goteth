@@ -3,7 +3,6 @@ package clientapi
 import (
 	"encoding/hex"
 	"errors"
-	"syscall"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
@@ -62,7 +61,7 @@ func (s *APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
 		for err != nil && attempts < maxRetries {
 			receipt, err = s.GetReceipt(parsedTx.Hash())
 
-			if errors.Is(err, syscall.ECONNRESET) {
+			if err != nil {
 				ticker := time.NewTicker(utils.RoutineFlushTimeout)
 				log.Warnf("retrying transaction request: %s", parsedTx.Hash().String())
 				<-ticker.C
