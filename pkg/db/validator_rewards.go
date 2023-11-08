@@ -32,7 +32,7 @@ var (
 
 	DropValidatorRewardsQuery = `
 		DELETE FROM t_validator_rewards_summary
-		WHERE f_epoch >= $1;
+		WHERE f_epoch = $1;
 	`
 )
 
