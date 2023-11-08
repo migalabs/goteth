@@ -1,6 +1,9 @@
 package db
 
 import (
+	"time"
+
+	pgx "github.com/jackc/pgx/v4"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
@@ -30,21 +33,15 @@ var (
 				f_exit_epoch = excluded.f_exit_epoch,
 				f_public_key = excluded.f_public_key;
 	`
+
+	DropOldValidatorStatus = `
+		DELETE FROM t_validator_last_status
+		WHERE f_epoch < $1`
 )
 
 func insertValidatorLastStatus(inputValidator spec.ValidatorLastStatus) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-	resultArgs = append(resultArgs, inputValidator.ValIdx)
-	resultArgs = append(resultArgs, inputValidator.Epoch)
-	resultArgs = append(resultArgs, inputValidator.BalanceToEth())
-	resultArgs = append(resultArgs, inputValidator.CurrentStatus)
-	resultArgs = append(resultArgs, inputValidator.Slashed)
-	resultArgs = append(resultArgs, inputValidator.ActivationEpoch)
-	resultArgs = append(resultArgs, inputValidator.WithdrawalEpoch)
-	resultArgs = append(resultArgs, inputValidator.ExitEpoch)
-	resultArgs = append(resultArgs, inputValidator.PublicKey.String())
 
-	return UpsertValidatorLastStatus, resultArgs
+	return UpsertValidatorLastStatus, inputValidator.ToArray()
 }
 
 func ValidatorLastStatusOperation(inputValidator spec.ValidatorLastStatus) (string, []interface{}) {
@@ -52,4 +49,31 @@ func ValidatorLastStatusOperation(inputValidator spec.ValidatorLastStatus) (stri
 	q, args := insertValidatorLastStatus(inputValidator)
 	return q, args
 
+}
+
+func (p *PostgresDBService) CopyValLastStatus(rowSrc [][]interface{}) int64 {
+
+	startTime := time.Now()
+
+	count, err := p.psqlPool.CopyFrom(
+		p.ctx,
+		pgx.Identifier{"t_validator_last_status"},
+		[]string{"f_val_idx",
+			"f_epoch",
+			"f_balance_eth",
+			"f_status",
+			"f_slashed",
+			"f_activation_epoch",
+			"f_withdrawal_epoch",
+			"f_exit_epoch",
+			"f_public_key"},
+		pgx.CopyFromRows(rowSrc))
+
+	if err != nil {
+		wlog.Fatalf("could not copy val_status rows into db: %s", err.Error())
+	}
+
+	wlog.Infof("persisted val_status %d rows in %f seconds", count, time.Since(startTime).Seconds())
+
+	return count
 }

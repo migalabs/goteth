@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/spec/metrics"
 )
@@ -103,9 +104,10 @@ func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
 func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 
 	if s.downloadMode == "finalized" {
+		var valStatusArr [][]interface{}
 		for valIdx, validator := range bundle.GetMetricsBase().NextState.Validators {
 
-			s.dbClient.Persist(spec.ValidatorLastStatus{
+			newVal := spec.ValidatorLastStatus{
 				ValIdx:          phase0.ValidatorIndex(valIdx),
 				Epoch:           bundle.GetMetricsBase().NextState.Epoch,
 				CurrentBalance:  bundle.GetMetricsBase().NextState.Balances[valIdx],
@@ -115,9 +117,13 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 				WithdrawalEpoch: validator.WithdrawableEpoch,
 				ExitEpoch:       validator.ExitEpoch,
 				PublicKey:       validator.PublicKey,
-			})
+			}
+			valStatusArr = append(valStatusArr, newVal.ToArray())
 		}
-
+		if len(valStatusArr) > 0 { // persist everything
+			s.dbClient.CopyValLastStatus(valStatusArr)
+			s.dbClient.SingleQuery(db.DropOldValidatorStatus, bundle.GetMetricsBase().NextState.Epoch)
+		}
 	}
 }
 
