@@ -124,6 +124,7 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 
 	if s.metrics.ValidatorRewards { // only if flag is activated
+		var rewardsArr [][]interface{}
 		log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
 
 		// process each validator
@@ -140,8 +141,10 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 				continue
 			}
 
-			s.dbClient.Persist(maxRewards)
-
+			rewardsArr = append(rewardsArr, maxRewards.ToArray())
+		}
+		if len(rewardsArr) > 0 { // persist everything
+			s.dbClient.CopyValRewards(rewardsArr)
 		}
 
 	}
