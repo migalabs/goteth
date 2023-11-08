@@ -96,7 +96,11 @@ func (q *QueryBatch) persistBatch() error {
 	nextQuery := true
 	cnt := 0
 	for nextQuery && qerr == nil {
+		startTime := time.Now()
 		rows, qerr = batchResults.Query()
+		if time.Since(startTime).Seconds() > 1 {
+			log.Warnf("query took more than 1 second: %s", q.persistables[cnt].query)
+		}
 		nextQuery = rows.Next() // it closes all the rows if all the rows are readed
 		cnt++
 	}
