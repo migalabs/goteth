@@ -15,10 +15,13 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 	stateKeys := s.downloadCache.StateHistory.GetKeyList()
 
+	advance := false
+
 	for _, epoch := range stateKeys {
 		if epoch >= uint64(finalizedEpoch) {
 			continue // only process epochs that are before the given epoch
 		}
+		advance = true // only set flag if there is something to do
 
 		// Retrieve stored root and redownload root once finalized
 		queueState := s.downloadCache.StateHistory.Wait(epoch)
@@ -84,5 +87,8 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 	s.downloadCache.CleanUpTo(newFinalizedSlot)
 
-	log.Infof("checked states until slot %d, epoch %d", newFinalizedSlot, newFinalizedSlot/spec.SlotsPerEpoch)
+	if advance {
+		log.Infof("checked states until slot %d, epoch %d", newFinalizedSlot, newFinalizedSlot/spec.SlotsPerEpoch)
+
+	}
 }
