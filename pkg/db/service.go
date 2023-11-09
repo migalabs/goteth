@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -86,7 +86,7 @@ func (s *PostgresDBService) Connect() {
 	if strings.Contains(s.connectionUrl, "@") {
 		wlog.Debugf("Connecting to PostgresDB at %s", strings.Split(s.connectionUrl, "@")[1])
 	}
-	psqlPool, err := pgxpool.Connect(s.ctx, s.connectionUrl)
+	psqlPool, err := pgxpool.New(s.ctx, s.connectionUrl)
 	if err != nil {
 		wlog.Fatalf("could not connect to database: %s", err.Error())
 	}
