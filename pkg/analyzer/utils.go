@@ -18,7 +18,6 @@ const (
 	minStateReqTime            = 1 * time.Second        // max 1 query per second, dont spam beacon node
 	epochsToFinalizedTentative = 3                      // usually, 2 full epochs before the head it is finalized
 	dataWaitInterval           = 1 * time.Minute        // wait for block or epoch to be in the cache
-	maxDataRetries             = 3                      // maximum number of intervals to wait for data in the cache
 )
 
 var (
@@ -128,15 +127,10 @@ func (m *AgnosticMap[T]) Wait(key uint64) *T {
 	m.subs[key] = append(m.subs[key], ch)
 	m.Unlock()
 
-	retries := 0
 	for {
 		select {
 		case <-ticker.C:
 			log.Warnf("Waiting for %T %d...", *new(T), key)
-			retries += 1
-			if retries >= maxDataRetries {
-				log.Fatalf("Waiting too long for %T %d...", *new(T), key)
-			}
 
 		case item := <-ch:
 			return item
