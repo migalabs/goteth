@@ -1,6 +1,7 @@
 package db
 
 import (
+	"log"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -69,7 +70,13 @@ func (p *PostgresDBService) CopyValRewards(rowSrc [][]interface{}) int64 {
 
 	startTime := time.Now()
 
-	count, err := p.psqlPool.CopyFrom(
+	connection, err := p.psqlPool.Acquire(p.ctx)
+	if err != nil {
+		log.Fatalf("Error while acquiring connection from the database pool for val_rewards: %s!!", err.Error())
+	}
+	defer connection.Release()
+
+	count, err := connection.CopyFrom(
 		p.ctx,
 		pgx.Identifier{"t_validator_rewards_summary"},
 		[]string{"f_val_idx",
