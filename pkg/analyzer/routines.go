@@ -165,7 +165,6 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 			continue
 		}
 		if i%spec.SlotsPerEpoch == 0 { // every time a new epoch is crossed
-			ticker = time.NewTicker(historicalCleanInterval)
 			finalizedSlot, err := s.cli.RequestFinalizedBeaconBlock()
 
 			if err != nil {
