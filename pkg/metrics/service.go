@@ -99,7 +99,7 @@ metricsUpdateLoop:
 				}
 				// compose a message with the give summary
 				logFields := log.Fields(modSum)
-				log.WithFields(logFields).Infof("summary for %s", mod.Name())
+				log.WithFields(logFields).Debugf("summary for %s", mod.Name())
 			}
 
 		case <-p.closeC:
