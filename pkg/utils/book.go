@@ -82,8 +82,8 @@ func (r *RoutineBook) WaitUntilInactive(key string) bool {
 
 		_, ok := r.pages[key]
 
-		if ok {
-			return ok
+		if !ok {
+			return true
 		}
 
 		r.Unlock()
