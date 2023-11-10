@@ -1,7 +1,6 @@
 package analyzer
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -88,21 +87,7 @@ func (s *ChainAnalyzer) runHead() {
 
 		case newReorg := <-s.eventsObj.ReorgChan:
 			s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
-
-			go func() {
-				depth := newReorg.Depth
-				reorgSlot := newReorg.Slot
-				fromSlot := reorgSlot - phase0.Slot(depth)
-				for i := fromSlot; i < reorgSlot; i++ { // for every slot in the reorg
-					s.downloadCache.BlockHistory.Available(uint64(i))                           // first check that it was already in the cache
-					s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", slotProcesserTag, i)) // wait until has been processed
-
-					s.DownloadBlock(i) // -> inserts into the queue and replaces old block
-					s.dbClient.DeleteBlockMetrics(i)
-					// write slot metrics
-					s.ProcessBlock(i)
-				}
-			}()
+			go s.HandleReorg(newReorg)
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
