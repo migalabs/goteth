@@ -114,6 +114,7 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 
 	// obtain current head
 	headSlot := s.cli.RequestCurrentHead()
+	s.DownloadBlock(headSlot) // inserts in the queue the headblock
 
 	// obtain last slot in database
 	nextSlotDownload, err := s.dbClient.ObtainLastSlot()
