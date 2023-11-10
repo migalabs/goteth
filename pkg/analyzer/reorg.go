@@ -58,6 +58,7 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 	depth := newReorg.Depth
 	reorgSlot := newReorg.Slot
 	fromSlot := reorgSlot - phase0.Slot(depth)
+	log.Warnf("reorging from %d to %d (not included)", fromSlot, reorgSlot)
 	for i := fromSlot; i < reorgSlot; i++ { // for every slot in the reorg
 		block := s.downloadCache.BlockHistory.Wait(uint64(i)) // first check that it was already in the cache
 		// keep orphans
