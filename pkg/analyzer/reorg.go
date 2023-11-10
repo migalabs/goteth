@@ -69,6 +69,7 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 		s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", slotProcesserTag, i)) // wait until has been processed
 
 		s.dbClient.DeleteBlockMetrics(i)
+		log.Infof("rewriting metrics for slot %d", i)
 		// write slot metrics
 		s.ProcessBlock(i)
 
@@ -80,9 +81,9 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 			s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", epochProcesserTag, i)) // wait until has been processed
 
 			s.dbClient.DeleteStateMetrics(epoch)
+			log.Infof("rewriting metrics for epoch %d", epoch)
 			// write slot metrics
 			s.ProcessStateTransitionMetrics(epoch)
 		}
-
 	}
 }
