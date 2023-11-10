@@ -18,6 +18,16 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](slot))
 	s.dbClient.Persist(*block)
 
+	for _, item := range block.ExecutionPayload.Withdrawals {
+		s.dbClient.Persist(spec.Withdrawal{
+			Slot:           block.Slot,
+			Index:          item.Index,
+			ValidatorIndex: item.ValidatorIndex,
+			Address:        item.Address,
+			Amount:         item.Amount,
+		})
+	}
+
 	if s.metrics.Transactions {
 		s.processTransactions(block)
 	}
