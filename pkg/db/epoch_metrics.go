@@ -115,8 +115,8 @@ func (s *PostgresDBService) DeleteStateMetrics(epoch phase0.Epoch) {
 	s.SingleQuery(DropProposerDutiesQuery, epoch)
 
 	// valRewards are written at nextState using prevState, currentState and nextState
-	s.SingleQuery(DropValidatorRewardsQuery, epoch+2) // when deleteState -> prevState
-	s.SingleQuery(DropValidatorRewardsQuery, epoch+1) // when deleteState -> currentState
-	s.SingleQuery(DropValidatorRewardsQuery, epoch)   // when deleteState -> nextState
+	s.SingleQuery(DropValidatorRewardsInEpochQuery, epoch+2) // when deleteState -> prevState
+	s.SingleQuery(DropValidatorRewardsInEpochQuery, epoch+1) // when deleteState -> currentState
+	s.SingleQuery(DropValidatorRewardsInEpochQuery, epoch)   // when deleteState -> nextState
 
 }

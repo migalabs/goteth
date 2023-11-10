@@ -93,6 +93,7 @@ func (p *AgnosticState) AddBlocks(blockList []AgnosticBlock) {
 
 func (p *AgnosticState) CalculateWithdrawals() {
 
+	p.Withdrawals = make([]phase0.Gwei, len(p.Validators))
 	for _, block := range p.Blocks {
 		for _, withdrawal := range block.ExecutionPayload.Withdrawals {
 			p.Withdrawals[withdrawal.ValidatorIndex] += withdrawal.Amount

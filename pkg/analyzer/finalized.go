@@ -31,7 +31,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		if finalizedStateRoot != historyStateRoot { // no match, reorg happened
 			log.Warnf("state root for state (slot=%d) incorrect, redownload", queueState.Slot)
 			// need to redownload the epoch
-			s.downloadCache.StateHistory.Delete(epoch)
+			//s.downloadCache.StateHistory.Delete(epoch)
 			s.DownloadState(queueState.Slot) // -> inserts into the queue
 
 			// keep track of the rewrite metrics
@@ -49,7 +49,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 			if finalizedBlockRoot != historyBlockRoot {
 				log.Warnf("state root for block (slot=%d) incorrect, redownload", queueBlock.Slot)
 				// need to redownload the epoch
-				s.downloadCache.BlockHistory.Delete(slot)
+				//s.downloadCache.BlockHistory.Delete(slot)
 				s.DownloadBlock(phase0.Slot(slot)) // -> inserts into the queue
 
 				// keep track of the rewrite metrics

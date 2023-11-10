@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	emptyKey   = ""
-	structName = "routinebook"
+	emptyKey          = ""
+	structName        = "routinebook"
+	CheckPageInterval = 1 * time.Second
 )
 
 type RoutineBook struct {
@@ -70,6 +71,25 @@ func (r *RoutineBook) CheckPageActive(key string) bool {
 
 	r.Unlock()
 	return ok
+
+}
+
+func (r *RoutineBook) WaitUntilInactive(key string) bool {
+	ticker := time.NewTicker(CheckPageInterval)
+
+	for range ticker.C {
+		r.Lock()
+
+		_, ok := r.pages[key]
+
+		if ok {
+			return ok
+		}
+
+		r.Unlock()
+	}
+
+	return false
 
 }
 

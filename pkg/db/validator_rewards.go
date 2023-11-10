@@ -34,10 +34,15 @@ var (
 		DO NOTHING;
 	`
 
-	DropValidatorRewardsQuery = `
+	DropValidatorRewardsInEpochQuery = `
 		DELETE FROM t_validator_rewards_summary
 		WHERE f_epoch = $1;
 	`
+
+	DropValidatorRewardsQuery = `
+	DELETE FROM t_validator_rewards_summary
+	WHERE f_epoch = $1 and f_val_idx = $2;
+`
 )
 
 func insertValidator(inputValidator spec.ValidatorRewards) (string, []interface{}) {
@@ -114,5 +119,5 @@ func (s ValidatorRewardsDropType) Type() spec.ModelType {
 func DropValidatorRewards(epoch ValidatorRewardsDropType) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 	resultArgs = append(resultArgs, epoch)
-	return DropValidatorRewardsQuery, resultArgs
+	return DropValidatorRewardsInEpochQuery, resultArgs
 }
