@@ -85,16 +85,8 @@ func (s *ChainAnalyzer) runHead() {
 
 			go s.AdvanceFinalized(finalizedSlot - (2 * spec.SlotsPerEpoch))
 
-		// case newReorg := <-s.eventsObj.ReorgChan:
-		// 	s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
-		// 	baseSlot := newReorg.Slot - phase0.Slot(newReorg.Depth)
-
-		// 	go func() { // launch fix async
-		// 		for i := baseSlot; i < newReorg.Slot; i++ {
-		// 			s.ProcessOrphan(i)
-		// 			s.fixMetrics(i)
-		// 		}
-		// 	}()
+		case newReorg := <-s.eventsObj.ReorgChan:
+			s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
