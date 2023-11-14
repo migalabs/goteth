@@ -65,11 +65,9 @@ func (r *RoutineBook) FreePage(key string) {
 }
 
 func (r *RoutineBook) CheckPageActive(key string) bool {
-	r.Lock()
 
-	_, ok := r.pages[key]
+	_, ok := r.get(key)
 
-	r.Unlock()
 	return ok
 
 }
@@ -78,10 +76,8 @@ func (r *RoutineBook) WaitUntilInactive(key string) bool {
 	ticker := time.NewTicker(CheckPageInterval)
 
 	for range ticker.C {
-		r.Lock()
-		defer r.Unlock()
 
-		_, ok := r.pages[key]
+		_, ok := r.get(key)
 
 		if !ok {
 			return true
@@ -96,6 +92,16 @@ func (r *RoutineBook) Set(key string, value string) {
 	r.Lock()
 	defer r.Unlock()
 	r.pages[key] = value // book page
+
+}
+
+func (r *RoutineBook) get(key string) (string, bool) {
+	r.Lock()
+	defer r.Unlock()
+
+	result, ok := r.pages[key]
+
+	return result, ok
 
 }
 
