@@ -79,14 +79,13 @@ func (r *RoutineBook) WaitUntilInactive(key string) bool {
 
 	for range ticker.C {
 		r.Lock()
+		defer r.Unlock()
 
 		_, ok := r.pages[key]
 
 		if !ok {
 			return true
 		}
-
-		r.Unlock()
 	}
 
 	return false
