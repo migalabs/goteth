@@ -75,6 +75,7 @@ func (s *ChainAnalyzer) runHead() {
 
 				if s.processerBook.NumFreePages() > 0 {
 					s.downloadTaskChan <- nextSlotDownload
+					nextSlotDownload = nextSlotDownload + 1
 				}
 				nextSlotDownload = nextSlotDownload + 1
 
@@ -171,7 +172,7 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 			} else {
 				// keep 5 epochs before current downloading slot, need 3 at least for epoch metrics
 				// magic number, 2 extra if processer takes long
-				s.downloadCache.CleanUpTo(s.downloadCache.HeadBlock.Slot - (5 * spec.SlotsPerEpoch)) // only clean, no check, keep
+				s.downloadCache.CleanUpTo(i - (5 * spec.SlotsPerEpoch)) // only clean, no check, keep
 			}
 		}
 
