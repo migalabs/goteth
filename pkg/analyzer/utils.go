@@ -157,10 +157,7 @@ func (m *AgnosticMap[T]) Available(key uint64) bool {
 
 	_, ok := m.m[key]
 	m.Unlock()
-	if ok {
-		return true
-	}
-	return false
+	return ok
 }
 
 func (m *AgnosticMap[T]) GetKeyList() []uint64 {
