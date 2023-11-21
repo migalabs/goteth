@@ -10,8 +10,7 @@ import (
 )
 
 var (
-	rateLimit               = 5 // limits the number of goroutines per second
-	historicalCleanInterval = 5 * time.Second
+	rateLimit = 5 // limits the number of goroutines per second
 )
 
 func (s *ChainAnalyzer) runDownloadBlocks() {
