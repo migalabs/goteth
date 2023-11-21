@@ -66,8 +66,6 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 
 	s.processerBook.FreePage(routineKey)
 
-	return
-
 }
 
 func (s *ChainAnalyzer) processEpochMetrics(bundle metrics.StateMetrics) {

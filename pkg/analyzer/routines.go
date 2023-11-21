@@ -77,7 +77,6 @@ func (s *ChainAnalyzer) runHead() {
 					s.downloadTaskChan <- nextSlotDownload
 					nextSlotDownload = nextSlotDownload + 1
 				}
-				nextSlotDownload = nextSlotDownload + 1
 
 			}
 		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
@@ -168,7 +167,7 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 
 			if i >= finalizedSlot.Slot {
 				// keep 2 epochs before finalized, needed to calculate epoch metrics
-				s.AdvanceFinalized(finalizedSlot.Slot - spec.SlotsPerEpoch*2) // includes check and clean
+				s.AdvanceFinalized(finalizedSlot.Slot - spec.SlotsPerEpoch*5) // includes check and clean
 			} else {
 				// keep 5 epochs before current downloading slot, need 3 at least for epoch metrics
 				// magic number, 2 extra if processer takes long
