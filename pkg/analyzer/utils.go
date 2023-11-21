@@ -136,17 +136,20 @@ func (m *AgnosticMap[T]) Wait(key uint64) *T {
 			return item
 		}
 	}
-
 }
 
 func (m *AgnosticMap[T]) Delete(key uint64) {
 	m.Lock()
-	prevItem, ok := m.m[key]
-	if ok {
-		m.deleteF(prevItem)
+
+	_, valueExists := m.m[key]
+
+	_, subsExist := m.subs[key]
+
+	if valueExists && !subsExist {
+		delete(m.m, key)
+		delete(m.subs, key)
 	}
-	delete(m.m, key)
-	delete(m.subs, key)
+
 	m.Unlock()
 
 }
