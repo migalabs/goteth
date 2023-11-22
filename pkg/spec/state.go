@@ -192,13 +192,13 @@ func (p *AgnosticState) TrackMissingBlocks() {
 		if i == 0 {
 			continue
 		}
-		lastItem := p.BlockRoots[i-1]
-		item := p.BlockRoots[i]
-		res := bytes.Compare(lastItem[:], item[:])
+		lastItem := p.BlockRoots[i-1]              // prevBlock, starting at last slot of prevEpoch
+		item := p.BlockRoots[i]                    // currentBlock, starting at slot0 of the epoch
+		res := bytes.Compare(lastItem[:], item[:]) // if equal, currentBlock was missed
 
 		if res == 0 {
 			// both consecutive roots were the same ==> missed block
-			slot := i - firstIndex + p.Slot - SlotsPerEpoch + 1
+			slot := i - firstIndex + p.Slot - SlotsPerEpoch
 			p.MissedBlocks = append(p.MissedBlocks, slot)
 		}
 	}
