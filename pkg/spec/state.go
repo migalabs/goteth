@@ -185,8 +185,9 @@ func (p AgnosticState) TrackPrevMissingBlock() phase0.Slot {
 
 // We use blockroots to track missed blocks. When there is a missed block, the block root is repeated
 func (p *AgnosticState) TrackMissingBlocks() {
-	firstIndex := (p.Slot - SlotsPerEpoch) % SlotsPerHistoricalRoot
-	lastIndex := (p.Slot) % SlotsPerHistoricalRoot
+
+	firstIndex := phase0.Slot(p.Epoch*SlotsPerEpoch) % SlotsPerHistoricalRoot                // first slot of the epoch
+	lastIndex := phase0.Slot(p.Epoch*SlotsPerEpoch+SlotsPerEpoch-1) % SlotsPerHistoricalRoot // last slot of the epoch
 
 	for i := firstIndex; i <= lastIndex; i++ {
 		if i == 0 {
@@ -198,7 +199,7 @@ func (p *AgnosticState) TrackMissingBlocks() {
 
 		if res == 0 {
 			// both consecutive roots were the same ==> missed block
-			slot := i - firstIndex + p.Slot - SlotsPerEpoch
+			slot := i - firstIndex + phase0.Slot(p.Epoch*SlotsPerEpoch) // delta + start of the epoch
 			p.MissedBlocks = append(p.MissedBlocks, slot)
 		}
 	}
