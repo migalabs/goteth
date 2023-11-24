@@ -1,0 +1,1 @@
+ALTER TABLE t_validator_last_status ADD CONSTRAINT t_validator_last_status_pkey PRIMARY KEY (f_val_idx);
