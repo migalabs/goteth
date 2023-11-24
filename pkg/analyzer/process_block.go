@@ -8,15 +8,29 @@ import (
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
+var (
+	slotProcesserTag = "slot="
+)
+
 func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	if !s.metrics.Block {
 		return
 	}
-	routineKey := "slot=" + fmt.Sprintf("%d", slot)
+	routineKey := fmt.Sprintf("%s%d", slotProcesserTag, slot)
 	s.processerBook.Acquire(routineKey) // register a new slot to process, good for monitoring
 
 	block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](slot))
 	s.dbClient.Persist(*block)
+
+	for _, item := range block.ExecutionPayload.Withdrawals {
+		s.dbClient.Persist(spec.Withdrawal{
+			Slot:           block.Slot,
+			Index:          item.Index,
+			ValidatorIndex: item.ValidatorIndex,
+			Address:        item.Address,
+			Amount:         item.Amount,
+		})
+	}
 
 	if s.metrics.Transactions {
 		s.processTransactions(block)

@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	emptyKey   = ""
-	structName = "routinebook"
+	emptyKey          = ""
+	structName        = "routinebook"
+	CheckPageInterval = 1 * time.Second
 )
 
 type RoutineBook struct {
@@ -41,10 +42,10 @@ func (r *RoutineBook) Init() {
 
 func (r *RoutineBook) Acquire(key string) {
 
-	ticker := time.NewTicker(WaitMaxTimeout)
+	ticker := time.NewTicker(AcquireWaitIntervalLog)
 	select {
 	case <-ticker.C:
-		log.WithField("bookTag", r.bookTag).Fatalf("Waiting for too long to acquire page %s...", key)
+		log.WithField("bookTag", r.bookTag).Warnf("Waiting for too long to acquire page %s...", key)
 	case <-r.freeSpaceChan:
 		r.Set(key, "active")
 	}
@@ -64,12 +65,26 @@ func (r *RoutineBook) FreePage(key string) {
 }
 
 func (r *RoutineBook) CheckPageActive(key string) bool {
-	r.Lock()
 
-	_, ok := r.pages[key]
+	_, ok := r.get(key)
 
-	r.Unlock()
 	return ok
+
+}
+
+func (r *RoutineBook) WaitUntilInactive(key string) bool {
+	ticker := time.NewTicker(CheckPageInterval)
+
+	for range ticker.C {
+
+		_, ok := r.get(key)
+
+		if !ok {
+			return true
+		}
+	}
+
+	return false
 
 }
 
@@ -77,6 +92,16 @@ func (r *RoutineBook) Set(key string, value string) {
 	r.Lock()
 	defer r.Unlock()
 	r.pages[key] = value // book page
+
+}
+
+func (r *RoutineBook) get(key string) (string, bool) {
+	r.Lock()
+	defer r.Unlock()
+
+	result, ok := r.pages[key]
+
+	return result, ok
 
 }
 

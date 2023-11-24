@@ -134,5 +134,6 @@ func DropBlocks(slot BlockDropType) (string, []interface{}) {
 
 func (s *PostgresDBService) DeleteBlockMetrics(slot phase0.Slot) {
 	s.SingleQuery(DropBlocksQuery, slot)
+	s.SingleQuery(DropWithdrawalsQuery, slot)
 	s.SingleQuery(DropTransactionsQuery, slot)
 }

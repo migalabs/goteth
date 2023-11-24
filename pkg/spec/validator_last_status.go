@@ -16,6 +16,20 @@ type ValidatorLastStatus struct {
 	PublicKey       phase0.BLSPubKey
 }
 
+func (f ValidatorLastStatus) ToArray() []interface{} {
+	resultArgs := make([]interface{}, 0)
+	resultArgs = append(resultArgs, f.ValIdx)
+	resultArgs = append(resultArgs, f.Epoch)
+	resultArgs = append(resultArgs, f.BalanceToEth())
+	resultArgs = append(resultArgs, f.CurrentStatus)
+	resultArgs = append(resultArgs, f.Slashed)
+	resultArgs = append(resultArgs, f.ActivationEpoch)
+	resultArgs = append(resultArgs, f.WithdrawalEpoch)
+	resultArgs = append(resultArgs, f.ExitEpoch)
+	resultArgs = append(resultArgs, f.PublicKey.String())
+	return resultArgs
+}
+
 func (f ValidatorLastStatus) Type() ModelType {
 	return ValidatorLastStatusModel
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/spec/metrics"
 )
@@ -65,8 +66,6 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 
 	s.processerBook.FreePage(routineKey)
 
-	return
-
 }
 
 func (s *ChainAnalyzer) processEpochMetrics(bundle metrics.StateMetrics) {
@@ -103,9 +102,10 @@ func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
 func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 
 	if s.downloadMode == "finalized" {
+		var valStatusArr [][]interface{}
 		for valIdx, validator := range bundle.GetMetricsBase().NextState.Validators {
 
-			s.dbClient.Persist(spec.ValidatorLastStatus{
+			newVal := spec.ValidatorLastStatus{
 				ValIdx:          phase0.ValidatorIndex(valIdx),
 				Epoch:           bundle.GetMetricsBase().NextState.Epoch,
 				CurrentBalance:  bundle.GetMetricsBase().NextState.Balances[valIdx],
@@ -115,15 +115,20 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 				WithdrawalEpoch: validator.WithdrawableEpoch,
 				ExitEpoch:       validator.ExitEpoch,
 				PublicKey:       validator.PublicKey,
-			})
+			}
+			valStatusArr = append(valStatusArr, newVal.ToArray())
 		}
-
+		if len(valStatusArr) > 0 { // persist everything
+			s.dbClient.CopyValLastStatus(valStatusArr)
+			s.dbClient.SingleQuery(db.DropOldValidatorStatus, bundle.GetMetricsBase().NextState.Epoch)
+		}
 	}
 }
 
 func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 
 	if s.metrics.ValidatorRewards { // only if flag is activated
+		var rewardsArr [][]interface{}
 		log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
 
 		// process each validator
@@ -140,10 +145,11 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 				continue
 			}
 
-			if s.metrics.ValidatorRewards { // only if flag is activated
-				s.dbClient.Persist(maxRewards)
-			}
-
+			rewardsArr = append(rewardsArr, maxRewards.ToArray())
 		}
+		if len(rewardsArr) > 0 { // persist everything
+			s.dbClient.CopyValRewards(rewardsArr)
+		}
+
 	}
 }
