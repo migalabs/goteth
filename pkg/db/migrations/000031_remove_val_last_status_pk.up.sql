@@ -1,2 +1,1 @@
-ALTER TABLE t_transactions DROP CONSTRAINT t_transactions_pkey;
-ALTER TABLE t_transactions ADD CONSTRAINT t_transactions_pkey PRIMARY KEY (f_hash);
+ALTER TABLE t_validator_last_status DROP CONSTRAINT t_validator_last_status_pkey;
