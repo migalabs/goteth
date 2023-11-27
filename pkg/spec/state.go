@@ -267,12 +267,12 @@ func (p AgnosticState) GetMissingFlagCount(flagIndex int) uint64 {
 
 func (p AgnosticState) GetValStatus(valIdx phase0.ValidatorIndex) ValidatorStatus {
 
-	if p.Validators[valIdx].ExitEpoch <= phase0.Epoch(p.Epoch) {
-		return EXIT_STATUS
-	}
-
 	if p.Validators[valIdx].Slashed {
 		return SLASHED_STATUS
+	}
+
+	if p.Validators[valIdx].ExitEpoch <= phase0.Epoch(p.Epoch) {
+		return EXIT_STATUS
 	}
 
 	if p.Validators[valIdx].ActivationEpoch <= phase0.Epoch(p.Epoch) {
