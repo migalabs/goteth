@@ -32,7 +32,7 @@ make install
 - block: downloads withdrawals, blocks and block rewards
 - epoch: download epoch metrics, proposer duties, validator last status,
 - rewards: persists validator rewards metrics to database (activates epoch metrics)
-- api_rewards: block rewards are hard to calculate, but they can be downloaded from the Beacon API. However, keep in mind this takes a few seconds per block when not at the head. Without this, reward cannot be compared to max_reward when a validator is a proposer (32/900K validators in an epoch).
+- api_rewards (EXPERIMENTAL): block rewards are hard to calculate, but they can be downloaded from the Beacon API. However, keep in mind this takes a few seconds per block when not at the head. Without this, reward cannot be compared to max_reward when a validator is a proposer (32/900K validators in an epoch). It depends on the Lighthouse API and we have registered some cases where the block reward was not returned.
 - transactions: requests transaction receipts from the execution layer (activates block metrics)
 
 ### Running the tool
