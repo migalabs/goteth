@@ -1,57 +1,58 @@
 package analyzer
 
 import (
-	"sync"
-	"time"
+	"fmt"
 
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
-	"github.com/migalabs/goteth/pkg/utils"
 )
 
-func (s *ChainAnalyzer) runProcessBlock(wgProcess *sync.WaitGroup) {
-	defer wgProcess.Done()
+var (
+	slotProcesserTag = "slot="
+)
 
-	log.Info("Launching Beacon Block Processor")
-	ticker := time.NewTicker(utils.RoutineFlushTimeout)
-loop:
-	for {
+func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
+	if !s.metrics.Block {
+		return
+	}
+	routineKey := fmt.Sprintf("%s%d", slotProcesserTag, slot)
+	s.processerBook.Acquire(routineKey) // register a new slot to process, good for monitoring
 
-		select {
+	block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](slot))
+	s.dbClient.Persist(*block)
 
-		case task, ok := <-s.blockTaskChan:
+	for _, item := range block.ExecutionPayload.Withdrawals {
+		s.dbClient.Persist(spec.Withdrawal{
+			Slot:           block.Slot,
+			Index:          item.Index,
+			ValidatorIndex: item.ValidatorIndex,
+			Address:        item.Address,
+			Amount:         item.Amount,
+		})
+	}
 
-			// check if the channel has been closed
-			if !ok {
-				log.Warn("the task channel has been closed, finishing block routine")
-				return
+	if s.metrics.Transactions {
+		s.processTransactions(block)
+	}
+	s.processerBook.FreePage(routineKey)
+}
+
+func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
+
+	for idx, tx := range block.ExecutionPayload.Transactions {
+		go func(txID int, transaction bellatrix.Transaction) {
+			detailedTx, err := s.cli.RequestTransactionDetails(
+				transaction,
+				block.Slot,
+				block.ExecutionPayload.BlockNumber,
+				block.ExecutionPayload.Timestamp)
+			if err != nil {
+				log.Errorf("could not request transaction details in slot %d for transaction %d: %s", block.Slot, txID, err)
 			}
-			log.Tracef("block task received for slot %d, analyzing...", task.Slot)
-
-			log.Debugf("persisting block metrics: slot %d", task.Block.Slot)
-			s.dbClient.Persist(task.Block)
-
-			for _, item := range task.Block.ExecutionPayload.Withdrawals {
-				s.dbClient.Persist(spec.Withdrawal{
-					Slot:           task.Block.Slot,
-					Index:          item.Index,
-					ValidatorIndex: item.ValidatorIndex,
-					Address:        item.Address,
-					Amount:         item.Amount,
-				})
-
-			}
-
-		case <-ticker.C:
-			// in case the downloads have finished, and there are no more tasks to execute
-			if s.downloadFinished && len(s.blockTaskChan) == 0 {
-				log.Warn("the task channel has been closed, finishing block routine")
-				break loop
-			}
-		case <-s.ctx.Done():
-			log.Info("context has died, closing block processer routine")
-			break loop
-		}
+			log.Tracef("persisting transaction metrics: slot %d, tx number: %d", block.Slot, txID)
+			s.dbClient.Persist(detailedTx)
+		}(idx, tx)
 
 	}
-	log.Infof("Block process routine finished...")
 }

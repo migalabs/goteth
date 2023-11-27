@@ -14,7 +14,7 @@ type Phase0Metrics struct {
 	baseMetrics StateMetricsBase
 }
 
-func NewPhase0Metrics(nextBstate spec.AgnosticState, currentState spec.AgnosticState, prevState spec.AgnosticState) Phase0Metrics {
+func NewPhase0Metrics(nextBstate *spec.AgnosticState, currentState *spec.AgnosticState, prevState *spec.AgnosticState) Phase0Metrics {
 
 	phase0Obj := Phase0Metrics{}
 	phase0Obj.baseMetrics.NextState = nextBstate

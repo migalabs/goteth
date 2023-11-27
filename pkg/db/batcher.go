@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	pgx "github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	pgx "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -14,9 +14,7 @@ var (
 	QueryTimeout = 5 * time.Minute
 	MaxRetries   = 1
 
-	ErrorNoConnFree        = "no connection adquirable"
-	noQueryError    string = "no error"
-	noQueryResult   string = "no result"
+	ErrorNoConnFree = "no connection adquirable"
 )
 
 type QueryBatch struct {
@@ -25,6 +23,7 @@ type QueryBatch struct {
 	batch        *pgx.Batch
 	size         int
 	persistables []Persistable
+	metrics      BatchMetrics
 }
 
 func NewQueryBatch(ctx context.Context, pgxPool *pgxpool.Pool, batchSize int) *QueryBatch {
@@ -34,6 +33,7 @@ func NewQueryBatch(ctx context.Context, pgxPool *pgxpool.Pool, batchSize int) *Q
 		batch:        &pgx.Batch{},
 		size:         batchSize,
 		persistables: make([]Persistable, 0),
+		metrics:      BatchMetrics{},
 	}
 }
 
@@ -63,7 +63,9 @@ persistRetryLoop:
 		duration := time.Since(t)
 		switch err {
 		case nil:
-			logEntry.Tracef("persisted %d queries in %s seconds", q.Len(), duration)
+			logEntry.Debugf("persisted %d queries in %s seconds", q.Len(), duration)
+			q.metrics.NumQueries = uint64(q.Len())
+			q.metrics.PersistTime = duration
 			break persistRetryLoop
 		default:
 			logEntry.Tracef("attempt numb %d failed %s", i+1, err.Error())
@@ -94,7 +96,11 @@ func (q *QueryBatch) persistBatch() error {
 	nextQuery := true
 	cnt := 0
 	for nextQuery && qerr == nil {
+		startTime := time.Now()
 		rows, qerr = batchResults.Query()
+		if time.Since(startTime).Seconds() > 1 {
+			log.Warnf("query took more than 1 second: %s", q.persistables[cnt].query)
+		}
 		nextQuery = rows.Next() // it closes all the rows if all the rows are readed
 		cnt++
 	}
@@ -139,4 +145,10 @@ func NewPersistable() Persistable {
 
 func (p *Persistable) isEmpty() bool {
 	return p.query == ""
+}
+
+type BatchMetrics struct {
+	PersistTime time.Duration // accumulated time this batch has been persisting queries
+	NumQueries  uint64        // number of queries executed
+
 }

@@ -2,22 +2,34 @@ package clientapi
 
 import (
 	"encoding/hex"
+	"errors"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/migalabs/goteth/pkg/spec"
+	"github.com/migalabs/goteth/pkg/utils"
+)
+
+var (
+	txKeyTag string = "txreceipt="
 )
 
 // GetReceipt retrieves receipt for the given transaction hash
-func (client APIClient) GetReceipt(txHash common.Hash) (*types.Receipt, error) {
+func (client *APIClient) GetReceipt(txHash common.Hash) (*types.Receipt, error) {
+
+	routineKey := txKeyTag + txHash.String()
+	client.txBook.Acquire(routineKey)
+	defer client.txBook.FreePage(routineKey)
+
 	receipt, err := client.ELApi.TransactionReceipt(client.ctx, txHash)
 	return receipt, err
 }
 
 // convert transactions from byte sequences to Transaction object
-func (s APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
+func (s *APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
 	iSlot phase0.Slot,
 	iBlockNumber uint64,
 	iTimestamp uint64) (*spec.AgnosticTransaction, error) {
@@ -41,15 +53,30 @@ func (s APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
 	contractAddress := *&common.Address{}
 
 	if s.ELApi != nil {
-		receipt, err := s.GetReceipt(parsedTx.Hash())
+
+		var receipt *types.Receipt
+		err := errors.New("first attempt")
+
+		attempts := 0
+		for err != nil && attempts < maxRetries {
+			receipt, err = s.GetReceipt(parsedTx.Hash())
+
+			if err != nil {
+				ticker := time.NewTicker(utils.RoutineFlushTimeout)
+				log.Warnf("retrying transaction request: %s", parsedTx.Hash().String())
+				<-ticker.C
+			}
+			attempts += 1
+
+		}
 
 		if err != nil {
-			log.Warnf("unable to retrieve transaction receipt for hash %x: %s", parsedTx.Hash(), err.Error())
-		} else {
-			gasUsed = receipt.GasUsed
-			gasPrice = receipt.EffectiveGasPrice.Uint64()
-			contractAddress = receipt.ContractAddress
+
+			log.Fatalf("unable to retrieve transaction receipt for hash %x: %s", parsedTx.Hash(), err.Error())
 		}
+		gasUsed = receipt.GasUsed
+		gasPrice = receipt.EffectiveGasPrice.Uint64()
+		contractAddress = receipt.ContractAddress
 
 	}
 

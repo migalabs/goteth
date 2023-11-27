@@ -15,7 +15,7 @@ var (
 
 	DropTransactionsQuery = `
 		DELETE FROM t_transactions
-		WHERE f_slot >= $1;
+		WHERE f_slot = $1;
 `
 )
 

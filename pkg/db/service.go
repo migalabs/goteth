@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -16,6 +16,7 @@ import (
 // Static postgres queries, for each modification in the tables, the table needs to be reseted
 var (
 	// wlogrus associated with the postgres db
+	modName  = "db"
 	PsqlType = "postgres-db"
 	wlog     = logrus.WithField(
 		"module", PsqlType,
@@ -32,6 +33,7 @@ type PostgresDBService struct {
 	connectionUrl string // the url might not be necessary (better to remove it?¿)
 	psqlPool      *pgxpool.Pool
 	wgDBWriters   sync.WaitGroup
+	writerBatches []*QueryBatch
 
 	writeChan chan Model // Receive tasks to persist
 	stop      bool
@@ -51,9 +53,9 @@ func New(ctx context.Context, url string, options ...PostgresDBServiceOption) (*
 		if err != nil {
 			return pService, err
 		}
-
 	}
 
+	pService.writerBatches = make([]*QueryBatch, pService.workerNum)
 	pService.writeChan = make(chan Model, pService.workerNum)
 	return pService, err
 }
@@ -84,7 +86,7 @@ func (s *PostgresDBService) Connect() {
 	if strings.Contains(s.connectionUrl, "@") {
 		wlog.Debugf("Connecting to PostgresDB at %s", strings.Split(s.connectionUrl, "@")[1])
 	}
-	psqlPool, err := pgxpool.Connect(s.ctx, s.connectionUrl)
+	psqlPool, err := pgxpool.New(s.ctx, s.connectionUrl)
 	if err != nil {
 		wlog.Fatalf("could not connect to database: %s", err.Error())
 	}
@@ -117,6 +119,7 @@ func (p *PostgresDBService) runWriters() {
 		go func(dbWriterID int) {
 			defer p.wgDBWriters.Done()
 			batcher := NewQueryBatch(p.ctx, p.psqlPool, MAX_BATCH_QUEUE)
+			p.writerBatches[dbWriterID] = batcher
 			wlogWriter := wlog.WithField("DBWriter", dbWriterID)
 			ticker := time.NewTicker(utils.RoutineFlushTimeout)
 		loop:
@@ -242,4 +245,25 @@ func (p *PostgresDBService) Persist(w Model) {
 type Model interface { // simply to enforce a Model interface
 	// For now we simply support insert operations
 	Type() spec.ModelType // whether insert is activated for this model
+}
+
+func (p *PostgresDBService) SingleQuery(query string, args ...interface{}) error {
+	rows, err := p.psqlPool.Query(p.ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("error executing query %s: %s", query, err.Error())
+	}
+	rows.Close()
+	return nil
+}
+
+func (p *PostgresDBService) GetBatcherStats() []string {
+	result := make([]string, 0)
+
+	for idx, batcher := range p.writerBatches {
+		result = append(result, fmt.Sprintf("batcher %d=%dms(%d queries)",
+			idx,
+			batcher.metrics.PersistTime.Milliseconds(),
+			batcher.metrics.NumQueries))
+	}
+	return result
 }

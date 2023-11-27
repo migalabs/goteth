@@ -17,7 +17,7 @@ var (
 	// TODO: Just hardcoded, move to config
 	EndpointUrl string = "metrics"
 
-	MetricLoopInterval time.Duration = 15 * time.Second
+	MetricLoopInterval time.Duration = 5 * time.Second
 )
 
 type PrometheusMetrics struct {
@@ -99,7 +99,7 @@ metricsUpdateLoop:
 				}
 				// compose a message with the give summary
 				logFields := log.Fields(modSum)
-				log.WithFields(logFields).Infof("summary for %s", mod.Name())
+				log.WithFields(logFields).Debugf("summary for %s", mod.Name())
 			}
 
 		case <-p.closeC:

@@ -86,8 +86,14 @@ func (p *AgnosticState) Setup() error {
 	return nil
 }
 
-func (p AgnosticState) CalculateWithdrawals() {
+func (p *AgnosticState) AddBlocks(blockList []AgnosticBlock) {
+	p.Blocks = blockList
+	p.CalculateWithdrawals()
+}
 
+func (p *AgnosticState) CalculateWithdrawals() {
+
+	p.Withdrawals = make([]phase0.Gwei, len(p.Validators))
 	for _, block := range p.Blocks {
 		for _, withdrawal := range block.ExecutionPayload.Withdrawals {
 			p.Withdrawals[withdrawal.ValidatorIndex] += withdrawal.Amount
@@ -179,20 +185,21 @@ func (p AgnosticState) TrackPrevMissingBlock() phase0.Slot {
 
 // We use blockroots to track missed blocks. When there is a missed block, the block root is repeated
 func (p *AgnosticState) TrackMissingBlocks() {
-	firstIndex := (p.Slot - SlotsPerEpoch + 1) % SlotsPerHistoricalRoot
-	lastIndex := (p.Slot) % SlotsPerHistoricalRoot
+
+	firstIndex := phase0.Slot(p.Epoch*SlotsPerEpoch) % SlotsPerHistoricalRoot                // first slot of the epoch
+	lastIndex := phase0.Slot(p.Epoch*SlotsPerEpoch+SlotsPerEpoch-1) % SlotsPerHistoricalRoot // last slot of the epoch
 
 	for i := firstIndex; i <= lastIndex; i++ {
 		if i == 0 {
 			continue
 		}
-		lastItem := p.BlockRoots[i-1]
-		item := p.BlockRoots[i]
-		res := bytes.Compare(lastItem[:], item[:])
+		lastItem := p.BlockRoots[i-1]              // prevBlock, starting at last slot of prevEpoch
+		item := p.BlockRoots[i]                    // currentBlock, starting at slot0 of the epoch
+		res := bytes.Compare(lastItem[:], item[:]) // if equal, currentBlock was missed
 
 		if res == 0 {
 			// both consecutive roots were the same ==> missed block
-			slot := i - firstIndex + p.Slot - SlotsPerEpoch + 1
+			slot := i - firstIndex + phase0.Slot(p.Epoch*SlotsPerEpoch) // delta + start of the epoch
 			p.MissedBlocks = append(p.MissedBlocks, slot)
 		}
 	}

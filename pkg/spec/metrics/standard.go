@@ -11,9 +11,9 @@ import (
 )
 
 type StateMetricsBase struct {
-	PrevState    local_spec.AgnosticState
-	CurrentState local_spec.AgnosticState
-	NextState    local_spec.AgnosticState
+	PrevState    *local_spec.AgnosticState
+	CurrentState *local_spec.AgnosticState
+	NextState    *local_spec.AgnosticState
 }
 
 func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
@@ -33,8 +33,12 @@ type StateMetrics interface {
 	// https://notes.ethereum.org/@vbuterin/Sys3GLJbD#Epoch-processing
 }
 
-func StateMetricsByForkVersion(nextBstate local_spec.AgnosticState, bstate local_spec.AgnosticState, prevBstate local_spec.AgnosticState, iApi *http.Service) (StateMetrics, error) {
-	switch bstate.Version {
+func StateMetricsByForkVersion(
+	nextBstate *local_spec.AgnosticState,
+	bstate *local_spec.AgnosticState,
+	prevBstate *local_spec.AgnosticState,
+	iApi *http.Service) (StateMetrics, error) {
+	switch nextBstate.Version { // rewards are written at nextState epoch
 
 	case spec.DataVersionPhase0:
 		return NewPhase0Metrics(nextBstate, bstate, prevBstate), nil
