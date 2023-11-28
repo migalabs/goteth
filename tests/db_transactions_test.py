@@ -32,13 +32,15 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
         self.assertNoRows(df)
 
     def test_number_of_blocks_across_tables(self):
-        """The test ensures that the are the same number of blocks in across the existing tables"""
+        """The test ensures that there are no transactions from missed or 0 transactions blocks"""
         sql_query = """
-        select *
-        from t_transactions
-        inner join t_block_metrics
-        on t_transactions.f_slot = t_block_metrics.f_slot
-        where f_el_transactions = 0 or f_proposed = false
+    	select *
+		from t_block_metrics
+		where f_slot in (
+			select f_slot
+			from t_transactions
+		) and (f_el_transactions = 0 or f_proposed = false)
+		order by f_slot desc
         """
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
