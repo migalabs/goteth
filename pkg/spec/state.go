@@ -38,6 +38,7 @@ type AgnosticState struct {
 	SyncCommittee           altair.SyncCommittee              // list of pubkeys in the current sync committe
 	Blocks                  []AgnosticBlock                   // list of blocks in the epoch
 	Withdrawals             []phase0.Gwei                     // one position per validator
+	GenesisTimestamp        uint64                            // genesis timestamp
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -323,6 +324,7 @@ func NewPhase0State(bstate spec.VersionedBeaconState, duties EpochDuties) Agnost
 		Slot:             phase0.Slot(bstate.Phase0.Slot),
 		BlockRoots:       bstate.Phase0.BlockRoots,
 		PrevAttestations: bstate.Phase0.PreviousEpochAttestations,
+		GenesisTimestamp: bstate.Phase0.GenesisTime,
 	}
 
 	phase0Obj.Setup()
@@ -335,14 +337,15 @@ func NewPhase0State(bstate spec.VersionedBeaconState, duties EpochDuties) Agnost
 func NewAltairState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
 
 	altairObj := AgnosticState{
-		Version:       bstate.Version,
-		Balances:      bstate.Altair.Balances,
-		Validators:    bstate.Altair.Validators,
-		EpochStructs:  duties,
-		Epoch:         phase0.Epoch(bstate.Altair.Slot / SlotsPerEpoch),
-		Slot:          bstate.Altair.Slot,
-		BlockRoots:    bstate.Altair.BlockRoots,
-		SyncCommittee: *bstate.Altair.CurrentSyncCommittee,
+		Version:          bstate.Version,
+		Balances:         bstate.Altair.Balances,
+		Validators:       bstate.Altair.Validators,
+		EpochStructs:     duties,
+		Epoch:            phase0.Epoch(bstate.Altair.Slot / SlotsPerEpoch),
+		Slot:             bstate.Altair.Slot,
+		BlockRoots:       bstate.Altair.BlockRoots,
+		SyncCommittee:    *bstate.Altair.CurrentSyncCommittee,
+		GenesisTimestamp: bstate.Altair.GenesisTime,
 	}
 
 	altairObj.Setup()
@@ -390,14 +393,15 @@ func ProcessAltairAttestations(customState *AgnosticState, participation []altai
 func NewBellatrixState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
 
 	bellatrixObj := AgnosticState{
-		Version:       bstate.Version,
-		Balances:      bstate.Bellatrix.Balances,
-		Validators:    bstate.Bellatrix.Validators,
-		EpochStructs:  duties,
-		Epoch:         phase0.Epoch(bstate.Bellatrix.Slot / SlotsPerEpoch),
-		Slot:          bstate.Bellatrix.Slot,
-		BlockRoots:    bstate.Bellatrix.BlockRoots,
-		SyncCommittee: *bstate.Bellatrix.CurrentSyncCommittee,
+		Version:          bstate.Version,
+		Balances:         bstate.Bellatrix.Balances,
+		Validators:       bstate.Bellatrix.Validators,
+		EpochStructs:     duties,
+		Epoch:            phase0.Epoch(bstate.Bellatrix.Slot / SlotsPerEpoch),
+		Slot:             bstate.Bellatrix.Slot,
+		BlockRoots:       bstate.Bellatrix.BlockRoots,
+		SyncCommittee:    *bstate.Bellatrix.CurrentSyncCommittee,
+		GenesisTimestamp: bstate.Bellatrix.GenesisTime,
 	}
 
 	bellatrixObj.Setup()
@@ -411,14 +415,15 @@ func NewBellatrixState(bstate spec.VersionedBeaconState, duties EpochDuties) Agn
 func NewCapellaState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
 
 	capellaObj := AgnosticState{
-		Version:       bstate.Version,
-		Balances:      bstate.Capella.Balances,
-		Validators:    bstate.Capella.Validators,
-		EpochStructs:  duties,
-		Epoch:         phase0.Epoch(bstate.Capella.Slot / SlotsPerEpoch),
-		Slot:          bstate.Capella.Slot,
-		BlockRoots:    bstate.Capella.BlockRoots,
-		SyncCommittee: *bstate.Capella.CurrentSyncCommittee,
+		Version:          bstate.Version,
+		Balances:         bstate.Capella.Balances,
+		Validators:       bstate.Capella.Validators,
+		EpochStructs:     duties,
+		Epoch:            phase0.Epoch(bstate.Capella.Slot / SlotsPerEpoch),
+		Slot:             bstate.Capella.Slot,
+		BlockRoots:       bstate.Capella.BlockRoots,
+		SyncCommittee:    *bstate.Capella.CurrentSyncCommittee,
+		GenesisTimestamp: bstate.Capella.GenesisTime,
 	}
 
 	capellaObj.Setup()
@@ -432,14 +437,15 @@ func NewCapellaState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnos
 func NewDenebState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
 
 	denebObj := AgnosticState{
-		Version:       bstate.Version,
-		Balances:      bstate.Deneb.Balances,
-		Validators:    bstate.Deneb.Validators,
-		EpochStructs:  duties,
-		Epoch:         phase0.Epoch(bstate.Deneb.Slot / SlotsPerEpoch),
-		Slot:          bstate.Deneb.Slot,
-		BlockRoots:    bstate.Deneb.BlockRoots,
-		SyncCommittee: *bstate.Deneb.CurrentSyncCommittee,
+		Version:          bstate.Version,
+		Balances:         bstate.Deneb.Balances,
+		Validators:       bstate.Deneb.Validators,
+		EpochStructs:     duties,
+		Epoch:            phase0.Epoch(bstate.Deneb.Slot / SlotsPerEpoch),
+		Slot:             bstate.Deneb.Slot,
+		BlockRoots:       bstate.Deneb.BlockRoots,
+		SyncCommittee:    *bstate.Deneb.CurrentSyncCommittee,
+		GenesisTimestamp: bstate.Deneb.GenesisTime,
 	}
 
 	denebObj.Setup()
