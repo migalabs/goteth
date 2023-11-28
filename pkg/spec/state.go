@@ -144,7 +144,7 @@ func (p *AgnosticState) GetTotalActiveEffBalance() phase0.Gwei {
 	return p.ValsEffectiveBalance(val_array)
 }
 
-func (p AgnosticState) GetValsStateNums() {
+func (p *AgnosticState) GetValsStateNums() {
 	result := p.GetValsPerStatus()
 	p.NumActiveVals = uint(len(result[ACTIVE_STATUS]))
 	p.NumExitedVals = uint(len(result[EXIT_STATUS]))
