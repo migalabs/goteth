@@ -60,16 +60,23 @@ func StateMetricsByForkVersion(
 }
 
 func (s StateMetricsBase) ExportToEpoch() local_spec.Epoch {
+
 	return local_spec.Epoch{
 		Epoch:                 s.CurrentState.Epoch,
 		Slot:                  s.CurrentState.Slot,
 		NumAttestations:       len(s.NextState.PrevAttestations),
 		NumAttValidators:      int(s.NextState.NumAttestingVals),
-		NumValidators:         int(s.CurrentState.NumActiveVals),
+		NumValidators:         len(s.CurrentState.Validators),
 		TotalBalance:          float32(s.CurrentState.TotalActiveRealBalance) / float32(local_spec.EffectiveBalanceInc),
 		AttEffectiveBalance:   float32(s.NextState.AttestingBalance[altair.TimelyTargetFlagIndex]) / float32(local_spec.EffectiveBalanceInc), // as per BEaconcha.in
 		TotalEffectiveBalance: float32(s.CurrentState.TotalActiveBalance) / float32(local_spec.EffectiveBalanceInc),
 		MissingSource:         int(s.NextState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
 		MissingTarget:         int(s.NextState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
-		MissingHead:           int(s.NextState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex)))}
+		MissingHead:           int(s.NextState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
+		Timestamp:             int64(s.CurrentState.GenesisTimestamp + uint64(s.CurrentState.Epoch)*local_spec.SlotsPerEpoch*local_spec.SlotSeconds),
+		NumSlashed:            int(s.CurrentState.NumSlashedVals),
+		NumActive:             int(s.CurrentState.NumActiveVals),
+		NumExit:               int(s.CurrentState.NumExitedVals),
+		NumInActivation:       int(s.CurrentState.NumQueuedVals),
+	}
 }
