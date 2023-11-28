@@ -26,6 +26,9 @@ type AgnosticState struct {
 	PrevAttestations        []*phase0.PendingAttestation      // array of attestations (currently only for Phase0)
 	NumAttestingVals        uint                              // number of validators that attested in the last epoch
 	NumActiveVals           uint                              // number of active validators in the epoch
+	NumExitedVals           uint                              // number of exited validators in the epoch
+	NumSlashedVals          uint                              // number of slashed validators in the epoch
+	NumQueuedVals           uint                              // number of validators in the queue
 	ValAttestationInclusion map[phase0.ValidatorIndex]ValVote // one map per validator including which slots it had to attest and when it was included
 	AttestedValsPerSlot     map[phase0.Slot][]uint64          // for each slot in the epoch, how many vals attested
 	Epoch                   phase0.Epoch                      // Epoch of the state
@@ -79,7 +82,7 @@ func (p *AgnosticState) Setup() error {
 	for i := range p.CorrectFlags {
 		p.CorrectFlags[i] = make([]uint, arrayLen)
 	}
-
+	p.GetValsStateNums()
 	p.TotalActiveBalance = p.GetTotalActiveEffBalance()
 	p.TotalActiveRealBalance = p.GetTotalActiveRealBalance()
 	p.TrackMissingBlocks()
@@ -128,20 +131,24 @@ func (p AgnosticState) Balance(valIdx phase0.ValidatorIndex) (phase0.Gwei, error
 	return balance, nil
 }
 
-// Edit NumActiveVals
 func (p *AgnosticState) GetTotalActiveEffBalance() phase0.Gwei {
 
 	val_array := make([]phase0.Gwei, len(p.Validators))
-	p.NumActiveVals = 0 // any time we calculate total effective balance, the number of active vals is refreshed and recalculated
 	for idx := range val_array {
 		if IsActive(*p.Validators[idx], phase0.Epoch(p.Epoch)) {
 			val_array[idx] += 1
-			p.NumActiveVals++
 		}
-
 	}
 
 	return p.ValsEffectiveBalance(val_array)
+}
+
+func (p AgnosticState) GetValsStateNums() {
+	result := p.GetValsPerStatus()
+	p.NumActiveVals = uint(len(result[ACTIVE_STATUS]))
+	p.NumExitedVals = uint(len(result[EXIT_STATUS]))
+	p.NumSlashedVals = uint(len(result[SLASHED_STATUS]))
+	p.NumQueuedVals = uint(len(result[QUEUE_STATUS]))
 }
 
 // Not effective balance, but balance
@@ -216,6 +223,21 @@ func (p AgnosticState) GetActiveVals() []uint64 {
 		}
 
 	}
+	return result
+}
+
+func (p AgnosticState) GetValsPerStatus() [][]uint64 {
+	result := make([][]uint64, NUMBER_OF_STATUS)
+
+	for i := range result {
+		result[i] = make([]uint64, 0)
+	}
+
+	for i := range p.Validators {
+		status := p.GetValStatus(phase0.ValidatorIndex(i))
+		result[status] = append(result[status], uint64(i))
+	}
+
 	return result
 }
 
