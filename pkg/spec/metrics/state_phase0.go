@@ -39,7 +39,7 @@ func (p *Phase0Metrics) CalculateAttestingVals() {
 		committeeIndex := item.Data.Index // committee in the attested slot
 		inclusionSlot := slot + item.InclusionDelay
 
-		validatorIDs := p.baseMetrics.PrevState.EpochStructs.GetValList(uint64(slot), uint64(committeeIndex)) // Beacon Committee
+		validatorIDs := p.baseMetrics.PrevState.EpochStructs.GetValList(slot, committeeIndex) // Beacon Committee
 
 		attestingIndices := item.AggregationBits.BitIndices() // we only get the 1s, meaning the validator voted
 
