@@ -38,8 +38,9 @@ func (p AltairMetrics) GetMetricsBase() StateMetricsBase {
 }
 
 func (p *AltairMetrics) ProcessSlashings() {
-	slashedIdxs := make([]phase0.ValidatorIndex, 0)
+
 	for _, block := range p.GetMetricsBase().NextState.Blocks {
+		slashedIdxs := make([]phase0.ValidatorIndex, 0)
 		whistleBlowerIdx := block.ProposerIndex // spec always contemplates whistleblower to be the block proposer
 		whistleBlowerReward := phase0.Gwei(0)
 		proposerReward := phase0.Gwei(0)
@@ -53,11 +54,10 @@ func (p *AltairMetrics) ProcessSlashings() {
 		for _, idx := range slashedIdxs {
 			slashedEffBalance := p.baseMetrics.NextState.Validators[idx].EffectiveBalance
 			whistleBlowerReward += slashedEffBalance / spec.WhistleBlowerRewardQuotient
-			proposerReward += whistleBlowerReward / spec.ProposerRewardQuotient
+			proposerReward += whistleBlowerReward * spec.ProposerWeight / spec.WeightDenominator
 		}
-
-		p.baseMetrics.SlashingRewards[block.ProposerIndex] = proposerReward
-		p.baseMetrics.SlashingRewards[whistleBlowerIdx] = whistleBlowerReward
+		p.baseMetrics.SlashingRewards[block.ProposerIndex] += proposerReward
+		p.baseMetrics.SlashingRewards[whistleBlowerIdx] += whistleBlowerReward - proposerReward
 	}
 }
 
