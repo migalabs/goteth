@@ -292,3 +292,33 @@ func (p AltairMetrics) GetBaseRewardPerInc(totalEffectiveBalance phase0.Gwei) ph
 
 	return baseReward
 }
+
+func (p AltairMetrics) GetParticipationFlags(attestation phase0.Attestation, includedInBlock spec.AgnosticBlock) [3]bool {
+	var result [3]bool
+
+	justifiedCheckpoint, err := p.GetJustifiedRootfromSlot(attestation.Data.Slot)
+	if err != nil {
+		log.Fatalf("error getting justified checkpoint: %s", err)
+	}
+
+	inclusionDelay := int(includedInBlock.Slot - attestation.Data.Slot)
+
+	targetRoot := p.baseMetrics.NextState.GetBlockRoot(attestation.Data.Target.Epoch)
+	headRoot := p.baseMetrics.NextState.GetBlockRootAtSlot(attestation.Data.Slot)
+
+	matchingSource := attestation.Data.Source.Root == justifiedCheckpoint
+	matchingTarget := matchingSource && targetRoot == attestation.Data.Target.Root
+	matchingHead := matchingTarget && attestation.Data.BeaconBlockRoot == headRoot
+
+	if matchingSource && (inclusionDelay <= int(math.Sqrt(local_spec.SlotsPerEpoch))) {
+		result[0] = true
+	}
+	if matchingTarget && (inclusionDelay <= local_spec.SlotsPerEpoch) {
+		result[1] = true
+	}
+	if matchingHead && (inclusionDelay <= local_spec.MinInclusionDelay) {
+		result[2] = true
+	}
+
+	return result
+}
