@@ -14,3 +14,7 @@ ADD COLUMN f_num_exit INTEGER DEFAULT 0;
 
 ALTER TABLE t_epoch_metrics_summary
 ADD COLUMN f_num_in_activation INTEGER DEFAULT 0;
+
+UPDATE t_epoch_metrics_summary
+SET f_num_active = f_num_vals,
+    f_num_vals = 0;
