@@ -15,6 +15,7 @@ const (
 	SlotSeconds                 = 12
 	EpochSlots                  = 32
 	WhistleBlowerRewardQuotient = 512
+	MinInclusionDelay           = 1
 )
 
 /*

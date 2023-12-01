@@ -12,33 +12,34 @@ import (
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type AgnosticState struct {
-	Version                 spec.DataVersion
-	StateRoot               phase0.Root
-	Balances                []phase0.Gwei                     // balance of each validator
-	Validators              []*phase0.Validator               // list of validators
-	TotalActiveBalance      phase0.Gwei                       // effective balance
-	TotalActiveRealBalance  phase0.Gwei                       // real balance
-	AttestingBalance        []phase0.Gwei                     // one attesting balance per flag (of the previous epoch attestations)
-	MaxAttestingBalance     phase0.Gwei                       // the effective balance of validators that did attest in any manner
-	EpochStructs            EpochDuties                       // structs about beacon committees, proposers and attestation
-	CorrectFlags            [][]uint                          // one aray per flag
-	AttestingVals           []bool                            // the number of validators that did attest in the last epoch
-	PrevAttestations        []*phase0.PendingAttestation      // array of attestations (currently only for Phase0)
-	NumAttestingVals        uint                              // number of validators that attested in the last epoch
-	NumActiveVals           uint                              // number of active validators in the epoch
-	NumExitedVals           uint                              // number of exited validators in the epoch
-	NumSlashedVals          uint                              // number of slashed validators in the epoch
-	NumQueuedVals           uint                              // number of validators in the queue
-	ValAttestationInclusion map[phase0.ValidatorIndex]ValVote // one map per validator including which slots it had to attest and when it was included
-	AttestedValsPerSlot     map[phase0.Slot][]uint64          // for each slot in the epoch, how many vals attested
-	Epoch                   phase0.Epoch                      // Epoch of the state
-	Slot                    phase0.Slot                       // Slot of the state
-	BlockRoots              []phase0.Root                     // array of block roots at this point (8192)
-	MissedBlocks            []phase0.Slot                     // blocks missed in the epoch until this point
-	SyncCommittee           altair.SyncCommittee              // list of pubkeys in the current sync committe
-	Blocks                  []AgnosticBlock                   // list of blocks in the epoch
-	Withdrawals             []phase0.Gwei                     // one position per validator
-	GenesisTimestamp        uint64                            // genesis timestamp
+	Version                    spec.DataVersion
+	StateRoot                  phase0.Root
+	Balances                   []phase0.Gwei                     // balance of each validator
+	Validators                 []*phase0.Validator               // list of validators
+	TotalActiveBalance         phase0.Gwei                       // effective balance
+	TotalActiveRealBalance     phase0.Gwei                       // real balance
+	AttestingBalance           []phase0.Gwei                     // one attesting balance per flag (of the previous epoch attestations)
+	MaxAttestingBalance        phase0.Gwei                       // the effective balance of validators that did attest in any manner
+	EpochStructs               EpochDuties                       // structs about beacon committees, proposers and attestation
+	CorrectFlags               [][]uint                          // one aray per flag
+	AttestingVals              []bool                            // the number of validators that did attest in the last epoch
+	PrevAttestations           []*phase0.PendingAttestation      // array of attestations (currently only for Phase0)
+	NumAttestingVals           uint                              // number of validators that attested in the last epoch
+	NumActiveVals              uint                              // number of active validators in the epoch
+	NumExitedVals              uint                              // number of exited validators in the epoch
+	NumSlashedVals             uint                              // number of slashed validators in the epoch
+	NumQueuedVals              uint                              // number of validators in the queue
+	ValAttestationInclusion    map[phase0.ValidatorIndex]ValVote // one map per validator including which slots it had to attest and when it was included
+	AttestedValsPerSlot        map[phase0.Slot][]uint64          // for each slot in the epoch, how many vals attested
+	Epoch                      phase0.Epoch                      // Epoch of the state
+	Slot                       phase0.Slot                       // Slot of the state
+	BlockRoots                 []phase0.Root                     // array of block roots at this point (8192)
+	MissedBlocks               []phase0.Slot                     // blocks missed in the epoch until this point
+	SyncCommittee              altair.SyncCommittee              // list of pubkeys in the current sync committe
+	Blocks                     []AgnosticBlock                   // list of blocks in the epoch
+	Withdrawals                []phase0.Gwei                     // one position per validator
+	GenesisTimestamp           uint64                            // genesis timestamp
+	CurrentJustifiedCheckpoint phase0.Checkpoint                 // the latest justified checkpoint
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -306,6 +307,20 @@ func (p AgnosticState) GetValStatus(valIdx phase0.ValidatorIndex) ValidatorStatu
 
 }
 
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#get_block_root
+func (p AgnosticState) GetBlockRoot(epoch phase0.Epoch) phase0.Root {
+
+	firstSlotInEpoch := phase0.Slot(epoch * SlotsPerEpoch)
+
+	return p.GetBlockRootAtSlot(firstSlotInEpoch)
+}
+
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#get_block_root_at_slot
+func (p AgnosticState) GetBlockRootAtSlot(slot phase0.Slot) phase0.Root {
+
+	return p.BlockRoots[slot%SlotsPerHistoricalRoot]
+}
+
 // This Wrapper is meant to include all necessary data from the Phase0 Fork
 func NewPhase0State(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
 
@@ -316,15 +331,17 @@ func NewPhase0State(bstate spec.VersionedBeaconState, duties EpochDuties) Agnost
 	}
 
 	phase0Obj := AgnosticState{
-		Version:          bstate.Version,
-		Balances:         balances,
-		Validators:       bstate.Phase0.Validators,
-		EpochStructs:     duties,
-		Epoch:            phase0.Epoch(bstate.Phase0.Slot / SlotsPerEpoch),
-		Slot:             phase0.Slot(bstate.Phase0.Slot),
-		BlockRoots:       bstate.Phase0.BlockRoots,
-		PrevAttestations: bstate.Phase0.PreviousEpochAttestations,
-		GenesisTimestamp: bstate.Phase0.GenesisTime,
+
+		Version:                    bstate.Version,
+		Balances:                   balances,
+		Validators:                 bstate.Phase0.Validators,
+		EpochStructs:               duties,
+		Epoch:                      phase0.Epoch(bstate.Phase0.Slot / SlotsPerEpoch),
+		Slot:                       phase0.Slot(bstate.Phase0.Slot),
+		BlockRoots:                 bstate.Phase0.BlockRoots,
+		PrevAttestations:           bstate.Phase0.PreviousEpochAttestations,
+		GenesisTimestamp:           bstate.Phase0.GenesisTime,
+		CurrentJustifiedCheckpoint: *bstate.Phase0.CurrentJustifiedCheckpoint,
 	}
 
 	phase0Obj.Setup()
@@ -337,15 +354,16 @@ func NewPhase0State(bstate spec.VersionedBeaconState, duties EpochDuties) Agnost
 func NewAltairState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
 
 	altairObj := AgnosticState{
-		Version:          bstate.Version,
-		Balances:         bstate.Altair.Balances,
-		Validators:       bstate.Altair.Validators,
-		EpochStructs:     duties,
-		Epoch:            phase0.Epoch(bstate.Altair.Slot / SlotsPerEpoch),
-		Slot:             bstate.Altair.Slot,
-		BlockRoots:       bstate.Altair.BlockRoots,
-		SyncCommittee:    *bstate.Altair.CurrentSyncCommittee,
-		GenesisTimestamp: bstate.Altair.GenesisTime,
+		Version:                    bstate.Version,
+		Balances:                   bstate.Altair.Balances,
+		Validators:                 bstate.Altair.Validators,
+		EpochStructs:               duties,
+		Epoch:                      phase0.Epoch(bstate.Altair.Slot / SlotsPerEpoch),
+		Slot:                       bstate.Altair.Slot,
+		BlockRoots:                 bstate.Altair.BlockRoots,
+		SyncCommittee:              *bstate.Altair.CurrentSyncCommittee,
+		GenesisTimestamp:           bstate.Altair.GenesisTime,
+		CurrentJustifiedCheckpoint: *bstate.Altair.CurrentJustifiedCheckpoint,
 	}
 
 	altairObj.Setup()
@@ -393,15 +411,16 @@ func ProcessAltairAttestations(customState *AgnosticState, participation []altai
 func NewBellatrixState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
 
 	bellatrixObj := AgnosticState{
-		Version:          bstate.Version,
-		Balances:         bstate.Bellatrix.Balances,
-		Validators:       bstate.Bellatrix.Validators,
-		EpochStructs:     duties,
-		Epoch:            phase0.Epoch(bstate.Bellatrix.Slot / SlotsPerEpoch),
-		Slot:             bstate.Bellatrix.Slot,
-		BlockRoots:       bstate.Bellatrix.BlockRoots,
-		SyncCommittee:    *bstate.Bellatrix.CurrentSyncCommittee,
-		GenesisTimestamp: bstate.Bellatrix.GenesisTime,
+		Version:                    bstate.Version,
+		Balances:                   bstate.Bellatrix.Balances,
+		Validators:                 bstate.Bellatrix.Validators,
+		EpochStructs:               duties,
+		Epoch:                      phase0.Epoch(bstate.Bellatrix.Slot / SlotsPerEpoch),
+		Slot:                       bstate.Bellatrix.Slot,
+		BlockRoots:                 bstate.Bellatrix.BlockRoots,
+		SyncCommittee:              *bstate.Bellatrix.CurrentSyncCommittee,
+		GenesisTimestamp:           bstate.Bellatrix.GenesisTime,
+		CurrentJustifiedCheckpoint: *bstate.Bellatrix.CurrentJustifiedCheckpoint,
 	}
 
 	bellatrixObj.Setup()
@@ -415,15 +434,16 @@ func NewBellatrixState(bstate spec.VersionedBeaconState, duties EpochDuties) Agn
 func NewCapellaState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
 
 	capellaObj := AgnosticState{
-		Version:          bstate.Version,
-		Balances:         bstate.Capella.Balances,
-		Validators:       bstate.Capella.Validators,
-		EpochStructs:     duties,
-		Epoch:            phase0.Epoch(bstate.Capella.Slot / SlotsPerEpoch),
-		Slot:             bstate.Capella.Slot,
-		BlockRoots:       bstate.Capella.BlockRoots,
-		SyncCommittee:    *bstate.Capella.CurrentSyncCommittee,
-		GenesisTimestamp: bstate.Capella.GenesisTime,
+		Version:                    bstate.Version,
+		Balances:                   bstate.Capella.Balances,
+		Validators:                 bstate.Capella.Validators,
+		EpochStructs:               duties,
+		Epoch:                      phase0.Epoch(bstate.Capella.Slot / SlotsPerEpoch),
+		Slot:                       bstate.Capella.Slot,
+		BlockRoots:                 bstate.Capella.BlockRoots,
+		SyncCommittee:              *bstate.Capella.CurrentSyncCommittee,
+		GenesisTimestamp:           bstate.Capella.GenesisTime,
+		CurrentJustifiedCheckpoint: *bstate.Capella.CurrentJustifiedCheckpoint,
 	}
 
 	capellaObj.Setup()
@@ -437,15 +457,16 @@ func NewCapellaState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnos
 func NewDenebState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
 
 	denebObj := AgnosticState{
-		Version:          bstate.Version,
-		Balances:         bstate.Deneb.Balances,
-		Validators:       bstate.Deneb.Validators,
-		EpochStructs:     duties,
-		Epoch:            phase0.Epoch(bstate.Deneb.Slot / SlotsPerEpoch),
-		Slot:             bstate.Deneb.Slot,
-		BlockRoots:       bstate.Deneb.BlockRoots,
-		SyncCommittee:    *bstate.Deneb.CurrentSyncCommittee,
-		GenesisTimestamp: bstate.Deneb.GenesisTime,
+		Version:                    bstate.Version,
+		Balances:                   bstate.Deneb.Balances,
+		Validators:                 bstate.Deneb.Validators,
+		EpochStructs:               duties,
+		Epoch:                      phase0.Epoch(bstate.Deneb.Slot / SlotsPerEpoch),
+		Slot:                       bstate.Deneb.Slot,
+		BlockRoots:                 bstate.Deneb.BlockRoots,
+		SyncCommittee:              *bstate.Deneb.CurrentSyncCommittee,
+		GenesisTimestamp:           bstate.Deneb.GenesisTime,
+		CurrentJustifiedCheckpoint: *bstate.Deneb.CurrentJustifiedCheckpoint,
 	}
 
 	denebObj.Setup()
