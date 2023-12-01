@@ -112,6 +112,8 @@ func (p AltairMetrics) ProcessAttestations() {
 				continue
 			}
 
+			participationFlags := p.GetParticipationFlags(*attestation, block)
+
 			committeIndex := attestation.Data.Index
 
 			attestingIndices := attestation.AggregationBits.BitIndices()
@@ -125,26 +127,21 @@ func (p AltairMetrics) ProcessAttestations() {
 					epochParticipation[valIdx] = make([]bool, len(local_spec.ParticipatingFlagsWeight))
 				}
 
-				targetBlock, err := p.GetTargetBlockfromSlot(slot)
-				if err != nil {
-					log.Fatalf("error getting target block: %s", err)
-				}
-
 				// we are only counting rewards at NextState
 				attesterBaseReward := p.GetBaseReward(valIdx, p.baseMetrics.NextState.Validators[valIdx].EffectiveBalance, p.baseMetrics.NextState.TotalActiveBalance)
 
 				new := false
-				if spec.IsCorrectSource(*attestation, block) && !epochParticipation[valIdx][0] {
+				if participationFlags[0] && !epochParticipation[valIdx][0] { // source
 					attReward += attesterBaseReward * spec.TimelySourceWeight
 					epochParticipation[valIdx][0] = true
 					new = true
 				}
-				if spec.IsCorrectTarget(*attestation, targetBlock) && !epochParticipation[valIdx][1] {
+				if participationFlags[1] && !epochParticipation[valIdx][1] { // target
 					attReward += attesterBaseReward * spec.TimelyTargetWeight
 					epochParticipation[valIdx][1] = true
 					new = true
 				}
-				if spec.IsCorrectHead(*attestation, block) && !epochParticipation[valIdx][2] {
+				if participationFlags[2] && !epochParticipation[valIdx][2] { // head
 					attReward += attesterBaseReward * spec.TimelyHeadWeight
 					epochParticipation[valIdx][2] = true
 					new = true
