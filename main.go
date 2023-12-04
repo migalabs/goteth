@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	Version = "v2.0.0"
+	Version = "v2.2.0"
 	CliName = "GotEth"
 	log     = logrus.WithField(
 		"cli", "CliName",
