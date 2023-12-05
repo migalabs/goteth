@@ -1,0 +1,1 @@
+ALTER TABLE t_validator_rewards_summary DROP COLUMN IF EXISTS f_block_experimental_reward;

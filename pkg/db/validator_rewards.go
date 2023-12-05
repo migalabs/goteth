@@ -28,8 +28,9 @@ var (
 		f_missing_target,
 		f_missing_head,
 		f_status,
-		f_block_api_reward)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		f_block_api_reward,
+		f_block_experimental_reward)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 	ON CONFLICT ON CONSTRAINT t_validator_rewards_summary_pkey
 		DO NOTHING;
 	`
@@ -46,23 +47,7 @@ var (
 )
 
 func insertValidator(inputValidator spec.ValidatorRewards) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-	resultArgs = append(resultArgs, inputValidator.ValidatorIndex)
-	resultArgs = append(resultArgs, inputValidator.Epoch)
-	resultArgs = append(resultArgs, inputValidator.BalanceToEth())
-	resultArgs = append(resultArgs, inputValidator.Reward)
-	resultArgs = append(resultArgs, inputValidator.MaxReward)
-	resultArgs = append(resultArgs, inputValidator.AttestationReward)
-	resultArgs = append(resultArgs, inputValidator.SyncCommitteeReward)
-	resultArgs = append(resultArgs, inputValidator.AttSlot)
-	resultArgs = append(resultArgs, inputValidator.BaseReward)
-	resultArgs = append(resultArgs, inputValidator.InSyncCommittee)
-	resultArgs = append(resultArgs, inputValidator.MissingSource)
-	resultArgs = append(resultArgs, inputValidator.MissingTarget)
-	resultArgs = append(resultArgs, inputValidator.MissingHead)
-	resultArgs = append(resultArgs, inputValidator.Status)
-	resultArgs = append(resultArgs, inputValidator.ProposerReward)
-	return InsertValidator, resultArgs
+	return InsertValidator, inputValidator.ToArray()
 }
 
 func ValidatorOperation(inputValidator spec.ValidatorRewards) (string, []interface{}) {
@@ -98,7 +83,8 @@ func (p *PostgresDBService) CopyValRewards(rowSrc [][]interface{}) int64 {
 			"f_missing_target",
 			"f_missing_head",
 			"f_status",
-			"f_block_api_reward"},
+			"f_block_api_reward",
+			"f_block_experimental_reward"},
 		pgx.CopyFromRows(rowSrc))
 
 	if err != nil {

@@ -155,25 +155,34 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	inclusionDelayReward = baseReward - proposerReward
 
 	_, proposerSlot = p.GetMaxProposerReward(valIdx, baseReward)
-	maxReward = voteReward + inclusionDelayReward + proposerReward
+	maxReward = voteReward + inclusionDelayReward + proposerReward // this was already calculated, keep using the manual reward
+
+	proposerApiReward := phase0.Gwei(0)
+
+	for _, block := range p.baseMetrics.NextState.Blocks {
+		if block.Proposed && block.ProposerIndex == valIdx {
+			proposerApiReward = phase0.Gwei(block.Reward.Data.Total)
+		}
+	}
 
 	result := spec.ValidatorRewards{
-		ValidatorIndex:      valIdx,
-		Epoch:               p.baseMetrics.NextState.Epoch,
-		ValidatorBalance:    p.baseMetrics.CurrentState.Balances[valIdx],
-		Reward:              p.baseMetrics.EpochReward(valIdx),
-		MaxReward:           maxReward,
-		AttestationReward:   voteReward + inclusionDelayReward,
-		SyncCommitteeReward: 0,
-		AttSlot:             p.baseMetrics.CurrentState.EpochStructs.ValidatorAttSlot[valIdx],
-		MissingSource:       false,
-		MissingTarget:       false,
-		MissingHead:         false,
-		Status:              p.baseMetrics.NextState.GetValStatus(valIdx),
-		BaseReward:          baseReward,
-		ProposerSlot:        proposerSlot,
-		ProposerReward:      int64(proposerReward),
-		InSyncCommittee:     false,
+		ValidatorIndex:       valIdx,
+		Epoch:                p.baseMetrics.NextState.Epoch,
+		ValidatorBalance:     p.baseMetrics.CurrentState.Balances[valIdx],
+		Reward:               p.baseMetrics.EpochReward(valIdx),
+		MaxReward:            maxReward,
+		AttestationReward:    voteReward + inclusionDelayReward,
+		SyncCommitteeReward:  0,
+		AttSlot:              p.baseMetrics.CurrentState.EpochStructs.ValidatorAttSlot[valIdx],
+		MissingSource:        false,
+		MissingTarget:        false,
+		MissingHead:          false,
+		Status:               p.baseMetrics.NextState.GetValStatus(valIdx),
+		BaseReward:           baseReward,
+		ProposerSlot:         proposerSlot,
+		ProposerManualReward: int64(proposerReward),
+		ProposerApiReward:    int64(proposerApiReward),
+		InSyncCommittee:      false,
 	}
 	return result, nil
 }

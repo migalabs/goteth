@@ -239,13 +239,26 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	}
 
 	proposerReward := phase0.Gwei(0)
+	proposerApiReward := phase0.Gwei(0)
+	proposerManualReward := phase0.Gwei(0)
+
+	for _, block := range p.baseMetrics.NextState.Blocks {
+		if block.Proposed && block.ProposerIndex == valIdx {
+			proposerApiReward = phase0.Gwei(block.Reward.Data.Total)
+		}
+	}
 
 	if reward, ok := p.baseMetrics.BlockRewards[valIdx]; ok {
-		proposerReward += reward
+		proposerManualReward += reward
 	}
 
 	if reward, ok := p.baseMetrics.SlashingRewards[valIdx]; ok {
-		proposerReward += reward
+		proposerManualReward += reward
+	}
+
+	proposerReward = proposerManualReward
+	if proposerApiReward > 0 {
+		proposerReward = proposerApiReward // if API rewards, always prioritize api
 	}
 
 	maxReward := flagIndexMaxReward + syncComMaxReward + proposerReward
@@ -253,21 +266,22 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	flags := p.baseMetrics.CurrentState.MissingFlags(valIdx)
 
 	result := spec.ValidatorRewards{
-		ValidatorIndex:      valIdx,
-		Epoch:               p.baseMetrics.NextState.Epoch,
-		ValidatorBalance:    p.baseMetrics.NextState.Balances[valIdx],
-		Reward:              p.baseMetrics.EpochReward(valIdx) + int64(p.baseMetrics.NextState.Withdrawals[valIdx]),
-		MaxReward:           maxReward,
-		AttestationReward:   flagIndexMaxReward,
-		SyncCommitteeReward: syncComMaxReward,
-		AttSlot:             p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx],
-		MissingSource:       flags[0],
-		MissingTarget:       flags[1],
-		MissingHead:         flags[2],
-		Status:              p.baseMetrics.NextState.GetValStatus(valIdx),
-		BaseReward:          baseReward,
-		ProposerReward:      int64(proposerReward),
-		InSyncCommittee:     inSyncCommitte,
+		ValidatorIndex:       valIdx,
+		Epoch:                p.baseMetrics.NextState.Epoch,
+		ValidatorBalance:     p.baseMetrics.NextState.Balances[valIdx],
+		Reward:               p.baseMetrics.EpochReward(valIdx) + int64(p.baseMetrics.NextState.Withdrawals[valIdx]),
+		MaxReward:            maxReward,
+		AttestationReward:    flagIndexMaxReward,
+		SyncCommitteeReward:  syncComMaxReward,
+		AttSlot:              p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx],
+		MissingSource:        flags[0],
+		MissingTarget:        flags[1],
+		MissingHead:          flags[2],
+		Status:               p.baseMetrics.NextState.GetValStatus(valIdx),
+		BaseReward:           baseReward,
+		ProposerApiReward:    int64(proposerApiReward),
+		ProposerManualReward: int64(proposerManualReward),
+		InSyncCommittee:      inSyncCommitte,
 	}
 	return result, nil
 
