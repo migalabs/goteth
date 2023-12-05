@@ -18,10 +18,10 @@ type Epoch struct {
 	MissingTarget         int
 	MissingHead           int
 	Timestamp             int64
-	NumSlashed            int
-	NumActive             int
-	NumExit               int
-	NumInActivation       int
+	NumSlashedVals        int
+	NumActiveVals         int
+	NumExitedVals         int
+	NumInActivationVals   int
 }
 
 func (f Epoch) Type() ModelType {

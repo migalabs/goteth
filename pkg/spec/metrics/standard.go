@@ -74,9 +74,9 @@ func (s StateMetricsBase) ExportToEpoch() local_spec.Epoch {
 		MissingTarget:         int(s.NextState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
 		MissingHead:           int(s.NextState.GetMissingFlagCount(int(altair.TimelyHeadFlagIndex))),
 		Timestamp:             int64(s.CurrentState.GenesisTimestamp + uint64(s.CurrentState.Epoch)*local_spec.SlotsPerEpoch*local_spec.SlotSeconds),
-		NumSlashed:            int(s.CurrentState.NumSlashedVals),
-		NumActive:             int(s.CurrentState.NumActiveVals),
-		NumExit:               int(s.CurrentState.NumExitedVals),
-		NumInActivation:       int(s.CurrentState.NumQueuedVals),
+		NumSlashedVals:        int(s.CurrentState.NumSlashedVals),
+		NumActiveVals:         int(s.CurrentState.NumActiveVals),
+		NumExitedVals:         int(s.CurrentState.NumExitedVals),
+		NumInActivationVals:   int(s.CurrentState.NumQueuedVals),
 	}
 }
