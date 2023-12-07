@@ -27,8 +27,13 @@ var (
 		f_total_effective_balance_eth, 
 		f_missing_source, 
 		f_missing_target, 
-		f_missing_head)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		f_missing_head,
+		f_timestamp,
+		f_num_slashed_vals,
+		f_num_active_vals,
+		f_num_exited_vals,
+		f_num_in_activation_vals)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT ON CONSTRAINT PK_Epoch
 		DO 
 			UPDATE SET 
@@ -40,7 +45,12 @@ var (
 				f_total_effective_balance_eth = excluded.f_total_effective_balance_eth,
 				f_missing_source = excluded.f_missing_source,
 				f_missing_target = excluded.f_missing_target,
-				f_missing_head = excluded.f_missing_head;
+				f_missing_head = excluded.f_missing_head,
+				f_timestamp = excluded.f_timestamp,
+				f_num_slashed_vals = excluded.f_num_slashed_vals,
+				f_num_active_vals = excluded.f_num_active_vals,
+				f_num_exited_vals = excluded.f_num_exited_vals,
+				f_num_in_activation_vals = excluded.f_num_in_activation_vals;
 	`
 	SelectLastEpoch = `
 		SELECT f_epoch
@@ -67,6 +77,11 @@ func insertEpoch(inputEpoch spec.Epoch) (string, []interface{}) {
 	resultArgs = append(resultArgs, inputEpoch.MissingSource)
 	resultArgs = append(resultArgs, inputEpoch.MissingTarget)
 	resultArgs = append(resultArgs, inputEpoch.MissingHead)
+	resultArgs = append(resultArgs, inputEpoch.Timestamp)
+	resultArgs = append(resultArgs, inputEpoch.NumSlashedVals)
+	resultArgs = append(resultArgs, inputEpoch.NumActiveVals)
+	resultArgs = append(resultArgs, inputEpoch.NumExitedVals)
+	resultArgs = append(resultArgs, inputEpoch.NumInActivationVals)
 
 	return UpsertEpoch, resultArgs
 }

@@ -64,4 +64,5 @@ const (
 	ACTIVE_STATUS
 	EXIT_STATUS
 	SLASHED_STATUS
+	NUMBER_OF_STATUS // Add new status before this
 )
