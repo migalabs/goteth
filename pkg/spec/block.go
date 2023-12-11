@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/migalabs/goteth/pkg/utils"
-
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,6 +17,8 @@ import (
 type AgnosticBlock struct {
 	Slot              phase0.Slot
 	StateRoot         phase0.Root
+	Root              phase0.Root
+	ParentRoot        phase0.Root
 	ProposerIndex     phase0.ValidatorIndex
 	Graffiti          [32]byte
 	Proposed          bool
@@ -33,6 +34,7 @@ type AgnosticBlock struct {
 	SnappySize        uint32
 	CompressionTime   time.Duration
 	DecompressionTime time.Duration
+	ManualReward      phase0.Gwei
 }
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
@@ -80,8 +82,16 @@ func NewPhase0Block(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 	if err != nil {
 		logrus.Errorf("unable to compress phase0 block %d - %s", block.Phase0.Message.Slot, err.Error())
 	}
+
+	root, err := block.Root()
+	if err != nil {
+		log.Fatalf("could not read root from block %d", block.Phase0.Message.Slot)
+	}
+
 	return AgnosticBlock{
 		Slot:              block.Phase0.Message.Slot,
+		ParentRoot:        block.Phase0.Message.ParentRoot,
+		Root:              root,
 		ProposerIndex:     block.Phase0.Message.ProposerIndex,
 		Graffiti:          block.Phase0.Message.Body.Graffiti,
 		Proposed:          true,
@@ -116,8 +126,14 @@ func NewAltairBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 	if err != nil {
 		logrus.Errorf("unable to compress altair block %d - %s", block.Altair.Message.Slot, err.Error())
 	}
+	root, err := block.Root()
+	if err != nil {
+		log.Fatalf("could not read root from block %d", block.Altair.Message.Slot)
+	}
 	return AgnosticBlock{
 		Slot:              block.Altair.Message.Slot,
+		Root:              root,
+		ParentRoot:        block.Altair.Message.ParentRoot,
 		ProposerIndex:     block.Altair.Message.ProposerIndex,
 		Graffiti:          block.Altair.Message.Body.Graffiti,
 		Proposed:          true,
@@ -152,8 +168,14 @@ func NewBellatrixBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 	if err != nil {
 		logrus.Errorf("unable to compress bellatrix block %d - %s", block.Bellatrix.Message.Slot, err.Error())
 	}
+	root, err := block.Root()
+	if err != nil {
+		log.Fatalf("could not read root from block %d", block.Bellatrix.Message.Slot)
+	}
 	return AgnosticBlock{
 		Slot:              block.Bellatrix.Message.Slot,
+		Root:              root,
+		ParentRoot:        block.Bellatrix.Message.ParentRoot,
 		ProposerIndex:     block.Bellatrix.Message.ProposerIndex,
 		Graffiti:          block.Bellatrix.Message.Body.Graffiti,
 		Proposed:          true,
@@ -188,8 +210,14 @@ func NewCapellaBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 	if err != nil {
 		logrus.Errorf("unable to compress capella block %d - %s", block.Capella.Message.Slot, err.Error())
 	}
+	root, err := block.Root()
+	if err != nil {
+		log.Fatalf("could not read root from block %d", block.Capella.Message.Slot)
+	}
 	return AgnosticBlock{
 		Slot:              block.Capella.Message.Slot,
+		Root:              root,
+		ParentRoot:        block.Capella.Message.ParentRoot,
 		ProposerIndex:     block.Capella.Message.ProposerIndex,
 		Graffiti:          block.Capella.Message.Body.Graffiti,
 		Proposed:          true,
@@ -224,8 +252,14 @@ func NewDenebBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 	if err != nil {
 		logrus.Errorf("unable to compress deneb block %d - %s", block.Deneb.Message.Slot, err.Error())
 	}
+	root, err := block.Root()
+	if err != nil {
+		log.Fatalf("could not read root from block %d", block.Deneb.Message.Slot)
+	}
 	return AgnosticBlock{
 		Slot:              block.Deneb.Message.Slot,
+		Root:              root,
+		ParentRoot:        block.Deneb.Message.ParentRoot,
 		ProposerIndex:     block.Deneb.Message.ProposerIndex,
 		Graffiti:          block.Deneb.Message.Body.Graffiti,
 		Proposed:          true,

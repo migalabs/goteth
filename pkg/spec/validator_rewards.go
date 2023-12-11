@@ -5,22 +5,23 @@ import (
 )
 
 type ValidatorRewards struct {
-	ValidatorIndex      phase0.ValidatorIndex
-	Epoch               phase0.Epoch
-	ValidatorBalance    phase0.Gwei
-	Reward              int64 // it can be negative
-	MaxReward           phase0.Gwei
-	AttestationReward   phase0.Gwei
-	SyncCommitteeReward phase0.Gwei
-	BaseReward          phase0.Gwei
-	AttSlot             phase0.Slot
-	InSyncCommittee     bool
-	ProposerSlot        phase0.Slot
-	ProposerReward      int64
-	MissingSource       bool
-	MissingTarget       bool
-	MissingHead         bool
-	Status              ValidatorStatus
+	ValidatorIndex       phase0.ValidatorIndex
+	Epoch                phase0.Epoch
+	ValidatorBalance     phase0.Gwei
+	Reward               int64 // it can be negative
+	MaxReward            phase0.Gwei
+	AttestationReward    phase0.Gwei
+	SyncCommitteeReward  phase0.Gwei
+	BaseReward           phase0.Gwei
+	AttSlot              phase0.Slot
+	InSyncCommittee      bool
+	ProposerSlot         phase0.Slot
+	ProposerApiReward    int64
+	ProposerManualReward int64
+	MissingSource        bool
+	MissingTarget        bool
+	MissingHead          bool
+	Status               ValidatorStatus
 }
 
 func (f ValidatorRewards) Type() ModelType {
@@ -47,7 +48,8 @@ func (f ValidatorRewards) ToArray() []interface{} {
 		f.MissingTarget,
 		f.MissingHead,
 		f.Status,
-		f.ProposerReward,
+		f.ProposerApiReward,
+		f.ProposerManualReward,
 	}
 	return rows
 }

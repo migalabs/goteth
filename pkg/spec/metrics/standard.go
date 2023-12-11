@@ -11,9 +11,11 @@ import (
 )
 
 type StateMetricsBase struct {
-	PrevState    *local_spec.AgnosticState
-	CurrentState *local_spec.AgnosticState
-	NextState    *local_spec.AgnosticState
+	PrevState       *local_spec.AgnosticState
+	CurrentState    *local_spec.AgnosticState
+	NextState       *local_spec.AgnosticState
+	SlashingRewards map[phase0.ValidatorIndex]phase0.Gwei // for now just proposer as per spec
+	BlockRewards    map[phase0.ValidatorIndex]phase0.Gwei // from including attestation and sync aggregates
 }
 
 func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {

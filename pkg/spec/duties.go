@@ -13,9 +13,9 @@ type EpochDuties struct {
 	ValidatorAttSlot map[phase0.ValidatorIndex]phase0.Slot // for each validator we have which slot it had to attest to
 }
 
-func (p EpochDuties) GetValList(slot uint64, committeeIndex uint64) []phase0.ValidatorIndex {
+func (p EpochDuties) GetValList(slot phase0.Slot, committeeIndex phase0.CommitteeIndex) []phase0.ValidatorIndex {
 	for _, committee := range p.BeaconCommittees {
-		if (uint64(committee.Slot) == slot) && (uint64(committee.Index) == committeeIndex) {
+		if (committee.Slot == slot) && (committee.Index == committeeIndex) {
 			return committee.Validators
 		}
 	}

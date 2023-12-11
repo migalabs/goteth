@@ -35,6 +35,16 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
         """
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
+        
+    def test_experimental_block_reward(self):
+        """ We are manually calculating the block_rewards and we want to make sure it matches the block_api_reward"""
+        sql_query = """
+        select *
+		from t_validator_rewards_summary
+		where f_block_api_reward > 0 and f_block_api_reward != f_block_experimental_reward
+        """
+        df = self.db.get_df_from_sql_query(sql_query)
+        self.assertNoRows(df)
 
 
 if __name__ == '__main__':
