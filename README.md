@@ -35,6 +35,11 @@ make install
 - api_rewards (EXPERIMENTAL): block rewards are hard to calculate, but they can be downloaded from the Beacon API. However, keep in mind this takes a few seconds per block when not at the head. Without this, reward cannot be compared to max_reward when a validator is a proposer (32/900K validators in an epoch). It depends on the Lighthouse API and we have registered some cases where the block reward was not returned.
 - transactions: requests transaction receipts from the execution layer (activates block metrics)
 
+### Download mode
+
+- Historical: this mode loops over slots between `initSlot` and `finalSlot`, which are configurable. Once all slots have been analyzed, the tool finishes the execution.
+- Finalized: `initSlot` and `finalSlot` are ignored. The tool starts the historical mode from the database last slot to the current head (beacon node) and then follows the chain head. To do this, the tool subscribes to `head` events. See [here](https://ethereum.github.io/beacon-APIs/#/Events/eventstream) for more information. 
+
 ### Running the tool
 To execute the tool, you can simply modify the `.env` file with your own configuration.
 
