@@ -199,6 +199,10 @@ func (p *PostgresDBService) runWriters() {
 						q, args := InsertCheckpoint(task.(CheckpointType))
 						persis.query = q
 						persis.values = append(persis.values, args...)
+					case spec.HeadEventModel:
+						q, args := HeadEventOperation(task.(HeadEventType))
+						persis.query = q
+						persis.values = append(persis.values, args...)
 					default:
 						err = fmt.Errorf("could not figure out the type of write task")
 						wlog.Errorf("could not process incoming task, %s", err)
