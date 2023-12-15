@@ -10,7 +10,7 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
         SELECT *
         FROM t_head_events
         JOIN t_block_metrics ON t_head_events.f_slot = t_block_metrics.f_slot
-        WHERE t_head_events.f_arrival_timestamp < t_block_metrics.f_timestamp;
+        WHERE t_head_events.f_arrival_timestamp / 1000 < t_block_metrics.f_timestamp;
 
         """
         df = self.db.get_df_from_sql_query(sql_query)
