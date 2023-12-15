@@ -16,6 +16,7 @@ type StateMetricsBase struct {
 	NextState       *local_spec.AgnosticState
 	SlashingRewards map[phase0.ValidatorIndex]phase0.Gwei // for now just proposer as per spec
 	BlockRewards    map[phase0.ValidatorIndex]phase0.Gwei // from including attestation and sync aggregates
+	InclusionDelays map[phase0.ValidatorIndex]int         // from attestation inclusion delay
 }
 
 func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
