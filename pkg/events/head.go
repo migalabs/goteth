@@ -1,6 +1,10 @@
 package events
 
 import (
+	"time"
+
+	"github.com/migalabs/goteth/pkg/db"
+
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
@@ -16,6 +20,7 @@ func (e Events) SubscribeToHeadEvents() {
 }
 
 func (e *Events) HandleHeadEvent(event *api.Event) {
+	timestamp := time.Now().UnixNano() / 1000000
 	log := log.WithField("routine", "head-event")
 	if event.Data == nil {
 		return
@@ -29,7 +34,7 @@ func (e *Events) HandleHeadEvent(event *api.Event) {
 		(int(headEpoch+1)*spec.EpochSlots)-int(data.Slot))
 
 	select { // only notify if we can
-	case e.HeadChan <- *data:
+	case e.HeadChan <- db.HeadEventTypeFromHeadEvent(*data, timestamp):
 	default:
 	}
 

@@ -66,13 +66,11 @@ func (s *ChainAnalyzer) runHead() {
 	for {
 		select {
 
-		case headEvent := <-s.eventsObj.HeadChan: // wait for new head event
+		case event := <-s.eventsObj.HeadChan: // wait for new head event
 			// make the block query
-			log.Tracef("received new head signal: %d", headEvent.Slot)
-			timestamp := time.Now().Unix()
-
-			s.dbClient.Persist(db.HeadEventTypeFromHeadEvent(headEvent, timestamp))
-			for nextSlotDownload <= headEvent.Slot {
+			log.Tracef("received new head signal: %d", event.HeadEvent.Slot)
+			s.dbClient.Persist(event)
+			for nextSlotDownload <= event.HeadEvent.Slot {
 
 				if s.processerBook.NumFreePages() > 0 {
 					s.downloadTaskChan <- nextSlotDownload
