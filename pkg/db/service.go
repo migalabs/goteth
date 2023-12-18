@@ -34,6 +34,7 @@ type PostgresDBService struct {
 	psqlPool      *pgxpool.Pool
 	wgDBWriters   sync.WaitGroup
 	writerBatches []*QueryBatch
+	metrics       map[string]PersistMetrics
 
 	writeChan chan Model // Receive tasks to persist
 	stop      bool
@@ -46,6 +47,7 @@ func New(ctx context.Context, url string, options ...PostgresDBServiceOption) (*
 		ctx:           ctx,
 		connectionUrl: url,
 		workerNum:     1,
+		metrics:       make(map[string]PersistMetrics),
 	}
 
 	for _, o := range options {
@@ -270,4 +272,10 @@ func (p *PostgresDBService) GetBatcherStats() []string {
 			batcher.metrics.NumQueries))
 	}
 	return result
+}
+
+type PersistMetrics struct {
+	PersistTime   time.Duration // accumulated time this batch has been persisting queries
+	Rows          uint64        // number of rows executed
+	RatePersisted float64       // rows per second persisted
 }

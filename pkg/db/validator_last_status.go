@@ -71,6 +71,12 @@ func (p *PostgresDBService) CopyValLastStatus(rowSrc [][]interface{}) int64 {
 
 	if err != nil {
 		wlog.Fatalf("could not copy val_status rows into db: %s", err.Error())
+	} else {
+		metrics := PersistMetrics{}
+		metrics.Rows = uint64(count)
+		metrics.PersistTime = time.Since(startTime)
+		metrics.RatePersisted = float64(count) / float64(time.Since(startTime).Seconds())
+		p.metrics["val_status"] = metrics
 	}
 
 	wlog.Infof("persisted val_status %d rows in %f seconds", count, time.Since(startTime).Seconds())

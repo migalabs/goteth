@@ -89,6 +89,12 @@ func (p *PostgresDBService) CopyValRewards(rowSrc [][]interface{}) int64 {
 
 	if err != nil {
 		wlog.Warnf("could not copy val_rewards rows into db, they probably already exist in the given epoch: %s", err.Error())
+	} else {
+		metrics := PersistMetrics{}
+		metrics.Rows = uint64(count)
+		metrics.PersistTime = time.Since(startTime)
+		metrics.RatePersisted = float64(count) / float64(time.Since(startTime).Seconds())
+		p.metrics["val_rewards"] = metrics
 	}
 
 	wlog.Infof("persisted val_rewards %d rows in %f seconds", count, time.Since(startTime).Seconds())
