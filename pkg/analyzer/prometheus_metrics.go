@@ -54,7 +54,7 @@ func (c *ChainAnalyzer) lastProcessedEpochMetric() *metrics.IndvMetrics {
 		return nil
 	}
 	updateFn := func() (interface{}, error) {
-		epoch, err := c.dbClient.ObtainLastEpoch()
+		epoch, err := c.dbClient.RetrieveLastEpoch()
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +78,7 @@ func (c *ChainAnalyzer) lastProcessedSlotMetric() *metrics.IndvMetrics {
 		return nil
 	}
 	updateFn := func() (interface{}, error) {
-		slot, err := c.dbClient.ObtainLastSlot()
+		slot, err := c.dbClient.RetrieveLastSlot()
 		if err != nil {
 			return nil, err
 		}

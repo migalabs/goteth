@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/migalabs/goteth/pkg/clientapi"
-	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/sirupsen/logrus"
 )
@@ -25,20 +23,6 @@ var (
 		"module", "analyzer",
 	)
 )
-
-func InitGenesis(dbClient *db.PostgresDBService, apiClient *clientapi.APIClient) {
-	// Get genesis from the API
-	apiGenesis := apiClient.RequestGenesis()
-
-	// Insert into db, this does nothing if there was a genesis before
-	dbClient.InsertGenesis(apiGenesis.Unix())
-
-	dbGenesis := dbClient.ObtainGenesis()
-
-	if apiGenesis.Unix() != dbGenesis {
-		log.Panicf("the genesis time in the database does not match the API, is the beacon node in the correct network?")
-	}
-}
 
 // --- Ethereum Type Converteres ----
 

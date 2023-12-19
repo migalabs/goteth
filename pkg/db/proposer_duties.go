@@ -1,58 +1,94 @@
 package db
 
+import (
+	"fmt"
+
+	"github.com/ClickHouse/ch-go/proto"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/migalabs/goteth/pkg/spec"
+)
+
 /*
 
 This file together with the model, has all the needed methods to interact with the epoch_metrics table of the database
 
 */
 
-import (
-	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/migalabs/goteth/pkg/spec"
-)
-
-// Postgres intregration variables
+// // Postgres intregration variables
 var (
-	InsertProposerDuty = `
-	INSERT INTO t_proposer_duties (
-		f_val_idx, 
+	proposerDutiesTable       = "t_proposer_duties"
+	insertProposerDutiesQuery = `
+	INSERT INTO %s (
+		f_val_idx,
 		f_proposer_slot,
 		f_proposed)
-		VALUES ($1, $2, $3)
-		ON CONFLICT DO NOTHING;
+		VALUES
 	`
 	// if there is a confilct the line already exists
 
-	DropProposerDutiesQuery = `
-	DELETE FROM t_proposer_duties
+	deleteProposerDutiesQuery = `
+	DELETE FROM %s
 	WHERE f_proposer_slot/32 = $1;
 `
 )
 
-func insertProposerDuty(inputDuty spec.ProposerDuty) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-	resultArgs = append(resultArgs, inputDuty.ValIdx)
-	resultArgs = append(resultArgs, inputDuty.ProposerSlot)
-	resultArgs = append(resultArgs, inputDuty.Proposed)
-
-	return InsertProposerDuty, resultArgs
+type InsertProposerDuties struct {
+	duties []spec.ProposerDuty
 }
 
-func ProposerDutyOperation(inputDuty spec.ProposerDuty) (string, []interface{}) {
-
-	q, args := insertProposerDuty(inputDuty)
-	return q, args
-
+func (d InsertProposerDuties) Table() string {
+	return proposerDutiesTable
 }
 
-type ProposerDutiesDropType phase0.Epoch
-
-func (s ProposerDutiesDropType) Type() spec.ModelType {
-	return spec.ProposerDutyDropModel
+func (d *InsertProposerDuties) Append(newDuty spec.ProposerDuty) {
+	d.duties = append(d.duties, newDuty)
 }
 
-func DropProposerDuties(epoch ProposerDutiesDropType) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-	resultArgs = append(resultArgs, epoch)
-	return DropProposerDutiesQuery, resultArgs
+func (d InsertProposerDuties) Columns() int {
+	return len(d.Input().Columns())
+}
+
+func (d InsertProposerDuties) Rows() int {
+	return len(d.duties)
+}
+
+func (d InsertProposerDuties) Query() string {
+	return fmt.Sprintf(insertProposerDutiesQuery, proposerDutiesTable)
+}
+func (d InsertProposerDuties) Input() proto.Input {
+	// one object per column
+	var (
+		f_val_idx       proto.ColUInt64
+		f_proposer_slot proto.ColUInt64
+		f_proposed      proto.ColBool
+	)
+
+	for _, duty := range d.duties {
+		f_val_idx.Append(uint64(duty.ValIdx))
+		f_proposer_slot.Append(uint64(duty.ProposerSlot))
+		f_proposed.Append(duty.Proposed)
+	}
+
+	return proto.Input{
+
+		{Name: "f_val_idx", Data: f_val_idx},
+		{Name: "f_proposer_slot", Data: f_proposer_slot},
+		{Name: "f_proposed", Data: f_proposed},
+	}
+}
+
+type DeleteProposerDuties struct {
+	epoch phase0.Epoch
+}
+
+func (d DeleteProposerDuties) Query() string {
+	return fmt.Sprintf(deleteProposerDutiesQuery, proposerDutiesTable)
+}
+
+func (d DeleteProposerDuties) Table() string {
+	return proposerDutiesTable
+}
+
+func (d DeleteProposerDuties) Args() []any {
+	return []any{d.epoch}
 }

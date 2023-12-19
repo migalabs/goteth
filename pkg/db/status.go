@@ -12,8 +12,5 @@ var (
 	INSERT INTO t_status (
 		f_id, 
 		f_status)
-		VALUES ($1, $2)
-		ON CONFLICT ON CONSTRAINT t_status_pkey
-		DO NOTHING
-	`
+		VALUES`
 )

@@ -49,80 +49,93 @@ var (
 	)
 )
 
-func (r *PostgresDBService) GetPrometheusMetrics() *metrics.MetricsModule {
+func (r *DBService) GetPrometheusMetrics() *metrics.MetricsModule {
 	metricsMod := metrics.NewMetricsModule(
 		modName,
 		"metrics about the database",
 	)
 	// compose all the metrics
-	metricsMod.AddIndvMetric(r.getWriteChanLength())
-	metricsMod.AddIndvMetric(r.getBatcherMetrics())
-	metricsMod.AddIndvMetric(r.getPersistMetrics())
-
+	metricsMod.AddIndvMetric(r.getPersistRows())
+	metricsMod.AddIndvMetric(r.getPersistTime())
+	metricsMod.AddIndvMetric(r.getPersistRate())
 	return metricsMod
 }
 
-func (r *PostgresDBService) getWriteChanLength() *metrics.IndvMetrics {
-	initFn := func() error {
-		return nil
-	}
-	updateFn := func() (interface{}, error) {
-		chanLen := len(r.writeChan)
-		return chanLen, nil
-	}
-	writeChanLen, err := metrics.NewIndvMetrics(
-		"write_chan_length",
-		initFn,
-		updateFn,
-	)
-	if err != nil {
-		return nil
-	}
-	return writeChanLen
-}
-
-func (r *PostgresDBService) getBatcherMetrics() *metrics.IndvMetrics {
-	initFn := func() error {
-		return nil
-	}
-	updateFn := func() (interface{}, error) {
-		listAvg := r.GetBatcherStats()
-		return listAvg, nil
-	}
-	batchAverages, err := metrics.NewIndvMetrics(
-		"last_persist",
-		initFn,
-		updateFn,
-	)
-	if err != nil {
-		return nil
-	}
-	return batchAverages
-}
-
-func (r *PostgresDBService) getPersistMetrics() *metrics.IndvMetrics {
+func (r *DBService) getPersistRows() *metrics.IndvMetrics {
 	initFn := func() error {
 		prometheus.MustRegister(RowsPersisted)
+		return nil
+	}
+	updateFn := func() (interface{}, error) {
+		var sumRows int
+		for k, v := range r.monitorMetrics {
+			metrics := v
+			RowsPersisted.WithLabelValues(k).Set(float64(metrics.Rows))
+			sumRows += metrics.Rows
+		}
+
+		return sumRows, nil
+	}
+	rowsPersisted, err := metrics.NewIndvMetrics(
+		"rows_persisted",
+		initFn,
+		updateFn,
+	)
+	if err != nil {
+		return nil
+	}
+	return rowsPersisted
+}
+
+func (r *DBService) getPersistTime() *metrics.IndvMetrics {
+	initFn := func() error {
 		prometheus.MustRegister(TimePersisted)
+		return nil
+	}
+	updateFn := func() (interface{}, error) {
+		var sumTimes float64
+		for k, v := range r.monitorMetrics {
+			metrics := v
+			TimePersisted.WithLabelValues(k).Set(float64(metrics.PersistTime.Seconds()))
+			sumTimes += metrics.PersistTime.Seconds()
+		}
+
+		return sumTimes, nil
+	}
+	timePersisted, err := metrics.NewIndvMetrics(
+		"time_persisted",
+		initFn,
+		updateFn,
+	)
+	if err != nil {
+		return nil
+	}
+	return timePersisted
+}
+
+func (r *DBService) getPersistRate() *metrics.IndvMetrics {
+	initFn := func() error {
 		prometheus.MustRegister(RatePersisted)
 		return nil
 	}
 	updateFn := func() (interface{}, error) {
-		for k, v := range r.metrics {
-			RowsPersisted.WithLabelValues(k).Set(float64(v.Rows))
-			TimePersisted.WithLabelValues(k).Set(v.PersistTime.Seconds())
-			RatePersisted.WithLabelValues(k).Set(v.RatePersisted)
+		var rates float64
+		for k, v := range r.monitorMetrics {
+			metrics := v
+			RatePersisted.WithLabelValues(k).Set(float64(metrics.RowRate))
+			rates += metrics.RowRate
 		}
-		listAvg := r.GetBatcherStats()
-		return listAvg, nil
+		avgRate := rates / float64(len(r.monitorMetrics))
+
+		return avgRate, nil
 	}
-	batchAverages, err := metrics.NewIndvMetrics(
-		"last_copy",
+	ratePersisted, err := metrics.NewIndvMetrics(
+		"rows_s_persisted",
 		initFn,
 		updateFn,
 	)
 	if err != nil {
 		return nil
 	}
-	return batchAverages
+	return ratePersisted
 }

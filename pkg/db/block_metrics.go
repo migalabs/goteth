@@ -1,24 +1,27 @@
 package db
 
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/ClickHouse/ch-go/proto"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/migalabs/goteth/pkg/spec"
+	"github.com/migalabs/goteth/pkg/utils"
+)
+
 /*
 
 This file together with the model, has all the needed methods to interact with the epoch_metrics table of the database
 
 */
 
-import (
-	"strings"
-
-	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/migalabs/goteth/pkg/spec"
-	"github.com/migalabs/goteth/pkg/utils"
-	"github.com/pkg/errors"
-)
-
 // Postgres intregration variables
 var (
-	UpsertBlock = `
-	INSERT INTO t_block_metrics (
+	blocksTable      = "t_block_metrics"
+	insertBlockQuery = `
+	INSERT INTO %s (
 		f_timestamp,
 		f_epoch, 
 		f_slot,
@@ -28,7 +31,7 @@ var (
 		f_attestations,
 		f_deposits,
 		f_proposer_slashings,
-		f_att_slashings,
+		f_attester_slashings,
 		f_voluntary_exits,
 		f_sync_bits,
 		f_el_fee_recp,
@@ -43,97 +46,191 @@ var (
 		f_compression_time_ms,
 		f_decompression_time_ms,
 		f_payload_size_bytes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
-		ON CONFLICT ON CONSTRAINT PK_Slot
-			DO UPDATE
-			SET f_proposed = excluded.f_proposed;
-	`
+		VALUES`
 	// update f_proposed is a quick fix that will solve some edgy cases where the drop block
 	// reaches before the orphaned block, so it is never dropped
 	// with this, the empty block (after removing the orphaned) will conflict
 	// and update the proposed.
 	// TODO: solve it in next releases with a better task commander
-	SelectLastSlot = `
+	selectLastSlotQuery = `
 		SELECT f_slot
-		FROM t_block_metrics
+		FROM %s
 		ORDER BY f_slot DESC
 		LIMIT 1`
 
-	DropBlocksQuery = `
-		DELETE FROM t_block_metrics
+	deleteBlockQuery = `
+		DELETE FROM %s
 		WHERE f_slot = $1;
 `
 )
 
-func insertBlock(inputBlock spec.AgnosticBlock) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-
-	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.Timestamp)
-	resultArgs = append(resultArgs, inputBlock.Slot/32)
-	resultArgs = append(resultArgs, inputBlock.Slot)
-	// resultArgs = append(resultArgs, strings.ReplaceAll(string(inputBlock.Graffiti[:]), "\u0000", ""))
-	graffiti := strings.ToValidUTF8(string(inputBlock.Graffiti[:]), "?")
-	graffiti = strings.ReplaceAll(graffiti, "\u0000", "")
-	resultArgs = append(resultArgs, graffiti)
-	resultArgs = append(resultArgs, inputBlock.ProposerIndex)
-	resultArgs = append(resultArgs, inputBlock.Proposed)
-	resultArgs = append(resultArgs, len(inputBlock.Attestations))
-	resultArgs = append(resultArgs, len(inputBlock.Deposits))
-	resultArgs = append(resultArgs, len(inputBlock.ProposerSlashings))
-	resultArgs = append(resultArgs, len(inputBlock.AttesterSlashings))
-	resultArgs = append(resultArgs, len(inputBlock.VoluntaryExits))
-	resultArgs = append(resultArgs, inputBlock.SyncAggregate.SyncCommitteeBits.Count())
-	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.FeeRecipient.String())
-	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.GasLimit)
-	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.GasUsed)
-	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BaseFeeToInt())
-	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BlockHash.String())
-	resultArgs = append(resultArgs, len(inputBlock.ExecutionPayload.Transactions))
-	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.BlockNumber)
-	resultArgs = append(resultArgs, inputBlock.SSZsize)
-	resultArgs = append(resultArgs, inputBlock.SnappySize)
-	resultArgs = append(resultArgs, utils.DurationToFloat64Millis(inputBlock.CompressionTime))
-	resultArgs = append(resultArgs, utils.DurationToFloat64Millis(inputBlock.DecompressionTime))
-	resultArgs = append(resultArgs, inputBlock.ExecutionPayload.PayloadSize)
-
-	return UpsertBlock, resultArgs
+type InsertBlocks struct {
+	blocks []spec.AgnosticBlock
 }
 
-func BlockOperation(inputBlock spec.AgnosticBlock) (string, []interface{}) {
-
-	q, args := insertBlock(inputBlock)
-	return q, args
-
+func (d *InsertBlocks) Append(newBlock spec.AgnosticBlock) {
+	d.blocks = append(d.blocks, newBlock)
 }
 
-// in case the table did not exist
-func (p *PostgresDBService) ObtainLastSlot() (phase0.Slot, error) {
-	// create the tables
-	rows, err := p.psqlPool.Query(p.ctx, SelectLastSlot)
-	if err != nil {
-		return 0, errors.Wrap(err, "error obtianing last block from database")
+func (d InsertBlocks) Table() string {
+	return blocksTable
+}
+
+func (d InsertBlocks) Columns() int {
+	return len(d.Input().Columns())
+}
+
+func (d InsertBlocks) Rows() int {
+	return len(d.blocks)
+}
+
+func (d InsertBlocks) Query() string {
+	return fmt.Sprintf(insertBlockQuery, blocksTable)
+}
+func (d InsertBlocks) Input() proto.Input {
+	// one object per column
+	var (
+		f_timestamp             proto.ColUInt64
+		f_epoch                 proto.ColUInt64
+		f_slot                  proto.ColUInt64
+		f_graffiti              proto.ColStr
+		f_proposer_index        proto.ColUInt64
+		f_proposed              proto.ColBool
+		f_attestations          proto.ColUInt64
+		f_deposits              proto.ColUInt64
+		f_proposer_slashings    proto.ColUInt64
+		f_attester_slashings    proto.ColUInt64
+		f_voluntary_exits       proto.ColUInt64
+		f_sync_bits             proto.ColUInt64
+		f_el_fee_recp           proto.ColStr
+		f_el_gas_limit          proto.ColUInt64
+		f_el_gas_used           proto.ColUInt64
+		f_el_base_fee_per_gas   proto.ColUInt64
+		f_el_block_hash         proto.ColStr
+		f_el_transactions       proto.ColUInt64
+		f_el_block_number       proto.ColUInt64
+		f_payload_size_bytes    proto.ColUInt64
+		f_ssz_size_bytes        proto.ColFloat32
+		f_snappy_size_bytes     proto.ColFloat32
+		f_compression_time_ms   proto.ColFloat32
+		f_decompression_time_ms proto.ColFloat32
+	)
+
+	for _, block := range d.blocks {
+		f_timestamp.Append(uint64(block.ExecutionPayload.Timestamp))
+		f_epoch.Append(uint64(block.Slot / spec.SlotsPerEpoch))
+		f_slot.Append(uint64(block.Slot))
+
+		graffiti := strings.ToValidUTF8(string(block.Graffiti[:]), "?")
+		graffiti = strings.ReplaceAll(graffiti, "\u0000", "")
+		f_graffiti.Append(graffiti)
+
+		f_proposer_index.Append(uint64(block.ProposerIndex))
+		f_proposed.Append(block.Proposed)
+		f_attestations.Append(uint64(len(block.Attestations)))
+		f_deposits.Append(uint64(len(block.Deposits)))
+		f_proposer_slashings.Append(uint64(len(block.ProposerSlashings)))
+		f_attester_slashings.Append(uint64(len(block.AttesterSlashings)))
+		f_voluntary_exits.Append(uint64(len(block.VoluntaryExits)))
+		f_sync_bits.Append(uint64(block.SyncAggregate.SyncCommitteeBits.Count()))
+
+		// Execution Payload
+		f_el_fee_recp.Append(block.ExecutionPayload.FeeRecipient.String())
+		f_el_gas_limit.Append(uint64(block.ExecutionPayload.GasLimit))
+		f_el_gas_used.Append(uint64(block.ExecutionPayload.GasUsed))
+		f_el_base_fee_per_gas.Append(uint64(block.ExecutionPayload.BaseFeeToInt()))
+		f_el_block_hash.Append(block.ExecutionPayload.BlockHash.String())
+		f_el_transactions.Append(uint64(len(block.ExecutionPayload.Transactions)))
+		f_el_block_number.Append(uint64(block.ExecutionPayload.BlockNumber))
+
+		// Size stats
+		f_payload_size_bytes.Append(uint64(block.ExecutionPayload.PayloadSize))
+		f_ssz_size_bytes.Append(float32(block.SSZsize))
+		f_snappy_size_bytes.Append(float32(block.SnappySize))
+		f_compression_time_ms.Append(float32(utils.DurationToFloat64Millis(block.CompressionTime)))
+		f_decompression_time_ms.Append(float32(utils.DurationToFloat64Millis(block.DecompressionTime)))
+
 	}
-	slot := uint64(0)
-	rows.Next()
-	rows.Scan(&slot)
-	rows.Close()
-	return phase0.Slot(slot), nil
+
+	return proto.Input{
+		{Name: "f_timestamp", Data: f_timestamp},
+		{Name: "f_epoch", Data: f_epoch},
+		{Name: "f_slot", Data: f_slot},
+		{Name: "f_graffiti", Data: f_graffiti},
+		{Name: "f_proposer_index", Data: f_proposer_index},
+		{Name: "f_proposed", Data: f_proposed},
+		{Name: "f_attestations", Data: f_attestations},
+		{Name: "f_deposits", Data: f_deposits},
+		{Name: "f_proposer_slashings", Data: f_proposer_slashings},
+		{Name: "f_attester_slashings", Data: f_attester_slashings},
+		{Name: "f_voluntary_exits", Data: f_voluntary_exits},
+		{Name: "f_sync_bits", Data: f_sync_bits},
+		{Name: "f_el_fee_recp", Data: f_el_fee_recp},
+		{Name: "f_el_gas_limit", Data: f_el_gas_limit},
+		{Name: "f_el_gas_used", Data: f_el_gas_used},
+		{Name: "f_el_base_fee_per_gas", Data: f_el_base_fee_per_gas},
+		{Name: "f_el_block_hash", Data: f_el_block_hash},
+		{Name: "f_el_transactions", Data: f_el_transactions},
+		{Name: "f_el_block_number", Data: f_el_block_number},
+		{Name: "f_ssz_size_bytes", Data: f_ssz_size_bytes},
+		{Name: "f_snappy_size_bytes", Data: f_snappy_size_bytes},
+		{Name: "f_compression_time_ms", Data: f_compression_time_ms},
+		{Name: "f_decompression_time_ms", Data: f_decompression_time_ms},
+		{Name: "f_payload_size_bytes", Data: f_payload_size_bytes},
+	}
 }
 
-type BlockDropType phase0.Slot
-
-func (s BlockDropType) Type() spec.ModelType {
-	return spec.BlockDropModel
+type DeleteBlock struct {
+	slot phase0.Slot
 }
 
-func DropBlocks(slot BlockDropType) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-	resultArgs = append(resultArgs, slot)
-	return DropBlocksQuery, resultArgs
+func (d DeleteBlock) Query() string {
+	return fmt.Sprintf(deleteBlockQuery, blocksTable)
 }
 
-func (s *PostgresDBService) DeleteBlockMetrics(slot phase0.Slot) {
-	s.SingleQuery(DropBlocksQuery, slot)
-	s.SingleQuery(DropWithdrawalsQuery, slot)
-	s.SingleQuery(DropTransactionsQuery, slot)
+func (d DeleteBlock) Table() string {
+	return blocksTable
+}
+
+func (d DeleteBlock) Args() []any {
+	return []any{d.slot}
+}
+
+func (s *DBService) DeleteBlockMetrics(slot phase0.Slot) error {
+
+	err := s.Delete(DeleteBlock{slot: slot})
+	if err != nil {
+		return err
+	}
+	s.Delete(DeleteWithdrawals{slot: slot})
+	if err != nil {
+		return err
+	}
+	s.Delete(DeleteTransactions{slot: slot})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *DBService) RetrieveLastSlot() (phase0.Slot, error) {
+
+	var result phase0.Slot
+	query := fmt.Sprintf(selectLastSlotQuery, blocksTable)
+	var err error
+	var dest []struct {
+		F_slot uint64 `ch:"f_slot"`
+	}
+	startTime := time.Now()
+
+	p.highMu.Lock()
+	err = p.highLevelClient.Select(p.ctx, &dest, query)
+	p.highMu.Unlock()
+
+	if err == nil && len(dest) > 0 {
+		log.Infof("retrieved %d rows in %f seconds, query: %s", len(dest), time.Since(startTime).Seconds(), query)
+		result = phase0.Slot(dest[0].F_slot)
+	}
+
+	return result, err
 }

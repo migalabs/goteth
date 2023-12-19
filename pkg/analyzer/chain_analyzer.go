@@ -29,9 +29,9 @@ type ChainAnalyzer struct {
 	downloadTaskChan chan phase0.Slot // channel to send download tasks
 
 	// Connections
-	cli       *clientapi.APIClient  // client to request data to the CL and EL clients
-	eventsObj events.Events         // object to receive signals from beacon node
-	dbClient  *db.PostgresDBService // client to communicate with psql
+	cli       *clientapi.APIClient // client to request data to the CL and EL clients
+	eventsObj events.Events        // object to receive signals from beacon node
+	dbClient  *db.DBService        // client to communicate with psql
 
 	// Control Variables
 	wgMainRoutine *sync.WaitGroup    // wait group for main routine (either historical or head)
@@ -81,7 +81,7 @@ func NewChainAnalyzer(
 		}, errors.Wrap(err, "unable to read metric.")
 	}
 
-	idbClient, err := db.New(ctx, iConfig.DBUrl, db.WithWorkers(iConfig.DbWorkerNum))
+	idbClient, err := db.New(ctx, iConfig.DBUrl)
 	if err != nil {
 		return &ChainAnalyzer{
 			ctx:    ctx,
@@ -89,7 +89,13 @@ func NewChainAnalyzer(
 		}, errors.Wrap(err, "unable to generate DB Client.")
 	}
 
-	idbClient.Connect()
+	err = idbClient.Connect()
+	if err != nil {
+		return &ChainAnalyzer{
+			ctx:    ctx,
+			cancel: cancel,
+		}, errors.Wrap(err, "unable to connect DB Client.")
+	}
 
 	// generate the httpAPI client
 	cli, err := clientapi.NewAPIClient(pCtx,
@@ -103,6 +109,8 @@ func NewChainAnalyzer(
 			cancel: cancel,
 		}, errors.Wrap(err, "unable to generate API Client.")
 	}
+
+	idbClient.InitGenesis(cli.RequestGenesis())
 
 	analyzer := &ChainAnalyzer{
 		ctx:              ctx,
@@ -122,8 +130,6 @@ func NewChainAnalyzer(
 		wgMainRoutine:    &sync.WaitGroup{},
 		wgDownload:       &sync.WaitGroup{},
 	}
-
-	InitGenesis(analyzer.dbClient, analyzer.cli)
 
 	analyzerMet := analyzer.GetPrometheusMetrics()
 	promethMetrics.AddMeticsModule(analyzerMet)

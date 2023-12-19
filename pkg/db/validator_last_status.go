@@ -1,16 +1,18 @@
 package db
 
 import (
-	"time"
+	"fmt"
 
-	pgx "github.com/jackc/pgx/v5"
+	"github.com/ClickHouse/ch-go/proto"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
 // Postgres intregration variables
 var (
-	UpsertValidatorLastStatus = `
-	INSERT INTO t_validator_last_status (	
+	valLastStatusTable               = "t_validator_last_status"
+	insertValidatorLastStatusesQuery = `
+	INSERT INTO %s (	
 		f_val_idx, 
 		f_epoch, 
 		f_balance_eth, 
@@ -20,66 +22,85 @@ var (
 		f_withdrawal_epoch,
 		f_exit_epoch,
 		f_public_key)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	ON CONFLICT ON CONSTRAINT t_validator_last_status_pkey
-		DO 
-			UPDATE SET 
-				f_epoch = excluded.f_epoch, 
-				f_balance_eth = excluded.f_balance_eth,
-				f_status = excluded.f_status,
-				f_slashed = excluded.f_slashed,
-				f_activation_epoch = excluded.f_activation_epoch,
-				f_withdrawal_epoch = excluded.f_withdrawal_epoch,
-				f_exit_epoch = excluded.f_exit_epoch,
-				f_public_key = excluded.f_public_key;
-	`
+	VALUES`
 
-	DropOldValidatorStatus = `
-		DELETE FROM t_validator_last_status
+	DeleteValidatorStatus = `
+		DELETE FROM %s
 		WHERE f_epoch < $1`
 )
 
-func insertValidatorLastStatus(inputValidator spec.ValidatorLastStatus) (string, []interface{}) {
-
-	return UpsertValidatorLastStatus, inputValidator.ToArray()
+type InsertValidatorLastStatuses struct {
+	validatorStatuses []spec.ValidatorLastStatus
 }
 
-func ValidatorLastStatusOperation(inputValidator spec.ValidatorLastStatus) (string, []interface{}) {
-
-	q, args := insertValidatorLastStatus(inputValidator)
-	return q, args
-
+func (d InsertValidatorLastStatuses) Table() string {
+	return valLastStatusTable
+}
+func (d *InsertValidatorLastStatuses) Append(newStatus spec.ValidatorLastStatus) {
+	d.validatorStatuses = append(d.validatorStatuses, newStatus)
 }
 
-func (p *PostgresDBService) CopyValLastStatus(rowSrc [][]interface{}) int64 {
+func (d InsertValidatorLastStatuses) Columns() int {
+	return len(d.Input().Columns())
+}
 
-	startTime := time.Now()
+func (d InsertValidatorLastStatuses) Rows() int {
+	return len(d.validatorStatuses)
+}
 
-	count, err := p.psqlPool.CopyFrom(
-		p.ctx,
-		pgx.Identifier{"t_validator_last_status"},
-		[]string{"f_val_idx",
-			"f_epoch",
-			"f_balance_eth",
-			"f_status",
-			"f_slashed",
-			"f_activation_epoch",
-			"f_withdrawal_epoch",
-			"f_exit_epoch",
-			"f_public_key"},
-		pgx.CopyFromRows(rowSrc))
+func (d InsertValidatorLastStatuses) Query() string {
+	return fmt.Sprintf(insertValidatorLastStatusesQuery, valLastStatusTable)
+}
+func (d InsertValidatorLastStatuses) Input() proto.Input {
+	// one object per column
+	var (
+		f_epoch            proto.ColUInt64
+		f_balance_eth      proto.ColFloat32
+		f_status           proto.ColUInt8
+		f_slashed          proto.ColBool
+		f_activation_epoch proto.ColUInt64
+		f_withdrawal_epoch proto.ColUInt64
+		f_exit_epoch       proto.ColUInt64
+		f_public_key       proto.ColStr
+	)
 
-	if err != nil {
-		wlog.Fatalf("could not copy val_status rows into db: %s", err.Error())
-	} else {
-		metrics := PersistMetrics{}
-		metrics.Rows = uint64(count)
-		metrics.PersistTime = time.Since(startTime)
-		metrics.RatePersisted = float64(count) / float64(time.Since(startTime).Seconds())
-		p.metrics["val_status"] = metrics
+	for _, status := range d.validatorStatuses {
+
+		f_epoch.Append(uint64(status.Epoch))
+		f_balance_eth.Append(status.BalanceToEth())
+		f_status.Append(uint8(status.CurrentStatus))
+		f_slashed.Append(status.Slashed)
+		f_activation_epoch.Append(uint64(status.ActivationEpoch))
+		f_withdrawal_epoch.Append(uint64(status.WithdrawalEpoch))
+		f_exit_epoch.Append(uint64(status.ExitEpoch))
+		f_public_key.Append(status.PublicKey.String())
 	}
 
-	wlog.Infof("persisted val_status %d rows in %f seconds", count, time.Since(startTime).Seconds())
+	return proto.Input{
 
-	return count
+		{Name: "f_epoch", Data: f_epoch},
+		{Name: "f_balance_eth", Data: f_balance_eth},
+		{Name: "f_status", Data: f_status},
+		{Name: "f_slashed", Data: f_slashed},
+		{Name: "f_activation_epoch", Data: f_activation_epoch},
+		{Name: "f_withdrawal_epoch", Data: f_withdrawal_epoch},
+		{Name: "f_exit_epoch", Data: f_exit_epoch},
+		{Name: "f_public_key", Data: f_public_key},
+	}
+}
+
+type DeleteValLastStatus struct {
+	Epoch phase0.Epoch
+}
+
+func (d DeleteValLastStatus) Query() string {
+	return fmt.Sprintf(DeleteValidatorStatus, valLastStatusTable)
+}
+
+func (d DeleteValLastStatus) Table() string {
+	return valLastStatusTable
+}
+
+func (d DeleteValLastStatus) Args() []any {
+	return []any{d.Epoch}
 }

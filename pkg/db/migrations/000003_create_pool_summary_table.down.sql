@@ -1,1 +1,0 @@
-DROP TABLE IF EXISTS t_pool_summary;

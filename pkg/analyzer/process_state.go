@@ -51,10 +51,12 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 	// If nextState is filled, we can process proposer duties
 	if nextState.StateRoot != emptyRoot {
 		s.processEpochDuties(bundle)
+
 		s.processValLastStatus(bundle)
 
 		// If currentState and nextState are filled, we can process epoch metrics
 		if currentState.StateRoot != emptyRoot {
+			s.processPoolMetrics(bundle.GetMetricsBase().CurrentState.Epoch)
 			s.processEpochMetrics(bundle)
 
 			// If prevState, currentState and nextState are filled, we can process validator rewards
@@ -69,18 +71,42 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 }
 
 func (s *ChainAnalyzer) processEpochMetrics(bundle metrics.StateMetrics) {
+
+	var epochs db.InsertEpochs
+
 	// we need sameEpoch and nextEpoch
 
-	epochModel := bundle.GetMetricsBase().ExportToEpoch()
+	epoch := bundle.GetMetricsBase().ExportToEpoch()
+	epochs.Append(epoch)
 
-	log.Debugf("persisting epoch metrics: epoch %d", epochModel.Epoch)
-	s.dbClient.Persist(epochModel)
+	log.Debugf("persisting epoch metrics: epoch %d", epoch.Epoch)
+
+	err := s.dbClient.Persist(epochs)
+	if err != nil {
+		log.Fatalf("error persisting epoch: %s", err.Error())
+	}
+
+}
+
+func (s *ChainAnalyzer) processPoolMetrics(epoch phase0.Epoch) {
+
+	log.Debugf("persisting pool summaries: epoch %d", epoch)
+
+	err := s.dbClient.InsertPoolSummary(epoch)
+
+	// we need sameEpoch and nextEpoch
+
+	if err != nil {
+		log.Fatalf("error persisting pool metrics: %s", err.Error())
+	}
 
 }
 
 func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
 
 	missedBlocks := bundle.GetMetricsBase().NextState.MissedBlocks
+
+	var duties db.InsertProposerDuties
 
 	for _, item := range bundle.GetMetricsBase().NextState.EpochStructs.ProposerDuties {
 
@@ -94,7 +120,12 @@ func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
 				newDuty.Proposed = false
 			}
 		}
-		s.dbClient.Persist(newDuty)
+		duties.Append(newDuty)
+	}
+
+	err := s.dbClient.Persist(duties)
+	if err != nil {
+		log.Fatalf("error persisting proposer duties: %s", err.Error())
 	}
 
 }
@@ -102,7 +133,7 @@ func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
 func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 
 	if s.downloadMode == "finalized" {
-		var valStatusArr [][]interface{}
+		var valStatusArr db.InsertValidatorLastStatuses
 		for valIdx, validator := range bundle.GetMetricsBase().NextState.Validators {
 
 			newVal := spec.ValidatorLastStatus{
@@ -116,11 +147,18 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 				ExitEpoch:       validator.ExitEpoch,
 				PublicKey:       validator.PublicKey,
 			}
-			valStatusArr = append(valStatusArr, newVal.ToArray())
+			valStatusArr.Append(newVal)
 		}
-		if len(valStatusArr) > 0 { // persist everything
-			s.dbClient.CopyValLastStatus(valStatusArr)
-			s.dbClient.SingleQuery(db.DropOldValidatorStatus, bundle.GetMetricsBase().NextState.Epoch)
+		if valStatusArr.Rows() > 0 { // persist everything
+
+			err := s.dbClient.Persist(valStatusArr)
+			if err != nil {
+				log.Fatalf("error persisting val_status: %s", err.Error())
+			}
+			err = s.dbClient.Delete(db.DeleteValLastStatus{Epoch: bundle.GetMetricsBase().NextState.Epoch})
+			if err != nil {
+				log.Fatalf("error deleting val_status: %s", err.Error())
+			}
 		}
 	}
 }
@@ -128,7 +166,7 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 
 	if s.metrics.ValidatorRewards { // only if flag is activated
-		var rewardsArr [][]interface{}
+		var insertValsObj db.InsertValidators
 		log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
 
 		// process each validator
@@ -145,10 +183,14 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 				continue
 			}
 
-			rewardsArr = append(rewardsArr, maxRewards.ToArray())
+			insertValsObj.Append(maxRewards)
 		}
-		if len(rewardsArr) > 0 { // persist everything
-			s.dbClient.CopyValRewards(rewardsArr)
+		if insertValsObj.Rows() > 0 { // persist everything
+			err := s.dbClient.Persist(insertValsObj)
+			if err != nil {
+				log.Fatalf("error persisting val_rewards: %s", err.Error())
+			}
+
 		}
 
 	}

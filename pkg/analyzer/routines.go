@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/utils"
 )
@@ -79,13 +78,13 @@ func (s *ChainAnalyzer) runHead() {
 
 			}
 		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
-			s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
+			// s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
 			finalizedSlot := phase0.Slot(newFinalCheckpoint.Epoch * spec.SlotsPerEpoch)
 
 			go s.AdvanceFinalized(finalizedSlot - (2 * spec.SlotsPerEpoch))
 
 		case newReorg := <-s.eventsObj.ReorgChan:
-			s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
+			// s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
 			go s.HandleReorg(newReorg)
 
 		case <-s.ctx.Done():
@@ -116,7 +115,12 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 	s.DownloadBlock(headSlot) // inserts in the queue the headblock
 
 	// obtain last slot in database
-	nextSlotDownload, err := s.dbClient.ObtainLastSlot()
+	dbHead, err := s.dbClient.RetrieveLastSlot()
+	if err != nil {
+		log.Fatalf("could not get head block from database: %s", err)
+	}
+	nextSlotDownload := spec.FirstSlotInEpoch(dbHead)
+
 	if err != nil {
 		log.Errorf("could not obtain last slot in database: %s", err)
 	}
