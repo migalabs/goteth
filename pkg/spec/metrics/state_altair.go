@@ -112,7 +112,7 @@ func (p AltairMetrics) ProcessAttestations() {
 				continue
 			}
 
-			participationFlags := p.GetParticipationFlags(*attestation, block)
+			participationFlags, inclusionDelay := p.GetParticipationFlags(*attestation, block)
 
 			committeIndex := attestation.Data.Index
 
@@ -304,7 +304,7 @@ func (p AltairMetrics) GetBaseRewardPerInc(totalEffectiveBalance phase0.Gwei) ph
 	return baseReward
 }
 
-func (p AltairMetrics) GetParticipationFlags(attestation phase0.Attestation, includedInBlock spec.AgnosticBlock) [3]bool {
+func (p AltairMetrics) GetParticipationFlags(attestation phase0.Attestation, includedInBlock spec.AgnosticBlock) ([3]bool, int) {
 	var result [3]bool
 
 	justifiedCheckpoint, err := p.GetJustifiedRootfromSlot(attestation.Data.Slot)
@@ -331,5 +331,5 @@ func (p AltairMetrics) GetParticipationFlags(attestation phase0.Attestation, inc
 		result[2] = true
 	}
 
-	return result
+	return result, inclusionDelay
 }
