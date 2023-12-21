@@ -1,8 +1,9 @@
 package metrics
 
 import (
-	"log"
 	"math"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
@@ -147,6 +148,7 @@ func (p AltairMetrics) ProcessAttestations() {
 					new = true
 				}
 				if new {
+					p.baseMetrics.InclusionDelays[valIdx] = inclusionDelay
 					newVotes++
 				}
 			}
