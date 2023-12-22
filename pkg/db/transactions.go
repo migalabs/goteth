@@ -1,10 +1,7 @@
 package db
 
 import (
-	"fmt"
-
 	"github.com/ClickHouse/ch-go/proto"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
@@ -17,35 +14,12 @@ var (
 		VALUES`
 
 	deleteTransactionsQuery = `
-		DELETE FROM t_transactions
+		DELETE FROM %s
 		WHERE f_slot = $1;
 `
 )
 
-type InsertTransactions struct {
-	transactions []spec.AgnosticTransaction
-}
-
-func (d InsertTransactions) Table() string {
-	return transactionsTable
-}
-
-func (d *InsertTransactions) Append(newtransaction spec.AgnosticTransaction) {
-	d.transactions = append(d.transactions, newtransaction)
-}
-
-func (d InsertTransactions) Columns() int {
-	return len(d.Input().Columns())
-}
-
-func (d InsertTransactions) Rows() int {
-	return len(d.transactions)
-}
-
-func (d InsertTransactions) Query() string {
-	return fmt.Sprintf(insertTransactionsQuery, transactionsTable)
-}
-func (d InsertTransactions) Input() proto.Input {
+func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 	// one object per column
 	var (
 		f_tx_type          proto.ColUInt64
@@ -67,7 +41,7 @@ func (d InsertTransactions) Input() proto.Input {
 		f_contract_address proto.ColStr
 	)
 
-	for _, transaction := range d.transactions {
+	for _, transaction := range transactions {
 
 		f_tx_type.Append(uint64(transaction.TxType))
 		f_chain_id.Append(uint64(transaction.ChainId))
@@ -115,18 +89,20 @@ func (d InsertTransactions) Input() proto.Input {
 	}
 }
 
-type DeleteTransactions struct {
-	slot phase0.Slot
-}
+func (p *DBService) PersistTransactions(data []spec.AgnosticTransaction) error {
+	persistObj := PersistableObject[spec.AgnosticTransaction]{
+		input: transactionsInput,
+		table: transactionsTable,
+		query: insertTransactionsQuery,
+	}
 
-func (d DeleteTransactions) Query() string {
-	return fmt.Sprintf(deleteTransactionsQuery, transactionsTable)
-}
+	for _, item := range data {
+		persistObj.Append(item)
+	}
 
-func (d DeleteTransactions) Table() string {
-	return transactionsTable
-}
-
-func (d DeleteTransactions) Args() []any {
-	return []any{d.slot}
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting transactions: %s", err.Error())
+	}
+	return err
 }

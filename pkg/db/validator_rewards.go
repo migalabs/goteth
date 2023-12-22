@@ -1,18 +1,14 @@
 package db
 
 import (
-	"fmt"
-
 	"github.com/ClickHouse/ch-go/proto"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
-// Postgres intregration variables
 var (
-	valRewardsTable      = "t_validator_rewards_summary"
-	insertValidatorQuery = `
+	valRewardsTable             = "t_validator_rewards_summary"
+	insertValidatorRewardsQuery = `
 	INSERT INTO %s (	
 		f_val_idx, 
 		f_epoch, 
@@ -37,30 +33,7 @@ var (
 	`
 )
 
-type InsertValidators struct {
-	vals []spec.ValidatorRewards
-}
-
-func (d InsertValidators) Table() string {
-	return valRewardsTable
-}
-
-func (d *InsertValidators) Append(newVal spec.ValidatorRewards) {
-	d.vals = append(d.vals, newVal)
-}
-
-func (d InsertValidators) Columns() int {
-	return len(d.Input().Columns())
-}
-
-func (d InsertValidators) Rows() int {
-	return len(d.vals)
-}
-
-func (d InsertValidators) Query() string {
-	return fmt.Sprintf(insertValidatorQuery, valRewardsTable)
-}
-func (d InsertValidators) Input() proto.Input {
+func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 	// one object per column
 	var (
 		f_val_idx                   proto.ColUInt64
@@ -81,7 +54,7 @@ func (d InsertValidators) Input() proto.Input {
 		f_block_experimental_reward proto.ColUInt64
 	)
 
-	for _, val := range d.vals {
+	for _, val := range vals {
 		f_val_idx.Append(uint64(val.ValidatorIndex))
 		f_epoch.Append(uint64(val.Epoch))
 		f_balance_eth.Append(float32(val.BalanceToEth()))
@@ -120,18 +93,20 @@ func (d InsertValidators) Input() proto.Input {
 	}
 }
 
-type DeleteValRewards struct {
-	epoch phase0.Epoch
-}
+func (p *DBService) PersistValidatorRewards(data []spec.ValidatorRewards) error {
+	persistObj := PersistableObject[spec.ValidatorRewards]{
+		input: rewardsInput,
+		table: valRewardsTable,
+		query: insertValidatorRewardsQuery,
+	}
 
-func (d DeleteValRewards) Query() string {
-	return fmt.Sprintf(deleteValidatorRewardsInEpochQuery, valRewardsTable)
-}
+	for _, item := range data {
+		persistObj.Append(item)
+	}
 
-func (d DeleteValRewards) Table() string {
-	return valRewardsTable
-}
-
-func (d DeleteValRewards) Args() []any {
-	return []any{d.epoch}
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting validator rewards: %s", err.Error())
+	}
+	return err
 }

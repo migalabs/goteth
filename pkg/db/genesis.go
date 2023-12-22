@@ -7,13 +7,6 @@ import (
 	"github.com/ClickHouse/ch-go/proto"
 )
 
-/*
-
-This file together with the model, has all the needed methods to interact with the epoch_metrics table of the database
-
-*/
-
-// Postgres intregration variables
 var (
 	genesisTable       = "t_genesis"
 	insertGenesisQuery = `
@@ -27,36 +20,13 @@ var (
 `
 )
 
-type InsertGenesis struct {
-	genesis []int64
-}
-
-func (d InsertGenesis) Table() string {
-	return genesisTable
-}
-
-func (d *InsertGenesis) Append(newGenesis int64) {
-	d.genesis = append(d.genesis, newGenesis)
-}
-
-func (d InsertGenesis) Columns() int {
-	return len(d.Input().Columns())
-}
-
-func (d InsertGenesis) Rows() int {
-	return len(d.genesis)
-}
-
-func (d InsertGenesis) Query() string {
-	return fmt.Sprintf(insertGenesisQuery, genesisTable)
-}
-func (d InsertGenesis) Input() proto.Input {
+func genesisInput(genesis []int64) proto.Input {
 	// one object per column
 	var (
 		f_genesis_time proto.ColUInt64
 	)
 
-	for _, genesis := range d.genesis {
+	for _, genesis := range genesis {
 		f_genesis_time.Append(uint64(genesis))
 	}
 
@@ -68,42 +38,48 @@ func (d InsertGenesis) Input() proto.Input {
 
 func (p *DBService) RetrieveGenesis() (int64, error) {
 
-	var result int64
-	query := fmt.Sprintf(selectGenesisQuery, genesisTable)
-	var err error
 	var dest []struct {
 		F_genesis_time uint64 `ch:"f_genesis_time"`
 	}
-	startTime := time.Now()
 
-	p.highMu.Lock()
-	err = p.highLevelClient.Select(p.ctx, &dest, query)
-	p.highMu.Unlock()
+	err := p.highSelect(
+		fmt.Sprintf(selectGenesisQuery, genesisTable),
+		&dest)
 
-	if err == nil && len(dest) > 0 {
-		log.Infof("retrieved %d rows in %f seconds, query: %s", len(dest), time.Since(startTime).Seconds(), query)
-		result = int64(dest[0].F_genesis_time)
+	if len(dest) > 0 {
+		return int64(dest[0].F_genesis_time), err
 	}
+	return 0, err
 
-	return result, err
 }
 
-func (p *DBService) InitGenesis(apiGenesis time.Time) {
+func (p *DBService) InitGenesis(apiGenesis time.Time) error {
 	// Get genesis from the API
 
 	dbGenesis, err := p.RetrieveGenesis()
 	if err != nil {
-		log.Fatalf("could not get genesis from database: %s", err)
+		log.Errorf("could not get genesis from database: %s", err)
+		return err
 	}
 
 	if dbGenesis == 0 { // table is empty, probably first time use
-		var genesis InsertGenesis
-		genesis.Append(apiGenesis.Unix())
-		p.Persist(genesis)
+		insertGenesis := PersistableObject[int64]{
+			input: genesisInput,
+			table: genesisTable,
+			query: insertGenesisQuery,
+		}
+		insertGenesis.Append(apiGenesis.Unix())
+		err := p.Persist(insertGenesis.ExportPersist())
+		if err != nil {
+			log.Errorf("could not persist genesis into the db: %s", err)
+			return err
+		}
 		dbGenesis = apiGenesis.Unix()
 	}
 
 	if apiGenesis.Unix() != dbGenesis {
-		log.Panicf("the genesis time in the database does not match the API, is the beacon node in the correct network?")
+		log.Errorf("the genesis time in the database does not match the API, is the beacon node in the correct network?")
 	}
+
+	return err
 }

@@ -2,20 +2,12 @@ package db
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
-/*
-
-This file together with the model, has all the needed methods to interact with the epoch_metrics table of the database
-
-*/
-
-// Postgres intregration variables
 var (
 	epochsTable      = "t_epoch_metrics_summary"
 	insertEpochQuery = `
@@ -50,30 +42,7 @@ var (
 `
 )
 
-type InsertEpochs struct {
-	epochs []spec.Epoch
-}
-
-func (d InsertEpochs) Table() string {
-	return epochsTable
-}
-
-func (d *InsertEpochs) Append(newEpoch spec.Epoch) {
-	d.epochs = append(d.epochs, newEpoch)
-}
-
-func (d InsertEpochs) Columns() int {
-	return len(d.Input().Columns())
-}
-
-func (d InsertEpochs) Rows() int {
-	return len(d.epochs)
-}
-
-func (d InsertEpochs) Query() string {
-	return fmt.Sprintf(insertEpochQuery, epochsTable)
-}
-func (d InsertEpochs) Input() proto.Input {
+func epochsInput(epochs []spec.Epoch) proto.Input {
 	// one object per column
 	var (
 		f_timestamp                   proto.ColUInt64
@@ -94,7 +63,7 @@ func (d InsertEpochs) Input() proto.Input {
 		f_num_in_activation_vals      proto.ColUInt64
 	)
 
-	for _, epoch := range d.epochs {
+	for _, epoch := range epochs {
 		f_timestamp.Append(uint64(epoch.Timestamp))
 		f_epoch.Append(uint64(epoch.Epoch))
 		f_slot.Append(uint64(epoch.Slot))
@@ -135,42 +104,39 @@ func (d InsertEpochs) Input() proto.Input {
 	}
 }
 
+func (p *DBService) PersistEpochs(data []spec.Epoch) error {
+	persistObj := PersistableObject[spec.Epoch]{
+		input: epochsInput,
+		table: epochsTable,
+		query: insertEpochQuery,
+	}
+
+	for _, item := range data {
+		persistObj.Append(item)
+	}
+
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting epoch: %s", err.Error())
+	}
+	return err
+}
+
 func (p *DBService) RetrieveLastEpoch() (phase0.Epoch, error) {
 
-	var result phase0.Epoch
-	query := fmt.Sprintf(selectLastEpochQuery, epochsTable)
-	var err error
 	var dest []struct {
 		F_epoch uint64 `ch:"f_epoch"`
 	}
-	startTime := time.Now()
 
-	p.highMu.Lock()
-	err = p.highLevelClient.Select(p.ctx, &dest, query)
-	p.highMu.Unlock()
+	err := p.highSelect(
+		fmt.Sprintf(selectLastEpochQuery, epochsTable),
+		&dest)
 
-	if err == nil && len(dest) > 0 {
-		log.Infof("retrieved %d rows in %f seconds, query: %s", len(dest), time.Since(startTime).Seconds(), query)
-		result = phase0.Epoch(dest[0].F_epoch)
+	if len(dest) > 0 {
+		return phase0.Epoch(dest[0].F_epoch), err
 	}
+	return 0, err
 
-	return result, err
-}
-
-type DeleteEpoch struct {
-	epoch phase0.Epoch
-}
-
-func (d DeleteEpoch) Query() string {
-	return fmt.Sprintf(deleteEpochsQuery, epochsTable)
-}
-
-func (d DeleteEpoch) Table() string {
-	return epochsTable
-}
-
-func (d DeleteEpoch) Args() []any {
-	return []any{d.epoch}
 }
 
 // delete metrics that use the state at epoch x
@@ -178,31 +144,56 @@ func (s *DBService) DeleteStateMetrics(epoch phase0.Epoch) error {
 	var err error
 
 	// epochs are written at currentState using current state and nextState
-	s.Delete(DeleteEpoch{epoch: epoch - 1}) // when deleteState -> nextState
+	err = s.Delete(DeletableObject{
+		query: deleteEpochsQuery,
+		table: epochsTable,
+		args:  []any{epoch - 1},
+	}) // when deleteState -> nextState
+
 	if err != nil {
 		return err
 	}
-	s.Delete(DeleteEpoch{epoch: epoch}) // when deleteState -> currentState
+	err = s.Delete(DeletableObject{
+		query: deleteEpochsQuery,
+		table: epochsTable,
+		args:  []any{epoch},
+	}) // when deleteState -> currentState
 	if err != nil {
 		return err
 	}
 
 	// proposer duties are writter using nextState
-	s.Delete(DeleteProposerDuties{epoch: epoch})
+	err = s.Delete(DeletableObject{
+		query: deleteProposerDutiesQuery,
+		table: proposerDutiesTable,
+		args:  []any{epoch},
+	})
 	if err != nil {
 		return err
 	}
 
 	// valRewards are written at nextState using prevState, currentState and nextState
-	s.Delete(DeleteValRewards{epoch: epoch + 2}) // when deleteState -> prevState
+	err = s.Delete(DeletableObject{
+		query: deleteValidatorRewardsInEpochQuery,
+		table: valRewardsTable,
+		args:  []any{epoch + 2},
+	}) // when deleteState -> prevState
 	if err != nil {
 		return err
 	}
-	s.Delete(DeleteValRewards{epoch: epoch + 1}) // when deleteState -> currentState
+	s.Delete(DeletableObject{
+		query: deleteValidatorRewardsInEpochQuery,
+		table: valRewardsTable,
+		args:  []any{epoch + 1},
+	}) // when deleteState -> currentState
 	if err != nil {
 		return err
 	}
-	s.Delete(DeleteValRewards{epoch: epoch}) // when deleteState -> nextState
+	s.Delete(DeletableObject{
+		query: deleteValidatorRewardsInEpochQuery,
+		table: valRewardsTable,
+		args:  []any{epoch},
+	}) // when deleteState -> nextState
 	if err != nil {
 		return err
 	}

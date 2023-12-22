@@ -1,13 +1,6 @@
 package db
 
-/*
-
-This file together with the model, has all the needed methods to interact with the epoch_metrics table of the database
-
-*/
-
 import (
-	"fmt"
 	"strings"
 
 	"github.com/ClickHouse/ch-go/proto"
@@ -15,7 +8,6 @@ import (
 	"github.com/migalabs/goteth/pkg/utils"
 )
 
-// Postgres intregration variables
 var (
 	orphansTable      = "t_orphans"
 	insertOrphanQuery = `
@@ -47,29 +39,7 @@ var (
 		VALUES`
 )
 
-type InsertOrphans struct {
-	blocks []spec.AgnosticBlock
-}
-
-func (d InsertOrphans) Table() string {
-	return orphansTable
-}
-func (d *InsertOrphans) Append(newBlock spec.AgnosticBlock) {
-	d.blocks = append(d.blocks, newBlock)
-}
-
-func (d InsertOrphans) Columns() int {
-	return len(d.Input().Columns())
-}
-
-func (d InsertOrphans) Rows() int {
-	return len(d.blocks)
-}
-
-func (d InsertOrphans) Query() string {
-	return fmt.Sprintf(insertOrphanQuery, orphansTable)
-}
-func (d InsertOrphans) Input() proto.Input {
+func orphansInput(blocks []spec.AgnosticBlock) proto.Input {
 	// one object per column
 	var (
 		f_timestamp             proto.ColUInt64
@@ -98,7 +68,7 @@ func (d InsertOrphans) Input() proto.Input {
 		f_decompression_time_ms proto.ColFloat32
 	)
 
-	for _, block := range d.blocks {
+	for _, block := range blocks {
 		f_timestamp.Append(uint64(block.ExecutionPayload.Timestamp))
 		f_epoch.Append(uint64(block.Slot / spec.SlotsPerEpoch))
 		f_slot.Append(uint64(block.Slot))
@@ -160,4 +130,22 @@ func (d InsertOrphans) Input() proto.Input {
 		{Name: "f_decompression_time_ms", Data: f_decompression_time_ms},
 		{Name: "f_payload_size_bytes", Data: f_payload_size_bytes},
 	}
+}
+
+func (p *DBService) PersistOrphans(data []spec.AgnosticBlock) error {
+	persistObj := PersistableObject[spec.AgnosticBlock]{
+		input: orphansInput,
+		table: orphansTable,
+		query: insertOrphanQuery,
+	}
+
+	for _, item := range data {
+		persistObj.Append(item)
+	}
+
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting orphans: %s", err.Error())
+	}
+	return err
 }

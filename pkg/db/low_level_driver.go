@@ -6,10 +6,9 @@ import (
 	"time"
 
 	"github.com/ClickHouse/ch-go"
+	"github.com/ClickHouse/ch-go/proto"
 )
 
-// Connect to the PostgreSQL Database and get the multithread-proof connection
-// from the given url-composed credentials
 func (s *DBService) ConnectLowLevel() error {
 	ctx := context.Background()
 
@@ -17,7 +16,7 @@ func (s *DBService) ConnectLowLevel() error {
 	lowLevelConn, err := ch.Dial(ctx, opts)
 	if err == nil {
 		s.lowLevelClient = lowLevelConn
-		s.makeMigrations()
+		err = s.makeMigrations()
 	}
 
 	return err
@@ -55,11 +54,12 @@ func ParseChUrlIntoOptionsLowLevel(url string) ch.Options {
 		Password: password}
 }
 
-func (p *DBService) Persist(obj PersistObject) error {
+func (p *DBService) Persist(
+	query string,
+	table string,
+	input proto.Input,
+	rows int) error {
 
-	query := obj.Query()
-	input := obj.Input()
-	table := obj.Table()
 	startTime := time.Now()
 
 	p.lowMu.Lock()
@@ -71,14 +71,18 @@ func (p *DBService) Persist(obj PersistObject) error {
 	elapsedTime := time.Since(startTime)
 
 	if err == nil {
-		log.Infof("table %s persisted %d rows in %fs", table, obj.Rows(), elapsedTime.Seconds())
+		log.Infof("table %s persisted %d rows in %fs", table, rows, elapsedTime.Seconds())
 
 		if _, ok := p.monitorMetrics[table]; !ok {
-			p.monitorMetrics[table] = DBMonitorMetrics{}
+			p.monitorMetrics[table] = make([]DBMonitorMetrics, 0)
 		}
 
 		metrics := p.monitorMetrics[table]
-		metrics.UpdateValues(obj.Rows(), elapsedTime)
+		newMetrics := DBMonitorMetrics{
+			Rows:        rows,
+			PersistTime: elapsedTime,
+		}
+		metrics = append(metrics, newMetrics)
 		p.monitorMetrics[table] = metrics
 	}
 

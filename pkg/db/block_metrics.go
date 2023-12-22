@@ -3,7 +3,6 @@ package db
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -11,13 +10,6 @@ import (
 	"github.com/migalabs/goteth/pkg/utils"
 )
 
-/*
-
-This file together with the model, has all the needed methods to interact with the epoch_metrics table of the database
-
-*/
-
-// Postgres intregration variables
 var (
 	blocksTable      = "t_block_metrics"
 	insertBlockQuery = `
@@ -47,11 +39,6 @@ var (
 		f_decompression_time_ms,
 		f_payload_size_bytes)
 		VALUES`
-	// update f_proposed is a quick fix that will solve some edgy cases where the drop block
-	// reaches before the orphaned block, so it is never dropped
-	// with this, the empty block (after removing the orphaned) will conflict
-	// and update the proposed.
-	// TODO: solve it in next releases with a better task commander
 	selectLastSlotQuery = `
 		SELECT f_slot
 		FROM %s
@@ -64,30 +51,7 @@ var (
 `
 )
 
-type InsertBlocks struct {
-	blocks []spec.AgnosticBlock
-}
-
-func (d *InsertBlocks) Append(newBlock spec.AgnosticBlock) {
-	d.blocks = append(d.blocks, newBlock)
-}
-
-func (d InsertBlocks) Table() string {
-	return blocksTable
-}
-
-func (d InsertBlocks) Columns() int {
-	return len(d.Input().Columns())
-}
-
-func (d InsertBlocks) Rows() int {
-	return len(d.blocks)
-}
-
-func (d InsertBlocks) Query() string {
-	return fmt.Sprintf(insertBlockQuery, blocksTable)
-}
-func (d InsertBlocks) Input() proto.Input {
+func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 	// one object per column
 	var (
 		f_timestamp             proto.ColUInt64
@@ -116,7 +80,7 @@ func (d InsertBlocks) Input() proto.Input {
 		f_decompression_time_ms proto.ColFloat32
 	)
 
-	for _, block := range d.blocks {
+	for _, block := range blocks {
 		f_timestamp.Append(uint64(block.ExecutionPayload.Timestamp))
 		f_epoch.Append(uint64(block.Slot / spec.SlotsPerEpoch))
 		f_slot.Append(uint64(block.Slot))
@@ -180,57 +144,67 @@ func (d InsertBlocks) Input() proto.Input {
 	}
 }
 
-type DeleteBlock struct {
-	slot phase0.Slot
-}
-
-func (d DeleteBlock) Query() string {
-	return fmt.Sprintf(deleteBlockQuery, blocksTable)
-}
-
-func (d DeleteBlock) Table() string {
-	return blocksTable
-}
-
-func (d DeleteBlock) Args() []any {
-	return []any{d.slot}
-}
-
 func (s *DBService) DeleteBlockMetrics(slot phase0.Slot) error {
 
-	err := s.Delete(DeleteBlock{slot: slot})
+	err := s.Delete(DeletableObject{
+		query: deleteBlockQuery,
+		table: blocksTable,
+		args:  []any{slot},
+	})
 	if err != nil {
 		return err
 	}
-	s.Delete(DeleteWithdrawals{slot: slot})
+
+	err = s.Delete(DeletableObject{
+		query: deleteTransactionsQuery,
+		table: transactionsTable,
+		args:  []any{slot},
+	})
 	if err != nil {
 		return err
 	}
-	s.Delete(DeleteTransactions{slot: slot})
+	err = s.Delete(DeletableObject{
+		query: deleteWithdrawalsQuery,
+		table: withdrawalsTable,
+		args:  []any{slot},
+	})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+func (p *DBService) PersistBlocks(data []spec.AgnosticBlock) error {
+	persistObj := PersistableObject[spec.AgnosticBlock]{
+		input: blocksInput,
+		table: blocksTable,
+		query: insertBlockQuery,
+	}
+
+	for _, item := range data {
+		persistObj.Append(item)
+	}
+
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting blocks: %s", err.Error())
+	}
+	return err
+}
+
 func (p *DBService) RetrieveLastSlot() (phase0.Slot, error) {
 
-	var result phase0.Slot
-	query := fmt.Sprintf(selectLastSlotQuery, blocksTable)
-	var err error
 	var dest []struct {
 		F_slot uint64 `ch:"f_slot"`
 	}
-	startTime := time.Now()
 
-	p.highMu.Lock()
-	err = p.highLevelClient.Select(p.ctx, &dest, query)
-	p.highMu.Unlock()
+	err := p.highSelect(
+		fmt.Sprintf(selectLastSlotQuery, blocksTable),
+		&dest)
 
-	if err == nil && len(dest) > 0 {
-		log.Infof("retrieved %d rows in %f seconds, query: %s", len(dest), time.Since(startTime).Seconds(), query)
-		result = phase0.Slot(dest[0].F_slot)
+	if len(dest) > 0 {
+		return phase0.Slot(dest[0].F_slot), err
 	}
+	return 0, err
 
-	return result, err
 }

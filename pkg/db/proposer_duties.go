@@ -1,20 +1,10 @@
 package db
 
 import (
-	"fmt"
-
 	"github.com/ClickHouse/ch-go/proto"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
-/*
-
-This file together with the model, has all the needed methods to interact with the epoch_metrics table of the database
-
-*/
-
-// // Postgres intregration variables
 var (
 	proposerDutiesTable       = "t_proposer_duties"
 	insertProposerDutiesQuery = `
@@ -32,30 +22,7 @@ var (
 `
 )
 
-type InsertProposerDuties struct {
-	duties []spec.ProposerDuty
-}
-
-func (d InsertProposerDuties) Table() string {
-	return proposerDutiesTable
-}
-
-func (d *InsertProposerDuties) Append(newDuty spec.ProposerDuty) {
-	d.duties = append(d.duties, newDuty)
-}
-
-func (d InsertProposerDuties) Columns() int {
-	return len(d.Input().Columns())
-}
-
-func (d InsertProposerDuties) Rows() int {
-	return len(d.duties)
-}
-
-func (d InsertProposerDuties) Query() string {
-	return fmt.Sprintf(insertProposerDutiesQuery, proposerDutiesTable)
-}
-func (d InsertProposerDuties) Input() proto.Input {
+func proposerDutiesInput(duties []spec.ProposerDuty) proto.Input {
 	// one object per column
 	var (
 		f_val_idx       proto.ColUInt64
@@ -63,7 +30,7 @@ func (d InsertProposerDuties) Input() proto.Input {
 		f_proposed      proto.ColBool
 	)
 
-	for _, duty := range d.duties {
+	for _, duty := range duties {
 		f_val_idx.Append(uint64(duty.ValIdx))
 		f_proposer_slot.Append(uint64(duty.ProposerSlot))
 		f_proposed.Append(duty.Proposed)
@@ -77,18 +44,20 @@ func (d InsertProposerDuties) Input() proto.Input {
 	}
 }
 
-type DeleteProposerDuties struct {
-	epoch phase0.Epoch
-}
+func (p *DBService) PersistDuties(data []spec.ProposerDuty) error {
+	persistObj := PersistableObject[spec.ProposerDuty]{
+		input: proposerDutiesInput,
+		table: proposerDutiesTable,
+		query: insertProposerDutiesQuery,
+	}
 
-func (d DeleteProposerDuties) Query() string {
-	return fmt.Sprintf(deleteProposerDutiesQuery, proposerDutiesTable)
-}
+	for _, item := range data {
+		persistObj.Append(item)
+	}
 
-func (d DeleteProposerDuties) Table() string {
-	return proposerDutiesTable
-}
-
-func (d DeleteProposerDuties) Args() []any {
-	return []any{d.epoch}
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting proposer duties: %s", err.Error())
+	}
+	return err
 }

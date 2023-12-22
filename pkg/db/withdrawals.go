@@ -1,17 +1,13 @@
 package db
 
 import (
-	"fmt"
-
 	"github.com/ClickHouse/ch-go/proto"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
-// Postgres intregration variables
 var (
-	withdrawalsTable  = "t_withdrawals"
-	insertWithdrawals = `
+	withdrawalsTable       = "t_withdrawals"
+	insertWithdrawalsQuery = `
 	INSERT INTO %s (
 		f_slot,
 		f_index, 
@@ -25,30 +21,7 @@ var (
 		WHERE f_slot = $1;`
 )
 
-type InsertWithdrawals struct {
-	withdrawals []spec.Withdrawal
-}
-
-func (d InsertWithdrawals) Table() string {
-	return withdrawalsTable
-}
-
-func (d *InsertWithdrawals) Append(newWithdrawal spec.Withdrawal) {
-	d.withdrawals = append(d.withdrawals, newWithdrawal)
-}
-
-func (d InsertWithdrawals) Columns() int {
-	return len(d.Input().Columns())
-}
-
-func (d InsertWithdrawals) Rows() int {
-	return len(d.withdrawals)
-}
-
-func (d InsertWithdrawals) Query() string {
-	return fmt.Sprintf(insertWithdrawals, withdrawalsTable)
-}
-func (d InsertWithdrawals) Input() proto.Input {
+func withdrawalsInput(withdrawals []spec.Withdrawal) proto.Input {
 	// one object per column
 	var (
 		f_slot    proto.ColUInt64
@@ -58,7 +31,7 @@ func (d InsertWithdrawals) Input() proto.Input {
 		f_amount  proto.ColUInt64
 	)
 
-	for _, withdrawal := range d.withdrawals {
+	for _, withdrawal := range withdrawals {
 
 		f_slot.Append(uint64(withdrawal.Slot))
 		f_index.Append(uint64(withdrawal.Index))
@@ -77,18 +50,20 @@ func (d InsertWithdrawals) Input() proto.Input {
 	}
 }
 
-type DeleteWithdrawals struct {
-	slot phase0.Slot
-}
+func (p *DBService) PersistWithdrawals(data []spec.Withdrawal) error {
+	persistObj := PersistableObject[spec.Withdrawal]{
+		input: withdrawalsInput,
+		table: withdrawalsTable,
+		query: insertWithdrawalsQuery,
+	}
 
-func (d DeleteWithdrawals) Query() string {
-	return fmt.Sprintf(deleteWithdrawalsQuery, withdrawalsTable)
-}
+	for _, item := range data {
+		persistObj.Append(item)
+	}
 
-func (d DeleteWithdrawals) Table() string {
-	return withdrawalsTable
-}
-
-func (d DeleteWithdrawals) Args() []any {
-	return []any{d.slot}
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting withdrawals: %s", err.Error())
+	}
+	return err
 }

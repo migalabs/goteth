@@ -10,8 +10,8 @@ This tool has been used to power the
 
 ### Prerequisites
 To use the tool, the following requirements need to be installed in the machine:
-- [go](https://go.dev/doc/install) preferably on its 1.19 version or above. Go also needs to be executable from the terminal.
-- PostgreSQL DB
+- [go](https://go.dev/doc/install) preferably on its 1.20 version or above. Go also needs to be executable from the terminal.
+- Clickhouse DB
 - Access to a Ethereum CL beacon node (preferably an archive node to index the slots faster)
 
 ### Installation

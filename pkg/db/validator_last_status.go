@@ -1,14 +1,11 @@
 package db
 
 import (
-	"fmt"
-
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
-// Postgres intregration variables
 var (
 	valLastStatusTable               = "t_validator_last_status"
 	insertValidatorLastStatusesQuery = `
@@ -24,34 +21,12 @@ var (
 		f_public_key)
 	VALUES`
 
-	DeleteValidatorStatus = `
+	deleteValidatorStatus = `
 		DELETE FROM %s
 		WHERE f_epoch < $1`
 )
 
-type InsertValidatorLastStatuses struct {
-	validatorStatuses []spec.ValidatorLastStatus
-}
-
-func (d InsertValidatorLastStatuses) Table() string {
-	return valLastStatusTable
-}
-func (d *InsertValidatorLastStatuses) Append(newStatus spec.ValidatorLastStatus) {
-	d.validatorStatuses = append(d.validatorStatuses, newStatus)
-}
-
-func (d InsertValidatorLastStatuses) Columns() int {
-	return len(d.Input().Columns())
-}
-
-func (d InsertValidatorLastStatuses) Rows() int {
-	return len(d.validatorStatuses)
-}
-
-func (d InsertValidatorLastStatuses) Query() string {
-	return fmt.Sprintf(insertValidatorLastStatusesQuery, valLastStatusTable)
-}
-func (d InsertValidatorLastStatuses) Input() proto.Input {
+func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 	// one object per column
 	var (
 		f_epoch            proto.ColUInt64
@@ -64,7 +39,7 @@ func (d InsertValidatorLastStatuses) Input() proto.Input {
 		f_public_key       proto.ColStr
 	)
 
-	for _, status := range d.validatorStatuses {
+	for _, status := range validatorStatuses {
 
 		f_epoch.Append(uint64(status.Epoch))
 		f_balance_eth.Append(status.BalanceToEth())
@@ -89,18 +64,36 @@ func (d InsertValidatorLastStatuses) Input() proto.Input {
 	}
 }
 
-type DeleteValLastStatus struct {
-	Epoch phase0.Epoch
+func (p *DBService) PersistValLastStatus(data []spec.ValidatorLastStatus) error {
+	persistObj := PersistableObject[spec.ValidatorLastStatus]{
+		input: valStatusInput,
+		table: valLastStatusTable,
+		query: insertValidatorLastStatusesQuery,
+	}
+
+	for _, item := range data {
+		persistObj.Append(item)
+	}
+
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting validator last status: %s", err.Error())
+	}
+	return err
 }
 
-func (d DeleteValLastStatus) Query() string {
-	return fmt.Sprintf(DeleteValidatorStatus, valLastStatusTable)
-}
+func (p *DBService) DeleteValLastStatus(epoch phase0.Epoch) error {
 
-func (d DeleteValLastStatus) Table() string {
-	return valLastStatusTable
-}
+	deleteObj := DeletableObject{
+		query: deleteValidatorStatus,
+		table: valLastStatusTable,
+		args:  []any{epoch},
+	}
 
-func (d DeleteValLastStatus) Args() []any {
-	return []any{d.Epoch}
+	err := p.Delete(deleteObj)
+	if err != nil {
+		log.Errorf("error deleting validator last status: %s", err.Error())
+	}
+
+	return err
 }

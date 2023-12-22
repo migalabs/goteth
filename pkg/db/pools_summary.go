@@ -7,7 +7,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 )
 
-// Postgres intregration variables
 var (
 	poolsTables = "t_pool_summary"
 

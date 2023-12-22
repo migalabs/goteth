@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/spec/metrics"
 )
@@ -72,18 +71,15 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 
 func (s *ChainAnalyzer) processEpochMetrics(bundle metrics.StateMetrics) {
 
-	var epochs db.InsertEpochs
-
 	// we need sameEpoch and nextEpoch
 
 	epoch := bundle.GetMetricsBase().ExportToEpoch()
-	epochs.Append(epoch)
 
 	log.Debugf("persisting epoch metrics: epoch %d", epoch.Epoch)
 
-	err := s.dbClient.Persist(epochs)
+	err := s.dbClient.PersistEpochs([]spec.Epoch{epoch})
 	if err != nil {
-		log.Fatalf("error persisting epoch: %s", err.Error())
+		log.Errorf("error persisting epoch: %s", err.Error())
 	}
 
 }
@@ -106,7 +102,7 @@ func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
 
 	missedBlocks := bundle.GetMetricsBase().NextState.MissedBlocks
 
-	var duties db.InsertProposerDuties
+	var duties []spec.ProposerDuty
 
 	for _, item := range bundle.GetMetricsBase().NextState.EpochStructs.ProposerDuties {
 
@@ -120,10 +116,10 @@ func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
 				newDuty.Proposed = false
 			}
 		}
-		duties.Append(newDuty)
+		duties = append(duties, newDuty)
 	}
 
-	err := s.dbClient.Persist(duties)
+	err := s.dbClient.PersistDuties(duties)
 	if err != nil {
 		log.Fatalf("error persisting proposer duties: %s", err.Error())
 	}
@@ -133,7 +129,7 @@ func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
 func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 
 	if s.downloadMode == "finalized" {
-		var valStatusArr db.InsertValidatorLastStatuses
+		var valStatusArr []spec.ValidatorLastStatus
 		for valIdx, validator := range bundle.GetMetricsBase().NextState.Validators {
 
 			newVal := spec.ValidatorLastStatus{
@@ -147,17 +143,17 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 				ExitEpoch:       validator.ExitEpoch,
 				PublicKey:       validator.PublicKey,
 			}
-			valStatusArr.Append(newVal)
+			valStatusArr = append(valStatusArr, newVal)
 		}
-		if valStatusArr.Rows() > 0 { // persist everything
+		if len(valStatusArr) > 0 { // persist everything
 
-			err := s.dbClient.Persist(valStatusArr)
+			err := s.dbClient.PersistValLastStatus(valStatusArr)
 			if err != nil {
-				log.Fatalf("error persisting val_status: %s", err.Error())
+				log.Errorf("error persisting val_status: %s", err.Error())
 			}
-			err = s.dbClient.Delete(db.DeleteValLastStatus{Epoch: bundle.GetMetricsBase().NextState.Epoch})
+			err = s.dbClient.DeleteValLastStatus(bundle.GetMetricsBase().NextState.Epoch)
 			if err != nil {
-				log.Fatalf("error deleting val_status: %s", err.Error())
+				log.Errorf("error deleting val_status: %s", err.Error())
 			}
 		}
 	}
@@ -166,7 +162,7 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 
 	if s.metrics.ValidatorRewards { // only if flag is activated
-		var insertValsObj db.InsertValidators
+		var insertValsObj []spec.ValidatorRewards
 		log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
 
 		// process each validator
@@ -183,10 +179,10 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 				continue
 			}
 
-			insertValsObj.Append(maxRewards)
+			insertValsObj = append(insertValsObj, maxRewards)
 		}
-		if insertValsObj.Rows() > 0 { // persist everything
-			err := s.dbClient.Persist(insertValsObj)
+		if len(insertValsObj) > 0 { // persist everything
+			err := s.dbClient.PersistValidatorRewards(insertValsObj)
 			if err != nil {
 				log.Fatalf("error persisting val_rewards: %s", err.Error())
 			}

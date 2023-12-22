@@ -7,27 +7,31 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-// Use as a reference because it contains sync.WaitGroup
-func (s *DBService) makeMigrations() {
+func (s *DBService) makeMigrations() error {
 
 	m, err := migrate.New(
 		"file://pkg/db/migrations",
 		s.connectionUrl)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Errorf(err.Error())
+		return err
 	}
 	log.Infof("applying database migrations...")
 	if err := m.Up(); err != nil {
 		if err != migrate.ErrNoChange {
-			log.Fatalf(err.Error())
+			log.Errorf(err.Error())
+			return err
 		}
 	}
 	connErr, dbErr := m.Close()
 
 	if connErr != nil {
-		log.Fatalf(connErr.Error())
+		log.Errorf(connErr.Error())
+		return connErr
 	}
 	if dbErr != nil {
-		log.Fatalf(dbErr.Error())
+		log.Errorf(dbErr.Error())
+		return dbErr
 	}
+	return err
 }

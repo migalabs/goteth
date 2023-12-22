@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	"sync"
 	"time"
@@ -9,12 +10,12 @@ import (
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	api "github.com/attestantio/go-eth2-client/api/v1"
+	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/sirupsen/logrus"
 )
 
-// Static postgres queries, for each modification in the tables, the table needs to be reseted
 var (
-	// wlogrus associated with the postgres db
 	modName  = "db"
 	PsqlType = "clickhouse-db"
 	log      = logrus.WithField(
@@ -34,7 +35,7 @@ type DBService struct {
 	lowLevelClient  *ch.Client  // for bulk loads, mainly insert
 	highLevelClient driver.Conn // for side tasks, like Select and Delete
 
-	monitorMetrics map[string]DBMonitorMetrics // map table and metrics
+	monitorMetrics map[string][]DBMonitorMetrics // map table and metrics
 	lowMu          sync.Mutex
 	highMu         sync.Mutex
 }
@@ -44,7 +45,7 @@ func New(ctx context.Context, url string, options ...DBServiceOption) (*DBServic
 	pService := &DBService{
 		ctx:            ctx,
 		connectionUrl:  url,
-		monitorMetrics: make(map[string]DBMonitorMetrics),
+		monitorMetrics: make(map[string][]DBMonitorMetrics),
 	}
 
 	for _, o := range options {
@@ -57,8 +58,6 @@ func New(ctx context.Context, url string, options ...DBServiceOption) (*DBServic
 	return pService, err
 }
 
-// Connect to the PostgreSQL Database and get the multithread-proof connection
-// from the given url-composed credentials
 func (s *DBService) Connect() error {
 	err := s.ConnectLowLevel()
 	if err != nil {
@@ -92,26 +91,75 @@ func (p *DBService) Finish() {
 type DBMonitorMetrics struct {
 	Rows        int           // how many rows were persisted in the last copy
 	PersistTime time.Duration // how much time to persist the last copy
-	RowRate     float64       // rows per second transmitted
 }
 
-func (d *DBMonitorMetrics) UpdateValues(rows int, time time.Duration) {
-	d.Rows = rows
-	d.PersistTime = time
-
-	d.RowRate = float64(rows) / time.Seconds()
+type DeletableObject struct {
+	query string
+	table string
+	args  []any
 }
 
-type PersistObject interface {
-	Table() string
-	Query() string
-	Input() proto.Input
-	Columns() int
-	Rows() int
+func NewDeletableObj(query string, table string, args []any) DeletableObject {
+	return DeletableObject{
+		query: query,
+		table: table,
+		args:  args,
+	}
 }
 
-type DeleteObject interface {
-	Table() string
-	Query() string
-	Args() []any
+func (d DeletableObject) Query() string {
+	return fmt.Sprintf(d.query, d.table)
+}
+func (d DeletableObject) Table() string {
+	return d.table
+}
+func (d DeletableObject) Args() []any {
+	return d.args
+}
+
+type Input[T any] func(t T) proto.Input
+
+type PersistableObject[
+	T spec.AgnosticBlock |
+		spec.Epoch |
+		api.FinalizedCheckpointEvent |
+		int64 |
+		spec.ProposerDuty |
+		api.ChainReorgEvent |
+		spec.AgnosticTransaction |
+		spec.ValidatorLastStatus |
+		spec.ValidatorRewards |
+		spec.Withdrawal] struct {
+	table string
+	query string
+	data  []T
+	input Input[[]T]
+}
+
+func (d *PersistableObject[T]) Append(newData T) {
+	d.data = append(d.data, newData)
+}
+
+func (d PersistableObject[T]) Table() string {
+	return d.table
+}
+
+func (d PersistableObject[T]) Columns() int {
+	return len(d.Input().Columns())
+}
+
+func (d PersistableObject[T]) Rows() int {
+	return len(d.data)
+}
+
+func (d PersistableObject[T]) Query() string {
+	return fmt.Sprintf(d.query, d.table)
+}
+
+func (d PersistableObject[T]) Input() proto.Input {
+	return d.input(d.data)
+}
+
+func (d PersistableObject[T]) ExportPersist() (string, string, proto.Input, int) {
+	return d.Query(), d.Table(), d.Input(), d.Rows()
 }

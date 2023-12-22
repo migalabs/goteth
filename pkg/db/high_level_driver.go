@@ -12,8 +12,6 @@ import (
 	"github.com/migalabs/goteth/pkg/utils"
 )
 
-// Connect to the PostgreSQL Database and get the multithread-proof connection
-// from the given url-composed credentials
 func (s *DBService) ConnectHighLevel() error {
 	opts := ParseChUrlIntoOptionsHighLevel(s.connectionUrl)
 	conn, err := clickhouse.Open(&opts)
@@ -89,7 +87,7 @@ func ParseChUrlIntoOptionsHighLevel(url string) clickhouse.Options {
 		}}
 }
 
-func (p *DBService) Delete(obj DeleteObject) error {
+func (p *DBService) Delete(obj DeletableObject) error {
 
 	var err error
 	startTime := time.Now()
@@ -100,6 +98,21 @@ func (p *DBService) Delete(obj DeleteObject) error {
 
 	if err == nil {
 		log.Infof("query: %s finished in %f seconds", obj.Query(), time.Since(startTime).Seconds())
+	}
+
+	return err
+}
+
+func (p *DBService) highSelect(query string, dest interface{}) error {
+	startTime := time.Now()
+	p.highMu.Lock()
+	err := p.highLevelClient.Select(p.ctx, dest, query)
+	p.highMu.Unlock()
+
+	if err == nil {
+		log.Infof("retrieved %d rows in %f seconds, query: %s", 1, time.Since(startTime).Seconds(), query)
+	} else {
+		log.Errorf("error executing %s: %s", query, err)
 	}
 
 	return err

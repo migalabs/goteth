@@ -11,6 +11,21 @@ import (
 var (
 
 	// List of metrics that we are going to export
+	LastProcessedEpoch = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: strings.ToLower(utils.CliName),
+		Subsystem: modName,
+		Name:      "last_processed_epoch",
+		Help:      "Last epoch processed with metrics",
+	})
+	// List of metrics that we are going to export
+	LastProcessedSlot = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: strings.ToLower(utils.CliName),
+		Subsystem: modName,
+		Name:      "last_processed_slot",
+		Help:      "Last slot processed with metrics",
+	})
+
+	// List of metrics that we are going to export
 	RowsPersisted = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: strings.ToLower(utils.CliName),
@@ -19,7 +34,6 @@ var (
 			Help:      "Rows persisted on the last insert",
 		},
 		[]string{
-			// Which user has requested the operation?
 			"table",
 		},
 	)
@@ -31,7 +45,6 @@ var (
 			Help:      "Duration (seconds) of last insert",
 		},
 		[]string{
-			// Which user has requested the operation?
 			"table",
 		},
 	)
@@ -43,7 +56,17 @@ var (
 			Help:      "Rows per second persisted in the last insert",
 		},
 		[]string{
-			// Which user has requested the operation?
+			"table",
+		},
+	)
+	NumberPersisted = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: strings.ToLower(utils.CliName),
+			Subsystem: modName,
+			Name:      "persist_count",
+			Help:      "Number of batch persists done",
+		},
+		[]string{
 			"table",
 		},
 	)
@@ -58,6 +81,10 @@ func (r *DBService) GetPrometheusMetrics() *metrics.MetricsModule {
 	metricsMod.AddIndvMetric(r.getPersistRows())
 	metricsMod.AddIndvMetric(r.getPersistTime())
 	metricsMod.AddIndvMetric(r.getPersistRate())
+	metricsMod.AddIndvMetric(r.getPersistCount())
+
+	metricsMod.AddIndvMetric(r.lastProcessedSlotMetric())
+	metricsMod.AddIndvMetric(r.lastProcessedEpochMetric())
 	return metricsMod
 }
 
@@ -67,11 +94,14 @@ func (r *DBService) getPersistRows() *metrics.IndvMetrics {
 		return nil
 	}
 	updateFn := func() (interface{}, error) {
-		var sumRows int
+		sumRows := make(map[string]float64)
+
 		for k, v := range r.monitorMetrics {
-			metrics := v
-			RowsPersisted.WithLabelValues(k).Set(float64(metrics.Rows))
-			sumRows += metrics.Rows
+
+			for _, persistMetrics := range v {
+				sumRows[k] += float64(persistMetrics.Rows)
+			}
+			RowsPersisted.WithLabelValues(k).Set(sumRows[k])
 		}
 
 		return sumRows, nil
@@ -93,11 +123,14 @@ func (r *DBService) getPersistTime() *metrics.IndvMetrics {
 		return nil
 	}
 	updateFn := func() (interface{}, error) {
-		var sumTimes float64
+		sumTimes := make(map[string]float64)
+
 		for k, v := range r.monitorMetrics {
-			metrics := v
-			TimePersisted.WithLabelValues(k).Set(float64(metrics.PersistTime.Seconds()))
-			sumTimes += metrics.PersistTime.Seconds()
+
+			for _, persistMetrics := range v {
+				sumTimes[k] += persistMetrics.PersistTime.Seconds()
+			}
+			TimePersisted.WithLabelValues(k).Set(sumTimes[k])
 		}
 
 		return sumTimes, nil
@@ -119,15 +152,23 @@ func (r *DBService) getPersistRate() *metrics.IndvMetrics {
 		return nil
 	}
 	updateFn := func() (interface{}, error) {
-		var rates float64
-		for k, v := range r.monitorMetrics {
-			metrics := v
-			RatePersisted.WithLabelValues(k).Set(float64(metrics.RowRate))
-			rates += metrics.RowRate
-		}
-		avgRate := rates / float64(len(r.monitorMetrics))
+		rate := make(map[string]float64)
 
-		return avgRate, nil
+		for k, v := range r.monitorMetrics {
+			var sumTimes float64
+			var sumRows float64
+
+			for _, persistMetrics := range v {
+				sumTimes += persistMetrics.PersistTime.Seconds()
+				sumRows += float64(persistMetrics.Rows)
+			}
+			if sumTimes != 0 {
+				rate[k] = sumRows / sumTimes
+			}
+			RatePersisted.WithLabelValues(k).Set(rate[k])
+		}
+
+		return rate, nil
 	}
 	ratePersisted, err := metrics.NewIndvMetrics(
 		"rows_s_persisted",
@@ -138,4 +179,78 @@ func (r *DBService) getPersistRate() *metrics.IndvMetrics {
 		return nil
 	}
 	return ratePersisted
+}
+
+func (r *DBService) getPersistCount() *metrics.IndvMetrics {
+	initFn := func() error {
+		prometheus.MustRegister(NumberPersisted)
+		return nil
+	}
+	updateFn := func() (interface{}, error) {
+		numberPersists := make(map[string]float64)
+
+		for k, v := range r.monitorMetrics {
+			numberPersists[k] += float64(len(v))
+			NumberPersisted.WithLabelValues(k).Set(numberPersists[k])
+		}
+
+		return numberPersists, nil
+	}
+	ratePersisted, err := metrics.NewIndvMetrics(
+		"persist_count",
+		initFn,
+		updateFn,
+	)
+	if err != nil {
+		return nil
+	}
+	return ratePersisted
+}
+
+func (r *DBService) lastProcessedEpochMetric() *metrics.IndvMetrics {
+	initFn := func() error {
+		prometheus.MustRegister(LastProcessedEpoch)
+		return nil
+	}
+	updateFn := func() (interface{}, error) {
+		epoch, err := r.RetrieveLastEpoch()
+		if err != nil {
+			return nil, err
+		}
+		LastProcessedEpoch.Set(float64(epoch))
+		return epoch, nil
+	}
+	lastEpoch, err := metrics.NewIndvMetrics(
+		"last_processed_epoch",
+		initFn,
+		updateFn,
+	)
+	if err != nil {
+		return nil
+	}
+	return lastEpoch
+}
+
+func (r *DBService) lastProcessedSlotMetric() *metrics.IndvMetrics {
+	initFn := func() error {
+		prometheus.MustRegister(LastProcessedSlot)
+		return nil
+	}
+	updateFn := func() (interface{}, error) {
+		slot, err := r.RetrieveLastSlot()
+		if err != nil {
+			return nil, err
+		}
+		LastProcessedSlot.Set(float64(slot))
+		return slot, nil
+	}
+	lastSlot, err := metrics.NewIndvMetrics(
+		"last_processed_slot",
+		initFn,
+		updateFn,
+	)
+	if err != nil {
+		return nil
+	}
+	return lastSlot
 }
