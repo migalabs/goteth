@@ -22,6 +22,7 @@ type ValidatorRewards struct {
 	MissingTarget        bool
 	MissingHead          bool
 	Status               ValidatorStatus
+	InclusionDelay       int
 }
 
 func (f ValidatorRewards) Type() ModelType {
@@ -50,6 +51,7 @@ func (f ValidatorRewards) ToArray() []interface{} {
 		f.Status,
 		f.ProposerApiReward,
 		f.ProposerManualReward,
+		f.InclusionDelay,
 	}
 	return rows
 }
