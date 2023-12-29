@@ -46,6 +46,17 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
 
-
+    def test_inclusion_delay_congruent_with_flags(self):
+        """ The inclusion delay must be congruent with the flags """
+        sql_query = """
+        select *
+        from t_validator_rewards_summary
+        where (f_inclusion_delay > 5 and f_missing_source = false)
+      	or (f_inclusion_delay > 1 and f_missing_head = false)
+		or (f_inclusion_delay > 32 and f_missing_target = false)
+        """
+        df = self.db.get_df_from_sql_query(sql_query)
+        self.assertNoRows(df)
+        
 if __name__ == '__main__':
     unittest.main()
