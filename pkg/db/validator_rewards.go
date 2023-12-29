@@ -26,7 +26,8 @@ var (
 		f_missing_head,
 		f_status,
 		f_block_api_reward,
-		f_block_experimental_reward) VALUES`
+		f_block_experimental_reward,
+		f_inclusion_delay) VALUES`
 
 	deleteValidatorRewardsInEpochQuery = `
 		DELETE FROM %s
@@ -58,6 +59,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		f_status                    proto.ColUInt8
 		f_block_api_reward          proto.ColUInt64
 		f_block_experimental_reward proto.ColUInt64
+		f_inclusion_delay           proto.ColUInt8
 	)
 
 	for _, val := range vals {
@@ -77,6 +79,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		f_status.Append(uint8(val.Status))
 		f_block_api_reward.Append(uint64(val.ProposerApiReward))
 		f_block_experimental_reward.Append(uint64(val.ProposerManualReward))
+		f_inclusion_delay.Append(uint8(val.InclusionDelay))
 	}
 
 	return proto.Input{
@@ -96,6 +99,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		{Name: "f_status", Data: f_status},
 		{Name: "f_block_api_reward", Data: f_block_api_reward},
 		{Name: "f_block_experimental_reward", Data: f_block_experimental_reward},
+		{Name: "f_inclusion_delay", Data: f_inclusion_delay},
 	}
 }
 
