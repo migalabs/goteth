@@ -28,7 +28,8 @@ func NewAltairMetrics(
 	altairObj.baseMetrics.SlashingRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	altairObj.baseMetrics.InclusionDelays = make(map[phase0.ValidatorIndex]int)
 	altairObj.ProcessAttestations()
-	if prevBstate.Epoch > 0 {
+	prevBstateFilled := prevBstate.StateRoot != phase0.Root{}
+	if prevBstateFilled {
 		altairObj.ProcessInclusionDelays()
 	}
 	altairObj.ProcessSyncAggregates()
@@ -88,7 +89,9 @@ func (p AltairMetrics) ProcessInclusionDelays() {
 	for _, block := range append(p.baseMetrics.PrevState.Blocks, p.baseMetrics.CurrentState.Blocks...) {
 		for _, attestation := range block.Attestations {
 			attSlot := attestation.Data.Slot
-			if attSlot < phase0.Slot(p.baseMetrics.PrevState.Epoch)*spec.SlotsPerEpoch {
+			// Calculate inclusion delays only for attestations corresponding to slots from the previous epoch
+			attSlotNotInPrevEpoch := attSlot < phase0.Slot(p.baseMetrics.PrevState.Epoch)*spec.SlotsPerEpoch || attSlot >= phase0.Slot(p.baseMetrics.CurrentState.Epoch)*local_spec.SlotsPerEpoch
+			if attSlotNotInPrevEpoch {
 				continue
 			}
 			inclusionDelay := p.GetInclusionDelay(*attestation, block)
@@ -102,9 +105,7 @@ func (p AltairMetrics) ProcessInclusionDelays() {
 					log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
 				}
 
-				// Calculate inclusion delays only for attestations corresponding to slots from the previous epoch
-				attSlotInPrevEpoch := attSlot < phase0.Slot(p.baseMetrics.CurrentState.Epoch)*local_spec.SlotsPerEpoch
-				if attSlotInPrevEpoch && !votedInPrevEpoch[valIdx] {
+				if !votedInPrevEpoch[valIdx] {
 					votedInPrevEpoch[valIdx] = true
 					p.baseMetrics.InclusionDelays[valIdx] = inclusionDelay
 				}
