@@ -3,6 +3,7 @@ package analyzer
 import (
 	"time"
 
+	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/utils"
@@ -78,13 +79,13 @@ func (s *ChainAnalyzer) runHead() {
 
 			}
 		case newFinalCheckpoint := <-s.eventsObj.FinalizedChan:
-			// s.dbClient.Persist(db.ChepointTypeFromCheckpoint(newFinalCheckpoint))
+			s.dbClient.PersistFinalized([]v1.FinalizedCheckpointEvent{newFinalCheckpoint})
 			finalizedSlot := phase0.Slot(newFinalCheckpoint.Epoch * spec.SlotsPerEpoch)
 
 			go s.AdvanceFinalized(finalizedSlot - (2 * spec.SlotsPerEpoch))
 
 		case newReorg := <-s.eventsObj.ReorgChan:
-			// s.dbClient.Persist(db.ReorgTypeFromReorg(newReorg))
+			s.dbClient.PersistReorgs([]v1.ChainReorgEvent{newReorg})
 			go s.HandleReorg(newReorg)
 
 		case <-s.ctx.Done():

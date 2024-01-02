@@ -78,7 +78,7 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 		}
 
 		if (i+1)%spec.SlotsPerEpoch == 0 { // then we are at the end of the epoch, rewrite state
-			epoch := phase0.Epoch(i % spec.SlotsPerEpoch)
+			epoch := phase0.Epoch(i / spec.SlotsPerEpoch)
 
 			state := s.downloadCache.StateHistory.Wait(uint64(i))                        // first check that it was already in the cache
 			s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", epochProcesserTag, i)) // wait until has been processed
@@ -92,7 +92,6 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 				// write epoch metrics
 				s.ProcessStateTransitionMetrics(epoch)
 			}
-
 		}
 	}
 }

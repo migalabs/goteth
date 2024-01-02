@@ -149,11 +149,11 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 
 			err := s.dbClient.PersistValLastStatus(valStatusArr)
 			if err != nil {
-				log.Errorf("error persisting val_status: %s", err.Error())
+				log.Errorf("error persisting validator last status: %s", err.Error())
 			}
 			err = s.dbClient.DeleteValLastStatus(bundle.GetMetricsBase().NextState.Epoch)
 			if err != nil {
-				log.Errorf("error deleting val_status: %s", err.Error())
+				log.Errorf("error deleting validator last status: %s", err.Error())
 			}
 		}
 	}
@@ -184,7 +184,7 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 		if len(insertValsObj) > 0 { // persist everything
 			err := s.dbClient.PersistValidatorRewards(insertValsObj)
 			if err != nil {
-				log.Fatalf("error persisting val_rewards: %s", err.Error())
+				log.Fatalf("error persisting validator rewards: %s", err.Error())
 			}
 
 		}

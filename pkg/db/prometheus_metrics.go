@@ -83,6 +83,8 @@ func (r *DBService) GetPrometheusMetrics() *metrics.MetricsModule {
 	metricsMod.AddIndvMetric(r.getPersistRate())
 	metricsMod.AddIndvMetric(r.getPersistCount())
 
+	r.monitorMetrics = make(map[string][]DBMonitorMetrics)
+
 	metricsMod.AddIndvMetric(r.lastProcessedSlotMetric())
 	metricsMod.AddIndvMetric(r.lastProcessedEpochMetric())
 	return metricsMod

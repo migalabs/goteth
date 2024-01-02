@@ -3,11 +3,6 @@
 **/venv
 **/__pycache__
 
-# custon files and configurations
-results/
-metrika/**
-*.csv
-test*.json
 
 # configurations
 .config
@@ -19,3 +14,5 @@ build/*
 # IDE configurations
 .idea
 .vscode/**
+
+clickhouse_data/**

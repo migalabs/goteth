@@ -19,21 +19,21 @@ var (
 func finalizedInput(checkpoints []api.FinalizedCheckpointEvent) proto.Input {
 	// one object per column
 	var (
-		f_block proto.ColStr
-		f_state proto.ColStr
-		f_epoch proto.ColUInt64
+		f_block_root proto.ColStr
+		f_state_root proto.ColStr
+		f_epoch      proto.ColUInt64
 	)
 
 	for _, checkpoint := range checkpoints {
-		f_block.Append(checkpoint.Block.String())
-		f_state.Append(checkpoint.State.String())
+		f_block_root.Append(checkpoint.Block.String())
+		f_state_root.Append(checkpoint.State.String())
 		f_epoch.Append(uint64(checkpoint.Epoch))
 	}
 
 	return proto.Input{
 
-		{Name: "f_block", Data: f_block},
-		{Name: "f_state", Data: f_state},
+		{Name: "f_block_root", Data: f_block_root},
+		{Name: "f_state_root", Data: f_state_root},
 		{Name: "f_epoch", Data: f_epoch},
 	}
 }
