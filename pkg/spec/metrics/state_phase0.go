@@ -77,7 +77,7 @@ func (p *Phase0Metrics) CalculateAttestingVals() {
 				}
 				newAtt.AddNewAtt(uint64(slot), uint64(inclusionSlot))
 				p.baseMetrics.CurrentState.ValAttestationInclusion[attestingValIdx] = newAtt
-
+				p.baseMetrics.InclusionDelays[attestingValIdx] = int(item.InclusionDelay)
 			}
 		}
 
@@ -183,6 +183,7 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		ProposerManualReward: int64(proposerReward),
 		ProposerApiReward:    int64(proposerApiReward),
 		InSyncCommittee:      false,
+		InclusionDelay:       p.baseMetrics.InclusionDelays[valIdx],
 	}
 	return result, nil
 }
