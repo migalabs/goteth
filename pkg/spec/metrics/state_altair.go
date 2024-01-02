@@ -105,10 +105,6 @@ func (p AltairMetrics) ProcessInclusionDelays() {
 				// Calculate inclusion delays only for attestations corresponding to slots from the previous epoch
 				attSlotInPrevEpoch := attSlot < phase0.Slot(p.baseMetrics.CurrentState.Epoch)*local_spec.SlotsPerEpoch
 				if attSlotInPrevEpoch && !votedInPrevEpoch[valIdx] {
-					if committeIndex == 41 && attSlot == 7069904 {
-						log.Infof("valIdx: %d, inclusionDelay: %d", valIdx, inclusionDelay)
-						p.GetParticipationFlags(*attestation, block)
-					}
 					votedInPrevEpoch[valIdx] = true
 					p.baseMetrics.InclusionDelays[valIdx] = inclusionDelay
 				}
