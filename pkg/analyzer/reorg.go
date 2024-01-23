@@ -60,12 +60,12 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 	log.Warnf("reorging from %d to %d (included)", fromSlot, reorgSlot)
 	for i := fromSlot; i <= s.downloadCache.HeadBlock.Slot; i++ { // for every slot in the reorg
 
-		block := s.downloadCache.BlockHistory.Wait(uint64(i))                       // first check that it was already in the cache
+		block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i))               // first check that it was already in the cache
 		s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", slotProcesserTag, i)) // wait until has been processed
 		oldBlock := *block
 
 		s.DownloadBlock(i) // -> inserts into the queue and replaces old block
-		newBlock := s.downloadCache.BlockHistory.Wait(uint64(i))
+		newBlock := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i))
 
 		if newBlock.StateRoot != oldBlock.StateRoot { // only rewrite if stateroots are different
 			if block.Proposed { // keep orphans -> if previous block was proposed and roots have changed
@@ -80,11 +80,11 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 		if (i+1)%spec.SlotsPerEpoch == 0 { // then we are at the end of the epoch, rewrite state
 			epoch := phase0.Epoch(i / spec.SlotsPerEpoch)
 
-			state := s.downloadCache.StateHistory.Wait(uint64(i))                        // first check that it was already in the cache
+			state := s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))           // first check that it was already in the cache
 			s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", epochProcesserTag, i)) // wait until has been processed
 			oldState := *state
 			s.DownloadState(i) // -> inserts into the queue and replaces old block
-			newState := s.downloadCache.StateHistory.Wait(uint64(i))
+			newState := s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))
 
 			if newState.StateRoot != oldState.StateRoot {
 				s.dbClient.DeleteStateMetrics(epoch)

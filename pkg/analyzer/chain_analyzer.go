@@ -31,7 +31,7 @@ type ChainAnalyzer struct {
 	// Connections
 	cli       *clientapi.APIClient // client to request data to the CL and EL clients
 	eventsObj events.Events        // object to receive signals from beacon node
-	dbClient  *db.DBService        // client to communicate with psql
+	dbClient  *db.DBService        // client to communicate with clickhouse
 
 	// Control Variables
 	wgMainRoutine *sync.WaitGroup    // wait group for main routine (either historical or head)

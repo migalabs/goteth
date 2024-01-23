@@ -2,6 +2,7 @@ package db
 
 import (
 	"github.com/ClickHouse/ch-go/proto"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 
 	"github.com/migalabs/goteth/pkg/spec"
 )
@@ -30,6 +31,11 @@ var (
 	deleteValidatorRewardsInEpochQuery = `
 		DELETE FROM %s
 		WHERE f_epoch = $1;
+	`
+
+	deleteValidatorRewardsUntilEpochQuery = `
+		DELETE FROM %s
+		WHERE f_epoch <= $1;
 	`
 )
 
@@ -108,5 +114,21 @@ func (p *DBService) PersistValidatorRewards(data []spec.ValidatorRewards) error 
 	if err != nil {
 		log.Errorf("error persisting validator rewards: %s", err.Error())
 	}
+	return err
+}
+
+func (p *DBService) DeleteValidatorRewardsUntil(epoch phase0.Epoch) error {
+
+	deleteObj := DeletableObject{
+		query: deleteValidatorRewardsUntilEpochQuery,
+		table: valRewardsTable,
+		args:  []any{epoch},
+	}
+
+	err := p.Delete(deleteObj)
+	if err != nil {
+		log.Errorf("error deleting validator rewards: %s", err.Error())
+	}
+
 	return err
 }

@@ -33,7 +33,7 @@ func main() {
 	app := &cli.App{
 		Name:      utils.CliName,
 		Usage:     "Tinny client that requests and processes the Beacon State for the slot range defined.",
-		UsageText: "eth2-state-analyzer [commands] [arguments...]",
+		UsageText: "goteth [commands] [arguments...]",
 		Authors: []*cli.Author{
 			{
 				Name:  "Cortze",
@@ -46,6 +46,7 @@ func main() {
 		EnableBashCompletion: true,
 		Commands: []*cli.Command{
 			cmd.BlocksCommand,
+			cmd.ValidatorWindowCommand,
 		},
 	}
 
