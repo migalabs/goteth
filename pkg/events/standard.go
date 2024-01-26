@@ -19,7 +19,7 @@ type Events struct {
 	ctx            context.Context
 	cli            *clientapi.APIClient
 	SubscribedHead bool
-	HeadChan       chan db.HeadEventType
+	HeadChan       chan db.HeadEvent
 
 	SubscribedFinalized bool
 	FinalizedChan       chan api.FinalizedCheckpointEvent
@@ -31,7 +31,7 @@ func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
 		ctx:                 iCtx,
 		cli:                 iCli,
 		SubscribedHead:      false,
-		HeadChan:            make(chan db.HeadEventType),
+		HeadChan:            make(chan db.HeadEvent),
 		SubscribedFinalized: false,
 		FinalizedChan:       make(chan api.FinalizedCheckpointEvent),
 		ReorgChan:           make(chan api.ChainReorgEvent),

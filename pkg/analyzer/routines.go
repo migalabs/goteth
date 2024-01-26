@@ -5,6 +5,7 @@ import (
 
 	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/utils"
 )
@@ -69,7 +70,7 @@ func (s *ChainAnalyzer) runHead() {
 		case event := <-s.eventsObj.HeadChan: // wait for new head event
 			// make the block query
 			log.Tracef("received new head signal: %d", event.HeadEvent.Slot)
-			s.dbClient.Persist(event)
+			s.dbClient.PersistHeadEvents([]db.HeadEvent{event})
 			for nextSlotDownload <= event.HeadEvent.Slot {
 
 				if s.processerBook.NumFreePages() > 0 {

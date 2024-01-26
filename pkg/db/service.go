@@ -129,7 +129,8 @@ type PersistableObject[
 		spec.AgnosticTransaction |
 		spec.ValidatorLastStatus |
 		spec.ValidatorRewards |
-		spec.Withdrawal] struct {
+		spec.Withdrawal |
+		HeadEvent] struct {
 	table string
 	query string
 	data  []T

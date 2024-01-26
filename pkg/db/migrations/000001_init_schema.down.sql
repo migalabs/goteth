@@ -12,3 +12,4 @@ DROP TABLE IF EXISTS t_finalized_checkpoint;
 DROP TABLE IF EXISTS t_genesis;
 DROP TABLE IF EXISTS t_orphans;
 DROP TABLE IF EXISTS t_eth2_pubkeys;
+DROP TABLE IF EXISTS t_head_events;

@@ -204,3 +204,14 @@ CREATE TABLE IF NOT EXISTS t_eth2_pubkeys(
 	f_pool_name TEXT,
 	f_pool TEXT)
 	ENGINE = ReplacingMergeTree();
+
+CREATE TABLE IF NOT EXISTS t_head_events(
+	f_slot UInt64,
+    f_block TEXT,
+    f_state TEXT,
+    f_epoch_transition BOOLEAN,
+    f_current_duty_dependent_root TEXT,
+    f_previous_duty_dependent_root TEXT,
+	f_arrival_timestamp UInt64)
+	ENGINE = ReplacingMergeTree()
+	ORDER BY (f_block);

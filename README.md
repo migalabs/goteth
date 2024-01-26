@@ -8,13 +8,14 @@ This tool has been used to power the
 - [pandametrics.xyz](https://pandametrics.xyz/) public dashboard
 - [ethseer.io](https://ethseer.io) public dashboard
 
-### Prerequisites
+## Prerequisites
 To use the tool, the following requirements need to be installed in the machine:
 - [go](https://go.dev/doc/install) preferably on its 1.20 version or above. Go also needs to be executable from the terminal.
 - Clickhouse DB
-- Access to a Ethereum CL beacon node (preferably an archive node to index the slots faster)
+- Access to an Ethereum CL beacon node (preferably an archive node to index the slots faster)
+- Access to an Ethereum execution node (optional)
 
-### Installation
+## Installation
 The repository provides a Makefile that will take care of all your problems.
 
 To compile locally the client, just type the following command at the root of the directory:
@@ -27,31 +28,32 @@ Or if you prefer to install the client locally type:
 make install
 ```
 
-### Metrics: database tables
+## Metrics: database tables
 
 - block: downloads withdrawals, blocks and block rewards
 - epoch: download epoch metrics, proposer duties, validator last status,
 - rewards: persists validator rewards metrics to database (activates epoch metrics)
-- api_rewards (EXPERIMENTAL): block rewards are hard to calculate, but they can be downloaded from the Beacon API. However, keep in mind this takes a few seconds per block when not at the head. Without this, reward cannot be compared to max_reward when a validator is a proposer (32/900K validators in an epoch). It depends on the Lighthouse API and we have registered some cases where the block reward was not returned.
+- api_rewards (EXPERIMENTAL): block rewards (consensus layer) are hard to calculate, but they can be downloaded from the Beacon API. However, keep in mind this takes a few seconds per block when not at the head. Without this, reward cannot be compared to max_reward when a validator is a proposer (32/900K validators in an epoch). It depends on the Lighthouse API and we have registered some cases where the block reward was not returned.
 - transactions: requests transaction receipts from the execution layer (activates block metrics)
 
-### Download mode
+## Download mode
 
 - Historical: this mode loops over slots between `initSlot` and `finalSlot`, which are configurable. Once all slots have been analyzed, the tool finishes the execution.
 - Finalized: `initSlot` and `finalSlot` are ignored. The tool starts the historical mode from the database last slot to the current head (beacon node) and then follows the chain head. To do this, the tool subscribes to `head` events. See [here](https://ethereum.github.io/beacon-APIs/#/Events/eventstream) for more information. 
 
-### Running the tool
+## Running the tool
 To execute the tool, you can simply modify the `.env` file with your own configuration.
 
 *Running the tool (configurable in the `.env` file)*:
 ```
-docker-compose up
+docker-compose up goteth
 ```
 
 *Available Commands*:
 ```
 COMMANDS:
    blocks   analyze the Beacon Block of a given slot range
+   val-window Removes old rows from the validator rewards table according to given parameters
    help, h  Shows a list of commands or help for one command
 ```
 
@@ -74,12 +76,14 @@ OPTIONS:
    --help, -h              show help (default: false)
 ```
 
+### Validator window
+
+Validator rewards represent 95% of the disk usage of the database. When activated, the database grows very big, while sometimes becoming too much data. 
+We have developed a subcommand of the tool which maintains the last n epochs of rewards data in the database, prunnning from the defined threshold backwards. So, one can configure the tool to maintain the last 100 epochs of data in the database, while prunning the rest
+
 # Notes
 
-Validator metrics consume 95% of the database size. Please bear in mind that for 1k epochs of data, validator metrics consume around 100GB and CPU load will also increase. Exporting validator metrics has been tested using LH archival (states every 32 slots) and 32 core (AMD Ryzen 9500X) 128GB RAM machine.
-The tool will export the metrics but it might take some time if the machine is not as powerful.
-
-Keep in mind rewards data also downloads block rewards from the Beacon API. This is very slow on historical blocks (3 seconds per block), but very fast on blocks near the head.
+Keep in mind `api_rewards` data also downloads block rewards from the Beacon API. This is very slow on historical blocks (3 seconds per block), but very fast on blocks near the head.
 
 ## Database migrations
 
