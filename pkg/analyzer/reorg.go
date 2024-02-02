@@ -36,11 +36,12 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 			// Retrieve stored root and redownload root once finalized
 			queueBlock := s.downloadCache.BlockHistory.Wait(slot)
-			finalizedBlockRoot := s.cli.RequestStateRoot(phase0.Slot(queueBlock.Slot))
-			historyBlockRoot := queueBlock.StateRoot
+			finalizedBlockRoot := s.cli.RequestBlockRoot(phase0.Slot(queueBlock.Slot))
+			historyBlockRoot := queueBlock.Root
 
 			if finalizedBlockRoot != historyBlockRoot {
-				log.Fatalf("state root for block (slot=%d) incorrect, redownload", queueBlock.Slot)
+				log.Errorf("history block root: %s\nfinalized block root: %s", historyBlockRoot, finalizedBlockRoot)
+				log.Fatalf("block root for block (slot=%d) incorrect, redownload", queueBlock.Slot)
 			}
 		}
 	}
@@ -67,7 +68,7 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 		s.DownloadBlock(i) // -> inserts into the queue and replaces old block
 		newBlock := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i))
 
-		if newBlock.StateRoot != oldBlock.StateRoot { // only rewrite if stateroots are different
+		if newBlock.Root != oldBlock.Root { // only rewrite if stateroots are different
 			if block.Proposed { // keep orphans -> if previous block was proposed and roots have changed
 				s.dbClient.PersistOrphans([]spec.AgnosticBlock{oldBlock})
 			}

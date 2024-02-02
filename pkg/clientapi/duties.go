@@ -9,10 +9,6 @@ import (
 
 func (s *APIClient) NewEpochData(slot phase0.Slot) spec.EpochDuties {
 
-	// routineKey := "duties=" + fmt.Sprintf("%d", slot)
-	// s.apiBook.Acquire(routineKey)
-	// defer s.apiBook.FreePage(routineKey)
-
 	epochCommittees, err := s.Api.BeaconCommittees(s.ctx, strconv.Itoa(int(slot)))
 
 	if err != nil {

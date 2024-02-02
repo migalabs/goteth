@@ -72,141 +72,80 @@ var (
 	)
 )
 
+func (r *DBService) initMonitorMetrics() {
+
+	tablesArr := []string{
+		blocksTable,
+		epochsTable,
+		finalizedTable,
+		genesisTable,
+		headEventsTable,
+		orphansTable,
+		poolsTables,
+		proposerDutiesTable,
+		reorgsTable,
+		transactionsTable,
+		valLastStatusTable,
+		valRewardsTable,
+		withdrawalsTable}
+
+	for _, tableName := range tablesArr {
+		r.monitorMetrics[tableName] = &DBMonitorMetrics{}
+	}
+
+}
+
 func (r *DBService) GetPrometheusMetrics() *metrics.MetricsModule {
 	metricsMod := metrics.NewMetricsModule(
 		modName,
 		"metrics about the database",
 	)
 	// compose all the metrics
-	metricsMod.AddIndvMetric(r.getPersistRows())
-	metricsMod.AddIndvMetric(r.getPersistTime())
-	metricsMod.AddIndvMetric(r.getPersistRate())
-	metricsMod.AddIndvMetric(r.getPersistCount())
-
-	r.monitorMetrics = make(map[string][]DBMonitorMetrics)
+	metricsMod.AddIndvMetric(r.getPersistMetrics())
 
 	metricsMod.AddIndvMetric(r.lastProcessedSlotMetric())
 	metricsMod.AddIndvMetric(r.lastProcessedEpochMetric())
 	return metricsMod
 }
 
-func (r *DBService) getPersistRows() *metrics.IndvMetrics {
+func (r *DBService) getPersistMetrics() *metrics.IndvMetrics {
 	initFn := func() error {
 		prometheus.MustRegister(RowsPersisted)
-		return nil
-	}
-	updateFn := func() (interface{}, error) {
-		sumRows := make(map[string]float64)
-
-		for k, v := range r.monitorMetrics {
-
-			for _, persistMetrics := range v {
-				sumRows[k] += float64(persistMetrics.Rows)
-			}
-			RowsPersisted.WithLabelValues(k).Set(sumRows[k])
-		}
-
-		return sumRows, nil
-	}
-	rowsPersisted, err := metrics.NewIndvMetrics(
-		"rows_persisted",
-		initFn,
-		updateFn,
-	)
-	if err != nil {
-		return nil
-	}
-	return rowsPersisted
-}
-
-func (r *DBService) getPersistTime() *metrics.IndvMetrics {
-	initFn := func() error {
 		prometheus.MustRegister(TimePersisted)
-		return nil
-	}
-	updateFn := func() (interface{}, error) {
-		sumTimes := make(map[string]float64)
-
-		for k, v := range r.monitorMetrics {
-
-			for _, persistMetrics := range v {
-				sumTimes[k] += persistMetrics.PersistTime.Seconds()
-			}
-			TimePersisted.WithLabelValues(k).Set(sumTimes[k])
-		}
-
-		return sumTimes, nil
-	}
-	timePersisted, err := metrics.NewIndvMetrics(
-		"time_persisted",
-		initFn,
-		updateFn,
-	)
-	if err != nil {
-		return nil
-	}
-	return timePersisted
-}
-
-func (r *DBService) getPersistRate() *metrics.IndvMetrics {
-	initFn := func() error {
 		prometheus.MustRegister(RatePersisted)
 		return nil
 	}
 	updateFn := func() (interface{}, error) {
-		rate := make(map[string]float64)
+		ratePersisted := make(map[string]float64)
 
-		for k, v := range r.monitorMetrics {
-			var sumTimes float64
-			var sumRows float64
+		copyMonitorMetrics := r.getMonitorMetrics()
 
-			for _, persistMetrics := range v {
-				sumTimes += persistMetrics.PersistTime.Seconds()
-				sumRows += float64(persistMetrics.Rows)
+		for k, v := range copyMonitorMetrics {
+			var rate float64
+			secondsTime := v.PersistTime.Seconds()
+
+			if secondsTime != 0 {
+				rate = float64(v.Rows) / secondsTime
 			}
-			if sumTimes != 0 {
-				rate[k] = sumRows / sumTimes
-			}
-			RatePersisted.WithLabelValues(k).Set(rate[k])
+
+			ratePersisted[k] = rate
+
+			RowsPersisted.WithLabelValues(k).Set(float64(v.Rows))
+			TimePersisted.WithLabelValues(k).Set(secondsTime)
+			RatePersisted.WithLabelValues(k).Set(rate)
 		}
 
-		return rate, nil
+		return ratePersisted, nil
 	}
-	ratePersisted, err := metrics.NewIndvMetrics(
-		"rows_s_persisted",
+	persistingMetrics, err := metrics.NewIndvMetrics(
+		"persisiting_metrics",
 		initFn,
 		updateFn,
 	)
 	if err != nil {
 		return nil
 	}
-	return ratePersisted
-}
-
-func (r *DBService) getPersistCount() *metrics.IndvMetrics {
-	initFn := func() error {
-		prometheus.MustRegister(NumberPersisted)
-		return nil
-	}
-	updateFn := func() (interface{}, error) {
-		numberPersists := make(map[string]float64)
-
-		for k, v := range r.monitorMetrics {
-			numberPersists[k] += float64(len(v))
-			NumberPersisted.WithLabelValues(k).Set(numberPersists[k])
-		}
-
-		return numberPersists, nil
-	}
-	ratePersisted, err := metrics.NewIndvMetrics(
-		"persist_count",
-		initFn,
-		updateFn,
-	)
-	if err != nil {
-		return nil
-	}
-	return ratePersisted
+	return persistingMetrics
 }
 
 func (r *DBService) lastProcessedEpochMetric() *metrics.IndvMetrics {
@@ -255,4 +194,17 @@ func (r *DBService) lastProcessedSlotMetric() *metrics.IndvMetrics {
 		return nil
 	}
 	return lastSlot
+}
+
+func (r *DBService) getMonitorMetrics() map[string]DBMonitorMetrics {
+	r.metricsMu.RLock()
+	defer r.metricsMu.RUnlock()
+
+	copyMonitorMetrics := make(map[string]DBMonitorMetrics, len(r.monitorMetrics))
+
+	for table, metrics := range r.monitorMetrics {
+		copyMonitorMetrics[table] = *metrics
+	}
+
+	return copyMonitorMetrics
 }

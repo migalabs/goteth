@@ -71,19 +71,11 @@ func (p *DBService) Persist(
 	elapsedTime := time.Since(startTime)
 
 	if err == nil {
-		log.Infof("table %s persisted %d rows in %fs", table, rows, elapsedTime.Seconds())
+		log.Debugf("table %s persisted %d rows in %fs", table, rows, elapsedTime.Seconds())
 
-		if _, ok := p.monitorMetrics[table]; !ok {
-			p.monitorMetrics[table] = make([]DBMonitorMetrics, 0)
-		}
-
-		metrics := p.monitorMetrics[table]
-		newMetrics := DBMonitorMetrics{
-			Rows:        rows,
-			PersistTime: elapsedTime,
-		}
-		metrics = append(metrics, newMetrics)
-		p.monitorMetrics[table] = metrics
+		p.metricsMu.Lock()
+		p.monitorMetrics[table].addNewPersist(rows, elapsedTime)
+		p.metricsMu.Unlock()
 	}
 
 	return err

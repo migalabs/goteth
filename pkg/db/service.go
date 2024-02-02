@@ -35,9 +35,10 @@ type DBService struct {
 	lowLevelClient  *ch.Client  // for bulk loads, mainly insert
 	highLevelClient driver.Conn // for side tasks, like Select and Delete
 
-	monitorMetrics map[string][]DBMonitorMetrics // map table and metrics
+	monitorMetrics map[string]*DBMonitorMetrics // map table and metrics
 	lowMu          sync.Mutex
 	highMu         sync.Mutex
+	metricsMu      sync.RWMutex
 }
 
 func New(ctx context.Context, url string, options ...DBServiceOption) (*DBService, error) {
@@ -45,8 +46,10 @@ func New(ctx context.Context, url string, options ...DBServiceOption) (*DBServic
 	pService := &DBService{
 		ctx:            ctx,
 		connectionUrl:  url,
-		monitorMetrics: make(map[string][]DBMonitorMetrics),
+		monitorMetrics: make(map[string]*DBMonitorMetrics),
 	}
+
+	pService.initMonitorMetrics()
 
 	for _, o := range options {
 		err := o(pService)
@@ -89,8 +92,17 @@ func (p *DBService) Finish() {
 }
 
 type DBMonitorMetrics struct {
-	Rows        int           // how many rows were persisted in the last copy
-	PersistTime time.Duration // how much time to persist the last copy
+	Rows           uint64        // how many rows were persisted in the last copy
+	PersistTime    time.Duration // how much time to persist the last copy
+	NumberPersists uint64        // number of persist done for the given metrics
+}
+
+func (d *DBMonitorMetrics) addNewPersist(rows int, elapsedTime time.Duration) {
+
+	d.Rows += uint64(rows)
+	d.PersistTime += elapsedTime
+	d.NumberPersists += 1
+
 }
 
 type DeletableObject struct {

@@ -110,7 +110,7 @@ func (p *DBService) highSelect(query string, dest interface{}) error {
 	p.highMu.Unlock()
 
 	if err == nil {
-		log.Infof("retrieved %d rows in %f seconds, query: %s", 1, time.Since(startTime).Seconds(), query)
+		log.Debugf("retrieved %d rows in %f seconds, query: %s", 1, time.Since(startTime).Seconds(), query)
 	} else {
 		log.Errorf("error executing %s: %s", query, err)
 	}
