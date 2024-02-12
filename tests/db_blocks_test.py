@@ -29,23 +29,19 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
     def test_block_gaps(self):
         """ make sure that there are no gaps between the indexed blocks """
         sql_query = """
-        WITH Gaps AS (
-            SELECT
-                f_el_block_number AS preceding_block,
-                LEAD(f_el_block_number) OVER (ORDER BY f_el_block_number) - 1 AS end_of_missing_range
-            FROM
-                t_block_metrics
+        
+        SELECT *
+		FROM
+		(
+			SELECT
+				f_el_block_number,
+				count() AS c
+			FROM t_block_metrics
             WHERE f_el_block_number > 16307594
-        )
-        SELECT
-            preceding_block + 1 AS start_of_missing_range,
-            end_of_missing_range
-        FROM
-            Gaps
-        WHERE
-            end_of_missing_range - preceding_block > 1
-        ORDER BY
-            preceding_block;        
+			GROUP BY f_el_block_number
+			ORDER BY f_el_block_number ASC WITH FILL
+		)
+		WHERE c = 0   
         """
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
