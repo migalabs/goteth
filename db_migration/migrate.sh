@@ -11,7 +11,8 @@ do
         -d $CH_DB \
         --user $CH_USER \
         --password $CH_PASSWORD \
-        --query "INSERT INTO $table SELECT * FROM postgresql('$PS_ENDPOINT', '$PS_DB', '$table', '$PS_USER', '$PS_PASSWORD')"
+        --query "INSERT INTO $table SELECT * FROM postgresql('$PS_ENDPOINT', '$PS_DB', '$table', '$PS_USER', '$PS_PASSWORD')" \
+        --verbose --progress
         echo done
 done
 date
