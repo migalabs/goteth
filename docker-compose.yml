@@ -20,7 +20,10 @@ services:
       --metrics=${GOTETH_ANALYZER_METRICS}
       --prometheus-port=${GOTETH_ANALYZER_PROMETHEUS_PORT:-9081}
     network_mode: 'host'
-  
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    
   val-window:
     build:
       context: ./
@@ -49,4 +52,7 @@ services:
     ports:
       - "127.0.0.1:${CH_HTTP_PORT:-8123}:8123"
       - "127.0.0.1:${CH_NATIVE_PORT:-9000}:9000"
-      - "127.0.0.1:9005:9005"
+      - "127.0.0.1:${CH_SQL_PORT:-9005}:9005"
+    healthcheck: # executed inside the container
+      test: wget --no-verbose --tries=1 --spider http://localhost:9000/ping || exit 1
+      interval: 5s
