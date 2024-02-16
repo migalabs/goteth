@@ -1,11 +1,12 @@
 source .env
+PS_ENDPOINT="$PS_HOST:$PS_PORT"
 
 array=( t_block_metrics t_epoch_metrics_summary t_eth2_pubkeys t_finalized_checkpoint t_genesis t_orphans t_pool_summary t_proposer_duties t_reorgs t_transactions t_validator_last_status t_validator_rewards_summary t_withdrawals )
 for table in "${array[@]}"
 do
         date
         echo "Migrating $table..."
-        echo $PS_ENDPOINT, $PS_DB, $table, $PS_USER, $PS_PASSWORD
+        echo $PS_ENDPOINT, $PS_DB, $table, $PS_USER
         clickhouse-client --host $CH_HOST \
         --port $CH_PORT \
         -d $CH_DB \
