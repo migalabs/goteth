@@ -79,7 +79,12 @@ OPTIONS:
 ### Validator window
 
 Validator rewards represent 95% of the disk usage of the database. When activated, the database grows very big, while sometimes becoming too much data. 
-We have developed a subcommand of the tool which maintains the last n epochs of rewards data in the database, prunnning from the defined threshold backwards. So, one can configure the tool to maintain the last 100 epochs of data in the database, while prunning the rest
+We have developed a subcommand of the tool which maintains the last n epochs of rewards data in the database, prunnning from the defined threshold backwards. So, one can configure the tool to maintain the last 100 epochs of data in the database, while prunning the rest.
+
+Simply configure `GOTETH_VAL_WINDOW_NUM_EPOCHS` variable and run
+```
+docker-compose up val-window
+```
 
 # Notes
 
@@ -93,6 +98,10 @@ More specifically, one could clean the migrations by forcing the version with <b
 If specific upgrades or downgrades need to be done manually, one could do this with <br>
 ```migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" -verbose up```
 
+
+# From PostgreSQL to Clickhouse
+During `v3.0.0` we will migrate our database system from PostgreSQL to Clickhouse.
+To do this, please follow [this](https://migalabs.notion.site/PostgreSQL-to-Clickhouse-migration-611a52a457824cd494d701773365f62f) guide.
 
 # Maintainers
 @cortze @tdahar
