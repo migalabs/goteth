@@ -13,15 +13,13 @@ import (
 )
 
 var (
-	Version = "v2.2.0"
-	CliName = "GotEth"
-	log     = logrus.WithField(
+	log = logrus.WithField(
 		"cli", "CliName",
 	)
 )
 
 func main() {
-	fmt.Println(CliName, Version)
+	fmt.Println(utils.CliName, utils.Version)
 
 	customFormatter := new(logrus.TextFormatter)
 	customFormatter.FullTimestamp = true
@@ -33,9 +31,9 @@ func main() {
 	logrus.SetLevel(utils.ParseLogLevel("info"))
 
 	app := &cli.App{
-		Name:      CliName,
+		Name:      utils.CliName,
 		Usage:     "Tinny client that requests and processes the Beacon State for the slot range defined.",
-		UsageText: "eth2-state-analyzer [commands] [arguments...]",
+		UsageText: "goteth [commands] [arguments...]",
 		Authors: []*cli.Author{
 			{
 				Name:  "Cortze",
@@ -48,6 +46,7 @@ func main() {
 		EnableBashCompletion: true,
 		Commands: []*cli.Command{
 			cmd.BlocksCommand,
+			cmd.ValidatorWindowCommand,
 		},
 	}
 

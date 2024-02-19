@@ -88,15 +88,25 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 
 func (s *APIClient) RequestFinalizedBeaconBlock() (*local_spec.AgnosticBlock, error) {
 
-	// routineKey := "block=finalized"
-	// s.apiBook.Acquire(routineKey)
-	// defer s.apiBook.FreePage(routineKey)
-
 	finalityCheckpoint, _ := s.Api.Finality(s.ctx, "head")
 
 	finalizedSlot := finalityCheckpoint.Finalized.Epoch * local_spec.SlotsPerEpoch
 
 	return s.RequestBeaconBlock(phase0.Slot(finalizedSlot))
+}
+
+func (s *APIClient) RequestBlockRoot(slot phase0.Slot) phase0.Root {
+
+	root, err := s.Api.BeaconBlockRoot(s.ctx, fmt.Sprintf("%d", slot))
+	if err != nil {
+		log.Panicf("could not download the block root at %d: %s", slot, err)
+	}
+
+	if root == nil { // block root may be empty
+		return phase0.Root{}
+	}
+
+	return *root
 }
 
 func (s *APIClient) CreateMissingBlock(slot phase0.Slot) *local_spec.AgnosticBlock {
@@ -168,10 +178,6 @@ func (s *APIClient) RequestExecutionBlockByHash(hash common.Hash) (*types.Block,
 }
 
 func (s *APIClient) RequestCurrentHead() phase0.Slot {
-
-	// routineKey := "block=head"
-	// s.apiBook.Acquire(routineKey)
-	// defer s.apiBook.FreePage(routineKey)
 
 	head, err := s.Api.BeaconBlockHeader(s.ctx, "head")
 	if err != nil {

@@ -1,2 +1,0 @@
-ALTER TABLE t_validator_rewards_summary
-DROP COLUMN f_block_api_reward;

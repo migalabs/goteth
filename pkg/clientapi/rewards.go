@@ -12,10 +12,6 @@ import (
 
 func (s *APIClient) RequestBlockRewards(slot phase0.Slot) (spec.BlockRewards, error) {
 
-	// routineKey := "rewards=" + fmt.Sprintf("%d", slot)
-	// s.apiBook.Acquire(routineKey)
-	// defer s.apiBook.FreePage(routineKey)
-
 	uri := s.Api.Address() + "/eth/v1/beacon/rewards/blocks/" + fmt.Sprintf("%d", slot)
 	resp, err := http.Get(uri)
 	if err != nil {

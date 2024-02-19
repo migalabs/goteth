@@ -5,7 +5,6 @@ import (
 
 	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
@@ -37,11 +36,12 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 			// Retrieve stored root and redownload root once finalized
 			queueBlock := s.downloadCache.BlockHistory.Wait(slot)
-			finalizedBlockRoot := s.cli.RequestStateRoot(phase0.Slot(queueBlock.Slot))
-			historyBlockRoot := queueBlock.StateRoot
+			finalizedBlockRoot := s.cli.RequestBlockRoot(phase0.Slot(queueBlock.Slot))
+			historyBlockRoot := queueBlock.Root
 
 			if finalizedBlockRoot != historyBlockRoot {
-				log.Fatalf("state root for block (slot=%d) incorrect, redownload", queueBlock.Slot)
+				log.Errorf("history block root: %s\nfinalized block root: %s", historyBlockRoot, finalizedBlockRoot)
+				log.Fatalf("block root for block (slot=%d) incorrect, redownload", queueBlock.Slot)
 			}
 		}
 	}
@@ -58,33 +58,41 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 	depth := newReorg.Depth
 	reorgSlot := newReorg.Slot
 	fromSlot := reorgSlot - phase0.Slot(depth)
-	log.Warnf("reorging from %d to %d (not included)", fromSlot, reorgSlot)
-	for i := fromSlot; i < reorgSlot; i++ { // for every slot in the reorg
-		block := s.downloadCache.BlockHistory.Wait(uint64(i)) // first check that it was already in the cache
-		// keep orphans
-		if block.Proposed {
-			s.dbClient.Persist(db.OrphanBlock(*block))
-		}
-		s.DownloadBlock(i) // -> inserts into the queue and replaces old block
+	log.Warnf("reorging from %d to %d (included)", fromSlot, reorgSlot)
+	for i := fromSlot; i <= s.downloadCache.HeadBlock.Slot; i++ { // for every slot in the reorg
 
+		block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i))               // first check that it was already in the cache
 		s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", slotProcesserTag, i)) // wait until has been processed
+		oldBlock := *block
 
-		s.dbClient.DeleteBlockMetrics(i)
-		log.Infof("rewriting metrics for slot %d", i)
-		// write slot metrics
-		s.ProcessBlock(i)
+		s.DownloadBlock(i) // -> inserts into the queue and replaces old block
+		newBlock := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i))
+
+		if newBlock.Root != oldBlock.Root { // only rewrite if stateroots are different
+			if block.Proposed { // keep orphans -> if previous block was proposed and roots have changed
+				s.dbClient.PersistOrphans([]spec.AgnosticBlock{oldBlock})
+			}
+			s.dbClient.DeleteBlockMetrics(i)
+			log.Infof("rewriting metrics for slot %d", i)
+			// write slot metrics
+			s.ProcessBlock(i)
+		}
 
 		if (i+1)%spec.SlotsPerEpoch == 0 { // then we are at the end of the epoch, rewrite state
-			epoch := phase0.Epoch(i % spec.SlotsPerEpoch)
-			s.downloadCache.StateHistory.Available(uint64(i)) // first check that it was already in the cache
-			s.DownloadState(i)                                // -> inserts into the queue and replaces old block
+			epoch := phase0.Epoch(i / spec.SlotsPerEpoch)
 
+			state := s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))           // first check that it was already in the cache
 			s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", epochProcesserTag, i)) // wait until has been processed
+			oldState := *state
+			s.DownloadState(i) // -> inserts into the queue and replaces old block
+			newState := s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))
 
-			s.dbClient.DeleteStateMetrics(epoch)
-			log.Infof("rewriting metrics for epoch %d", epoch)
-			// write slot metrics
-			s.ProcessStateTransitionMetrics(epoch)
+			if newState.StateRoot != oldState.StateRoot {
+				s.dbClient.DeleteStateMetrics(epoch)
+				log.Infof("rewriting metrics for epoch %d", epoch)
+				// write epoch metrics
+				s.ProcessStateTransitionMetrics(epoch)
+			}
 		}
 	}
 }

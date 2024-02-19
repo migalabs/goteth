@@ -1,1 +1,0 @@
-CREATE INDEX IF NOT EXISTS idx_val_epoch ON t_validator_rewards_summary(f_val_idx, f_epoch)

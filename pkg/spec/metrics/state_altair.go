@@ -244,7 +244,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 
 	for _, block := range p.baseMetrics.NextState.Blocks {
 		if block.Proposed && block.ProposerIndex == valIdx {
-			proposerApiReward = phase0.Gwei(block.Reward.Data.Total)
+			proposerApiReward += phase0.Gwei(block.Reward.Data.Total)
 		}
 	}
 

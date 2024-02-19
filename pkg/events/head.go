@@ -34,7 +34,9 @@ func (e *Events) HandleHeadEvent(event *api.Event) {
 		(int(headEpoch+1)*spec.EpochSlots)-int(data.Slot))
 
 	select { // only notify if we can
-	case e.HeadChan <- db.HeadEventTypeFromHeadEvent(*data, timestamp):
+	case e.HeadChan <- db.HeadEvent{
+		HeadEvent:        *data,
+		ArrivalTimestamp: timestamp}:
 	default:
 	}
 

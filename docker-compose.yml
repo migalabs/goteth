@@ -8,21 +8,51 @@ services:
     init: true
     command: >-
       blocks
-      --log-level=${ANALYZER_LOG_LEVEL}
-      --bn-endpoint=${ANALYZER_BN_ENDPOINT}
-      --el-endpoint=${ANALYZER_EL_ENDPOINT:-}
-      --init-slot=${ANALYZER_INIT_SLOT}
-      --final-slot=${ANALYZER_FINAL_SLOT}
-      --db-url=${ANALYZER_DB_URL}
-      --workers-num=${ANALYZER_WORKERS_NUM}
-      --db-workers-num=${ANALYZER_DB_WORKERS_NUM}
-      --download-mode=${ANALYZER_DOWNLOAD_MODE}
-      --metrics=${ANALYZER_METRICS}
-      --prometheus-port=${ANALYZER_PROMETHEUS_PORT:-9081}
+      --log-level=${GOTETH_LOG_LEVEL}
+      --bn-endpoint=${GOTETH_BN_ENDPOINT}
+      --el-endpoint=${GOTETH_ANALYZER_EL_ENDPOINT:-}
+      --init-slot=${GOTETH_ANALYZER_INIT_SLOT}
+      --final-slot=${GOTETH_ANALYZER_FINAL_SLOT}
+      --db-url=${GOTETH_DB_URL}
+      --workers-num=${GOTETH_ANALYZER_WORKERS_NUM}
+      --db-workers-num=${GOTETH_ANALYZER_DB_WORKERS_NUM}
+      --download-mode=${GOTETH_ANALYZER_DOWNLOAD_MODE}
+      --metrics=${GOTETH_ANALYZER_METRICS}
+      --prometheus-port=${GOTETH_ANALYZER_PROMETHEUS_PORT:-9081}
+    network_mode: 'host'
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    
+  val-window:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    init: true
+    command: >-
+      val-window
+      --log-level=${GOTETH_LOG_LEVEL}
+      --bn-endpoint=${GOTETH_BN_ENDPOINT}
+      --db-url=${GOTETH_DB_URL}
+      --num-epochs=${GOTETH_VAL_WINDOW_NUM_EPOCHS:-1}
     network_mode: 'host'
                 
-
-                
-
-        
-        
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    user: "$UID:$GID"
+    hostname: clickhouse
+    environment:
+      - CLICKHOUSE_DB=${CH_DB:-goteth_default}
+      - CLICKHOUSE_USER=${CH_USER:-username}
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+      - CLICKHOUSE_PASSWORD=${CH_PASSWORD:-password}
+    volumes:
+      - ./clickhouse_data/data:/var/lib/clickhouse/
+      - ./clickhouse_data/logs:/var/log/clickhouse-server/
+    ports:
+      - "127.0.0.1:${CH_HTTP_PORT:-8123}:8123"
+      - "127.0.0.1:${CH_NATIVE_PORT:-9000}:9000"
+      - "127.0.0.1:${CH_SQL_PORT:-9005}:9005"
+    healthcheck: # executed inside the container
+      test: wget --no-verbose --tries=1 --spider http://localhost:9000/ping || exit 1
+      interval: 5s

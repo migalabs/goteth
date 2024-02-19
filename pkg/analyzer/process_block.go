@@ -3,7 +3,6 @@ package analyzer
 import (
 	"fmt"
 
-	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
@@ -20,16 +19,26 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	s.processerBook.Acquire(routineKey) // register a new slot to process, good for monitoring
 
 	block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](slot))
-	s.dbClient.Persist(*block)
 
+	err := s.dbClient.PersistBlocks([]spec.AgnosticBlock{*block})
+	if err != nil {
+		log.Errorf("error persisting blocks: %s", err.Error())
+	}
+
+	var withdrawals []spec.Withdrawal
 	for _, item := range block.ExecutionPayload.Withdrawals {
-		s.dbClient.Persist(spec.Withdrawal{
+		withdrawals = append(withdrawals, spec.Withdrawal{
 			Slot:           block.Slot,
 			Index:          item.Index,
 			ValidatorIndex: item.ValidatorIndex,
 			Address:        item.Address,
 			Amount:         item.Amount,
 		})
+	}
+
+	err = s.dbClient.PersistWithdrawals(withdrawals)
+	if err != nil {
+		log.Errorf("error persisting withdrawals: %s", err.Error())
 	}
 
 	if s.metrics.Transactions {
@@ -40,19 +49,22 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 
 func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
 
+	var transactions []spec.AgnosticTransaction
 	for idx, tx := range block.ExecutionPayload.Transactions {
-		go func(txID int, transaction bellatrix.Transaction) {
-			detailedTx, err := s.cli.RequestTransactionDetails(
-				transaction,
-				block.Slot,
-				block.ExecutionPayload.BlockNumber,
-				block.ExecutionPayload.Timestamp)
-			if err != nil {
-				log.Errorf("could not request transaction details in slot %d for transaction %d: %s", block.Slot, txID, err)
-			}
-			log.Tracef("persisting transaction metrics: slot %d, tx number: %d", block.Slot, txID)
-			s.dbClient.Persist(detailedTx)
-		}(idx, tx)
+		detailedTx, err := s.cli.RequestTransactionDetails(
+			tx,
+			block.Slot,
+			block.ExecutionPayload.BlockNumber,
+			block.ExecutionPayload.Timestamp)
+		if err != nil {
+			log.Errorf("could not request transaction details in slot %d for transaction %d: %s", block.Slot, idx, err)
+		}
 
+		transactions = append(transactions, *detailedTx)
+	}
+	log.Tracef("persisting transaction metrics: slot %d", block.Slot)
+	err := s.dbClient.PersistTransactions(transactions)
+	if err != nil {
+		log.Errorf("error persisting transactions: %s", err.Error())
 	}
 }

@@ -1,2 +1,0 @@
-ALTER TABLE t_validator_rewards_summary
-ADD COLUMN f_block_api_reward BIGINT;

@@ -1,58 +1,69 @@
 package db
 
-/*
-
-This file together with the model, has all the needed methods to interact with the epoch_metrics table of the database
-
-*/
-
 import (
+	"github.com/ClickHouse/ch-go/proto"
 	api "github.com/attestantio/go-eth2-client/api/v1"
-	"github.com/migalabs/goteth/pkg/spec"
 )
 
-// Postgres intregration variables
 var (
-	InsertReorgQuery = `
-	INSERT INTO t_reorgs (
+	reorgsTable       = "t_reorgs"
+	insertReorgsQuery = `
+	INSERT INTO %s (
 		f_slot,
 		f_depth,
 		f_old_head_block_root,
 		f_new_head_block_root,
 		f_old_head_state_root,
 		f_new_head_state_root)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT ON CONSTRAINT t_reorgs_pkey
-		DO NOTHING;
-	`
+		VALUES`
 )
 
-func InsertReorg(inputReorg ReorgType) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
+func reorgsInput(reorgs []api.ChainReorgEvent) proto.Input {
+	// one object per column
+	var (
+		f_slot                proto.ColUInt64
+		f_depth               proto.ColUInt64
+		f_old_head_block_root proto.ColStr
+		f_new_head_block_root proto.ColStr
+		f_old_head_state_root proto.ColStr
+		f_new_head_state_root proto.ColStr
+	)
 
-	resultArgs = append(resultArgs, inputReorg.Slot)
-	resultArgs = append(resultArgs, inputReorg.Depth)
-	resultArgs = append(resultArgs, inputReorg.OldHeadBlock.String())
-	resultArgs = append(resultArgs, inputReorg.NewHeadBlock.String())
-	resultArgs = append(resultArgs, inputReorg.OldHeadState.String())
-	resultArgs = append(resultArgs, inputReorg.NewHeadState.String())
+	for _, reorg := range reorgs {
 
-	return InsertReorgQuery, resultArgs
-}
-
-type ReorgType api.ChainReorgEvent
-
-func (s ReorgType) Type() spec.ModelType {
-	return spec.ReorgModel
-}
-
-func ReorgTypeFromReorg(input api.ChainReorgEvent) ReorgType {
-	return ReorgType{
-		Slot:         input.Slot,
-		Depth:        input.Depth,
-		OldHeadBlock: input.OldHeadBlock,
-		NewHeadBlock: input.NewHeadBlock,
-		OldHeadState: input.OldHeadState,
-		NewHeadState: input.NewHeadState,
+		f_slot.Append(uint64(reorg.Slot))
+		f_depth.Append(reorg.Depth)
+		f_old_head_block_root.Append(reorg.OldHeadBlock.String())
+		f_new_head_block_root.Append(reorg.NewHeadBlock.String())
+		f_old_head_state_root.Append(reorg.OldHeadState.String())
+		f_new_head_state_root.Append(reorg.NewHeadState.String())
 	}
+
+	return proto.Input{
+
+		{Name: "f_slot", Data: f_slot},
+		{Name: "f_depth", Data: f_depth},
+		{Name: "f_old_head_block_root", Data: f_old_head_block_root},
+		{Name: "f_new_head_block_root", Data: f_new_head_block_root},
+		{Name: "f_old_head_state_root", Data: f_old_head_state_root},
+		{Name: "f_new_head_state_root", Data: f_new_head_state_root},
+	}
+}
+
+func (p *DBService) PersistReorgs(data []api.ChainReorgEvent) error {
+	persistObj := PersistableObject[api.ChainReorgEvent]{
+		input: reorgsInput,
+		table: reorgsTable,
+		query: insertReorgsQuery,
+	}
+
+	for _, item := range data {
+		persistObj.Append(item)
+	}
+
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting reorgs: %s", err.Error())
+	}
+	return err
 }

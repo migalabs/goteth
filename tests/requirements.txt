@@ -9,4 +9,4 @@ six==1.16.0
 SQLAlchemy==2.0.21
 typing_extensions==4.8.0
 tzdata==2023.3
-unit-db-test==0.1.12
+unit-db-test==0.1.13

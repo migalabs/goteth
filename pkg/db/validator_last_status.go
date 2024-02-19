@@ -1,16 +1,15 @@
 package db
 
 import (
-	"time"
-
-	pgx "github.com/jackc/pgx/v5"
+	"github.com/ClickHouse/ch-go/proto"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
-// Postgres intregration variables
 var (
-	UpsertValidatorLastStatus = `
-	INSERT INTO t_validator_last_status (	
+	valLastStatusTable               = "t_validator_last_status"
+	insertValidatorLastStatusesQuery = `
+	INSERT INTO %s (	
 		f_val_idx, 
 		f_epoch, 
 		f_balance_eth, 
@@ -20,60 +19,81 @@ var (
 		f_withdrawal_epoch,
 		f_exit_epoch,
 		f_public_key)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	ON CONFLICT ON CONSTRAINT t_validator_last_status_pkey
-		DO 
-			UPDATE SET 
-				f_epoch = excluded.f_epoch, 
-				f_balance_eth = excluded.f_balance_eth,
-				f_status = excluded.f_status,
-				f_slashed = excluded.f_slashed,
-				f_activation_epoch = excluded.f_activation_epoch,
-				f_withdrawal_epoch = excluded.f_withdrawal_epoch,
-				f_exit_epoch = excluded.f_exit_epoch,
-				f_public_key = excluded.f_public_key;
-	`
+	VALUES`
 
-	DropOldValidatorStatus = `
-		DELETE FROM t_validator_last_status
+	deleteValidatorStatus = `
+		DELETE FROM %s
 		WHERE f_epoch < $1`
 )
 
-func insertValidatorLastStatus(inputValidator spec.ValidatorLastStatus) (string, []interface{}) {
+func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
+	// one object per column
+	var (
+		f_epoch            proto.ColUInt64
+		f_balance_eth      proto.ColFloat32
+		f_status           proto.ColUInt8
+		f_slashed          proto.ColBool
+		f_activation_epoch proto.ColUInt64
+		f_withdrawal_epoch proto.ColUInt64
+		f_exit_epoch       proto.ColUInt64
+		f_public_key       proto.ColStr
+	)
 
-	return UpsertValidatorLastStatus, inputValidator.ToArray()
-}
+	for _, status := range validatorStatuses {
 
-func ValidatorLastStatusOperation(inputValidator spec.ValidatorLastStatus) (string, []interface{}) {
-
-	q, args := insertValidatorLastStatus(inputValidator)
-	return q, args
-
-}
-
-func (p *PostgresDBService) CopyValLastStatus(rowSrc [][]interface{}) int64 {
-
-	startTime := time.Now()
-
-	count, err := p.psqlPool.CopyFrom(
-		p.ctx,
-		pgx.Identifier{"t_validator_last_status"},
-		[]string{"f_val_idx",
-			"f_epoch",
-			"f_balance_eth",
-			"f_status",
-			"f_slashed",
-			"f_activation_epoch",
-			"f_withdrawal_epoch",
-			"f_exit_epoch",
-			"f_public_key"},
-		pgx.CopyFromRows(rowSrc))
-
-	if err != nil {
-		wlog.Fatalf("could not copy val_status rows into db: %s", err.Error())
+		f_epoch.Append(uint64(status.Epoch))
+		f_balance_eth.Append(status.BalanceToEth())
+		f_status.Append(uint8(status.CurrentStatus))
+		f_slashed.Append(status.Slashed)
+		f_activation_epoch.Append(uint64(status.ActivationEpoch))
+		f_withdrawal_epoch.Append(uint64(status.WithdrawalEpoch))
+		f_exit_epoch.Append(uint64(status.ExitEpoch))
+		f_public_key.Append(status.PublicKey.String())
 	}
 
-	wlog.Infof("persisted val_status %d rows in %f seconds", count, time.Since(startTime).Seconds())
+	return proto.Input{
 
-	return count
+		{Name: "f_epoch", Data: f_epoch},
+		{Name: "f_balance_eth", Data: f_balance_eth},
+		{Name: "f_status", Data: f_status},
+		{Name: "f_slashed", Data: f_slashed},
+		{Name: "f_activation_epoch", Data: f_activation_epoch},
+		{Name: "f_withdrawal_epoch", Data: f_withdrawal_epoch},
+		{Name: "f_exit_epoch", Data: f_exit_epoch},
+		{Name: "f_public_key", Data: f_public_key},
+	}
+}
+
+func (p *DBService) PersistValLastStatus(data []spec.ValidatorLastStatus) error {
+	persistObj := PersistableObject[spec.ValidatorLastStatus]{
+		input: valStatusInput,
+		table: valLastStatusTable,
+		query: insertValidatorLastStatusesQuery,
+	}
+
+	for _, item := range data {
+		persistObj.Append(item)
+	}
+
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting validator last status: %s", err.Error())
+	}
+	return err
+}
+
+func (p *DBService) DeleteValLastStatus(epoch phase0.Epoch) error {
+
+	deleteObj := DeletableObject{
+		query: deleteValidatorStatus,
+		table: valLastStatusTable,
+		args:  []any{epoch},
+	}
+
+	err := p.Delete(deleteObj)
+	if err != nil {
+		log.Errorf("error deleting validator last status: %s", err.Error())
+	}
+
+	return err
 }

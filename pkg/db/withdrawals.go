@@ -1,59 +1,69 @@
 package db
 
 import (
-	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ClickHouse/ch-go/proto"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
-// Postgres intregration variables
 var (
-	UpsertWithdrawal = `
-	INSERT INTO t_withdrawals (
+	withdrawalsTable       = "t_withdrawals"
+	insertWithdrawalsQuery = `
+	INSERT INTO %s (
 		f_slot,
 		f_index, 
 		f_val_idx,
 		f_address,
 		f_amount)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT ON CONSTRAINT PK_Withdrawal
-		DO
-		UPDATE SET 
-			f_val_idx = excluded.f_val_idx,
-			f_address = excluded.f_address,
-			f_amount = excluded.f_amount;
-	`
+		VALUES`
 
-	DropWithdrawalsQuery = `
-		DELETE FROM t_withdrawals
-		WHERE f_slot = $1;
-`
+	deleteWithdrawalsQuery = `
+		DELETE FROM %s
+		WHERE f_slot = $1;`
 )
 
-func insertWithdrawal(inputWithdrawal spec.Withdrawal) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-	resultArgs = append(resultArgs, inputWithdrawal.Slot)
-	resultArgs = append(resultArgs, inputWithdrawal.Index)
-	resultArgs = append(resultArgs, inputWithdrawal.ValidatorIndex)
-	resultArgs = append(resultArgs, inputWithdrawal.Address)
-	resultArgs = append(resultArgs, inputWithdrawal.Amount)
+func withdrawalsInput(withdrawals []spec.Withdrawal) proto.Input {
+	// one object per column
+	var (
+		f_slot    proto.ColUInt64
+		f_index   proto.ColUInt64
+		f_val_idx proto.ColUInt64
+		f_address proto.ColStr
+		f_amount  proto.ColUInt64
+	)
 
-	return UpsertWithdrawal, resultArgs
+	for _, withdrawal := range withdrawals {
+
+		f_slot.Append(uint64(withdrawal.Slot))
+		f_index.Append(uint64(withdrawal.Index))
+		f_val_idx.Append(uint64(withdrawal.ValidatorIndex))
+		f_address.Append(withdrawal.Address.String())
+		f_amount.Append(uint64(withdrawal.Amount))
+	}
+
+	return proto.Input{
+
+		{Name: "f_slot", Data: f_slot},
+		{Name: "f_index", Data: f_index},
+		{Name: "f_val_idx", Data: f_val_idx},
+		{Name: "f_address", Data: f_address},
+		{Name: "f_amount", Data: f_amount},
+	}
 }
 
-func WithdrawalOperation(inputWithdrawal spec.Withdrawal) (string, []interface{}) {
+func (p *DBService) PersistWithdrawals(data []spec.Withdrawal) error {
+	persistObj := PersistableObject[spec.Withdrawal]{
+		input: withdrawalsInput,
+		table: withdrawalsTable,
+		query: insertWithdrawalsQuery,
+	}
 
-	q, args := insertWithdrawal(inputWithdrawal)
-	return q, args
-}
+	for _, item := range data {
+		persistObj.Append(item)
+	}
 
-type WithdrawalDropType phase0.Slot
-
-func (s WithdrawalDropType) Type() spec.ModelType {
-	return spec.WithdrawalDropModel
-}
-
-func DropWitdrawals(slot WithdrawalDropType) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-	resultArgs = append(resultArgs, slot)
-	return DropWithdrawalsQuery, resultArgs
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting withdrawals: %s", err.Error())
+	}
+	return err
 }

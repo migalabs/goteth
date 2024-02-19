@@ -72,7 +72,7 @@ func (s *APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
 
 		if err != nil {
 
-			log.Fatalf("unable to retrieve transaction receipt for hash %x: %s", parsedTx.Hash(), err.Error())
+			log.Errorf("unable to retrieve transaction receipt for hash %x: %s", parsedTx.Hash(), err.Error())
 		}
 		gasUsed = receipt.GasUsed
 		gasPrice = receipt.EffectiveGasPrice.Uint64()

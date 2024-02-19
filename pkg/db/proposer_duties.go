@@ -1,58 +1,63 @@
 package db
 
-/*
-
-This file together with the model, has all the needed methods to interact with the epoch_metrics table of the database
-
-*/
-
 import (
-	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ClickHouse/ch-go/proto"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
-// Postgres intregration variables
 var (
-	InsertProposerDuty = `
-	INSERT INTO t_proposer_duties (
-		f_val_idx, 
+	proposerDutiesTable       = "t_proposer_duties"
+	insertProposerDutiesQuery = `
+	INSERT INTO %s (
+		f_val_idx,
 		f_proposer_slot,
 		f_proposed)
-		VALUES ($1, $2, $3)
-		ON CONFLICT DO NOTHING;
+		VALUES
 	`
 	// if there is a confilct the line already exists
 
-	DropProposerDutiesQuery = `
-	DELETE FROM t_proposer_duties
+	deleteProposerDutiesQuery = `
+	DELETE FROM %s
 	WHERE f_proposer_slot/32 = $1;
 `
 )
 
-func insertProposerDuty(inputDuty spec.ProposerDuty) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-	resultArgs = append(resultArgs, inputDuty.ValIdx)
-	resultArgs = append(resultArgs, inputDuty.ProposerSlot)
-	resultArgs = append(resultArgs, inputDuty.Proposed)
+func proposerDutiesInput(duties []spec.ProposerDuty) proto.Input {
+	// one object per column
+	var (
+		f_val_idx       proto.ColUInt64
+		f_proposer_slot proto.ColUInt64
+		f_proposed      proto.ColBool
+	)
 
-	return InsertProposerDuty, resultArgs
+	for _, duty := range duties {
+		f_val_idx.Append(uint64(duty.ValIdx))
+		f_proposer_slot.Append(uint64(duty.ProposerSlot))
+		f_proposed.Append(duty.Proposed)
+	}
+
+	return proto.Input{
+
+		{Name: "f_val_idx", Data: f_val_idx},
+		{Name: "f_proposer_slot", Data: f_proposer_slot},
+		{Name: "f_proposed", Data: f_proposed},
+	}
 }
 
-func ProposerDutyOperation(inputDuty spec.ProposerDuty) (string, []interface{}) {
+func (p *DBService) PersistDuties(data []spec.ProposerDuty) error {
+	persistObj := PersistableObject[spec.ProposerDuty]{
+		input: proposerDutiesInput,
+		table: proposerDutiesTable,
+		query: insertProposerDutiesQuery,
+	}
 
-	q, args := insertProposerDuty(inputDuty)
-	return q, args
+	for _, item := range data {
+		persistObj.Append(item)
+	}
 
-}
-
-type ProposerDutiesDropType phase0.Epoch
-
-func (s ProposerDutiesDropType) Type() spec.ModelType {
-	return spec.ProposerDutyDropModel
-}
-
-func DropProposerDuties(epoch ProposerDutiesDropType) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-	resultArgs = append(resultArgs, epoch)
-	return DropProposerDutiesQuery, resultArgs
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting proposer duties: %s", err.Error())
+	}
+	return err
 }

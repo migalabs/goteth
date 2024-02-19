@@ -1,1 +1,0 @@
-CREATE INDEX IF NOT EXISTS idx_epoch ON t_epoch_metrics_summary(f_epoch)

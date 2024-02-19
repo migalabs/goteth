@@ -1,1 +1,0 @@
-ALTER TABLE t_validator_last_status DROP CONSTRAINT t_validator_last_status_pkey;

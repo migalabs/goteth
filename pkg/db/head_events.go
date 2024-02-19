@@ -7,14 +7,15 @@ This file together with the model, has all the needed methods to interact with t
 */
 
 import (
+	"github.com/ClickHouse/ch-go/proto"
 	api "github.com/attestantio/go-eth2-client/api/v1"
-	"github.com/migalabs/goteth/pkg/spec"
 )
 
 // Postgres intregration variables
 var (
-	UpsertHeadEvent = `
-	INSERT INTO t_head_events (
+	headEventsTable  = "t_head_events"
+	insertHeadEvents = `
+	INSERT INTO %s (
 		f_slot,
 		f_block,
 		f_state,
@@ -22,49 +23,63 @@ var (
 		f_current_duty_dependent_root,
 		f_previous_duty_dependent_root,
 		f_arrival_timestamp)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		ON CONFLICT ON CONSTRAINT PK_Block
-		DO 
-			UPDATE SET
-				f_slot = excluded.f_slot, 
-				f_block = excluded.f_block,
-				f_state = excluded.f_state,
-				f_epoch_transition = excluded.f_epoch_transition,
-				f_current_duty_dependent_root = excluded.f_current_duty_dependent_root,
-				f_previous_duty_dependent_root = excluded.f_previous_duty_dependent_root,
-				f_arrival_timestamp = excluded.f_arrival_timestamp;
-	`
+		VALUES`
 )
 
-func insertHeadEvent(inputHeadEvent api.HeadEvent, arrivalTimestamp int64) (string, []interface{}) {
-	resultArgs := make([]interface{}, 0)
-	resultArgs = append(resultArgs, inputHeadEvent.Slot)
-	resultArgs = append(resultArgs, inputHeadEvent.Block)
-	resultArgs = append(resultArgs, inputHeadEvent.State)
-	resultArgs = append(resultArgs, inputHeadEvent.EpochTransition)
-	resultArgs = append(resultArgs, inputHeadEvent.CurrentDutyDependentRoot)
-	resultArgs = append(resultArgs, inputHeadEvent.PreviousDutyDependentRoot)
-	resultArgs = append(resultArgs, arrivalTimestamp)
-	return UpsertHeadEvent, resultArgs
+func headEventsInput(events []HeadEvent) proto.Input {
+	// one object per column
+	var (
+		f_slot                         proto.ColUInt64
+		f_block                        proto.ColStr
+		f_state                        proto.ColStr
+		f_epoch_transition             proto.ColBool
+		f_current_duty_dependent_root  proto.ColStr
+		f_previous_duty_dependent_root proto.ColStr
+		f_arrival_timestamp            proto.ColUInt64
+	)
+
+	for _, event := range events {
+
+		f_slot.Append(uint64(event.HeadEvent.Slot))
+		f_block.Append(event.HeadEvent.Block.String())
+		f_state.Append(event.HeadEvent.State.String())
+		f_epoch_transition.Append(event.HeadEvent.EpochTransition)
+		f_current_duty_dependent_root.Append(event.HeadEvent.CurrentDutyDependentRoot.String())
+		f_previous_duty_dependent_root.Append(event.HeadEvent.PreviousDutyDependentRoot.String())
+		f_arrival_timestamp.Append(uint64(event.ArrivalTimestamp))
+	}
+
+	return proto.Input{
+
+		{Name: "f_slot", Data: f_slot},
+		{Name: "f_block", Data: f_block},
+		{Name: "f_state", Data: f_state},
+		{Name: "f_epoch_transition", Data: f_epoch_transition},
+		{Name: "f_current_duty_dependent_root", Data: f_current_duty_dependent_root},
+		{Name: "f_previous_duty_dependent_root", Data: f_previous_duty_dependent_root},
+		{Name: "f_arrival_timestamp", Data: f_arrival_timestamp},
+	}
 }
 
-func HeadEventOperation(inputHeadEvent HeadEventType) (string, []interface{}) {
-	q, args := insertHeadEvent(inputHeadEvent.HeadEvent, inputHeadEvent.ArrivalTimestamp)
-	return q, args
+func (p *DBService) PersistHeadEvents(data []HeadEvent) error {
+	persistObj := PersistableObject[HeadEvent]{
+		input: headEventsInput,
+		table: headEventsTable,
+		query: insertHeadEvents,
+	}
+
+	for _, item := range data {
+		persistObj.Append(item)
+	}
+
+	err := p.Persist(persistObj.ExportPersist())
+	if err != nil {
+		log.Errorf("error persisting head events: %s", err.Error())
+	}
+	return err
 }
 
-type HeadEventType struct {
+type HeadEvent struct {
 	HeadEvent        api.HeadEvent
 	ArrivalTimestamp int64
-}
-
-func (s HeadEventType) Type() spec.ModelType {
-	return spec.HeadEventModel
-}
-
-func HeadEventTypeFromHeadEvent(input api.HeadEvent, arrivalTimestamp int64) HeadEventType {
-	return HeadEventType{
-		HeadEvent:        input,
-		ArrivalTimestamp: arrivalTimestamp,
-	}
 }

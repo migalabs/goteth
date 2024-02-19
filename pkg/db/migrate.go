@@ -1,33 +1,37 @@
 package db
 
 import (
-	migrate "github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/clickhouse"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-// Use as a reference because it contains sync.WaitGroup
-func (s *PostgresDBService) makeMigrations() {
+func (s *DBService) makeMigrations() error {
 
 	m, err := migrate.New(
 		"file://pkg/db/migrations",
 		s.connectionUrl)
 	if err != nil {
-		wlog.Fatalf(err.Error())
+		log.Errorf(err.Error())
+		return err
 	}
-	wlog.Infof("applying database migrations...")
+	log.Infof("applying database migrations...")
 	if err := m.Up(); err != nil {
 		if err != migrate.ErrNoChange {
-			wlog.Fatalf(err.Error())
+			log.Errorf(err.Error())
+			return err
 		}
 	}
 	connErr, dbErr := m.Close()
 
 	if connErr != nil {
-		wlog.Fatalf(connErr.Error())
+		log.Errorf(connErr.Error())
+		return connErr
 	}
 	if dbErr != nil {
-		wlog.Fatalf(dbErr.Error())
+		log.Errorf(dbErr.Error())
+		return dbErr
 	}
-
+	return err
 }

@@ -7,12 +7,17 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
     def test_transactions_per_block(self):
         """ make sure that the number of tracked transactions match the ones included in the corresponding block """
         sql_query = """
-        select t_block_metrics.f_slot, count(distinct(f_hash))
+        with tx_count as (
+			select f_slot, count(distinct(f_hash)) as tx_count
+        	from t_transactions
+            group by f_slot
+		)
+        
+        select t_block_metrics.f_slot, f_el_transactions, tx_count
         from t_block_metrics
-        inner join t_transactions
-        on t_block_metrics.f_slot = t_transactions.f_slot
-        group by t_block_metrics.f_slot
-        having f_el_transactions != count(distinct(f_hash))
+        inner join tx_count
+        on t_block_metrics.f_slot = tx_count.f_slot
+        where f_el_transactions != tx_count
         """
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
