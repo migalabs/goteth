@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/attestantio/go-eth2-client/api"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
@@ -30,12 +31,14 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 
 	startTime := time.Now()
 	err := errors.New("first attempt")
-	var newBlock *spec.VersionedSignedBeaconBlock
+	var newBlock *api.Response[*spec.VersionedSignedBeaconBlock]
 
 	attempts := 0
 	for err != nil && attempts < maxRetries {
 
-		newBlock, err = s.Api.SignedBeaconBlock(s.ctx, fmt.Sprintf("%d", slot))
+		newBlock, err = s.Api.SignedBeaconBlock(s.ctx, &api.SignedBeaconBlockOpts{
+			Block: fmt.Sprintf("%d", slot),
+		})
 
 		if newBlock == nil {
 			log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
@@ -45,7 +48,6 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 			ticker := time.NewTicker(utils.RoutineFlushTimeout)
 			log.Warnf("retrying request: %s", routineKey)
 			<-ticker.C
-
 		}
 		attempts += 1
 
@@ -54,7 +56,7 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 		// close the channel (to tell other routines to stop processing and end)
 		return &local_spec.AgnosticBlock{}, fmt.Errorf("unable to retrieve Beacon Block at slot %d: %s", slot, err.Error())
 	}
-	customBlock, err := local_spec.GetCustomBlock(*newBlock)
+	customBlock, err := local_spec.GetCustomBlock(*newBlock.Data)
 
 	if err != nil {
 		// close the channel (to tell other routines to stop processing and end)
@@ -88,16 +90,20 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 
 func (s *APIClient) RequestFinalizedBeaconBlock() (*local_spec.AgnosticBlock, error) {
 
-	finalityCheckpoint, _ := s.Api.Finality(s.ctx, "head")
+	finalityCheckpoint, _ := s.Api.Finality(s.ctx, &api.FinalityOpts{
+		State: "head",
+	})
 
-	finalizedSlot := finalityCheckpoint.Finalized.Epoch * local_spec.SlotsPerEpoch
+	finalizedSlot := finalityCheckpoint.Data.Finalized.Epoch * local_spec.SlotsPerEpoch
 
 	return s.RequestBeaconBlock(phase0.Slot(finalizedSlot))
 }
 
 func (s *APIClient) RequestBlockRoot(slot phase0.Slot) phase0.Root {
 
-	root, err := s.Api.BeaconBlockRoot(s.ctx, fmt.Sprintf("%d", slot))
+	root, err := s.Api.BeaconBlockRoot(s.ctx, &api.BeaconBlockRootOpts{
+		Block: fmt.Sprintf("%d", slot),
+	})
 	if err != nil {
 		log.Panicf("could not download the block root at %d: %s", slot, err)
 	}
@@ -106,16 +112,19 @@ func (s *APIClient) RequestBlockRoot(slot phase0.Slot) phase0.Root {
 		return phase0.Root{}
 	}
 
-	return *root
+	return *root.Data
 }
 
 func (s *APIClient) CreateMissingBlock(slot phase0.Slot) *local_spec.AgnosticBlock {
-	duties, err := s.Api.ProposerDuties(s.ctx, phase0.Epoch(slot/32), []phase0.ValidatorIndex{})
+	duties, err := s.Api.ProposerDuties(s.ctx, &api.ProposerDutiesOpts{
+		Indices: []phase0.ValidatorIndex{},
+		Epoch:   phase0.Epoch(slot / 32),
+	})
 	proposerValIdx := phase0.ValidatorIndex(0)
 	if err != nil {
 		log.Errorf("could not request proposer duty: %s", err)
 	} else {
-		for _, duty := range duties {
+		for _, duty := range duties.Data {
 			if duty.Slot == phase0.Slot(slot) {
 				proposerValIdx = duty.ValidatorIndex
 			}
@@ -179,10 +188,12 @@ func (s *APIClient) RequestExecutionBlockByHash(hash common.Hash) (*types.Block,
 
 func (s *APIClient) RequestCurrentHead() phase0.Slot {
 
-	head, err := s.Api.BeaconBlockHeader(s.ctx, "head")
+	head, err := s.Api.BeaconBlockHeader(s.ctx, &api.BeaconBlockHeaderOpts{
+		Block: "head",
+	})
 	if err != nil {
 		log.Panicf("could not request current head: %s", err)
 	}
 
-	return head.Header.Message.Slot
+	return head.Data.Header.Message.Slot
 }
