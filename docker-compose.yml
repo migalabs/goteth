@@ -38,7 +38,7 @@ services:
     network_mode: 'host'
                 
   clickhouse:
-    image: clickhouse/clickhouse-server
+    image: clickhouse/clickhouse-server:23.12-alpine
     user: "$UID:$GID"
     hostname: clickhouse
     environment:
@@ -54,5 +54,5 @@ services:
       - "127.0.0.1:${CH_NATIVE_PORT:-9000}:9000"
       - "127.0.0.1:${CH_SQL_PORT:-9005}:9005"
     healthcheck: # executed inside the container
-      test: wget --no-verbose --tries=1 --spider http://localhost:9000/ping || exit 1
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping
       interval: 5s
