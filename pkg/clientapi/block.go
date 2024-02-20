@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/api"
@@ -39,15 +40,17 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 		newBlock, err = s.Api.SignedBeaconBlock(s.ctx, &api.SignedBeaconBlockOpts{
 			Block: fmt.Sprintf("%d", slot),
 		})
+		if err != nil {
+			if response404(err.Error()) {
+				log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
+				return s.CreateMissingBlock(slot), nil
+			}
 
-		if newBlock == nil {
-			log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
-			return s.CreateMissingBlock(slot), nil
-		}
-		if errors.Is(err, context.DeadlineExceeded) {
-			ticker := time.NewTicker(utils.RoutineFlushTimeout)
-			log.Warnf("retrying request: %s", routineKey)
-			<-ticker.C
+			if errors.Is(err, context.DeadlineExceeded) {
+				ticker := time.NewTicker(utils.RoutineFlushTimeout)
+				log.Warnf("retrying request: %s", routineKey)
+				<-ticker.C
+			}
 		}
 		attempts += 1
 
@@ -77,8 +80,8 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 
 	if s.Metrics.APIRewards {
 		reward, err := s.RequestBlockRewards(slot)
-		if err != nil {
-			log.Error("cannot request block reward: %s", err)
+		if err != nil { // we only reach here if the block exists
+			log.Errorf("cannot request block reward: %s", err)
 		}
 
 		customBlock.Reward = reward
@@ -105,6 +108,10 @@ func (s *APIClient) RequestBlockRoot(slot phase0.Slot) phase0.Root {
 		Block: fmt.Sprintf("%d", slot),
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "404") {
+			// block was not found => block does not exist
+			return phase0.Root{}
+		}
 		log.Panicf("could not download the block root at %d: %s", slot, err)
 	}
 
