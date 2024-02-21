@@ -45,7 +45,6 @@ var (
 func epochsInput(epochs []spec.Epoch) proto.Input {
 	// one object per column
 	var (
-		f_timestamp                   proto.ColUInt64
 		f_epoch                       proto.ColUInt64
 		f_slot                        proto.ColUInt64
 		f_num_att                     proto.ColUInt64
@@ -57,6 +56,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_missing_source              proto.ColUInt64
 		f_missing_target              proto.ColUInt64
 		f_missing_head                proto.ColUInt64
+		f_timestamp                   proto.ColUInt64
 		f_num_slashed_vals            proto.ColUInt64
 		f_num_active_vals             proto.ColUInt64
 		f_num_exited_vals             proto.ColUInt64
@@ -64,7 +64,6 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 	)
 
 	for _, epoch := range epochs {
-		f_timestamp.Append(uint64(epoch.Timestamp))
 		f_epoch.Append(uint64(epoch.Epoch))
 		f_slot.Append(uint64(epoch.Slot))
 		f_num_att.Append(uint64(epoch.NumAttestations))
@@ -76,6 +75,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_missing_source.Append(uint64(epoch.MissingSource))
 		f_missing_target.Append(uint64(epoch.MissingTarget))
 		f_missing_head.Append(uint64(epoch.MissingHead))
+		f_timestamp.Append(uint64(epoch.Timestamp))
 		f_num_slashed_vals.Append(uint64(epoch.NumSlashedVals))
 		f_num_active_vals.Append(uint64(epoch.NumActiveVals))
 		f_num_exited_vals.Append(uint64(epoch.NumExitedVals))
@@ -84,8 +84,6 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 	}
 
 	return proto.Input{
-
-		{Name: "f_timestamp", Data: f_timestamp},
 		{Name: "f_epoch", Data: f_epoch},
 		{Name: "f_slot", Data: f_slot},
 		{Name: "f_num_att", Data: f_num_att},
@@ -97,6 +95,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		{Name: "f_missing_source", Data: f_missing_source},
 		{Name: "f_missing_target", Data: f_missing_target},
 		{Name: "f_missing_head", Data: f_missing_head},
+		{Name: "f_timestamp", Data: f_timestamp},
 		{Name: "f_num_slashed_vals", Data: f_num_slashed_vals},
 		{Name: "f_num_active_vals", Data: f_num_active_vals},
 		{Name: "f_num_exited_vals", Data: f_num_exited_vals},
