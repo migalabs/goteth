@@ -56,7 +56,6 @@ CREATE TABLE IF NOT EXISTS t_orphans(
 	ORDER BY (f_slot);
 
 CREATE TABLE IF NOT EXISTS t_epoch_metrics_summary(
-	f_timestamp UInt64,
 	f_epoch UInt64,
 	f_slot UInt64,
 	f_num_att UInt64,
@@ -68,6 +67,7 @@ CREATE TABLE IF NOT EXISTS t_epoch_metrics_summary(
 	f_missing_source UInt64, 
 	f_missing_target UInt64,
 	f_missing_head UInt64,
+	f_timestamp UInt64,
 	f_num_slashed_vals UInt64 DEFAULT 0,
 	f_num_active_vals UInt64 DEFAULT 0,
 	f_num_exited_vals UInt64 DEFAULT 0,
@@ -122,13 +122,13 @@ CREATE TABLE IF NOT EXISTS t_transactions(
     f_value Float,
     f_nonce UInt64,
     f_to TEXT DEFAULT '',
-	f_from TEXT DEFAULT '',
-	f_contract_address TEXT DEFAULT '',
-    f_hash TEXT,
-    f_size UInt64,
+	f_hash TEXT,
+	f_size UInt64,
 	f_slot UInt64,
 	f_el_block_number UInt64,
-	f_timestamp UInt64)
+	f_timestamp UInt64,
+	f_from TEXT DEFAULT '',
+	f_contract_address TEXT DEFAULT '')
 	ENGINE = ReplacingMergeTree()
 	ORDER BY (f_slot, f_el_block_number, f_hash);
 
