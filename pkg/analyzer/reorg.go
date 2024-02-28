@@ -23,12 +23,13 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		advance = true // only set flag if there is something to do
 
 		// Retrieve stored root and redownload root once finalized
-		queueState := s.downloadCache.StateHistory.Wait(epoch)
-		finalizedStateRoot := s.cli.RequestStateRoot(phase0.Slot(queueState.Slot))
-		historyStateRoot := queueState.StateRoot
+		cacheState := s.downloadCache.StateHistory.Wait(epoch)
+		finalizedStateRoot := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
+		cacheStateRoot := cacheState.StateRoot
 
-		if finalizedStateRoot != historyStateRoot { // no match, reorg happened
-			log.Warnf("state root for state (slot=%d) incorrect, redownload", queueState.Slot)
+		if finalizedStateRoot != cacheStateRoot { // no match, reorg happened
+			log.Warnf("cache state root: %s\nfinalized block root: %s", cacheStateRoot, finalizedStateRoot)
+			log.Warnf("state root for state (slot=%d) incorrect, redownload", cacheState.Slot)
 
 			s.dbClient.DeleteStateMetrics(phase0.Epoch(epoch))
 			log.Infof("rewriting metrics for epoch %d", epoch)
@@ -40,13 +41,13 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		for slot := (epoch * spec.SlotsPerEpoch); slot < ((epoch + 1) * spec.SlotsPerEpoch); slot++ {
 
 			// Retrieve stored root and redownload root once finalized
-			queueBlock := s.downloadCache.BlockHistory.Wait(slot)
-			finalizedBlockRoot := s.cli.RequestBlockRoot(phase0.Slot(queueBlock.Slot))
-			historyBlockRoot := queueBlock.Root
+			cacheBlock := s.downloadCache.BlockHistory.Wait(slot)
+			finalizedBlockRoot := s.cli.RequestBlockRoot(phase0.Slot(cacheBlock.Slot))
+			cacheBlockRoot := cacheBlock.Root
 
-			if finalizedBlockRoot != historyBlockRoot {
-				log.Errorf("history block root: %s\nfinalized block root: %s", historyBlockRoot, finalizedBlockRoot)
-				log.Warnf("block root for block (slot=%d) incorrect, redownload", queueBlock.Slot)
+			if finalizedBlockRoot != cacheBlockRoot {
+				log.Warnf("cache block root: %s\nfinalized block root: %s", cacheBlockRoot, finalizedBlockRoot)
+				log.Warnf("block root for block (slot=%d) incorrect, redownload", cacheBlock.Slot)
 
 				s.dbClient.DeleteBlockMetrics(phase0.Slot(slot))
 				log.Infof("rewriting metrics for slot %d", slot)
