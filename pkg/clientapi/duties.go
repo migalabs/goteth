@@ -1,8 +1,9 @@
 package clientapi
 
 import (
-	"strconv"
+	"fmt"
 
+	"github.com/attestantio/go-eth2-client/api"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
@@ -13,7 +14,9 @@ func (s *APIClient) NewEpochData(slot phase0.Slot) spec.EpochDuties {
 	// s.apiBook.Acquire(routineKey)
 	// defer s.apiBook.FreePage(routineKey)
 
-	epochCommittees, err := s.Api.BeaconCommittees(s.ctx, strconv.Itoa(int(slot)))
+	epochCommittees, err := s.Api.BeaconCommittees(s.ctx, &api.BeaconCommitteesOpts{
+		State: fmt.Sprintf("%d", slot),
+	})
 
 	if err != nil {
 		log.Errorf(err.Error())
@@ -22,7 +25,7 @@ func (s *APIClient) NewEpochData(slot phase0.Slot) spec.EpochDuties {
 	validatorsAttSlot := make(map[phase0.ValidatorIndex]phase0.Slot) // each validator, when it had to attest
 	validatorsPerSlot := make(map[phase0.Slot][]phase0.ValidatorIndex)
 
-	for _, committee := range epochCommittees {
+	for _, committee := range epochCommittees.Data {
 		for _, valID := range committee.Validators {
 			validatorsAttSlot[valID] = committee.Slot
 
@@ -36,15 +39,17 @@ func (s *APIClient) NewEpochData(slot phase0.Slot) spec.EpochDuties {
 		}
 	}
 
-	proposerDuties, err := s.Api.ProposerDuties(s.ctx, phase0.Epoch(slot/spec.SlotsPerEpoch), nil)
+	proposerDuties, err := s.Api.ProposerDuties(s.ctx, &api.ProposerDutiesOpts{
+		Epoch: phase0.Epoch(slot / spec.SlotsPerEpoch),
+	})
 
 	if err != nil {
 		log.Errorf(err.Error())
 	}
 
 	return spec.EpochDuties{
-		ProposerDuties:   proposerDuties,
-		BeaconCommittees: epochCommittees,
+		ProposerDuties:   proposerDuties.Data,
+		BeaconCommittees: epochCommittees.Data,
 		ValidatorAttSlot: validatorsAttSlot,
 	}
 }
