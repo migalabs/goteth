@@ -40,16 +40,19 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 			Block: fmt.Sprintf("%d", slot),
 		})
 
-		if newBlock == nil {
-			log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
-			return s.CreateMissingBlock(slot), nil
-		}
-		if errors.Is(err, context.DeadlineExceeded) {
-			ticker := time.NewTicker(utils.RoutineFlushTimeout)
-			log.Warnf("retrying request: %s", routineKey)
-			<-ticker.C
+		if err != nil {
+			if response404(err.Error()) {
+				log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
+				return s.CreateMissingBlock(slot), nil
+			}
 
+			if errors.Is(err, context.DeadlineExceeded) {
+				ticker := time.NewTicker(utils.RoutineFlushTimeout)
+				log.Warnf("retrying request: %s", routineKey)
+				<-ticker.C
+			}
 		}
+
 		attempts += 1
 
 	}
@@ -68,7 +71,7 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 	// shows error inside function if ELApi is not defined
 	block, err := s.RequestExecutionBlockByHash(common.Hash(customBlock.ExecutionPayload.BlockHash))
 	if err != nil {
-		log.Error("cannot request block by hash: %s", err)
+		log.Errorf("cannot request block by hash: %s", err)
 	}
 	if block != nil {
 		customBlock.ExecutionPayload.PayloadSize = uint32(block.Size())
@@ -79,7 +82,7 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 	if s.Metrics.APIRewards {
 		reward, err := s.RequestBlockRewards(slot)
 		if err != nil {
-			log.Error("cannot request block reward: %s", err)
+			log.Errorf("cannot request block reward: %s", err)
 		}
 
 		customBlock.Reward = reward
