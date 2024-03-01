@@ -101,7 +101,7 @@ If specific upgrades or downgrades need to be done manually, one could do this w
 
 # From PostgreSQL to Clickhouse
 During `v3.0.0` we will migrate our database system from PostgreSQL to Clickhouse.
-To do this, please follow [this](https://migalabs.notion.site/PostgreSQL-to-Clickhouse-migration-611a52a457824cd494d701773365f62f) guide.
+If you wish to migrate your existing database, please follow [this](https://migalabs.notion.site/PostgreSQL-to-Clickhouse-migration-611a52a457824cd494d701773365f62f) guide.
 
 # Maintainers
 @cortze @tdahar
