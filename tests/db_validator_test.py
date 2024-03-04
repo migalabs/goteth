@@ -53,7 +53,7 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
         from t_validator_rewards_summary
         where (f_inclusion_delay > 5 and f_missing_source = false)
       	or (f_inclusion_delay > 1 and f_missing_head = false)
-		or (f_inclusion_delay > 32 and f_missing_target = false)
+		or (f_inclusion_delay > 64 and f_missing_target = false)
         """
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)

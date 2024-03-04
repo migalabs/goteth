@@ -10,7 +10,7 @@ import (
 )
 
 type DenebMetrics struct {
-	*AltairMetrics
+	AltairMetrics
 }
 
 func NewDenebMetrics(
