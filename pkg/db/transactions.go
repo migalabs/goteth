@@ -22,7 +22,7 @@ var (
 /**
  * Extract parameters required to create transaction and return query with args
  */
-func insertTransaction(transaction *spec.AgnosticTransaction) (string, []interface{}) {
+func insertTransaction(transaction spec.AgnosticTransaction) (string, []interface{}) {
 	resultArgs := make([]interface{}, 0)
 
 	resultArgs = append(resultArgs, transaction.Type())
@@ -52,7 +52,7 @@ func insertTransaction(transaction *spec.AgnosticTransaction) (string, []interfa
 /**
  * Handle block db operation by forming the insertion query from transaction info
  */
-func TransactionOperation(transaction *spec.AgnosticTransaction) (string, []interface{}) {
+func TransactionOperation(transaction spec.AgnosticTransaction) (string, []interface{}) {
 	q, args := insertTransaction(transaction)
 
 	return q, args

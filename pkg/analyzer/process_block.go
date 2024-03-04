@@ -3,7 +3,6 @@ package analyzer
 import (
 	"fmt"
 
-	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
 )
@@ -40,19 +39,10 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 
 func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
 
-	for idx, tx := range block.ExecutionPayload.Transactions {
-		go func(txID int, transaction bellatrix.Transaction) {
-			detailedTx, err := s.cli.RequestTransactionDetails(
-				transaction,
-				block.Slot,
-				block.ExecutionPayload.BlockNumber,
-				block.ExecutionPayload.Timestamp)
-			if err != nil {
-				log.Errorf("could not request transaction details in slot %d for transaction %d: %s", block.Slot, txID, err)
-			}
-			log.Tracef("persisting transaction metrics: slot %d, tx number: %d", block.Slot, txID)
-			s.dbClient.Persist(detailedTx)
-		}(idx, tx)
+	receipts := s.cli.GetBlockTxReceipts(
+		*block)
 
+	for _, detailedTx := range receipts {
+		s.dbClient.Persist(detailedTx)
 	}
 }

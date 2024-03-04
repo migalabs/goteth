@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math"
 
+	attestant_spec "github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
@@ -21,7 +22,10 @@ func NewPhase0Metrics(nextBstate *spec.AgnosticState, currentState *spec.Agnosti
 	phase0Obj.baseMetrics.CurrentState = currentState
 	phase0Obj.baseMetrics.PrevState = prevState
 
-	phase0Obj.CalculateAttestingVals()
+	if prevState.Version != attestant_spec.DataVersionUnknown {
+		phase0Obj.CalculateAttestingVals()
+	}
+
 	return phase0Obj
 
 }

@@ -184,7 +184,7 @@ func (p *PostgresDBService) runWriters() {
 						persis.query = q
 						persis.values = append(persis.values, args...)
 					case spec.TransactionsModel:
-						q, args := TransactionOperation(task.(*spec.AgnosticTransaction))
+						q, args := TransactionOperation(task.(spec.AgnosticTransaction))
 						persis.query = q
 						persis.values = append(persis.values, args...)
 					case spec.TransactionDropModel:
