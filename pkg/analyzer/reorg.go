@@ -23,25 +23,36 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		advance = true // only set flag if there is something to do
 
 		// Retrieve stored root and redownload root once finalized
-		queueState := s.downloadCache.StateHistory.Wait(epoch)
-		finalizedStateRoot := s.cli.RequestStateRoot(phase0.Slot(queueState.Slot))
-		historyStateRoot := queueState.StateRoot
+		cacheState := s.downloadCache.StateHistory.Wait(epoch)
+		finalizedStateRoot := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
+		cacheStateRoot := cacheState.StateRoot
 
-		if finalizedStateRoot != historyStateRoot { // no match, reorg happened
-			log.Fatalf("state root for state (slot=%d) incorrect, redownload", queueState.Slot)
+		if finalizedStateRoot != cacheStateRoot { // no match, reorg happened
+			log.Warnf("cache state root: %s\nfinalized block root: %s", cacheStateRoot, finalizedStateRoot)
+			log.Warnf("state root for state (slot=%d) incorrect, redownload", cacheState.Slot)
+
+			s.dbClient.DeleteStateMetrics(phase0.Epoch(epoch))
+			log.Infof("rewriting metrics for epoch %d", epoch)
+			// write epoch metrics
+			s.ProcessStateTransitionMetrics(phase0.Epoch(epoch))
 		}
 
 		// loop over slots in the epoch
 		for slot := (epoch * spec.SlotsPerEpoch); slot < ((epoch + 1) * spec.SlotsPerEpoch); slot++ {
 
 			// Retrieve stored root and redownload root once finalized
-			queueBlock := s.downloadCache.BlockHistory.Wait(slot)
-			finalizedBlockRoot := s.cli.RequestBlockRoot(phase0.Slot(queueBlock.Slot))
-			historyBlockRoot := queueBlock.Root
+			cacheBlock := s.downloadCache.BlockHistory.Wait(slot)
+			finalizedBlockRoot := s.cli.RequestBlockRoot(phase0.Slot(cacheBlock.Slot))
+			cacheBlockRoot := cacheBlock.Root
 
-			if finalizedBlockRoot != historyBlockRoot {
-				log.Errorf("history block root: %s\nfinalized block root: %s", historyBlockRoot, finalizedBlockRoot)
-				log.Fatalf("block root for block (slot=%d) incorrect, redownload", queueBlock.Slot)
+			if finalizedBlockRoot != cacheBlockRoot {
+				log.Warnf("cache block root: %s\nfinalized block root: %s", cacheBlockRoot, finalizedBlockRoot)
+				log.Warnf("block root for block (slot=%d) incorrect, redownload", cacheBlock.Slot)
+
+				s.dbClient.DeleteBlockMetrics(phase0.Slot(slot))
+				log.Infof("rewriting metrics for slot %d", slot)
+				// write slot metrics
+				s.ProcessBlock(phase0.Slot(slot))
 			}
 		}
 	}
@@ -57,11 +68,18 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 	depth := newReorg.Depth
 	reorgSlot := newReorg.Slot
-	fromSlot := reorgSlot - phase0.Slot(depth)
-	log.Warnf("reorging from %d to %d (included)", fromSlot, reorgSlot)
-	for i := fromSlot; i <= s.downloadCache.HeadBlock.Slot; i++ { // for every slot in the reorg
 
-		block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i))               // first check that it was already in the cache
+	reorgedSlots := uint64(0)
+
+	cacheHeadBlock := s.downloadCache.GetHeadBlock()
+	i := cacheHeadBlock.Slot
+
+	for reorgedSlots <= depth { // for every slot in the reorg
+
+		block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i)) // first check that it was already in the cache
+		if i < reorgSlot && block.Proposed {
+			reorgedSlots += 1 // only count as reorged slot if there was a block porposed and we are not at the reorg slot
+		}
 		s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", slotProcesserTag, i)) // wait until has been processed
 		oldBlock := *block
 
@@ -76,6 +94,8 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 			log.Infof("rewriting metrics for slot %d", i)
 			// write slot metrics
 			s.ProcessBlock(i)
+		} else {
+			log.Infof("reorg slot %d: block roots are the same", i)
 		}
 
 		if (i+1)%spec.SlotsPerEpoch == 0 { // then we are at the end of the epoch, rewrite state
@@ -94,5 +114,7 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 				s.ProcessStateTransitionMetrics(epoch)
 			}
 		}
+		i -= 1
 	}
+
 }

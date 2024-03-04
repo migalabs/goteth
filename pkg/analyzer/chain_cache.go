@@ -62,6 +62,12 @@ func (s *ChainCache) AddNewBlock(block *spec.AgnosticBlock) {
 
 }
 
+func (s *ChainCache) GetHeadBlock() spec.AgnosticBlock {
+	s.Lock()
+	defer s.Unlock()
+	return *s.HeadBlock
+}
+
 func (s *ChainCache) CleanUpTo(maxSlot phase0.Slot) {
 
 	stateKeys := s.StateHistory.GetKeyList()
