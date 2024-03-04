@@ -23,4 +23,5 @@ The list of individuals below have provided patches, testing cases or small feat
 GitHub commit log for a list of recent contributors. We would like to thank
 everyone who has contributed to the project in any way.
 
-* Patrick Ocheja
+* [Patrick Ocheja](https://github.com/ocheja)
+* [Santiago Somoza](https://github.com/santi1234567)

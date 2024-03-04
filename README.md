@@ -14,6 +14,7 @@ To use the tool, the following requirements need to be installed in the machine:
 - Clickhouse DB
 - Access to an Ethereum CL beacon node (preferably an archive node to index the slots faster)
 - Access to an Ethereum execution node (optional)
+- Access to a Clickhouse server database (use native port, usually 9000)
 
 ## Installation
 The repository provides a Makefile that will take care of all your problems.
@@ -67,7 +68,7 @@ OPTIONS:
    --init-slot value       init slot from where to start (default: 0)
    --final-slot value      init slot from where to finish (default: 0)
    --log-level value       log level: debug, warn, info, error
-   --db-url value          example: postgresql://beaconchain:beaconchain@localhost:5432/beacon_states
+   --db-url value          example: clickhouse://beaconchain:beaconchain@localhost:9000/beacon_states
    --workers-num value     example: 3 (default: 4)
    --db-workers-num value  example: 3 (default: 4)
    --download-mode value   example: hybrid,historical,finalized. Default: hybrid
@@ -76,10 +77,11 @@ OPTIONS:
    --help, -h              show help (default: false)
 ```
 
-### Validator window
+### Validator window (experimental)
 
-Validator rewards represent 95% of the disk usage of the database. When activated, the database grows very big, while sometimes becoming too much data. 
-We have developed a subcommand of the tool which maintains the last n epochs of rewards data in the database, prunnning from the defined threshold backwards. So, one can configure the tool to maintain the last 100 epochs of data in the database, while prunning the rest.
+Validator rewards represent 95% of the disk usage of the database. When activated, the database grows very big, sometimes becoming too much data. 
+We have developed a subcommand of the tool which maintains the last n epochs of rewards data in the database, prunning from the defined threshold backwards. So, one can configure the tool to maintain the last 100 epochs of data in the database, while prunning the rest.
+The pruning only affects the `t_validator_rewards_summary` table.
 
 Simply configure `GOTETH_VAL_WINDOW_NUM_EPOCHS` variable and run
 ```
@@ -101,7 +103,7 @@ If specific upgrades or downgrades need to be done manually, one could do this w
 
 # From PostgreSQL to Clickhouse
 During `v3.0.0` we will migrate our database system from PostgreSQL to Clickhouse.
-To do this, please follow [this](https://migalabs.notion.site/PostgreSQL-to-Clickhouse-migration-611a52a457824cd494d701773365f62f) guide.
+If you wish to migrate your existing database, please follow [this](https://migalabs.notion.site/PostgreSQL-to-Clickhouse-migration-611a52a457824cd494d701773365f62f) guide.
 
 # Maintainers
 @cortze @tdahar
