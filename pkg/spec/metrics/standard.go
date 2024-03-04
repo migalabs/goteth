@@ -56,7 +56,7 @@ func StateMetricsByForkVersion(
 		return NewAltairMetrics(nextBstate, bstate, prevBstate), nil // We use Altair as Rewards system is the same
 
 	case spec.DataVersionDeneb:
-		return NewDenebMetrics(nextBstate, bstate, prevBstate), nil // We use Altair as Rewards system is the same
+		return NewDenebMetrics(nextBstate, bstate, prevBstate), nil
 	default:
 		return nil, fmt.Errorf("could not figure out the State Metrics Fork Version: %s", bstate.Version)
 	}

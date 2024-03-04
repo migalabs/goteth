@@ -87,6 +87,7 @@ func (p AltairMetrics) ProcessSyncAggregates() {
 func (p AltairMetrics) ProcessInclusionDelays() {
 	votedInPrevEpoch := make([]bool, len(p.baseMetrics.PrevState.Validators))
 	for _, block := range append(p.baseMetrics.PrevState.Blocks, p.baseMetrics.CurrentState.Blocks...) {
+		// we assume the blocks are in order asc
 		for _, attestation := range block.Attestations {
 			attSlot := attestation.Data.Slot
 			// Calculate inclusion delays only for attestations corresponding to slots from the previous epoch
