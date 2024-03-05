@@ -1,8 +1,9 @@
 package metrics
 
 import (
-	"log"
 	"math"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
@@ -25,8 +26,12 @@ func NewAltairMetrics(
 	altairObj.baseMetrics.NextState = nextBstate
 	altairObj.baseMetrics.BlockRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	altairObj.baseMetrics.SlashingRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
-
+	altairObj.baseMetrics.InclusionDelays = make(map[phase0.ValidatorIndex]int)
 	altairObj.ProcessAttestations()
+	prevBstateFilled := prevBstate.StateRoot != phase0.Root{}
+	if prevBstateFilled {
+		altairObj.ProcessInclusionDelays()
+	}
 	altairObj.ProcessSyncAggregates()
 	altairObj.ProcessSlashings()
 
@@ -75,6 +80,37 @@ func (p AltairMetrics) ProcessSyncAggregates() {
 			p.baseMetrics.BlockRewards[block.ProposerIndex] += proposerSyncReward
 		} else {
 			p.baseMetrics.BlockRewards[block.ProposerIndex] = proposerSyncReward
+		}
+	}
+}
+
+func (p AltairMetrics) ProcessInclusionDelays() {
+	votedInPrevEpoch := make([]bool, len(p.baseMetrics.PrevState.Validators))
+	for _, block := range append(p.baseMetrics.PrevState.Blocks, p.baseMetrics.CurrentState.Blocks...) {
+		// we assume the blocks are in order asc
+		for _, attestation := range block.Attestations {
+			attSlot := attestation.Data.Slot
+			// Calculate inclusion delays only for attestations corresponding to slots from the previous epoch
+			attSlotNotInPrevEpoch := attSlot < phase0.Slot(p.baseMetrics.PrevState.Epoch)*spec.SlotsPerEpoch || attSlot >= phase0.Slot(p.baseMetrics.CurrentState.Epoch)*local_spec.SlotsPerEpoch
+			if attSlotNotInPrevEpoch {
+				continue
+			}
+			inclusionDelay := p.GetInclusionDelay(*attestation, block)
+			committeIndex := attestation.Data.Index
+
+			attestingIndices := attestation.AggregationBits.BitIndices()
+
+			for _, idx := range attestingIndices {
+				valIdx, err := p.GetValidatorFromCommitteeIndex(attSlot, committeIndex, idx)
+				if err != nil {
+					log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
+				}
+
+				if !votedInPrevEpoch[valIdx] {
+					votedInPrevEpoch[valIdx] = true
+					p.baseMetrics.InclusionDelays[valIdx] = inclusionDelay
+				}
+			}
 		}
 	}
 }
@@ -282,6 +318,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		ProposerApiReward:    int64(proposerApiReward),
 		ProposerManualReward: int64(proposerManualReward),
 		InSyncCommittee:      inSyncCommitte,
+		InclusionDelay:       p.baseMetrics.InclusionDelays[valIdx],
 	}
 	return result, nil
 
@@ -304,6 +341,10 @@ func (p AltairMetrics) GetBaseRewardPerInc(totalEffectiveBalance phase0.Gwei) ph
 	return baseReward
 }
 
+func (p AltairMetrics) GetInclusionDelay(attestation phase0.Attestation, includedInBlock spec.AgnosticBlock) int {
+	return int(includedInBlock.Slot - attestation.Data.Slot)
+}
+
 func (p AltairMetrics) GetParticipationFlags(attestation phase0.Attestation, includedInBlock spec.AgnosticBlock) [3]bool {
 	var result [3]bool
 
@@ -312,7 +353,7 @@ func (p AltairMetrics) GetParticipationFlags(attestation phase0.Attestation, inc
 		log.Fatalf("error getting justified checkpoint: %s", err)
 	}
 
-	inclusionDelay := int(includedInBlock.Slot - attestation.Data.Slot)
+	inclusionDelay := p.GetInclusionDelay(attestation, includedInBlock)
 
 	targetRoot := p.baseMetrics.NextState.GetBlockRoot(attestation.Data.Target.Epoch)
 	headRoot := p.baseMetrics.NextState.GetBlockRootAtSlot(attestation.Data.Slot)
