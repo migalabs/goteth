@@ -61,6 +61,7 @@ func (s *ChainAnalyzer) runHead() {
 	s.eventsObj.SubscribeToHeadEvents()
 	s.eventsObj.SubscribeToFinalizedCheckpointEvents()
 	s.eventsObj.SubscribeToReorgsEvents()
+	s.eventsObj.SubscribeToBlobSidecarsEvents()
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
 	// loop over the list of slots that we need to analyze
 
@@ -88,6 +89,16 @@ func (s *ChainAnalyzer) runHead() {
 		case newReorg := <-s.eventsObj.ReorgChan:
 			s.dbClient.PersistReorgs([]v1.ChainReorgEvent{newReorg})
 			go s.HandleReorg(newReorg)
+
+		case newBlobSidecarEvent := <-s.eventsObj.BlobSidecarChan:
+
+			go func() {
+				blobList := s.downloadCache.BlobSidecarHistory.Wait(uint64(newBlobSidecarEvent.BlobSidecarEvent.Slot))
+				agnosticBlob := blobList.BlobSidecars[int(newBlobSidecarEvent.BlobSidecarEvent.Index)]
+				agnosticBlob.AddEventData(newBlobSidecarEvent)
+
+				s.dbClient.PersistBlobSidecars([]spec.AgnosticBlobSidecar{*agnosticBlob})
+			}()
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")

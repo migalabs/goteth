@@ -142,7 +142,8 @@ type PersistableObject[
 		spec.ValidatorLastStatus |
 		spec.ValidatorRewards |
 		spec.Withdrawal |
-		HeadEvent] struct {
+		HeadEvent |
+		spec.AgnosticBlobSidecar] struct {
 	table string
 	query string
 	data  []T

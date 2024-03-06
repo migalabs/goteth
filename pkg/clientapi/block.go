@@ -86,7 +86,6 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 
 		customBlock.Reward = reward
 	}
-	// s.RequestBlockBlobs(slot)
 	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 
 	return &customBlock, nil
@@ -204,28 +203,4 @@ func (s *APIClient) RequestCurrentHead() phase0.Slot {
 	}
 
 	return head.Data.Header.Message.Slot
-}
-
-func (s *APIClient) RequestBlockBlobs(slot phase0.Slot) error {
-	blobsResp, err := s.Api.BlobSidecars(s.ctx, &api.BlobSidecarsOpts{
-		Block: fmt.Sprintf("%d", slot),
-	})
-
-	if err != nil {
-		return fmt.Errorf("could not retrieve blob sidecars for slot %d: %s", slot, err)
-	}
-
-	blobs := blobsResp.Data
-
-	for _, item := range blobs {
-		agnosticBlob, err := local_spec.NewAgnosticBlobFromAPI(*item)
-
-		if err != nil {
-			return fmt.Errorf("could not retrieve blob sidecars for slot %d: %s", slot, err)
-		}
-
-		log.Infof("%+v", agnosticBlob)
-
-	}
-	return nil
 }

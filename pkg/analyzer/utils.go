@@ -36,9 +36,13 @@ func EpochTo[T uint64 | int64 | int](epoch phase0.Epoch) T {
 
 // --- Map ---
 
-type AgnosticMapOption[T spec.AgnosticBlock | spec.AgnosticState] func(*AgnosticMap[T])
+type AgnosticMapOption[T spec.AgnosticBlock |
+	spec.AgnosticState |
+	spec.BlobSidecarsInSlot] func(*AgnosticMap[T])
 
-type AgnosticMap[T spec.AgnosticBlock | spec.AgnosticState] struct {
+type AgnosticMap[T spec.AgnosticBlock |
+	spec.AgnosticState |
+	spec.BlobSidecarsInSlot] struct {
 	sync.Mutex
 	// both spec.Slot and spec.Epoch are uint64
 	m    map[uint64]*T
@@ -48,7 +52,9 @@ type AgnosticMap[T spec.AgnosticBlock | spec.AgnosticState] struct {
 	deleteF       func(*T) // extra code we want to run when deleting a key from the map
 }
 
-func NewAgnosticMap[T spec.AgnosticBlock | spec.AgnosticState](opts ...AgnosticMapOption[T]) *AgnosticMap[T] {
+func NewAgnosticMap[T spec.AgnosticBlock |
+	spec.AgnosticState |
+	spec.BlobSidecarsInSlot](opts ...AgnosticMapOption[T]) *AgnosticMap[T] {
 	// init by default with empty functions
 	emptyF := func(_ *T) {}
 	agnosticMap := &AgnosticMap[T]{
@@ -65,13 +71,17 @@ func NewAgnosticMap[T spec.AgnosticBlock | spec.AgnosticState](opts ...AgnosticM
 	return agnosticMap
 }
 
-func WithSetCollisionF[T spec.AgnosticBlock | spec.AgnosticState](f func(*T)) AgnosticMapOption[T] {
+func WithSetCollisionF[T spec.AgnosticBlock |
+	spec.AgnosticState |
+	spec.BlobSidecarsInSlot](f func(*T)) AgnosticMapOption[T] {
 	return func(m *AgnosticMap[T]) {
 		m.setCollisionF = f
 	}
 }
 
-func WithDeleteF[T spec.AgnosticBlock | spec.AgnosticState](f func(*T)) AgnosticMapOption[T] {
+func WithDeleteF[T spec.AgnosticBlock |
+	spec.AgnosticState |
+	spec.BlobSidecarsInSlot](f func(*T)) AgnosticMapOption[T] {
 	return func(m *AgnosticMap[T]) {
 		m.deleteF = f
 	}

@@ -1,6 +1,8 @@
 package spec
 
 import (
+	"math/big"
+
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -24,6 +26,13 @@ type AgnosticTransaction struct {
 	BlockNumber     uint64          // the number of the block where this transaction was added
 	Timestamp       uint64          // timestamp of the block to which this transaction belongs
 	ContractAddress common.Address  // address of the smart contract associated with this transaction
+
+	// Blobs
+	BlobHashes    []common.Hash
+	BlobGasUsed   uint64
+	BlobGasPrice  *big.Int
+	BlobGasLimit  uint64
+	BlobGasFeeCap *big.Int
 }
 
 func (txs AgnosticTransaction) Type() ModelType {

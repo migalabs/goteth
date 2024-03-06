@@ -54,6 +54,21 @@ func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
 		log.Errorf("error getting slot %d transactions: %s", block.Slot, err.Error())
 	}
 
+	blobs, err := s.cli.RequestBlobSidecars(block.Slot, txs)
+
+	if err != nil {
+		log.Fatalf("could not download blob sidecars for slot %d: %s", block.Slot, err)
+	}
+
+	if len(blobs) > 0 {
+		blobsSidecarsInSlot := spec.NewBlobSidecarsInSlot(block.Slot)
+		for _, item := range blobs {
+			blobsSidecarsInSlot.AddNewBlobSidecar(item)
+		}
+
+		s.downloadCache.AddNewBlobSidecarsInSlot(blobsSidecarsInSlot)
+	}
+
 	err = s.dbClient.PersistTransactions(txs)
 	if err != nil {
 		log.Errorf("error persisting transactions: %s", err.Error())

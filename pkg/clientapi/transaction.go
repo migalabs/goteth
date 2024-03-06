@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	txKeyTag string = "txreceipt="
+	blobTxType uint8 = 3
 )
 
 func (client *APIClient) ParseSingleTx(
@@ -59,6 +59,9 @@ func (client *APIClient) ParseSingleTx(
 		BlockNumber:     blockNumber,
 		Timestamp:       timestamp,
 		ContractAddress: contractAddress,
+		BlobGasLimit:    parsedTx.BlobGas(),
+		BlobGasFeeCap:   parsedTx.BlobGasFeeCap(),
+		BlobHashes:      parsedTx.BlobHashes(),
 	}, nil
 
 }
