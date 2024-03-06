@@ -43,6 +43,7 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 
 	if s.metrics.Transactions {
 		s.processTransactions(block)
+		s.processBlobSidecars(block)
 	}
 	s.processerBook.FreePage(routineKey)
 }
@@ -53,8 +54,18 @@ func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
 	if err != nil {
 		log.Errorf("error getting slot %d transactions: %s", block.Slot, err.Error())
 	}
+	block.ExecutionPayload.AgnosticTransactions = txs
 
-	blobs, err := s.cli.RequestBlobSidecars(block.Slot, txs)
+	err = s.dbClient.PersistTransactions(txs)
+	if err != nil {
+		log.Errorf("error persisting transactions: %s", err.Error())
+	}
+
+}
+
+func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock) {
+
+	blobs, err := s.cli.RequestBlobSidecars(block.Slot)
 
 	if err != nil {
 		log.Fatalf("could not download blob sidecars for slot %d: %s", block.Slot, err)
@@ -69,8 +80,4 @@ func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
 		s.downloadCache.AddNewBlobSidecarsInSlot(blobsSidecarsInSlot)
 	}
 
-	err = s.dbClient.PersistTransactions(txs)
-	if err != nil {
-		log.Errorf("error persisting transactions: %s", err.Error())
-	}
 }

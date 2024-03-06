@@ -9,8 +9,26 @@ var (
 	transactionsTable       = "t_transactions"
 	insertTransactionsQuery = `
 		INSERT INTO %s(
-			f_tx_type, f_chain_id, f_data, f_gas, f_gas_price, f_gas_tip_cap, f_gas_fee_cap, f_value, f_nonce, f_to, f_hash,
-								f_size, f_slot, f_el_block_number, f_timestamp, f_from, f_contract_address)
+			f_tx_type, 
+			f_chain_id, 
+			f_data, f_gas, 
+			f_gas_price, 
+			f_gas_tip_cap, 
+			f_gas_fee_cap, 
+			f_value, 
+			f_nonce, 
+			f_to, 
+			f_hash,
+			f_size, 
+			f_slot, 
+			f_el_block_number, 
+			f_timestamp, 
+			f_from, 
+			f_contract_address,
+			f_blob_gas_used,
+			f_blob_gas_price,
+			f_blob_gas_limit,
+			f_blob_gas_fee_cap)
 		VALUES`
 
 	deleteTransactionsQuery = `
@@ -39,6 +57,10 @@ func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 		f_timestamp        proto.ColUInt64
 		f_from             proto.ColStr
 		f_contract_address proto.ColStr
+		f_blob_gas_used    proto.ColUInt64
+		f_blob_gas_price   proto.ColUInt64
+		f_blob_gas_limit   proto.ColUInt64
+		f_blob_gas_fee_cap proto.ColUInt64
 	)
 
 	for _, transaction := range transactions {
@@ -65,6 +87,11 @@ func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 		f_timestamp.Append(uint64(transaction.Timestamp))
 		f_from.Append(transaction.From.String())
 		f_contract_address.Append(transaction.ContractAddress.String())
+
+		f_blob_gas_used.Append(transaction.BlobGasUsed)
+		f_blob_gas_price.Append(transaction.BlobGasPrice)
+		f_blob_gas_limit.Append(transaction.BlobGasLimit)
+		f_blob_gas_fee_cap.Append(transaction.BlobGasFeeCap)
 	}
 
 	return proto.Input{
@@ -86,6 +113,10 @@ func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 		{Name: "f_timestamp", Data: f_timestamp},
 		{Name: "f_from", Data: f_from},
 		{Name: "f_contract_address", Data: f_contract_address},
+		{Name: "f_blob_gas_used", Data: f_blob_gas_used},
+		{Name: "f_blob_gas_price", Data: f_blob_gas_price},
+		{Name: "f_blob_gas_limit", Data: f_blob_gas_limit},
+		{Name: "f_blob_gas_fee_cap", Data: f_blob_gas_fee_cap},
 	}
 }
 

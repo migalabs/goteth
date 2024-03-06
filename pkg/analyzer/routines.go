@@ -93,9 +93,13 @@ func (s *ChainAnalyzer) runHead() {
 		case newBlobSidecarEvent := <-s.eventsObj.BlobSidecarChan:
 
 			go func() {
-				blobList := s.downloadCache.BlobSidecarHistory.Wait(uint64(newBlobSidecarEvent.BlobSidecarEvent.Slot))
+				slot := newBlobSidecarEvent.BlobSidecarEvent.Slot
+				blobList := s.downloadCache.BlobSidecarHistory.Wait(uint64(slot))
+				block := s.downloadCache.BlockHistory.Wait(uint64(slot))
+
 				agnosticBlob := blobList.BlobSidecars[int(newBlobSidecarEvent.BlobSidecarEvent.Index)]
 				agnosticBlob.AddEventData(newBlobSidecarEvent)
+				agnosticBlob.GetTxHash(block.ExecutionPayload.AgnosticTransactions)
 
 				s.dbClient.PersistBlobSidecars([]spec.AgnosticBlobSidecar{*agnosticBlob})
 			}()

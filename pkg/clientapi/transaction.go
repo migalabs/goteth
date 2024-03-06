@@ -34,11 +34,22 @@ func (client *APIClient) ParseSingleTx(
 	gasUsed := parsedTx.Gas()
 	gasPrice := parsedTx.GasPrice().Uint64()
 	contractAddress := common.Address{}
+	blobGasUsed := uint64(0)
+	blobGasPrice := uint64(0)
+	blobGasLimit := uint64(0)
+	blobGasFeeCap := uint64(0)
 
 	if receipt != nil {
 		gasUsed = receipt.GasUsed
 		gasPrice = receipt.EffectiveGasPrice.Uint64()
 		contractAddress = receipt.ContractAddress
+	}
+
+	if parsedTx.Type() == blobTxType {
+		blobGasUsed = receipt.BlobGasUsed
+		blobGasPrice = receipt.BlobGasPrice.Uint64()
+		blobGasLimit = parsedTx.BlobGas()
+		blobGasFeeCap = parsedTx.BlobGasFeeCap().Uint64()
 	}
 
 	return spec.AgnosticTransaction{
@@ -59,8 +70,10 @@ func (client *APIClient) ParseSingleTx(
 		BlockNumber:     blockNumber,
 		Timestamp:       timestamp,
 		ContractAddress: contractAddress,
-		BlobGasLimit:    parsedTx.BlobGas(),
-		BlobGasFeeCap:   parsedTx.BlobGasFeeCap(),
+		BlobGasUsed:     blobGasUsed,
+		BlobGasPrice:    blobGasPrice,
+		BlobGasLimit:    blobGasLimit,
+		BlobGasFeeCap:   blobGasFeeCap,
 		BlobHashes:      parsedTx.BlobHashes(),
 	}, nil
 

@@ -5,11 +5,10 @@ import (
 
 	"github.com/attestantio/go-eth2-client/api"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/migalabs/goteth/pkg/spec"
 	local_spec "github.com/migalabs/goteth/pkg/spec"
 )
 
-func (s *APIClient) RequestBlobSidecars(slot phase0.Slot, txs []spec.AgnosticTransaction) ([]*local_spec.AgnosticBlobSidecar, error) {
+func (s *APIClient) RequestBlobSidecars(slot phase0.Slot) ([]*local_spec.AgnosticBlobSidecar, error) {
 
 	agnosticBlobs := make([]*local_spec.AgnosticBlobSidecar, 0)
 

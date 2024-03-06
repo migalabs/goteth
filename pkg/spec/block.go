@@ -39,16 +39,17 @@ type AgnosticBlock struct {
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type AgnosticExecutionPayload struct {
-	FeeRecipient  bellatrix.ExecutionAddress
-	GasLimit      uint64
-	GasUsed       uint64
-	Timestamp     uint64
-	BaseFeePerGas [32]byte
-	BlockHash     phase0.Hash32
-	Transactions  []bellatrix.Transaction
-	BlockNumber   uint64
-	Withdrawals   []*capella.Withdrawal
-	PayloadSize   uint32
+	FeeRecipient         bellatrix.ExecutionAddress
+	GasLimit             uint64
+	GasUsed              uint64
+	Timestamp            uint64
+	BaseFeePerGas        [32]byte
+	BlockHash            phase0.Hash32
+	Transactions         []bellatrix.Transaction
+	AgnosticTransactions []AgnosticTransaction
+	BlockNumber          uint64
+	Withdrawals          []*capella.Withdrawal
+	PayloadSize          uint32
 }
 
 func (f AgnosticBlock) Type() ModelType {

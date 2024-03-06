@@ -1,8 +1,6 @@
 package spec
 
 import (
-	"math/big"
-
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -30,9 +28,9 @@ type AgnosticTransaction struct {
 	// Blobs
 	BlobHashes    []common.Hash
 	BlobGasUsed   uint64
-	BlobGasPrice  *big.Int
+	BlobGasPrice  uint64
 	BlobGasLimit  uint64
-	BlobGasFeeCap *big.Int
+	BlobGasFeeCap uint64
 }
 
 func (txs AgnosticTransaction) Type() ModelType {
