@@ -241,6 +241,9 @@ func (p AltairMetrics) GetMaxAttestationReward(valIdx phase0.ValidatorIndex) pha
 
 		for i := range p.baseMetrics.CurrentState.AttestingBalance {
 
+			if !p.isFlagPossible(valIdx, i) { // consider if the attester could have achieved the flag
+				continue
+			}
 			// apply formula
 			attestingBalanceInc := p.baseMetrics.CurrentState.AttestingBalance[i] / spec.EffectiveBalanceInc
 
@@ -373,4 +376,32 @@ func (p AltairMetrics) GetParticipationFlags(attestation phase0.Attestation, inc
 	}
 
 	return result
+}
+
+func (p AltairMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int) bool {
+	attSlot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
+	maxInclusionDelay := 0
+
+	switch flagIndex {
+	case local_spec.AttSourceFlagIndex:
+		maxInclusionDelay = int(math.Sqrt(local_spec.SlotsPerEpoch))
+	case local_spec.AttTargetFlagIndex:
+		maxInclusionDelay = local_spec.SlotsPerEpoch
+	case local_spec.AttHeadFlagIndex:
+		maxInclusionDelay = 1
+	}
+
+	for slot := attSlot; slot <= (attSlot + phase0.Slot(maxInclusionDelay)); slot++ {
+		slotInEpoch := slot % local_spec.SlotsPerEpoch
+		block := p.baseMetrics.PrevState.Blocks[slotInEpoch]
+		if slot >= phase0.Slot(p.baseMetrics.CurrentState.Epoch*local_spec.SlotsPerEpoch) {
+			block = p.baseMetrics.CurrentState.Blocks[slotInEpoch]
+		}
+
+		if block.Proposed == true { // if there was a block proposed inside the inclusion window
+			return true
+		}
+	}
+	return false
+
 }
