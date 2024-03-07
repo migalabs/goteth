@@ -241,7 +241,7 @@ func (p AltairMetrics) GetMaxAttestationReward(valIdx phase0.ValidatorIndex) pha
 
 		for i := range p.baseMetrics.CurrentState.AttestingBalance {
 
-			if !p.isFlagPossible(valIdx, i) { // consider if the attester could have achieved the flag
+			if !p.isFlagPossible(valIdx, i) { // consider if the attester could have achieved the flag (inclusion delay wise)
 				continue
 			}
 			// apply formula
@@ -382,23 +382,26 @@ func (p AltairMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex in
 	attSlot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
 	maxInclusionDelay := 0
 
-	switch flagIndex {
-	case local_spec.AttSourceFlagIndex:
+	switch flagIndex { // for every flag there is a max inclusion delay to obtain a reward
+	case local_spec.AttSourceFlagIndex: // 5
 		maxInclusionDelay = int(math.Sqrt(local_spec.SlotsPerEpoch))
-	case local_spec.AttTargetFlagIndex:
+	case local_spec.AttTargetFlagIndex: // 32
 		maxInclusionDelay = local_spec.SlotsPerEpoch
-	case local_spec.AttHeadFlagIndex:
+	case local_spec.AttHeadFlagIndex: // 1
 		maxInclusionDelay = 1
+	default:
+		log.Fatalf("provided flag index %d is not known", flagIndex)
 	}
 
-	for slot := attSlot; slot <= (attSlot + phase0.Slot(maxInclusionDelay)); slot++ {
+	// look for any block proposed => the attester could have achieved it
+	for slot := attSlot + 1; slot <= (attSlot + phase0.Slot(maxInclusionDelay)); slot++ {
 		slotInEpoch := slot % local_spec.SlotsPerEpoch
 		block := p.baseMetrics.PrevState.Blocks[slotInEpoch]
 		if slot >= phase0.Slot(p.baseMetrics.CurrentState.Epoch*local_spec.SlotsPerEpoch) {
 			block = p.baseMetrics.CurrentState.Blocks[slotInEpoch]
 		}
 
-		if block.Proposed == true { // if there was a block proposed inside the inclusion window
+		if block.Proposed { // if there was a block proposed inside the inclusion window
 			return true
 		}
 	}

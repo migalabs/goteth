@@ -142,6 +142,7 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (local_spec.Va
 	proposerSlot := phase0.Slot(0)
 	maxReward := phase0.Gwei(0)
 	inclusionDelayReward := phase0.Gwei(0)
+	attSlot := p.baseMetrics.CurrentState.EpochStructs.ValidatorAttSlot[valIdx]
 
 	for i := range p.baseMetrics.CurrentState.CorrectFlags {
 
@@ -155,8 +156,8 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (local_spec.Va
 	}
 
 	proposerReward = baseReward / local_spec.ProposerRewardQuotient
-	// only add it when there was an attestation (correct source)
 	inclusionDelayReward = baseReward - proposerReward
+	inclusionDelayReward /= phase0.Gwei(p.getMissedSlotsAfter(attSlot)) // correct based on missed slots after block
 
 	_, proposerSlot = p.GetMaxProposerReward(valIdx, baseReward)
 	maxReward = voteReward + inclusionDelayReward + proposerReward // this was already calculated, keep using the manual reward
@@ -239,4 +240,22 @@ func (p Phase0Metrics) GetBaseReward(valEffectiveBalance phase0.Gwei) phase0.Gwe
 	baseReward = phase0.Gwei(num) / phase0.Gwei(denom)
 
 	return baseReward
+}
+
+func (p Phase0Metrics) getMissedSlotsAfter(slot phase0.Slot) int {
+
+	result := 1
+	for slot := slot + 1; slot <= (slot + phase0.Slot(local_spec.SlotsPerEpoch)); slot++ {
+		slotInEpoch := slot % local_spec.SlotsPerEpoch
+		block := p.baseMetrics.PrevState.Blocks[slotInEpoch]
+		if slot >= phase0.Slot(p.baseMetrics.CurrentState.Epoch*local_spec.SlotsPerEpoch) {
+			block = p.baseMetrics.CurrentState.Blocks[slotInEpoch]
+		}
+
+		if block.Proposed { // if there was a block proposed inside the inclusion window
+			return result
+		}
+		result += 1
+	}
+	return result
 }
