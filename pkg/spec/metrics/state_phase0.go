@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 
 	"github.com/attestantio/go-eth2-client/spec/altair"
@@ -138,11 +139,12 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (local_spec.Va
 	// only consider attestations rewards in case the validator was active in the previous epoch
 	baseReward := p.GetBaseReward(p.baseMetrics.CurrentState.Validators[valIdx].EffectiveBalance)
 	voteReward := phase0.Gwei(0)
-	proposerReward := phase0.Gwei(0)
+	proposerManualReward := phase0.Gwei(0)
 	proposerSlot := phase0.Slot(0)
 	maxReward := phase0.Gwei(0)
 	inclusionDelayReward := phase0.Gwei(0)
-	attSlot := p.baseMetrics.CurrentState.EpochStructs.ValidatorAttSlot[valIdx]
+	attSlot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
+	minRealInlusionDelay := p.getMinInclusionDelayPossible(attSlot)
 
 	for i := range p.baseMetrics.CurrentState.CorrectFlags {
 
@@ -155,12 +157,12 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (local_spec.Va
 		voteReward += singleReward / (p.baseMetrics.CurrentState.TotalActiveBalance / local_spec.EffectiveBalanceInc)
 	}
 
-	proposerReward = baseReward / local_spec.ProposerRewardQuotient
+	proposerReward := baseReward / local_spec.ProposerRewardQuotient
 	inclusionDelayReward = baseReward - proposerReward
-	inclusionDelayReward /= phase0.Gwei(p.getMissedSlotsAfter(attSlot)) // correct based on missed slots after block
+	inclusionDelayReward /= phase0.Gwei(minRealInlusionDelay) // correct based on missed slots after block
 
-	_, proposerSlot = p.GetMaxProposerReward(valIdx, baseReward)
-	maxReward = voteReward + inclusionDelayReward + proposerReward // this was already calculated, keep using the manual reward
+	proposerManualReward, proposerSlot = p.GetMaxProposerReward(valIdx, baseReward)
+	maxReward = voteReward + inclusionDelayReward + proposerManualReward // this was already calculated, keep using the manual reward
 
 	proposerApiReward := phase0.Gwei(0)
 
@@ -168,6 +170,11 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (local_spec.Va
 		if block.Proposed && block.ProposerIndex == valIdx {
 			proposerApiReward = phase0.Gwei(block.Reward.Data.Total)
 		}
+	}
+
+	if minRealInlusionDelay > 1 {
+		calculatedInclusionDelay := p.baseMetrics.InclusionDelays[valIdx]
+		fmt.Println(calculatedInclusionDelay)
 	}
 
 	result := local_spec.ValidatorRewards{
@@ -178,14 +185,14 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (local_spec.Va
 		MaxReward:            maxReward,
 		AttestationReward:    voteReward + inclusionDelayReward,
 		SyncCommitteeReward:  0,
-		AttSlot:              p.baseMetrics.CurrentState.EpochStructs.ValidatorAttSlot[valIdx],
+		AttSlot:              attSlot,
 		MissingSource:        false,
 		MissingTarget:        false,
 		MissingHead:          false,
 		Status:               p.baseMetrics.NextState.GetValStatus(valIdx),
 		BaseReward:           baseReward,
 		ProposerSlot:         proposerSlot,
-		ProposerManualReward: int64(proposerReward),
+		ProposerManualReward: int64(proposerManualReward),
 		ProposerApiReward:    int64(proposerApiReward),
 		InSyncCommittee:      false,
 		InclusionDelay:       p.baseMetrics.InclusionDelays[valIdx],
@@ -242,7 +249,7 @@ func (p Phase0Metrics) GetBaseReward(valEffectiveBalance phase0.Gwei) phase0.Gwe
 	return baseReward
 }
 
-func (p Phase0Metrics) getMissedSlotsAfter(slot phase0.Slot) int {
+func (p Phase0Metrics) getMinInclusionDelayPossible(slot phase0.Slot) int {
 
 	result := 1
 	for slot := slot + 1; slot <= (slot + phase0.Slot(local_spec.SlotsPerEpoch)); slot++ {
