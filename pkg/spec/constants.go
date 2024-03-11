@@ -35,6 +35,9 @@ const (
 
 var (
 	ParticipatingFlagsWeight = [3]int{TimelySourceWeight, TimelyTargetWeight, TimelyHeadWeight}
+	AttSourceFlagIndex       = 0
+	AttTargetFlagIndex       = 1
+	AttHeadFlagIndex         = 2
 )
 
 type ModelType int8

@@ -73,3 +73,38 @@ func (p DenebMetrics) GetParticipationFlags(attestation phase0.Attestation, incl
 
 	return result
 }
+
+func (p DenebMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int) bool {
+	attSlot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
+	maxInclusionDelay := 0
+
+	switch flagIndex { // for every flag there is a max inclusion delay to obtain a reward
+
+	case local_spec.AttSourceFlagIndex: // 5
+		maxInclusionDelay = int(math.Sqrt(local_spec.SlotsPerEpoch))
+
+	case local_spec.AttTargetFlagIndex: // until end of next epoch
+		remainingSlotsInEpoch := local_spec.SlotsPerEpoch - int(attSlot%local_spec.SlotsPerEpoch)
+		maxInclusionDelay = local_spec.SlotsPerEpoch + remainingSlotsInEpoch
+
+	case local_spec.AttHeadFlagIndex: // 1
+		maxInclusionDelay = 1
+	default:
+		log.Fatalf("provided flag index %d is not known", flagIndex)
+	}
+
+	// look for any block proposed => the attester could have achieved it
+	for slot := attSlot + 1; slot <= (attSlot + phase0.Slot(maxInclusionDelay)); slot++ {
+		slotInEpoch := slot % local_spec.SlotsPerEpoch
+		block := p.baseMetrics.PrevState.Blocks[slotInEpoch]
+		if slot >= phase0.Slot(p.baseMetrics.CurrentState.Epoch*local_spec.SlotsPerEpoch) {
+			block = p.baseMetrics.CurrentState.Blocks[slotInEpoch]
+		}
+
+		if block.Proposed { // if there was a block proposed inside the inclusion window
+			return true
+		}
+	}
+	return false
+
+}
