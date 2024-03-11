@@ -17,11 +17,11 @@ var (
 		f_kzg_proof)
 		VALUES`
 
-//	deleteBlockQuery = `
-//		DELETE FROM %s
-//		WHERE f_slot = $1;
-//
-// `
+	deleteBlobsQuery = `
+		DELETE FROM %s
+		WHERE f_slot = $1;
+
+`
 )
 
 func blobSidecarsInput(blobSidecars []spec.AgnosticBlobSidecar) proto.Input {
