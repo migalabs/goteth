@@ -9,7 +9,6 @@ var (
 	blobsTable              = "t_blob_sidecars"
 	insertBlobSidecarsQuery = `
 	INSERT INTO %s (
-		f_arrival_timestamp_ms,
 		f_blob_hash,
 		f_tx_hash,
 		f_slot,
@@ -28,19 +27,17 @@ var (
 func blobSidecarsInput(blobSidecars []spec.AgnosticBlobSidecar) proto.Input {
 	// one object per column
 	var (
-		f_arrival_timestamp_ms proto.ColUInt64
-		f_blob_hash            proto.ColStr
-		f_tx_hash              proto.ColStr
-		f_slot                 proto.ColUInt64
-		f_index                proto.ColUInt8
-		f_kzg_commitment       proto.ColStr
-		f_kzg_proof            proto.ColStr
+		f_blob_hash      proto.ColStr
+		f_tx_hash        proto.ColStr
+		f_slot           proto.ColUInt64
+		f_index          proto.ColUInt8
+		f_kzg_commitment proto.ColStr
+		f_kzg_proof      proto.ColStr
 	)
 
 	for _, blobSidecar := range blobSidecars {
 
-		f_arrival_timestamp_ms.Append(uint64(blobSidecar.ArrivalTimestamp.UnixMilli()))
-		f_blob_hash.Append(blobSidecar.BlobHash.String())
+		f_blob_hash.Append(blobSidecar.BlobHash)
 		f_tx_hash.Append(blobSidecar.TxHash.String())
 		f_slot.Append(uint64(blobSidecar.Slot))
 		f_index.Append(uint8(blobSidecar.Index))
@@ -51,7 +48,6 @@ func blobSidecarsInput(blobSidecars []spec.AgnosticBlobSidecar) proto.Input {
 
 	return proto.Input{
 
-		{Name: "f_arrival_timestamp_ms", Data: f_arrival_timestamp_ms},
 		{Name: "f_blob_hash", Data: f_blob_hash},
 		{Name: "f_tx_hash", Data: f_tx_hash},
 		{Name: "f_slot", Data: f_slot},
@@ -61,7 +57,7 @@ func blobSidecarsInput(blobSidecars []spec.AgnosticBlobSidecar) proto.Input {
 	}
 }
 
-func (p *DBService) PersistBlobSidecars(data []spec.AgnosticBlobSidecar) error {
+func (p *DBService) PersistBlobSidecars(data []*spec.AgnosticBlobSidecar) error {
 	persistObj := PersistableObject[spec.AgnosticBlobSidecar]{
 		input: blobSidecarsInput,
 		table: blobsTable,
@@ -69,7 +65,7 @@ func (p *DBService) PersistBlobSidecars(data []spec.AgnosticBlobSidecar) error {
 	}
 
 	for _, item := range data {
-		persistObj.Append(item)
+		persistObj.Append(*item)
 	}
 
 	err := p.Persist(persistObj.ExportPersist())

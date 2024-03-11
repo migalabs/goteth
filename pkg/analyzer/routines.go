@@ -91,18 +91,7 @@ func (s *ChainAnalyzer) runHead() {
 			go s.HandleReorg(newReorg)
 
 		case newBlobSidecarEvent := <-s.eventsObj.BlobSidecarChan:
-
-			go func() {
-				slot := newBlobSidecarEvent.BlobSidecarEvent.Slot
-				blobList := s.downloadCache.BlobSidecarHistory.Wait(uint64(slot))
-				block := s.downloadCache.BlockHistory.Wait(uint64(slot))
-
-				agnosticBlob := blobList.BlobSidecars[int(newBlobSidecarEvent.BlobSidecarEvent.Index)]
-				agnosticBlob.AddEventData(newBlobSidecarEvent)
-				agnosticBlob.GetTxHash(block.ExecutionPayload.AgnosticTransactions)
-
-				s.dbClient.PersistBlobSidecars([]spec.AgnosticBlobSidecar{*agnosticBlob})
-			}()
+			s.dbClient.PersistBlobSidecarsEvents([]spec.BlobSideCarEventWraper{newBlobSidecarEvent})
 
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")

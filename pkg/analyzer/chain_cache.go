@@ -8,9 +8,8 @@ import (
 )
 
 type ChainCache struct {
-	StateHistory       *AgnosticMap[spec.AgnosticState]
-	BlockHistory       *AgnosticMap[spec.AgnosticBlock] // Here we will store stateroots from the blocks
-	BlobSidecarHistory *AgnosticMap[spec.BlobSidecarsInSlot]
+	StateHistory *AgnosticMap[spec.AgnosticState]
+	BlockHistory *AgnosticMap[spec.AgnosticBlock] // Here we will store stateroots from the blocks
 
 	sync.Mutex
 	HeadBlock       *spec.AgnosticBlock
@@ -19,9 +18,8 @@ type ChainCache struct {
 
 func NewQueue() ChainCache {
 	return ChainCache{
-		StateHistory:       NewAgnosticMap[spec.AgnosticState](),
-		BlockHistory:       NewAgnosticMap[spec.AgnosticBlock](),
-		BlobSidecarHistory: NewAgnosticMap[spec.BlobSidecarsInSlot](),
+		StateHistory: NewAgnosticMap[spec.AgnosticState](),
+		BlockHistory: NewAgnosticMap[spec.AgnosticBlock](),
 	}
 }
 
@@ -61,14 +59,6 @@ func (s *ChainCache) AddNewBlock(block *spec.AgnosticBlock) {
 	s.Lock()
 	s.HeadBlock = block
 	s.Unlock()
-
-}
-
-func (s *ChainCache) AddNewBlobSidecarsInSlot(blobs *spec.BlobSidecarsInSlot) {
-
-	s.BlobSidecarHistory.Set(SlotTo[uint64](blobs.Slot), blobs) // create space for blobs
-
-	log.Tracef("blob sidecar at slot %d successfully added to the queue", blobs.Slot)
 
 }
 

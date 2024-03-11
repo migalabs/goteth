@@ -43,7 +43,7 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 
 	if s.metrics.Transactions {
 		s.processTransactions(block)
-		s.processBlobSidecars(block)
+		s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
 	}
 	s.processerBook.FreePage(routineKey)
 }
@@ -63,7 +63,9 @@ func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
 
 }
 
-func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock) {
+func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spec.AgnosticTransaction) {
+
+	persistable := make([]*spec.AgnosticBlobSidecar, 0)
 
 	blobs, err := s.cli.RequestBlobSidecars(block.Slot)
 
@@ -72,12 +74,11 @@ func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock) {
 	}
 
 	if len(blobs) > 0 {
-		blobsSidecarsInSlot := spec.NewBlobSidecarsInSlot(block.Slot)
-		for _, item := range blobs {
-			blobsSidecarsInSlot.AddNewBlobSidecar(item)
+		for _, blob := range blobs {
+			blob.GetTxHash(txs)
+			persistable = append(persistable, blob)
 		}
-
-		s.downloadCache.AddNewBlobSidecarsInSlot(blobsSidecarsInSlot)
+		s.dbClient.PersistBlobSidecars(blobs)
 	}
 
 }

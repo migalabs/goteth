@@ -1,6 +1,9 @@
 package spec
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"time"
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
@@ -13,11 +16,14 @@ const (
 	maxBlobsPerBlock int = 6
 )
 
+var (
+	versionedHashVersionKZG = []byte("0x01")
+)
+
 type AgnosticBlobSidecar struct {
-	ArrivalTimestamp            time.Time
 	Slot                        phase0.Slot
 	TxHash                      common.Hash
-	BlobHash                    common.Hash
+	BlobHash                    string
 	Blob                        deneb.Blob
 	Index                       deneb.BlobIndex
 	KZGCommitment               deneb.KZGCommitment
@@ -33,26 +39,22 @@ func NewAgnosticBlobFromAPI(slot phase0.Slot, blob deneb.BlobSidecar) (*Agnostic
 		Index:                       blob.Index,
 		Blob:                        blob.Blob,
 		KZGCommitment:               blob.KZGCommitment,
+		BlobHash:                    KZGCommitmentToVersionedHash(blob.KZGCommitment),
 		KZGProof:                    blob.KZGProof,
 		SignedBlockHeader:           blob.SignedBlockHeader,
 		KZGCommitmentInclusionProof: blob.KZGCommitmentInclusionProof,
 	}, nil
 }
 
-func (b *AgnosticBlobSidecar) AddEventData(blobSidecarEvent BlobSideCarEventWraper) {
-	b.BlobHash = common.Hash(blobSidecarEvent.BlobSidecarEvent.VersionedHash)
-	b.ArrivalTimestamp = blobSidecarEvent.Timestamp
-}
-
 func (b *AgnosticBlobSidecar) GetTxHash(txs []AgnosticTransaction) {
 
 	for _, tx := range txs {
-		if len(tx.BlobHashes) == 0 {
+		if tx.BlobHashes == nil {
 			continue // this tx does not reference any blobs
 		}
 
 		for _, txBlobHash := range tx.BlobHashes {
-			if txBlobHash == b.BlobHash {
+			if txBlobHash.String() == b.BlobHash {
 				// we found it
 				b.TxHash = common.Hash(tx.Hash)
 			}
@@ -65,18 +67,10 @@ type BlobSideCarEventWraper struct {
 	BlobSidecarEvent api.BlobSidecarEvent
 }
 
-type BlobSidecarsInSlot struct {
-	Slot         phase0.Slot
-	BlobSidecars map[int]*AgnosticBlobSidecar
-}
+func KZGCommitmentToVersionedHash(input deneb.KZGCommitment) string {
+	h := sha256.New()
+	h.Write(input[:])
+	sha256_hash := hex.EncodeToString(h.Sum(nil))
 
-func NewBlobSidecarsInSlot(slot phase0.Slot) *BlobSidecarsInSlot {
-	return &BlobSidecarsInSlot{
-		Slot:         slot,
-		BlobSidecars: make(map[int]*AgnosticBlobSidecar, maxBlobsPerBlock),
-	}
-}
-
-func (b *BlobSidecarsInSlot) AddNewBlobSidecar(blobSidecar *AgnosticBlobSidecar) {
-	b.BlobSidecars[int(blobSidecar.Index)] = blobSidecar
+	return fmt.Sprintf("%s%s", versionedHashVersionKZG, sha256_hash[2:])
 }
