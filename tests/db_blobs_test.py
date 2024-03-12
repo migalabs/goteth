@@ -29,6 +29,18 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
 		"""
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
+    
+    def test_no_blobs_on_missed_slot(self):
+        """ Test that there are no blobs when the slot is missed """
+        sql_query = """
+			select *
+			from t_block_metrics
+			inner join t_blob_sidecars
+			on t_block_metrics.f_slot == t_blob_sidecars.f_slot
+			where f_proposed = false
+		"""
+        df = self.db.get_df_from_sql_query(sql_query)
+        self.assertNoRows(df)
 
     
         
