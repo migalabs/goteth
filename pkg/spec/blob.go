@@ -10,6 +10,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/migalabs/goteth/pkg/utils"
 )
 
 const (
@@ -21,10 +22,11 @@ var (
 )
 
 type AgnosticBlobSidecar struct {
-	Slot                        phase0.Slot
-	TxHash                      common.Hash
-	BlobHash                    string
-	Blob                        deneb.Blob
+	Slot                        phase0.Slot // slot the blob belongs to
+	TxHash                      common.Hash // has of the transactions that references this blob in this slot
+	BlobHash                    string      // versioned blob hash
+	Blob                        deneb.Blob  // the blob itself
+	BlobEnding0s                int         // amount of consecutive 0s at the end of the blob
 	Index                       deneb.BlobIndex
 	KZGCommitment               deneb.KZGCommitment
 	KZGProof                    deneb.KZGProof
@@ -43,6 +45,7 @@ func NewAgnosticBlobFromAPI(slot phase0.Slot, blob deneb.BlobSidecar) (*Agnostic
 		KZGProof:                    blob.KZGProof,
 		SignedBlockHeader:           blob.SignedBlockHeader,
 		KZGCommitmentInclusionProof: blob.KZGCommitmentInclusionProof,
+		BlobEnding0s:                utils.CountConsecutiveEnding0(blob.Blob[:]),
 	}, nil
 }
 

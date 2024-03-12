@@ -27,9 +27,9 @@ type AgnosticTransaction struct {
 
 	// Blobs
 	BlobHashes    []common.Hash
-	BlobGasUsed   uint64
-	BlobGasPrice  uint64
-	BlobGasLimit  uint64
+	BlobGasUsed   uint64 // amount of gas used
+	BlobGasPrice  uint64 // price per unit of gas used => Wei
+	BlobGasLimit  uint64 // maximum gas allowed
 	BlobGasFeeCap uint64
 }
 

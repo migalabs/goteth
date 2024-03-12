@@ -14,7 +14,8 @@ var (
 		f_slot,
 		f_index,
 		f_kzg_commitment,
-		f_kzg_proof)
+		f_kzg_proof,
+		f_ending_0s)
 		VALUES`
 
 	deleteBlobsQuery = `
@@ -33,6 +34,7 @@ func blobSidecarsInput(blobSidecars []spec.AgnosticBlobSidecar) proto.Input {
 		f_index          proto.ColUInt8
 		f_kzg_commitment proto.ColStr
 		f_kzg_proof      proto.ColStr
+		f_ending_0s      proto.ColUInt64
 	)
 
 	for _, blobSidecar := range blobSidecars {
@@ -43,6 +45,7 @@ func blobSidecarsInput(blobSidecars []spec.AgnosticBlobSidecar) proto.Input {
 		f_index.Append(uint8(blobSidecar.Index))
 		f_kzg_commitment.Append(blobSidecar.KZGCommitment.String())
 		f_kzg_proof.Append(blobSidecar.KZGProof.String())
+		f_ending_0s.Append(uint64(blobSidecar.BlobEnding0s))
 
 	}
 
@@ -54,6 +57,7 @@ func blobSidecarsInput(blobSidecars []spec.AgnosticBlobSidecar) proto.Input {
 		{Name: "f_index", Data: f_index},
 		{Name: "f_kzg_commitment", Data: f_kzg_commitment},
 		{Name: "f_kzg_proof", Data: f_kzg_proof},
+		{Name: "f_ending_0s", Data: f_ending_0s},
 	}
 }
 
