@@ -6,6 +6,7 @@ import (
 	api "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/migalabs/goteth/pkg/clientapi"
 	"github.com/migalabs/goteth/pkg/db"
+	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,6 +25,7 @@ type Events struct {
 	SubscribedFinalized bool
 	FinalizedChan       chan api.FinalizedCheckpointEvent
 	ReorgChan           chan api.ChainReorgEvent
+	BlobSidecarChan     chan spec.BlobSideCarEventWraper
 }
 
 func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
@@ -35,5 +37,6 @@ func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
 		SubscribedFinalized: false,
 		FinalizedChan:       make(chan api.FinalizedCheckpointEvent),
 		ReorgChan:           make(chan api.ChainReorgEvent),
+		BlobSidecarChan:     make(chan spec.BlobSideCarEventWraper),
 	}
 }

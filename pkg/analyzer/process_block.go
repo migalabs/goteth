@@ -43,28 +43,42 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 
 	if s.metrics.Transactions {
 		s.processTransactions(block)
+		s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
 	}
 	s.processerBook.FreePage(routineKey)
 }
 
 func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
 
-	var transactions []spec.AgnosticTransaction
-	for idx, tx := range block.ExecutionPayload.Transactions {
-		detailedTx, err := s.cli.RequestTransactionDetails(
-			tx,
-			block.Slot,
-			block.ExecutionPayload.BlockNumber,
-			block.ExecutionPayload.Timestamp)
-		if err != nil {
-			log.Errorf("could not request transaction details in slot %d for transaction %d: %s", block.Slot, idx, err)
-		}
-
-		transactions = append(transactions, *detailedTx)
+	txs, err := s.cli.GetBlockTransactions(*block)
+	if err != nil {
+		log.Errorf("error getting slot %d transactions: %s", block.Slot, err.Error())
 	}
-	log.Tracef("persisting transaction metrics: slot %d", block.Slot)
-	err := s.dbClient.PersistTransactions(transactions)
+	block.ExecutionPayload.AgnosticTransactions = txs
+
+	err = s.dbClient.PersistTransactions(txs)
 	if err != nil {
 		log.Errorf("error persisting transactions: %s", err.Error())
 	}
+
+}
+
+func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spec.AgnosticTransaction) {
+
+	persistable := make([]*spec.AgnosticBlobSidecar, 0)
+
+	blobs, err := s.cli.RequestBlobSidecars(block.Slot)
+
+	if err != nil {
+		log.Fatalf("could not download blob sidecars for slot %d: %s", block.Slot, err)
+	}
+
+	if len(blobs) > 0 {
+		for _, blob := range blobs {
+			blob.GetTxHash(txs)
+			persistable = append(persistable, blob)
+		}
+		s.dbClient.PersistBlobSidecars(blobs)
+	}
+
 }

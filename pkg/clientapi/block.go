@@ -70,7 +70,7 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 	// shows error inside function if ELApi is not defined
 	block, err := s.RequestExecutionBlockByHash(common.Hash(customBlock.ExecutionPayload.BlockHash))
 	if err != nil {
-		log.Error("cannot request block by hash: %s", err)
+		log.Errorf("cannot request block by hash: %s", err)
 	}
 	if block != nil {
 		customBlock.ExecutionPayload.PayloadSize = uint32(block.Size())

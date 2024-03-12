@@ -24,6 +24,13 @@ type AgnosticTransaction struct {
 	BlockNumber     uint64          // the number of the block where this transaction was added
 	Timestamp       uint64          // timestamp of the block to which this transaction belongs
 	ContractAddress common.Address  // address of the smart contract associated with this transaction
+
+	// Blobs
+	BlobHashes    []common.Hash
+	BlobGasUsed   uint64 // amount of gas used
+	BlobGasPrice  uint64 // price per unit of gas used => Wei
+	BlobGasLimit  uint64 // maximum gas allowed
+	BlobGasFeeCap uint64
 }
 
 func (txs AgnosticTransaction) Type() ModelType {

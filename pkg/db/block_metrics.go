@@ -171,6 +171,14 @@ func (s *DBService) DeleteBlockMetrics(slot phase0.Slot) error {
 	if err != nil {
 		return err
 	}
+	err = s.Delete(DeletableObject{
+		query: deleteBlobsQuery,
+		table: blobsTable,
+		args:  []any{slot},
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
