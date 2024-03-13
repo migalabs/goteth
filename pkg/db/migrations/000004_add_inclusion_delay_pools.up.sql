@@ -1,0 +1,1 @@
+ALTER TABLE t_pool_summary ADD COLUMN avg_inclusion_delay Float;

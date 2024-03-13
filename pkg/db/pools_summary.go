@@ -23,7 +23,8 @@ var (
 				COUNT(*) as count_expected_attestations,
 				SUM(CASE WHEN t_proposer_duties.f_proposed = TRUE THEN 1 ELSE 0 END) as proposed_blocks_performance,
 				SUM(CASE WHEN t_proposer_duties.f_proposed = FALSE THEN 1 ELSE 0 END) as missed_blocks_performance,
-				count(distinct(t_validator_rewards_summary.f_val_idx)) as number_active_vals
+				count(distinct(t_validator_rewards_summary.f_val_idx)) as number_active_vals,
+				AVG(f_inclusion_delay) as avg_inclusion_delay
 			FROM t_validator_rewards_summary
 			LEFT JOIN t_eth2_pubkeys 
 				ON t_validator_rewards_summary.f_val_idx = t_eth2_pubkeys.f_val_idx
