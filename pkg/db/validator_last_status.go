@@ -29,6 +29,7 @@ var (
 func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 	// one object per column
 	var (
+		f_val_idx          proto.ColUInt64
 		f_epoch            proto.ColUInt64
 		f_balance_eth      proto.ColFloat32
 		f_status           proto.ColUInt8
@@ -41,6 +42,7 @@ func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 
 	for _, status := range validatorStatuses {
 
+		f_val_idx.Append(uint64(status.ValIdx))
 		f_epoch.Append(uint64(status.Epoch))
 		f_balance_eth.Append(status.BalanceToEth())
 		f_status.Append(uint8(status.CurrentStatus))
@@ -53,6 +55,7 @@ func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 
 	return proto.Input{
 
+		{Name: "f_val_idx", Data: f_val_idx},
 		{Name: "f_epoch", Data: f_epoch},
 		{Name: "f_balance_eth", Data: f_balance_eth},
 		{Name: "f_status", Data: f_status},
