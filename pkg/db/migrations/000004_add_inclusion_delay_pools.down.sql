@@ -1,1 +1,1 @@
-ALTER TABLE t_pool_summary DROP COLUMN f_avg_inclusion_delay;
+ALTER TABLE t_pool_summary DROP COLUMN avg_inclusion_delay;
