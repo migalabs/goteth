@@ -10,8 +10,12 @@ github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5
 github.com/VictoriaMetrics/fastcache v1.12.1 h1:i0mICQuojGDL3KblA7wUNlY5lOK6a4bwt3uRKnkZU40=
 github.com/andybalholm/brotli v1.0.6 h1:Yf9fFpf49Zrxb9NlQaluyE92/+X7UVHlhMNJN2sxfOI=
 github.com/andybalholm/brotli v1.0.6/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
+github.com/attestantio/go-builder-client v0.2.3 h1:AwfACNYGpX2H1Uzz8sFBU/v7G+hvpGkYEItzhu2NdIo=
+github.com/attestantio/go-builder-client v0.2.3/go.mod h1:GHh6Qmuyl9hE+rykag9yDclAIlNK/ZT6sz4GKGtvglI=
 github.com/attestantio/go-eth2-client v0.19.10 h1:NLs9mcBvZpBTZ3du7Ey2NHQoj8d3UePY7pFBXX6C6qs=
 github.com/attestantio/go-eth2-client v0.19.10/go.mod h1:TTz7YF6w4z6ahvxKiHuGPn6DbQn7gH6HPuWm/DEQeGE=
+github.com/attestantio/go-relay-client v0.2.5 h1:GKcHGETWUowqvL7cE9RM1cz9kXqL56vGoHtqMKpks/Q=
+github.com/attestantio/go-relay-client v0.2.5/go.mod h1:Y6PYgNZkdIfRZLP4eSWJ9PL+Ead3RczexQqhTopKZOE=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bits-and-blooms/bitset v1.10.0 h1:ePXTeiPEazB5+opbv5fr8umg2R/1NlzgDsyepwsSr88=
