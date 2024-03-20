@@ -102,7 +102,7 @@ func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 		f_el_fee_recp.Append(block.ExecutionPayload.FeeRecipient.String())
 		f_el_gas_limit.Append(uint64(block.ExecutionPayload.GasLimit))
 		f_el_gas_used.Append(uint64(block.ExecutionPayload.GasUsed))
-		f_el_base_fee_per_gas.Append(uint64(block.ExecutionPayload.BaseFeeToInt()))
+		f_el_base_fee_per_gas.Append(uint64(block.ExecutionPayload.BaseFeePerGas))
 		f_el_block_hash.Append(block.ExecutionPayload.BlockHash.String())
 		f_el_transactions.Append(uint64(len(block.ExecutionPayload.Transactions)))
 		f_el_block_number.Append(uint64(block.ExecutionPayload.BlockNumber))

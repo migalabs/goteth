@@ -78,6 +78,7 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 
 	customBlock.StateRoot = s.RequestStateRoot(slot)
 
+	// optional depending on metrics
 	if s.Metrics.APIRewards {
 		reward, err := s.RequestBlockRewards(slot)
 		if err != nil { // we only reach here if the block exists
@@ -85,6 +86,13 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 		}
 
 		customBlock.Reward = reward
+	}
+	if s.Metrics.Transactions {
+		txs, err := s.GetBlockTransactions(customBlock)
+		if err != nil {
+			log.Errorf("error getting slot %d transactions: %s", customBlock.Slot, err.Error())
+		}
+		customBlock.ExecutionPayload.AgnosticTransactions = txs
 	}
 	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 
@@ -158,7 +166,7 @@ func (s *APIClient) CreateMissingBlock(slot phase0.Slot) *local_spec.AgnosticBlo
 			GasLimit:      0,
 			GasUsed:       0,
 			Timestamp:     0,
-			BaseFeePerGas: [32]byte{},
+			BaseFeePerGas: 0,
 			BlockHash:     phase0.Hash32{},
 			Transactions:  make([]bellatrix.Transaction, 0),
 			PayloadSize:   uint32(0),

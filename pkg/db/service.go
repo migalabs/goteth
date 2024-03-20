@@ -144,7 +144,8 @@ type PersistableObject[
 		spec.Withdrawal |
 		HeadEvent |
 		spec.AgnosticBlobSidecar |
-		spec.BlobSideCarEventWraper] struct {
+		spec.BlobSideCarEventWraper |
+		BlockReward] struct {
 	table string
 	query string
 	data  []T

@@ -76,7 +76,7 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOp
 func WithELEndpoint(url string) APIClientOption {
 	return func(s *APIClient) error {
 		if url == "" {
-			return fmt.Errorf("empty execution address, skipping...")
+			return fmt.Errorf("empty execution address, skipping. Beware transactions data might not be complete")
 		}
 		client, err := ethclient.DialContext(s.ctx, url)
 		if err != nil {

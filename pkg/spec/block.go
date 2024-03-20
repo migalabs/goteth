@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -45,7 +46,7 @@ type AgnosticExecutionPayload struct {
 	GasLimit             uint64
 	GasUsed              uint64
 	Timestamp            uint64
-	BaseFeePerGas        [32]byte
+	BaseFeePerGas        uint64
 	BlockHash            phase0.Hash32
 	Transactions         []bellatrix.Transaction
 	AgnosticTransactions []AgnosticTransaction
@@ -58,8 +59,24 @@ func (f AgnosticBlock) Type() ModelType {
 	return BlockModel
 }
 
-func (p AgnosticExecutionPayload) BaseFeeToInt() int {
-	return 0 // not implemented yet
+func (p AgnosticBlock) BlockGasFees() (uint64, uint64, error) {
+	reward := uint64(0)
+	burn := uint64(0)
+	baseFeePerGas := p.ExecutionPayload.BaseFeePerGas
+
+	if len(p.ExecutionPayload.AgnosticTransactions) == 0 {
+		return reward, burn, fmt.Errorf("cannot calculate block reward: no transactions appended")
+	}
+
+	for _, tx := range p.ExecutionPayload.AgnosticTransactions {
+		priorityFee := (tx.GasPrice - baseFeePerGas) * tx.Gas
+		baseFee := baseFeePerGas * uint64(tx.Gas)
+		reward += priorityFee
+		burn += baseFee
+	}
+
+	return reward, burn, nil
+
 }
 
 func GetCustomBlock(block spec.VersionedSignedBeaconBlock) (AgnosticBlock, error) {
@@ -109,7 +126,7 @@ func NewPhase0Block(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			GasLimit:      0,
 			GasUsed:       0,
 			Timestamp:     0,
-			BaseFeePerGas: [32]byte{},
+			BaseFeePerGas: 0,
 			BlockHash:     phase0.Hash32{},
 			Transactions:  make([]bellatrix.Transaction, 0),
 			BlockNumber:   0,
@@ -151,7 +168,7 @@ func NewAltairBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			GasLimit:      0,
 			GasUsed:       0,
 			Timestamp:     0,
-			BaseFeePerGas: [32]byte{},
+			BaseFeePerGas: 0,
 			BlockHash:     phase0.Hash32{},
 			Transactions:  make([]bellatrix.Transaction, 0),
 			BlockNumber:   0,
@@ -193,7 +210,7 @@ func NewBellatrixBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			GasLimit:      block.Bellatrix.Message.Body.ExecutionPayload.GasLimit,
 			GasUsed:       block.Bellatrix.Message.Body.ExecutionPayload.GasUsed,
 			Timestamp:     block.Bellatrix.Message.Body.ExecutionPayload.Timestamp,
-			BaseFeePerGas: block.Bellatrix.Message.Body.ExecutionPayload.BaseFeePerGas,
+			BaseFeePerGas: binary.BigEndian.Uint64(block.Bellatrix.Message.Body.ExecutionPayload.BaseFeePerGas[:]),
 			BlockHash:     block.Bellatrix.Message.Body.ExecutionPayload.BlockHash,
 			Transactions:  block.Bellatrix.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Bellatrix.Message.Body.ExecutionPayload.BlockNumber,
@@ -235,7 +252,7 @@ func NewCapellaBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			GasLimit:      block.Capella.Message.Body.ExecutionPayload.GasLimit,
 			GasUsed:       block.Capella.Message.Body.ExecutionPayload.GasUsed,
 			Timestamp:     block.Capella.Message.Body.ExecutionPayload.Timestamp,
-			BaseFeePerGas: block.Capella.Message.Body.ExecutionPayload.BaseFeePerGas,
+			BaseFeePerGas: binary.BigEndian.Uint64(block.Bellatrix.Message.Body.ExecutionPayload.BaseFeePerGas[:]),
 			BlockHash:     block.Capella.Message.Body.ExecutionPayload.BlockHash,
 			Transactions:  block.Capella.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Capella.Message.Body.ExecutionPayload.BlockNumber,
@@ -277,7 +294,7 @@ func NewDenebBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			GasLimit:      block.Deneb.Message.Body.ExecutionPayload.GasLimit,
 			GasUsed:       block.Deneb.Message.Body.ExecutionPayload.GasUsed,
 			Timestamp:     block.Deneb.Message.Body.ExecutionPayload.Timestamp,
-			BaseFeePerGas: block.Deneb.Message.Body.ExecutionPayload.BaseFeePerGas.Bytes32(),
+			BaseFeePerGas: block.Deneb.Message.Body.ExecutionPayload.BaseFeePerGas.Uint64(),
 			BlockHash:     block.Deneb.Message.Body.ExecutionPayload.BlockHash,
 			Transactions:  block.Deneb.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Deneb.Message.Body.ExecutionPayload.BlockNumber,

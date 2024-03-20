@@ -49,8 +49,6 @@ func (f ValidatorRewards) ToArray() []interface{} {
 		f.MissingTarget,
 		f.MissingHead,
 		f.Status,
-		f.ProposerApiReward,
-		f.ProposerManualReward,
 		f.InclusionDelay,
 	}
 	return rows
