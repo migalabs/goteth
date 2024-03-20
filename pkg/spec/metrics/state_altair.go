@@ -24,6 +24,7 @@ func NewAltairMetrics(
 	altairObj.PreProcessBundle()
 
 	return altairObj
+
 }
 
 func (p *AltairMetrics) InitBundle(nextState *spec.AgnosticState,
