@@ -18,7 +18,7 @@ var (
 	moduleName = "api-cli"
 	log        = logrus.WithField(
 		"module", moduleName)
-	QueryTimeout     = time.Second * 90
+	QueryTimeout     = 3 * time.Minute
 	maxParallelConns = 3
 	maxRetries       = 3
 )

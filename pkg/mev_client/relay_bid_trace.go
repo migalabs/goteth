@@ -51,29 +51,25 @@ type RelayBidOption func(*RelayClient) error
 
 type RelayClient struct {
 	ctx    context.Context
-	cancel context.CancelFunc
 	client relayclient.Service
 }
 
 func New(pCtx context.Context,
 	address string,
 ) (*RelayClient, error) {
-	ctx, cancel := context.WithTimeout(pCtx, mevRelayTimeout)
 
 	client, err := http.New(
-		ctx,
+		pCtx,
 		http.WithAddress(address),
 		http.WithLogLevel(zerolog.WarnLevel),
 		http.WithTimeout(mevRelayTimeout),
 	)
 	if err != nil {
-		cancel()
 		return nil, fmt.Errorf("failed to initiate relay client %s: %s", address, err)
 	}
 
 	return &RelayClient{
-		ctx:    ctx,
-		cancel: cancel,
+		ctx:    pCtx,
 		client: client,
 	}, nil
 }

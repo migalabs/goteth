@@ -205,9 +205,8 @@ func (s *ChainAnalyzer) processBlockRewards(bundle metrics.StateMetrics) {
 	for _, block := range bundle.GetMetricsBase().NextState.Blocks {
 
 		slot := block.Slot
-		proposerIdx := block.ProposerIndex
 		bids := mevBids.GetBidsAtSlot(slot)
-		clManualReward := bundle.GetMetricsBase().BlockRewards[proposerIdx]
+		clManualReward := block.ManualReward
 		clApiReward := phase0.Gwei(block.Reward.Data.Total)
 		var err error
 
