@@ -10,6 +10,7 @@ import (
 	"github.com/migalabs/goteth/pkg/config"
 	"github.com/migalabs/goteth/pkg/db"
 	prom_metrics "github.com/migalabs/goteth/pkg/metrics"
+	"github.com/migalabs/goteth/pkg/mev_client"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/utils"
 
@@ -29,9 +30,10 @@ type ChainAnalyzer struct {
 	downloadTaskChan chan phase0.Slot // channel to send download tasks
 
 	// Connections
-	cli       *clientapi.APIClient // client to request data to the CL and EL clients
-	eventsObj events.Events        // object to receive signals from beacon node
-	dbClient  *db.DBService        // client to communicate with clickhouse
+	cli       *clientapi.APIClient      // client to request data to the CL and EL clients
+	relayCli  *mev_client.RelaysMonitor // client to monitor all relays in list
+	eventsObj events.Events             // object to receive signals from beacon node
+	dbClient  *db.DBService             // client to communicate with clickhouse
 
 	// Control Variables
 	wgMainRoutine *sync.WaitGroup    // wait group for main routine (either historical or head)
@@ -110,6 +112,15 @@ func NewChainAnalyzer(
 		}, errors.Wrap(err, "unable to generate API Client.")
 	}
 
+	// generate the relays client
+	relayCli, err := mev_client.InitRelaysMonitorer(pCtx)
+	if err != nil {
+		return &ChainAnalyzer{
+			ctx:    ctx,
+			cancel: cancel,
+		}, errors.Wrap(err, "unable to generate API Client.")
+	}
+
 	idbClient.InitGenesis(cli.RequestGenesis())
 
 	analyzer := &ChainAnalyzer{
@@ -119,6 +130,7 @@ func NewChainAnalyzer(
 		finalSlot:        phase0.Slot(iConfig.FinalSlot),
 		downloadTaskChan: make(chan phase0.Slot, rateLimit), // TODO: define size of buffer depending on performance
 		cli:              cli,
+		relayCli:         relayCli,
 		dbClient:         idbClient,
 		routineClosed:    make(chan struct{}, 1),
 		eventsObj:        events.NewEventsObj(ctx, cli),

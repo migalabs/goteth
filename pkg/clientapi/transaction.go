@@ -56,11 +56,11 @@ func (client *APIClient) ParseSingleTx(
 		TxType:          parsedTx.Type(),
 		ChainId:         uint8(parsedTx.ChainId().Uint64()),
 		Data:            hex.EncodeToString(parsedTx.Data()),
-		Gas:             phase0.Gwei(gasUsed),
-		GasPrice:        phase0.Gwei(gasPrice),
-		GasTipCap:       phase0.Gwei(parsedTx.GasTipCap().Uint64()),
-		GasFeeCap:       phase0.Gwei(parsedTx.GasFeeCap().Uint64()),
-		Value:           phase0.Gwei(parsedTx.Value().Uint64()),
+		Gas:             gasUsed,
+		GasPrice:        gasPrice,
+		GasTipCap:       parsedTx.GasTipCap().Uint64(),
+		GasFeeCap:       parsedTx.GasFeeCap().Uint64(),
+		Value:           parsedTx.Value().Uint64(),
 		Nonce:           parsedTx.Nonce(),
 		To:              parsedTx.To(),
 		From:            from,
@@ -82,7 +82,14 @@ func (client *APIClient) ParseSingleTx(
 func (client *APIClient) GetBlockTransactions(block spec.AgnosticBlock) ([]spec.AgnosticTransaction, error) {
 	agnosticTxs := make([]spec.AgnosticTransaction, 0)
 	blockNumber := rpc.BlockNumber(block.ExecutionPayload.BlockNumber)
-	receipts, err := client.ELApi.BlockReceipts(client.ctx, rpc.BlockNumberOrHashWithNumber(blockNumber))
+
+	receipts := make([]*types.Receipt, 0)
+	var err error
+
+	if client.ELApi != nil {
+		receipts, err = client.ELApi.BlockReceipts(client.ctx, rpc.BlockNumberOrHashWithNumber(blockNumber))
+	}
+
 	if err != nil {
 		return nil, err
 	}

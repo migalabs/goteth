@@ -10,11 +10,11 @@ type AgnosticTransaction struct {
 	TxType          uint8           // type of transaction: LegacyTxType, AccessListTxType, or DynamicFeeTxType
 	ChainId         uint8           // a unique identifier for the ethereum network
 	Data            string          // the input data of the transaction
-	Gas             phase0.Gwei     // the gas limit of the transaction
-	GasPrice        phase0.Gwei     // the gas price of the transaction
-	GasTipCap       phase0.Gwei     // the tip cap per gas of the transaction
-	GasFeeCap       phase0.Gwei     // the fee cap per gas of the transaction
-	Value           phase0.Gwei     // the ether amount of the transaction.
+	Gas             uint64          // the gas limit of the transaction
+	GasPrice        uint64          // the gas price of the transaction
+	GasTipCap       uint64          // the tip cap per gas of the transaction
+	GasFeeCap       uint64          // the fee cap per gas of the transaction
+	Value           uint64          // the ether amount of the transaction.
 	Nonce           uint64          // the sender account nonce of the transaction
 	To              *common.Address // transaction recipient's address
 	From            common.Address  // transaction sender's address
