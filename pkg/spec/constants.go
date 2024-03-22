@@ -16,6 +16,10 @@ const (
 	EpochSlots                  = 32
 	WhistleBlowerRewardQuotient = 512
 	MinInclusionDelay           = 1
+
+	AttSourceFlagIndex = 0
+	AttTargetFlagIndex = 1
+	AttHeadFlagIndex   = 2
 )
 
 /*
@@ -35,9 +39,6 @@ const (
 
 var (
 	ParticipatingFlagsWeight = [3]int{TimelySourceWeight, TimelyTargetWeight, TimelyHeadWeight}
-	AttSourceFlagIndex       = 0
-	AttTargetFlagIndex       = 1
-	AttHeadFlagIndex         = 2
 )
 
 type ModelType int8
