@@ -45,21 +45,19 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		s.stop = true
 	}
 
-	emptyRoot := phase0.Root{}
-
 	// If nextState is filled, we can process proposer duties
-	if nextState.StateRoot != emptyRoot {
+	if !nextState.EmptyStateRoot() {
 		s.processEpochDuties(bundle)
 
 		s.processValLastStatus(bundle)
 
 		// If currentState and nextState are filled, we can process epoch metrics
-		if currentState.StateRoot != emptyRoot {
+		if !currentState.EmptyStateRoot() {
 			s.processPoolMetrics(bundle.GetMetricsBase().CurrentState.Epoch)
 			s.processEpochMetrics(bundle)
 
 			// If prevState, currentState and nextState are filled, we can process validator rewards
-			if prevState.StateRoot != emptyRoot && s.metrics.ValidatorRewards {
+			if !prevState.EmptyStateRoot() && s.metrics.ValidatorRewards {
 				s.processEpochValRewards(bundle)
 			}
 		}

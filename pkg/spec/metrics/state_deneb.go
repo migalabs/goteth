@@ -5,8 +5,6 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
-	local_spec "github.com/migalabs/goteth/pkg/spec"
-	log "github.com/sirupsen/logrus"
 )
 
 type DenebMetrics struct {
@@ -14,24 +12,14 @@ type DenebMetrics struct {
 }
 
 func NewDenebMetrics(
-	nextBstate *spec.AgnosticState,
-	bstate *spec.AgnosticState,
-	prevBstate *spec.AgnosticState) DenebMetrics {
+	nextState *spec.AgnosticState,
+	currentState *spec.AgnosticState,
+	prevState *spec.AgnosticState) DenebMetrics {
 
 	denebObj := DenebMetrics{}
-	denebObj.baseMetrics.CurrentState = bstate
-	denebObj.baseMetrics.PrevState = prevBstate
-	denebObj.baseMetrics.NextState = nextBstate
-	denebObj.baseMetrics.BlockRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
-	denebObj.baseMetrics.SlashingRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
-	denebObj.baseMetrics.InclusionDelays = make(map[phase0.ValidatorIndex]int)
-	denebObj.ProcessAttestations()
-	prevBstateFilled := prevBstate.StateRoot != phase0.Root{}
-	if prevBstateFilled {
-		denebObj.ProcessInclusionDelays()
-	}
-	denebObj.ProcessSyncAggregates()
-	denebObj.ProcessSlashings()
+
+	denebObj.InitBundle(nextState, currentState, prevState)
+	denebObj.PreProcessBundle()
 
 	return denebObj
 }
@@ -57,17 +45,17 @@ func (p DenebMetrics) GetParticipationFlags(attestation phase0.Attestation, incl
 	// the worst case scenario is an attestation to the slot 31, which gives a max inclusion delay of 32
 	// the best case scenario is an attestation to the slot 0, which gives a max inclusion delay of 64
 	// https://github.com/ethereum/consensus-specs/blob/dev/specs/deneb/beacon-chain.md#modified-get_attestation_participation_flag_indices
-	includedInEpoch := phase0.Epoch(includedInBlock.Slot / local_spec.SlotsPerEpoch)
-	attestationEpoch := phase0.Epoch(attestation.Data.Slot / local_spec.SlotsPerEpoch)
+	includedInEpoch := phase0.Epoch(includedInBlock.Slot / spec.SlotsPerEpoch)
+	attestationEpoch := phase0.Epoch(attestation.Data.Slot / spec.SlotsPerEpoch)
 	targetInclusionOk := includedInEpoch-attestationEpoch <= 1
 
-	if matchingSource && (inclusionDelay <= int(math.Sqrt(local_spec.SlotsPerEpoch))) {
+	if matchingSource && (inclusionDelay <= int(math.Sqrt(spec.SlotsPerEpoch))) {
 		result[0] = true
 	}
 	if matchingTarget && targetInclusionOk {
 		result[1] = true
 	}
-	if matchingHead && (inclusionDelay <= local_spec.MinInclusionDelay) {
+	if matchingHead && (inclusionDelay <= spec.MinInclusionDelay) {
 		result[2] = true
 	}
 
@@ -80,14 +68,14 @@ func (p DenebMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int
 
 	switch flagIndex { // for every flag there is a max inclusion delay to obtain a reward
 
-	case local_spec.AttSourceFlagIndex: // 5
-		maxInclusionDelay = int(math.Sqrt(local_spec.SlotsPerEpoch))
+	case spec.AttSourceFlagIndex: // 5
+		maxInclusionDelay = int(math.Sqrt(spec.SlotsPerEpoch))
 
-	case local_spec.AttTargetFlagIndex: // until end of next epoch
-		remainingSlotsInEpoch := local_spec.SlotsPerEpoch - int(attSlot%local_spec.SlotsPerEpoch)
-		maxInclusionDelay = local_spec.SlotsPerEpoch + remainingSlotsInEpoch
+	case spec.AttTargetFlagIndex: // until end of next epoch
+		remainingSlotsInEpoch := spec.SlotsPerEpoch - int(attSlot%spec.SlotsPerEpoch)
+		maxInclusionDelay = spec.SlotsPerEpoch + remainingSlotsInEpoch
 
-	case local_spec.AttHeadFlagIndex: // 1
+	case spec.AttHeadFlagIndex: // 1
 		maxInclusionDelay = 1
 	default:
 		log.Fatalf("provided flag index %d is not known", flagIndex)
@@ -95,9 +83,9 @@ func (p DenebMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int
 
 	// look for any block proposed => the attester could have achieved it
 	for slot := attSlot + 1; slot <= (attSlot + phase0.Slot(maxInclusionDelay)); slot++ {
-		slotInEpoch := slot % local_spec.SlotsPerEpoch
+		slotInEpoch := slot % spec.SlotsPerEpoch
 		block := p.baseMetrics.PrevState.Blocks[slotInEpoch]
-		if slot >= phase0.Slot(p.baseMetrics.CurrentState.Epoch*local_spec.SlotsPerEpoch) {
+		if slot >= phase0.Slot(p.baseMetrics.CurrentState.Epoch*spec.SlotsPerEpoch) {
 			block = p.baseMetrics.CurrentState.Blocks[slotInEpoch]
 		}
 

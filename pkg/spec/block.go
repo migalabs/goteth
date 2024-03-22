@@ -23,6 +23,8 @@ type AgnosticBlock struct {
 	Graffiti          [32]byte
 	Proposed          bool
 	Attestations      []*phase0.Attestation
+	VotesIncluded     uint64
+	NewVotesIncluded  uint64
 	Deposits          []*phase0.Deposit
 	ProposerSlashings []*phase0.ProposerSlashing
 	AttesterSlashings []*phase0.AttesterSlashing

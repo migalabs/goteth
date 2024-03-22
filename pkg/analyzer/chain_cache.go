@@ -25,14 +25,14 @@ func NewQueue() ChainCache {
 
 func (s *ChainCache) AddNewState(newState *spec.AgnosticState) {
 
-	blockList := make([]spec.AgnosticBlock, 0)
+	blockList := make([]*spec.AgnosticBlock, 0)
 	epochStartSlot := phase0.Slot(newState.Epoch * spec.SlotsPerEpoch)
 	epochEndSlot := phase0.Slot((newState.Epoch+1)*spec.SlotsPerEpoch - 1)
 
 	for i := epochStartSlot; i <= epochEndSlot; i++ {
 		block := s.BlockHistory.Wait(SlotTo[uint64](i))
 
-		blockList = append(blockList, *block)
+		blockList = append(blockList, block)
 	}
 
 	// the 32 blocks were retrieved
