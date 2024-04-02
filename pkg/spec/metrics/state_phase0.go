@@ -34,6 +34,7 @@ func (p *Phase0Metrics) InitBundle(nextState *spec.AgnosticState,
 	p.baseMetrics.MaxSlashingRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.baseMetrics.InclusionDelays = make(map[phase0.ValidatorIndex]int)
 	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.baseMetrics.CurrentNumAttestingVals = make([]bool, len(currentState.Validators))
 }
 
 func (p *Phase0Metrics) PreProcessBundle() {
@@ -81,6 +82,9 @@ func (p *Phase0Metrics) GetInclusionDelayDeltas() {
 				if p.IsCorrectSource() {
 					p.baseMetrics.CurrentState.PrevEpochCorrectFlags[spec.AttSourceFlagIndex][attestingValIdx] = true
 					p.baseMetrics.CurrentState.AttestingBalance[spec.AttSourceFlagIndex] += p.baseMetrics.CurrentState.Validators[attestingValIdx].EffectiveBalance
+
+					// configure attester participation
+					p.baseMetrics.CurrentNumAttestingVals[attestingValIdx] = true
 
 					// add proposer reward
 					proposerReward := p.GetProposerReward(attestingValIdx)

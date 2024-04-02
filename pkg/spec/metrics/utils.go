@@ -96,3 +96,22 @@ func (s StateMetricsBase) GetBestInclusionDelay(slot phase0.Slot) (int, error) {
 
 	return int(slot - minSlot), nil
 }
+
+func countTrue(arr []bool) int {
+	result := 0
+
+	for _, item := range arr {
+		if item {
+			result += 1
+		}
+	}
+	return result
+}
+
+func slotInEpoch(slot phase0.Slot, epoch phase0.Epoch) bool {
+	if slot >= phase0.Slot(epoch)*spec.SlotsPerEpoch &&
+		slot < phase0.Slot(epoch+1)*spec.SlotsPerEpoch {
+		return true
+	}
+	return false
+}

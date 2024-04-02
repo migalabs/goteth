@@ -37,6 +37,7 @@ func (p *AltairMetrics) InitBundle(nextState *spec.AgnosticState,
 	p.baseMetrics.InclusionDelays = make(map[phase0.ValidatorIndex]int)
 	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.MaxSyncCommitteeRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.baseMetrics.CurrentNumAttestingVals = make([]bool, len(currentState.Validators))
 }
 
 func (p *AltairMetrics) PreProcessBundle() {
@@ -149,10 +150,9 @@ func (p AltairMetrics) ProcessAttestations() {
 
 			attReward := phase0.Gwei(0)
 			slot := attestation.Data.Slot
-			epochParticipation := currentEpochParticipation
-			if slot >= phase0.Slot(p.baseMetrics.NextState.Epoch)*spec.SlotsPerEpoch &&
-				slot < phase0.Slot(p.baseMetrics.NextState.Epoch+1)*spec.SlotsPerEpoch {
-				epochParticipation = nextEpochParticipation
+			epochParticipation := nextEpochParticipation
+			if slotInEpoch(slot, p.baseMetrics.CurrentState.Epoch) {
+				epochParticipation = currentEpochParticipation
 			}
 
 			if slot < phase0.Slot(p.baseMetrics.CurrentState.Epoch)*spec.SlotsPerEpoch {
@@ -167,12 +167,17 @@ func (p AltairMetrics) ProcessAttestations() {
 
 			for _, idx := range attestingIndices {
 				block.VotesIncluded += 1
+
 				valIdx, err := p.GetValidatorFromCommitteeIndex(slot, committeIndex, idx)
 				if err != nil {
 					log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
 				}
 				if epochParticipation[valIdx] == nil {
 					epochParticipation[valIdx] = make([]bool, len(spec.ParticipatingFlagsWeight))
+				}
+
+				if slotInEpoch(slot, p.baseMetrics.CurrentState.Epoch) {
+					p.baseMetrics.CurrentNumAttestingVals[valIdx] = true
 				}
 
 				// we are only counting rewards at NextState

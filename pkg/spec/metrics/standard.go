@@ -22,11 +22,11 @@ type StateMetricsBase struct {
 	CurrentState *local_spec.AgnosticState
 	NextState    *local_spec.AgnosticState
 	// these are the max rewards calculated by our tool
-	MaxSlashingRewards map[phase0.ValidatorIndex]phase0.Gwei // for now just proposer as per spec
-	MaxBlockRewards    map[phase0.ValidatorIndex]phase0.Gwei // from including attestation and sync aggregates. In this case, not max reward but the actual reward
-	InclusionDelays    map[phase0.ValidatorIndex]int         // from attestation inclusion delay
-	MaxAttesterRewards map[phase0.ValidatorIndex]phase0.Gwei // rewards from attesting
-	NumAttestingVals   uint64
+	MaxSlashingRewards      map[phase0.ValidatorIndex]phase0.Gwei // for now just proposer as per spec
+	MaxBlockRewards         map[phase0.ValidatorIndex]phase0.Gwei // from including attestation and sync aggregates. In this case, not max reward but the actual reward
+	InclusionDelays         map[phase0.ValidatorIndex]int         // from attestation inclusion delay
+	MaxAttesterRewards      map[phase0.ValidatorIndex]phase0.Gwei // rewards from attesting
+	CurrentNumAttestingVals []bool                                // array that marks whether each validator has attested or not
 }
 
 func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
@@ -81,7 +81,7 @@ func (s StateMetricsBase) ExportToEpoch() local_spec.Epoch {
 		Epoch:                 s.CurrentState.Epoch,
 		Slot:                  s.CurrentState.Slot,
 		NumAttestations:       len(s.NextState.PrevAttestations),
-		NumAttValidators:      int(s.NumAttestingVals),
+		NumAttValidators:      int(countTrue(s.CurrentNumAttestingVals)),
 		NumValidators:         len(s.CurrentState.Validators),
 		TotalBalance:          float32(s.CurrentState.TotalActiveRealBalance) / float32(local_spec.EffectiveBalanceInc),
 		AttEffectiveBalance:   float32(s.NextState.AttestingBalance[altair.TimelyTargetFlagIndex]) / float32(local_spec.EffectiveBalanceInc), // as per BEaconcha.in
