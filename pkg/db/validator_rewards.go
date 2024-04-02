@@ -25,6 +25,8 @@ var (
 		f_missing_target,
 		f_missing_head,
 		f_status,
+		f_block_api_reward,
+		f_block_experimental_reward,
 		f_inclusion_delay) VALUES`
 
 	deleteValidatorRewardsInEpochQuery = `
@@ -41,21 +43,23 @@ var (
 func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 	// one object per column
 	var (
-		f_val_idx           proto.ColUInt64
-		f_epoch             proto.ColUInt64
-		f_balance_eth       proto.ColFloat32
-		f_reward            proto.ColInt64
-		f_max_reward        proto.ColUInt64
-		f_max_att_reward    proto.ColUInt64
-		f_max_sync_reward   proto.ColUInt64
-		f_att_slot          proto.ColUInt64
-		f_base_reward       proto.ColUInt64
-		f_in_sync_committee proto.ColBool
-		f_missing_source    proto.ColBool
-		f_missing_target    proto.ColBool
-		f_missing_head      proto.ColBool
-		f_status            proto.ColUInt8
-		f_inclusion_delay   proto.ColUInt8
+		f_val_idx                   proto.ColUInt64
+		f_epoch                     proto.ColUInt64
+		f_balance_eth               proto.ColFloat32
+		f_reward                    proto.ColInt64
+		f_max_reward                proto.ColUInt64
+		f_max_att_reward            proto.ColUInt64
+		f_max_sync_reward           proto.ColUInt64
+		f_att_slot                  proto.ColUInt64
+		f_base_reward               proto.ColUInt64
+		f_in_sync_committee         proto.ColBool
+		f_missing_source            proto.ColBool
+		f_missing_target            proto.ColBool
+		f_missing_head              proto.ColBool
+		f_status                    proto.ColUInt8
+		f_block_api_reward          proto.ColUInt64
+		f_block_experimental_reward proto.ColUInt64
+		f_inclusion_delay           proto.ColUInt8
 	)
 
 	for _, val := range vals {
@@ -73,6 +77,8 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		f_missing_target.Append(val.MissingTarget)
 		f_missing_head.Append(val.MissingHead)
 		f_status.Append(uint8(val.Status))
+		f_block_api_reward.Append(uint64(val.ProposerApiReward))
+		f_block_experimental_reward.Append(uint64(val.ProposerManualReward))
 		f_inclusion_delay.Append(uint8(val.InclusionDelay))
 	}
 
@@ -91,6 +97,8 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		{Name: "f_missing_target", Data: f_missing_target},
 		{Name: "f_missing_head", Data: f_missing_head},
 		{Name: "f_status", Data: f_status},
+		{Name: "f_block_api_reward", Data: f_block_api_reward},
+		{Name: "f_block_experimental_reward", Data: f_block_experimental_reward},
 		{Name: "f_inclusion_delay", Data: f_inclusion_delay},
 	}
 }
