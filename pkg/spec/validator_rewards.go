@@ -16,8 +16,8 @@ type ValidatorRewards struct {
 	AttSlot              phase0.Slot
 	InSyncCommittee      bool
 	ProposerSlot         phase0.Slot
-	ProposerApiReward    int64
-	ProposerManualReward int64
+	ProposerApiReward    phase0.Gwei
+	ProposerManualReward phase0.Gwei
 	MissingSource        bool
 	MissingTarget        bool
 	MissingHead          bool
