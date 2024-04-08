@@ -29,11 +29,16 @@ func blockRewardsInput(blocks []BlockReward) proto.Input {
 		f_cl_manual_reward proto.ColUInt64
 		f_cl_api_reward    proto.ColUInt64
 		f_relays           = new(proto.ColStr).Array()
-		f_builder_pubkey   = new(proto.ColStr).Array()
+		f_builder_pubkey   proto.ColStr
 		f_bid_commission   proto.ColUInt64
 	)
 
 	for _, blockReward := range blocks {
+
+		builder_pubkey := ""
+		if len(blockReward.BuilderPubkeys) > 0 {
+			builder_pubkey = blockReward.BuilderPubkeys[0]
+		}
 
 		f_slot.Append(uint64(blockReward.Slot))
 		f_reward_fees.Append(blockReward.RewardFees)
@@ -41,7 +46,7 @@ func blockRewardsInput(blocks []BlockReward) proto.Input {
 		f_cl_manual_reward.Append(uint64(blockReward.CLManualReward))
 		f_cl_api_reward.Append(uint64(blockReward.CLApiReward))
 		f_relays.Append(blockReward.Relays)
-		f_builder_pubkey.Append(blockReward.BuilderPubkeys)
+		f_builder_pubkey.Append(builder_pubkey)
 		f_bid_commission.Append(blockReward.BidCommision)
 	}
 
