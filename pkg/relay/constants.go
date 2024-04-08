@@ -9,6 +9,7 @@ const (
 	mainnetAestusRelay             string = "https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa092c71bbded0bae5b5ea401aab7e@aestus.live"
 	mainnetManifoldRelay           string = "https://mainnet-relay.securerpc.com"
 	mainnetEdenNetworkRelay        string = "https://0xb3ee7afcf27f1f1259ac1787876318c6584ee353097a50ed84f51a1f21a323b3736f271a895c7ce918c038e4265918be@relay.edennetwork.io"
+	mainnetTitanRelay              string = "https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@titanrelay.xyz"
 )
 
 var mainnetRelayList []string = []string{
