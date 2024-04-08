@@ -5,6 +5,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/db"
+	"github.com/migalabs/goteth/pkg/relay"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/spec/metrics"
 )
@@ -203,52 +204,56 @@ func (s *ChainAnalyzer) processBlockRewards(bundle metrics.StateMetrics) {
 	}
 
 	for _, block := range bundle.GetMetricsBase().NextState.Blocks {
-
-		slot := block.Slot
-		bids := mevBids.GetBidsAtSlot(slot)
-		clManualReward := block.ManualReward
-		clApiReward := phase0.Gwei(block.Reward.Data.Total)
-		var err error
-
-		// obtain
-		burntFees := uint64(0)
-		rewardFees := uint64(0)
-		bidCommision := uint64(0)
-		relayAddresses := make([]string, 0)
-		builderPubkeys := make([]string, 0)
-
-		rewardFees, burntFees, err = block.BlockGasFees()
-		if err != nil {
-			log.Warnf("block at slot %d gas fees not calculated: %s", slot, err)
-		}
-
-		if len(bids) > 0 {
-
-			blockHash := block.ExecutionPayload.BlockHash
-
-			for address, bid := range bids {
-				bidBlockHash := bid.BlockHash
-
-				if blockHash == bidBlockHash {
-					bidCommision = bid.Value.Uint64()
-					relayAddresses = append(relayAddresses, address)
-					builderPubkeys = append(builderPubkeys, bid.BuilderPubkey.String())
-				}
-			}
-		}
-		blockRewards = append(blockRewards, db.BlockReward{
-			Slot:           slot,
-			CLManualReward: clManualReward,
-			CLApiReward:    clApiReward,
-			RewardFees:     rewardFees,
-			BurntFees:      burntFees,
-			Relays:         relayAddresses,
-			BidCommision:   bidCommision,
-			BuilderPubkeys: builderPubkeys,
-		})
-
+		blockRewards = append(blockRewards, s.getSingleBlockRewards(*block, mevBids))
 	}
 
 	s.dbClient.PersistBlockRewards(blockRewards)
 
+}
+
+func (s *ChainAnalyzer) getSingleBlockRewards(
+	block spec.AgnosticBlock,
+	mevBids relay.RelayBidsPerSlot) db.BlockReward {
+	slot := block.Slot
+	bids := mevBids.GetBidsAtSlot(slot)
+	clManualReward := block.ManualReward
+	clApiReward := phase0.Gwei(block.Reward.Data.Total)
+	var err error
+
+	// obtain
+	burntFees := uint64(0)
+	rewardFees := uint64(0)
+	bidCommision := uint64(0)
+	relayAddresses := make([]string, 0)
+	builderPubkeys := make([]string, 0)
+
+	rewardFees, burntFees, err = block.BlockGasFees()
+	if err != nil {
+		log.Warnf("block at slot %d gas fees not calculated: %s", slot, err)
+	}
+
+	if len(bids) > 0 {
+
+		blockHash := block.ExecutionPayload.BlockHash
+
+		for address, bid := range bids {
+			bidBlockHash := bid.BlockHash
+
+			if blockHash == bidBlockHash {
+				bidCommision = bid.Value.Uint64()
+				relayAddresses = append(relayAddresses, address)
+				builderPubkeys = append(builderPubkeys, bid.BuilderPubkey.String())
+			}
+		}
+	}
+	return db.BlockReward{
+		Slot:           slot,
+		CLManualReward: clManualReward,
+		CLApiReward:    clApiReward,
+		RewardFees:     rewardFees,
+		BurntFees:      burntFees,
+		Relays:         relayAddresses,
+		BidCommision:   bidCommision,
+		BuilderPubkeys: builderPubkeys,
+	}
 }

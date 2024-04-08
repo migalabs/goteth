@@ -1,4 +1,4 @@
-package mev_client
+package relay
 
 import (
 	"context"
@@ -9,36 +9,13 @@ import (
 	relayclient "github.com/attestantio/go-relay-client"
 	v1 "github.com/attestantio/go-relay-client/api/v1"
 	"github.com/attestantio/go-relay-client/http"
+	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/rs/zerolog"
 	"github.com/sirupsen/logrus"
 )
 
 const (
-	ultraSoundRelay         string = "https://relay.ultrasound.money/"
-	bloxRouteMaxProfitRelay string = "https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com"
-	agnosticRelay           string = "https://agnostic-relay.net/"
-	flashbotsRelay          string = "https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net"
-	bloxRouteRegulatedRelay string = "https://0xb0b07cd0abef743db4260b0ed50619cf6ad4d82064cb4fbec9d3ec530f7c5e6793d9f286c4e082c0244ffb9f2658fe88@bloxroute.regulated.blxrbdn.com"
-	aestusRelay             string = "https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa092c71bbded0bae5b5ea401aab7e@aestus.live"
-	manifoldRelay           string = "https://mainnet-relay.securerpc.com"
-	edenNetworkRelay        string = "https://0xb3ee7afcf27f1f1259ac1787876318c6584ee353097a50ed84f51a1f21a323b3736f271a895c7ce918c038e4265918be@relay.edennetwork.io"
-)
-
-var (
-	relayList []string = []string{
-		ultraSoundRelay,
-		bloxRouteMaxProfitRelay,
-		agnosticRelay,
-		flashbotsRelay,
-		bloxRouteRegulatedRelay,
-		aestusRelay,
-		manifoldRelay,
-		edenNetworkRelay,
-	}
-)
-
-const (
-	moduleName      = "mev_client"
+	moduleName      = "relays"
 	mevRelayTimeout = 3 * time.Minute
 )
 
@@ -92,8 +69,9 @@ type RelaysMonitor struct {
 	relays []RelayClient
 }
 
-func InitRelaysMonitorer(pCtx context.Context) (*RelaysMonitor, error) {
+func InitRelaysMonitorer(pCtx context.Context, genesisTime uint64) (*RelaysMonitor, error) {
 	relayClients := make([]RelayClient, 0)
+	relayList := getNetworkRelays(genesisTime)
 
 	for _, item := range relayList {
 		relayClient, err := New(pCtx, item)
@@ -111,6 +89,7 @@ func InitRelaysMonitorer(pCtx context.Context) (*RelaysMonitor, error) {
 
 // Returns a map of bids per slot
 // Each slot contains an array of bids using the same order as relayList
+// Returns results from slot-limit (not included) to slot (included)
 func (m RelaysMonitor) GetDeliveredBidsPerSlotRange(slot phase0.Slot, limit int) (RelayBidsPerSlot, error) {
 	bidsDelivered := newRelayBidsPerSlot()
 
@@ -122,7 +101,10 @@ func (m RelaysMonitor) GetDeliveredBidsPerSlotRange(slot phase0.Slot, limit int)
 		}
 
 		for _, bid := range singleRelayBidsDelivered {
-			bidsDelivered.addBid(relayClient.client.Address(), bid)
+			if bid.Slot > (slot-phase0.Slot(limit)) && bid.Slot <= slot { // if the bid inside the requested slots
+				bidsDelivered.addBid(relayClient.client.Address(), bid)
+			}
+
 		}
 	}
 	return bidsDelivered, nil
@@ -155,4 +137,19 @@ func (r RelayBidsPerSlot) GetBidsAtSlot(slot phase0.Slot) map[string]v1.BidTrace
 		bids[address] = *bid
 	}
 	return bids
+}
+
+func getNetworkRelays(genesisTime uint64) []string {
+
+	switch genesisTime {
+	case spec.MainnetGenesis:
+		return mainnetRelayList
+
+	case spec.HoleskyGenesis:
+		return holeskyRelayList
+	default:
+		log.Errorf("could not find network. Genesis time: %d", genesisTime)
+		return []string{}
+	}
+
 }

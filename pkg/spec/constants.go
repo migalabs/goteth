@@ -1,5 +1,11 @@
 package spec
 
+const (
+	MainnetGenesis = 1606824023
+	SepoliaGenesis = 1655733600
+	HoleskyGenesis = 1695902400
+)
+
 /*
 Phase0
 */

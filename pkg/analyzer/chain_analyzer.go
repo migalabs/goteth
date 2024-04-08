@@ -10,7 +10,7 @@ import (
 	"github.com/migalabs/goteth/pkg/config"
 	"github.com/migalabs/goteth/pkg/db"
 	prom_metrics "github.com/migalabs/goteth/pkg/metrics"
-	"github.com/migalabs/goteth/pkg/mev_client"
+	"github.com/migalabs/goteth/pkg/relay"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/utils"
 
@@ -30,10 +30,10 @@ type ChainAnalyzer struct {
 	downloadTaskChan chan phase0.Slot // channel to send download tasks
 
 	// Connections
-	cli       *clientapi.APIClient      // client to request data to the CL and EL clients
-	relayCli  *mev_client.RelaysMonitor // client to monitor all relays in list
-	eventsObj events.Events             // object to receive signals from beacon node
-	dbClient  *db.DBService             // client to communicate with clickhouse
+	cli       *clientapi.APIClient // client to request data to the CL and EL clients
+	relayCli  *relay.RelaysMonitor // client to monitor all relays in list
+	eventsObj events.Events        // object to receive signals from beacon node
+	dbClient  *db.DBService        // client to communicate with clickhouse
 
 	// Control Variables
 	wgMainRoutine *sync.WaitGroup    // wait group for main routine (either historical or head)
@@ -112,8 +112,10 @@ func NewChainAnalyzer(
 		}, errors.Wrap(err, "unable to generate API Client.")
 	}
 
+	genesisTime := cli.RequestGenesis()
+
 	// generate the relays client
-	relayCli, err := mev_client.InitRelaysMonitorer(pCtx)
+	relayCli, err := relay.InitRelaysMonitorer(pCtx, uint64(genesisTime.Unix()))
 	if err != nil {
 		return &ChainAnalyzer{
 			ctx:    ctx,
@@ -121,7 +123,7 @@ func NewChainAnalyzer(
 		}, errors.Wrap(err, "unable to generate API Client.")
 	}
 
-	idbClient.InitGenesis(cli.RequestGenesis())
+	idbClient.InitGenesis(genesisTime)
 
 	analyzer := &ChainAnalyzer{
 		ctx:              ctx,

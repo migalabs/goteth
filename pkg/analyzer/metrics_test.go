@@ -8,6 +8,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/clientapi"
+	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/spec/metrics"
 	"github.com/stretchr/testify/assert"
@@ -17,15 +18,28 @@ func BuildChainAnalyzer() (ChainAnalyzer, error) {
 
 	ctx := context.Background()
 
+	dbMetrics := db.DBMetrics{
+		Transactions:     true,
+		Block:            true,
+		Epoch:            true,
+		ValidatorRewards: true,
+		APIRewards:       true,
+	}
+
 	// generate the httpAPI client
-	cli, err := clientapi.NewAPIClient(ctx, "http://localhost:5052")
+	cli, err := clientapi.NewAPIClient(
+		ctx,
+		"http://localhost:5052",
+		clientapi.WithELEndpoint("http://localhost:8545"),
+		clientapi.WithDBMetrics(dbMetrics))
 	if err != nil {
 		return ChainAnalyzer{}, err
 	}
 
 	return ChainAnalyzer{
-		ctx: context.Background(),
-		cli: cli,
+		ctx:     context.Background(),
+		cli:     cli,
+		metrics: dbMetrics,
 	}, nil
 }
 
@@ -84,14 +98,14 @@ func TestPhase0Epoch(t *testing.T) {
 
 	analyzer, err := BuildChainAnalyzer()
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
 	// returns the state in a custom struct for Phase0, Altair of Bellatrix
 	stateMetrics, err := BuildEpochTask(&analyzer, 320031) // epoch 10000
 	if err != nil {
-		fmt.Errorf("could not build epoch task: %s", err)
+		t.Errorf("could not build epoch task: %s", err)
 		return
 	}
 	assert.Equal(t, stateMetrics.GetMetricsBase().CurrentState.NumActiveVals, uint(60849))
@@ -105,14 +119,14 @@ func TestAltairEpoch(t *testing.T) {
 
 	analyzer, err := BuildChainAnalyzer()
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
 	// returns the state in a custom struct for Phase0, Altair of Bellatrix
 	stateMetrics, err := BuildEpochTask(&analyzer, 2375711) // epoch 74240
 	if err != nil {
-		fmt.Errorf("could not build epoch task: %s", err)
+		t.Errorf("could not build epoch task: %s", err)
 		return
 	}
 
@@ -132,14 +146,14 @@ func TestAltairRewards(t *testing.T) {
 
 	analyzer, err := BuildChainAnalyzer()
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
 	// returns the state in a custom struct for Phase0, Altair of Bellatrix
 	stateMetrics, err := BuildEpochTask(&analyzer, 6565759) // epoch 205179
 	if err != nil {
-		fmt.Errorf("could not build epoch task: %s", err)
+		t.Errorf("could not build epoch task: %s", err)
 		return
 	}
 
@@ -226,13 +240,13 @@ func TestAltairNegativeRewards(t *testing.T) {
 
 	analyzer, err := BuildChainAnalyzer()
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 	// returns the state in a custom struct for Phase0, Altair of Bellatrix
 	stateMetrics, err := BuildEpochTask(&analyzer, 6565823) // epoch 205181
 	if err != nil {
-		fmt.Errorf("could not build epoch task: %s", err)
+		t.Errorf("could not build epoch task: %s", err)
 		return
 	}
 
@@ -281,7 +295,7 @@ func TestCapellaBlock(t *testing.T) {
 	blockAnalyzer, err := BuildChainAnalyzerWithEL()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
@@ -313,7 +327,7 @@ func TestCapellaBlock(t *testing.T) {
 		block.ExecutionPayload.Timestamp,
 	)
 	if err != nil {
-		fmt.Errorf("could not retrieve transaction details: %s", err)
+		t.Errorf("could not retrieve transaction details: %s", err)
 		return
 	}
 	assert.Equal(t, transaction.Hash.String(), "0xa8ee3de535f01a6df2e117af8d7142ea811ffeeda3a1b4e604ad357db2924ec4")
@@ -346,7 +360,7 @@ func TestBellatrixBlock(t *testing.T) {
 	blockAnalyzer, err := BuildChainAnalyzer()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
@@ -379,7 +393,7 @@ func TestBellatrixBlock(t *testing.T) {
 	)
 
 	if err != nil {
-		fmt.Errorf("could not retrieve transaction details: %s", err)
+		t.Errorf("could not retrieve transaction details: %s", err)
 		return
 	}
 	assert.Equal(t, transaction.Hash.String(), "0x2ec2cc18a5db329ef76b71db72f47611b49d51b780f5e0140c455320d1278d41")
@@ -411,7 +425,7 @@ func TestAltairBlock(t *testing.T) {
 	blockAnalyzer, err := BuildChainAnalyzer()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
@@ -463,7 +477,7 @@ func TestPhase0Block(t *testing.T) {
 	blockAnalyzer, err := BuildChainAnalyzer()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
@@ -514,7 +528,7 @@ func TestTransactionGasWhenELIsProvided(t *testing.T) {
 	blockAnalyzer, err := BuildChainAnalyzerWithEL()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
@@ -530,7 +544,7 @@ func TestTransactionGasWhenELIsProvided(t *testing.T) {
 	)
 
 	if err != nil {
-		fmt.Errorf("could not retrieve transaction details: %s", err)
+		t.Errorf("could not retrieve transaction details: %s", err)
 		return
 	}
 
@@ -543,7 +557,7 @@ func TestTransactionGasWhenELNotProvided(t *testing.T) {
 	blockAnalyzer, err := BuildChainAnalyzer()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
@@ -559,7 +573,7 @@ func TestTransactionGasWhenELNotProvided(t *testing.T) {
 	)
 
 	if err != nil {
-		fmt.Errorf("could not retrieve transaction details: %s", err)
+		t.Errorf("could not retrieve transaction details: %s", err)
 		return
 	}
 
@@ -572,7 +586,7 @@ func TestBlockSizeIsSetWhenELIsProvided(t *testing.T) {
 	blockAnalyzer, err := BuildChainAnalyzerWithEL()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
@@ -584,10 +598,36 @@ func TestBlockSizeNotSetWhenELNotProvided(t *testing.T) {
 	blockAnalyzer, err := BuildChainAnalyzer()
 
 	if err != nil {
-		fmt.Errorf("could not build analyzer: %s", err)
+		t.Errorf("could not build analyzer: %s", err)
 		return
 	}
 
 	block, _ := blockAnalyzer.cli.RequestBeaconBlock(5610381) //block number 16442285
 	assert.Equal(t, block.ExecutionPayload.PayloadSize, uint32(0))
+}
+
+func TestBlockGasFees(t *testing.T) {
+
+	analyzer, err := BuildChainAnalyzer()
+	if err != nil {
+		t.Errorf("could not build analyzer: %s", err)
+		return
+	}
+
+	block, err := analyzer.cli.RequestBeaconBlock(8790975)
+	if err != nil {
+		t.Errorf("could not download block: %s", err)
+		return
+	}
+
+	reward, burn, err := block.BlockGasFees()
+
+	if err != nil {
+		t.Errorf("could not calculate block gas fees: %s", err)
+		return
+	}
+
+	assert.Equal(t, reward, uint64(44861896127679906))
+	assert.Equal(t, burn, uint64(317246355753369564))
+
 }
