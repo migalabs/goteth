@@ -10,6 +10,7 @@ import (
 	"github.com/migalabs/goteth/pkg/config"
 	"github.com/migalabs/goteth/pkg/db"
 	prom_metrics "github.com/migalabs/goteth/pkg/metrics"
+	"github.com/migalabs/goteth/pkg/relay"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/utils"
 
@@ -30,6 +31,7 @@ type ChainAnalyzer struct {
 
 	// Connections
 	cli       *clientapi.APIClient // client to request data to the CL and EL clients
+	relayCli  *relay.RelaysMonitor // client to monitor all relays in list
 	eventsObj events.Events        // object to receive signals from beacon node
 	dbClient  *db.DBService        // client to communicate with clickhouse
 
@@ -110,7 +112,18 @@ func NewChainAnalyzer(
 		}, errors.Wrap(err, "unable to generate API Client.")
 	}
 
-	idbClient.InitGenesis(cli.RequestGenesis())
+	genesisTime := cli.RequestGenesis()
+
+	// generate the relays client
+	relayCli, err := relay.InitRelaysMonitorer(pCtx, uint64(genesisTime.Unix()))
+	if err != nil {
+		return &ChainAnalyzer{
+			ctx:    ctx,
+			cancel: cancel,
+		}, errors.Wrap(err, "unable to generate API Client.")
+	}
+
+	idbClient.InitGenesis(genesisTime)
 
 	analyzer := &ChainAnalyzer{
 		ctx:              ctx,
@@ -119,6 +132,7 @@ func NewChainAnalyzer(
 		finalSlot:        phase0.Slot(iConfig.FinalSlot),
 		downloadTaskChan: make(chan phase0.Slot, rateLimit), // TODO: define size of buffer depending on performance
 		cli:              cli,
+		relayCli:         relayCli,
 		dbClient:         idbClient,
 		routineClosed:    make(chan struct{}, 1),
 		eventsObj:        events.NewEventsObj(ctx, cli),

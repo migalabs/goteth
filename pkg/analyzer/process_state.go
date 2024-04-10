@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/migalabs/goteth/pkg/db"
+	"github.com/migalabs/goteth/pkg/relay"
 	"github.com/migalabs/goteth/pkg/spec"
 	"github.com/migalabs/goteth/pkg/spec/metrics"
 )
@@ -48,7 +50,6 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 	// If nextState is filled, we can process proposer duties
 	if !nextState.EmptyStateRoot() {
 		s.processEpochDuties(bundle)
-
 		s.processValLastStatus(bundle)
 
 		// If currentState and nextState are filled, we can process epoch metrics
@@ -57,8 +58,11 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 			s.processEpochMetrics(bundle)
 
 			// If prevState, currentState and nextState are filled, we can process validator rewards
-			if !prevState.EmptyStateRoot() && s.metrics.ValidatorRewards {
-				s.processEpochValRewards(bundle)
+			if !prevState.EmptyStateRoot() {
+				s.processBlockRewards(bundle) // block rewards depend on two previous epochs
+				if s.metrics.ValidatorRewards {
+					s.processEpochValRewards(bundle)
+				}
 			}
 		}
 	}
@@ -187,5 +191,69 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 
 		}
 
+	}
+}
+
+func (s *ChainAnalyzer) processBlockRewards(bundle metrics.StateMetrics) {
+
+	blockRewards := make([]db.BlockReward, 0)
+
+	mevBids, err := s.relayCli.GetDeliveredBidsPerSlotRange(bundle.GetMetricsBase().NextState.Slot, spec.SlotsPerEpoch)
+	if err != nil {
+		log.Errorf("error getting mev bids: %s", err.Error())
+	}
+
+	for _, block := range bundle.GetMetricsBase().NextState.Blocks {
+		blockRewards = append(blockRewards, s.getSingleBlockRewards(*block, mevBids))
+	}
+
+	s.dbClient.PersistBlockRewards(blockRewards)
+
+}
+
+func (s *ChainAnalyzer) getSingleBlockRewards(
+	block spec.AgnosticBlock,
+	mevBids relay.RelayBidsPerSlot) db.BlockReward {
+	slot := block.Slot
+	bids := mevBids.GetBidsAtSlot(slot)
+	clManualReward := block.ManualReward
+	clApiReward := phase0.Gwei(block.Reward.Data.Total)
+	var err error
+
+	// obtain
+	burntFees := uint64(0)
+	rewardFees := uint64(0)
+	bidCommision := uint64(0)
+	relayAddresses := make([]string, 0)
+	builderPubkeys := make([]string, 0)
+
+	rewardFees, burntFees, err = block.BlockGasFees()
+	if err != nil {
+		log.Warnf("block at slot %d gas fees not calculated: %s", slot, err)
+	}
+
+	if len(bids) > 0 {
+
+		blockHash := block.ExecutionPayload.BlockHash
+
+		for address, bid := range bids {
+			bidBlockHash := bid.BlockHash
+
+			if blockHash == bidBlockHash {
+				bidCommision = bid.Value.Uint64()
+				relayAddresses = append(relayAddresses, address)
+				builderPubkeys = append(builderPubkeys, bid.BuilderPubkey.String())
+			}
+		}
+	}
+	return db.BlockReward{
+		Slot:           slot,
+		CLManualReward: clManualReward,
+		CLApiReward:    clApiReward,
+		RewardFees:     rewardFees,
+		BurntFees:      burntFees,
+		Relays:         relayAddresses,
+		BidCommision:   bidCommision,
+		BuilderPubkeys: builderPubkeys,
 	}
 }

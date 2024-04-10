@@ -80,5 +80,4 @@ func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spe
 		}
 		s.dbClient.PersistBlobSidecars(blobs)
 	}
-
 }

@@ -18,7 +18,7 @@ var (
 	moduleName = "api-cli"
 	log        = logrus.WithField(
 		"module", moduleName)
-	QueryTimeout     = time.Second * 90
+	QueryTimeout     = 3 * time.Minute
 	maxParallelConns = 3
 	maxRetries       = 3
 )
@@ -76,7 +76,7 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOp
 func WithELEndpoint(url string) APIClientOption {
 	return func(s *APIClient) error {
 		if url == "" {
-			return fmt.Errorf("empty execution address, skipping...")
+			return fmt.Errorf("empty execution address, skipping. Beware transactions data might not be complete")
 		}
 		client, err := ethclient.DialContext(s.ctx, url)
 		if err != nil {

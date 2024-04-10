@@ -1,0 +1,3 @@
+[submodule "go-relay-client"]
+	path = go-relay-client
+	url = git@github.com:migalabs/go-relay-client.git
