@@ -38,7 +38,7 @@ services:
     network_mode: 'host'
                 
   clickhouse:
-    image: clickhouse/clickhouse-server:23.12-alpine
+    image: clickhouse/clickhouse-server:24
     user: "$UID:$GID"
     hostname: clickhouse
     environment:

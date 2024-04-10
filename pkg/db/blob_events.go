@@ -10,7 +10,8 @@ var (
 	insertBlobSideCarsEventsQuery = `
 	INSERT INTO %s (
 		f_arrival_timestamp_ms,
-		f_blob_hash)
+		f_blob_hash,
+		f_slot)
 		VALUES`
 )
 
@@ -19,12 +20,14 @@ func blobSidecarsEventInput(blobSidecarsEvents []spec.BlobSideCarEventWraper) pr
 	var (
 		f_arrival_timestamp_ms proto.ColUInt64
 		f_blob_hash            proto.ColStr
+		f_slot                 proto.ColUInt64
 	)
 
 	for _, blobSidecar := range blobSidecarsEvents {
 
 		f_arrival_timestamp_ms.Append(uint64(blobSidecar.Timestamp.UnixMilli()))
 		f_blob_hash.Append(blobSidecar.BlobSidecarEvent.VersionedHash.String())
+		f_slot.Append(uint64(blobSidecar.BlobSidecarEvent.Slot))
 
 	}
 
@@ -32,6 +35,7 @@ func blobSidecarsEventInput(blobSidecarsEvents []spec.BlobSideCarEventWraper) pr
 
 		{Name: "f_arrival_timestamp_ms", Data: f_arrival_timestamp_ms},
 		{Name: "f_blob_hash", Data: f_blob_hash},
+		{Name: "f_slot", Data: f_slot},
 	}
 }
 
