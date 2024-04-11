@@ -1,0 +1,6 @@
+ALTER TABLE t_epoch_metrics_summary ADD COLUMN f_head_att_effective_balance_eth UInt64 AFTER f_att_effective_balance_eth;
+ALTER TABLE t_epoch_metrics_summary ADD COLUMN f_target_att_effective_balance_eth UInt64 AFTER f_att_effective_balance_eth;
+ALTER TABLE t_epoch_metrics_summary ADD COLUMN f_source_att_effective_balance_eth UInt64 AFTER f_att_effective_balance_eth;
+
+ALTER TABLE t_epoch_metrics_summary MODIFY COLUMN f_att_effective_balance_eth UInt64;
+ALTER TABLE t_epoch_metrics_summary MODIFY COLUMN f_total_effective_balance_eth UInt64;

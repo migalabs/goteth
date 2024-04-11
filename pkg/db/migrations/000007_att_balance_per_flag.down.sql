@@ -1,0 +1,3 @@
+ALTER TABLE t_epoch_metrics_summary DROP COLUMN f_head_att_effective_balance_eth;
+ALTER TABLE t_epoch_metrics_summary DROP COLUMN f_target_att_effective_balance_eth;
+ALTER TABLE t_epoch_metrics_summary DROP COLUMN f_source_att_effective_balance_eth;
