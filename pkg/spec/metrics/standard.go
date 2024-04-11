@@ -84,10 +84,10 @@ func (s StateMetricsBase) ExportToEpoch() local_spec.Epoch {
 		NumAttValidators:          int(countTrue(s.CurrentNumAttestingVals)),
 		NumValidators:             len(s.CurrentState.Validators),
 		TotalBalance:              float32(s.CurrentState.TotalActiveRealBalance) / float32(local_spec.EffectiveBalanceInc),
-		AttEffectiveBalance:       s.NextState.AttestingBalance[local_spec.AttTargetFlagIndex] / local_spec.EffectiveBalanceInc, // as per BEaconcha.in
-		SourceAttEffectiveBalance: s.NextState.AttestingBalance[local_spec.AttSourceFlagIndex] / local_spec.EffectiveBalanceInc, // as per BEaconcha.in
-		TargetAttEffectiveBalance: s.NextState.AttestingBalance[local_spec.AttTargetFlagIndex] / local_spec.EffectiveBalanceInc, // as per BEaconcha.in
-		HeadAttEffectiveBalance:   s.NextState.AttestingBalance[local_spec.AttHeadFlagIndex] / local_spec.EffectiveBalanceInc,   // as per BEaconcha.in
+		AttEffectiveBalance:       s.NextState.AttestingBalance[local_spec.AttTargetFlagIndex] / local_spec.EffectiveBalanceInc,
+		SourceAttEffectiveBalance: s.NextState.AttestingBalance[local_spec.AttSourceFlagIndex] / local_spec.EffectiveBalanceInc,
+		TargetAttEffectiveBalance: s.NextState.AttestingBalance[local_spec.AttTargetFlagIndex] / local_spec.EffectiveBalanceInc,
+		HeadAttEffectiveBalance:   s.NextState.AttestingBalance[local_spec.AttHeadFlagIndex] / local_spec.EffectiveBalanceInc,
 		TotalEffectiveBalance:     s.CurrentState.TotalActiveBalance / local_spec.EffectiveBalanceInc,
 		MissingSource:             int(s.NextState.GetMissingFlagCount(int(altair.TimelySourceFlagIndex))),
 		MissingTarget:             int(s.NextState.GetMissingFlagCount(int(altair.TimelyTargetFlagIndex))),
