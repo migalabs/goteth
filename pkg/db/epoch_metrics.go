@@ -19,6 +19,9 @@ var (
 		f_num_vals,
 		f_total_balance_eth,
 		f_att_effective_balance_eth,
+		f_source_att_effective_balance_eth,
+		f_target_att_effective_balance_eth,
+		f_head_att_effective_balance_eth,
 		f_total_effective_balance_eth,
 		f_missing_source,
 		f_missing_target,
@@ -45,22 +48,25 @@ var (
 func epochsInput(epochs []spec.Epoch) proto.Input {
 	// one object per column
 	var (
-		f_epoch                       proto.ColUInt64
-		f_slot                        proto.ColUInt64
-		f_num_att                     proto.ColUInt64
-		f_num_att_vals                proto.ColUInt64
-		f_num_vals                    proto.ColUInt64
-		f_total_balance_eth           proto.ColFloat32
-		f_att_effective_balance_eth   proto.ColFloat32
-		f_total_effective_balance_eth proto.ColFloat32
-		f_missing_source              proto.ColUInt64
-		f_missing_target              proto.ColUInt64
-		f_missing_head                proto.ColUInt64
-		f_timestamp                   proto.ColUInt64
-		f_num_slashed_vals            proto.ColUInt64
-		f_num_active_vals             proto.ColUInt64
-		f_num_exited_vals             proto.ColUInt64
-		f_num_in_activation_vals      proto.ColUInt64
+		f_epoch                            proto.ColUInt64
+		f_slot                             proto.ColUInt64
+		f_num_att                          proto.ColUInt64
+		f_num_att_vals                     proto.ColUInt64
+		f_num_vals                         proto.ColUInt64
+		f_total_balance_eth                proto.ColFloat32
+		f_att_effective_balance_eth        proto.ColUInt64
+		f_source_att_effective_balance_eth proto.ColUInt64
+		f_target_att_effective_balance_eth proto.ColUInt64
+		f_head_att_effective_balance_eth   proto.ColUInt64
+		f_total_effective_balance_eth      proto.ColUInt64
+		f_missing_source                   proto.ColUInt64
+		f_missing_target                   proto.ColUInt64
+		f_missing_head                     proto.ColUInt64
+		f_timestamp                        proto.ColUInt64
+		f_num_slashed_vals                 proto.ColUInt64
+		f_num_active_vals                  proto.ColUInt64
+		f_num_exited_vals                  proto.ColUInt64
+		f_num_in_activation_vals           proto.ColUInt64
 	)
 
 	for _, epoch := range epochs {
@@ -70,8 +76,11 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_num_att_vals.Append(uint64(epoch.NumAttValidators))
 		f_num_vals.Append(uint64(epoch.NumValidators))
 		f_total_balance_eth.Append(float32(epoch.TotalBalance))
-		f_att_effective_balance_eth.Append(float32(epoch.AttEffectiveBalance))
-		f_total_effective_balance_eth.Append(float32(epoch.TotalEffectiveBalance))
+		f_att_effective_balance_eth.Append(uint64(epoch.AttEffectiveBalance))
+		f_source_att_effective_balance_eth.Append(uint64(epoch.SourceAttEffectiveBalance))
+		f_target_att_effective_balance_eth.Append(uint64(epoch.TargetAttEffectiveBalance))
+		f_head_att_effective_balance_eth.Append(uint64(epoch.HeadAttEffectiveBalance))
+		f_total_effective_balance_eth.Append(uint64(epoch.TotalEffectiveBalance))
 		f_missing_source.Append(uint64(epoch.MissingSource))
 		f_missing_target.Append(uint64(epoch.MissingTarget))
 		f_missing_head.Append(uint64(epoch.MissingHead))
@@ -91,6 +100,9 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		{Name: "f_num_vals", Data: f_num_vals},
 		{Name: "f_total_balance_eth", Data: f_total_balance_eth},
 		{Name: "f_att_effective_balance_eth", Data: f_att_effective_balance_eth},
+		{Name: "f_source_att_effective_balance_eth", Data: f_source_att_effective_balance_eth},
+		{Name: "f_target_att_effective_balance_eth", Data: f_target_att_effective_balance_eth},
+		{Name: "f_head_att_effective_balance_eth", Data: f_head_att_effective_balance_eth},
 		{Name: "f_total_effective_balance_eth", Data: f_total_effective_balance_eth},
 		{Name: "f_missing_source", Data: f_missing_source},
 		{Name: "f_missing_target", Data: f_missing_target},
