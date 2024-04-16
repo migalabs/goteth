@@ -32,7 +32,7 @@ func (p *Phase0Metrics) InitBundle(nextState *spec.AgnosticState,
 	p.baseMetrics.PrevState = prevState
 	p.baseMetrics.MaxBlockRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.baseMetrics.MaxSlashingRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
-	p.baseMetrics.InclusionDelays = make(map[phase0.ValidatorIndex]int)
+	p.baseMetrics.InclusionDelays = make([]int, len(p.baseMetrics.NextState.Validators))
 	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.baseMetrics.CurrentNumAttestingVals = make([]bool, len(currentState.Validators))
 }
@@ -107,6 +107,12 @@ func (p *Phase0Metrics) GetInclusionDelayDeltas() {
 					p.baseMetrics.CurrentState.AttestingBalance[spec.AttHeadFlagIndex] += p.baseMetrics.CurrentState.Validators[attestingValIdx].EffectiveBalance
 				}
 			}
+		}
+	}
+
+	for valIdx, inclusionDelay := range p.baseMetrics.InclusionDelays {
+		if inclusionDelay == 0 {
+			p.baseMetrics.InclusionDelays[valIdx] = spec.SlotsPerEpoch + 1
 		}
 	}
 }

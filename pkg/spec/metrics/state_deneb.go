@@ -62,7 +62,7 @@ func (p DenebMetrics) GetParticipationFlags(attestation phase0.Attestation, incl
 	return result
 }
 
-func (p DenebMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int) bool {
+func (p DenebMetrics) IsFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int) bool {
 	attSlot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
 	maxInclusionDelay := 0
 
@@ -95,4 +95,15 @@ func (p DenebMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int
 	}
 	return false
 
+}
+
+func (p DenebMetrics) MaxInclusionDelay(valIdx phase0.ValidatorIndex) int {
+
+	// check attestationSlot in prev epoch
+
+	slot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
+
+	slotsUntilEpochEnd := spec.SlotsPerEpoch - (slot % spec.SlotsPerEpoch)
+
+	return spec.SlotsPerEpoch + int(slotsUntilEpochEnd)
 }

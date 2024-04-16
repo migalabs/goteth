@@ -35,7 +35,7 @@ func (p *AltairMetrics) InitBundle(nextState *spec.AgnosticState,
 	p.baseMetrics.PrevState = prevState
 	p.baseMetrics.MaxBlockRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.baseMetrics.MaxSlashingRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
-	p.baseMetrics.InclusionDelays = make(map[phase0.ValidatorIndex]int)
+	p.baseMetrics.InclusionDelays = make([]int, len(p.baseMetrics.NextState.Validators))
 	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.MaxSyncCommitteeRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.baseMetrics.CurrentNumAttestingVals = make([]bool, len(currentState.Validators))
@@ -97,11 +97,10 @@ func (p AltairMetrics) ProcessSyncAggregates() {
 
 		p.baseMetrics.MaxBlockRewards[block.ProposerIndex] += proposerSyncReward
 		block.ManualReward += proposerSyncReward
-
 	}
 }
 
-func (p AltairMetrics) ProcessInclusionDelays() {
+func (p *AltairMetrics) ProcessInclusionDelays() {
 	for _, block := range append(p.baseMetrics.PrevState.Blocks, p.baseMetrics.CurrentState.Blocks...) {
 		// we assume the blocks are in order asc
 		for _, attestation := range block.Attestations {
@@ -126,6 +125,12 @@ func (p AltairMetrics) ProcessInclusionDelays() {
 					p.baseMetrics.InclusionDelays[valIdx] = inclusionDelay
 				}
 			}
+		}
+	}
+
+	for valIdx, inclusionDelay := range p.baseMetrics.InclusionDelays {
+		if inclusionDelay == 0 {
+			p.baseMetrics.InclusionDelays[valIdx] = p.MaxInclusionDelay(phase0.ValidatorIndex(valIdx)) + 1
 		}
 	}
 }
@@ -258,7 +263,7 @@ func (p AltairMetrics) GetMaxFlagIndexDeltas() {
 
 			for i := range p.baseMetrics.CurrentState.AttestingBalance {
 
-				if !p.isFlagPossible(phase0.ValidatorIndex(valIdx), i) { // consider if the attester could have achieved the flag (inclusion delay wise)
+				if !p.IsFlagPossible(phase0.ValidatorIndex(valIdx), i) { // consider if the attester could have achieved the flag (inclusion delay wise)
 					continue
 				}
 				// apply formula
@@ -382,7 +387,7 @@ func (p AltairMetrics) GetParticipationFlags(attestation phase0.Attestation, inc
 	return result
 }
 
-func (p AltairMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int) bool {
+func (p AltairMetrics) IsFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int) bool {
 	attSlot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
 	maxInclusionDelay := 0
 
@@ -411,4 +416,8 @@ func (p AltairMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex in
 	}
 	return false
 
+}
+
+func (p AltairMetrics) MaxInclusionDelay(valIdx phase0.ValidatorIndex) int {
+	return spec.SlotsPerEpoch
 }
