@@ -284,7 +284,7 @@ func (p DenebMetrics) maxInclusionDelay(valIdx phase0.ValidatorIndex) int {
 
 	slot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
 
-	slotsUntilEpochEnd := spec.SlotsPerEpoch - (slot % spec.SlotsPerEpoch)
+	slotsUntilEpochEnd := spec.SlotsPerEpoch - (slot % spec.SlotsPerEpoch) - 1
 
 	return spec.SlotsPerEpoch + int(slotsUntilEpochEnd)
 }
