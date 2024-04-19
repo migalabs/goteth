@@ -82,7 +82,7 @@ func (p DenebMetrics) ProcessAttestations() {
 				continue
 			}
 
-			participationFlags := p.GetParticipationFlags(*attestation, *block)
+			participationFlags := p.getParticipationFlags(*attestation, *block)
 
 			committeIndex := attestation.Data.Index
 
@@ -171,7 +171,7 @@ func (p *DenebMetrics) ProcessInclusionDelays() {
 
 	for valIdx, inclusionDelay := range p.baseMetrics.InclusionDelays {
 		if inclusionDelay == 0 {
-			p.baseMetrics.InclusionDelays[valIdx] = p.MaxInclusionDelay(phase0.ValidatorIndex(valIdx)) + 1
+			p.baseMetrics.InclusionDelays[valIdx] = p.maxInclusionDelay(phase0.ValidatorIndex(valIdx)) + 1
 		}
 	}
 }
@@ -189,7 +189,7 @@ func (p DenebMetrics) GetMaxFlagIndexDeltas() {
 
 			for i := range p.baseMetrics.CurrentState.AttestingBalance {
 
-				if !p.IsFlagPossible(phase0.ValidatorIndex(valIdx), i) { // consider if the attester could have achieved the flag (inclusion delay wise)
+				if !p.isFlagPossible(phase0.ValidatorIndex(valIdx), i) { // consider if the attester could have achieved the flag (inclusion delay wise)
 					continue
 				}
 				// apply formula
@@ -205,7 +205,7 @@ func (p DenebMetrics) GetMaxFlagIndexDeltas() {
 	}
 }
 
-func (p DenebMetrics) GetParticipationFlags(attestation phase0.Attestation, includedInBlock spec.AgnosticBlock) [3]bool {
+func (p DenebMetrics) getParticipationFlags(attestation phase0.Attestation, includedInBlock spec.AgnosticBlock) [3]bool {
 	var result [3]bool
 
 	justifiedCheckpoint, err := p.GetJustifiedRootfromSlot(attestation.Data.Slot)
@@ -243,7 +243,7 @@ func (p DenebMetrics) GetParticipationFlags(attestation phase0.Attestation, incl
 	return result
 }
 
-func (p DenebMetrics) IsFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int) bool {
+func (p DenebMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int) bool {
 	attSlot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
 	maxInclusionDelay := 0
 
@@ -278,7 +278,7 @@ func (p DenebMetrics) IsFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int
 
 }
 
-func (p DenebMetrics) MaxInclusionDelay(valIdx phase0.ValidatorIndex) int {
+func (p DenebMetrics) maxInclusionDelay(valIdx phase0.ValidatorIndex) int {
 
 	// check attestationSlot in prev epoch
 
