@@ -24,7 +24,188 @@ func NewDenebMetrics(
 	return denebObj
 }
 
-func (p DenebMetrics) GetParticipationFlags(attestation phase0.Attestation, includedInBlock spec.AgnosticBlock) [3]bool {
+func (p *DenebMetrics) InitBundle(nextState *spec.AgnosticState,
+	currentState *spec.AgnosticState,
+	prevState *spec.AgnosticState) {
+	p.baseMetrics.NextState = nextState
+	p.baseMetrics.CurrentState = currentState
+	p.baseMetrics.PrevState = prevState
+	p.baseMetrics.MaxBlockRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.baseMetrics.MaxSlashingRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.baseMetrics.InclusionDelays = make([]int, len(p.baseMetrics.NextState.Validators))
+	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.MaxSyncCommitteeRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.baseMetrics.CurrentNumAttestingVals = make([]bool, len(currentState.Validators))
+}
+
+func (p *DenebMetrics) PreProcessBundle() {
+
+	if !p.baseMetrics.PrevState.EmptyStateRoot() && !p.baseMetrics.CurrentState.EmptyStateRoot() {
+		// block rewards
+		p.ProcessAttestations()
+		p.ProcessSlashings()
+		p.ProcessSyncAggregates()
+
+		p.GetMaxFlagIndexDeltas()
+		p.ProcessInclusionDelays()
+		p.GetMaxSyncComReward()
+	}
+}
+
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#modified-process_attestation
+func (p DenebMetrics) ProcessAttestations() {
+
+	if p.baseMetrics.CurrentState.Blocks == nil { // only process attestations when CurrentState available
+		return
+	}
+
+	currentEpochParticipation := make([][]bool, len(p.baseMetrics.CurrentState.Validators))
+	nextEpochParticipation := make([][]bool, len(p.baseMetrics.NextState.Validators))
+
+	blockList := p.baseMetrics.CurrentState.Blocks
+	blockList = append(
+		blockList,
+		p.baseMetrics.NextState.Blocks...)
+
+	for _, block := range blockList {
+
+		for _, attestation := range block.Attestations {
+
+			attReward := phase0.Gwei(0)
+			slot := attestation.Data.Slot
+			epochParticipation := nextEpochParticipation
+			if slotInEpoch(slot, p.baseMetrics.CurrentState.Epoch) {
+				epochParticipation = currentEpochParticipation
+			}
+
+			if slot < phase0.Slot(p.baseMetrics.CurrentState.Epoch)*spec.SlotsPerEpoch {
+				continue
+			}
+
+			participationFlags := p.getParticipationFlags(*attestation, *block)
+
+			committeIndex := attestation.Data.Index
+
+			attestingIndices := attestation.AggregationBits.BitIndices()
+
+			for _, idx := range attestingIndices {
+				block.VotesIncluded += 1
+
+				valIdx, err := p.GetValidatorFromCommitteeIndex(slot, committeIndex, idx)
+				if err != nil {
+					log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
+				}
+				if epochParticipation[valIdx] == nil {
+					epochParticipation[valIdx] = make([]bool, len(spec.ParticipatingFlagsWeight))
+				}
+
+				if slotInEpoch(slot, p.baseMetrics.CurrentState.Epoch) {
+					p.baseMetrics.CurrentNumAttestingVals[valIdx] = true
+				}
+
+				// we are only counting rewards at NextState
+				attesterBaseReward := p.GetBaseReward(valIdx, p.baseMetrics.NextState.Validators[valIdx].EffectiveBalance, p.baseMetrics.NextState.TotalActiveBalance)
+
+				new := false
+				if participationFlags[spec.AttSourceFlagIndex] && !epochParticipation[valIdx][spec.AttSourceFlagIndex] { // source
+					attReward += attesterBaseReward * spec.TimelySourceWeight
+					epochParticipation[valIdx][spec.AttSourceFlagIndex] = true
+					new = true
+				}
+				if participationFlags[spec.AttTargetFlagIndex] && !epochParticipation[valIdx][spec.AttTargetFlagIndex] { // target
+					attReward += attesterBaseReward * spec.TimelyTargetWeight
+					epochParticipation[valIdx][spec.AttTargetFlagIndex] = true
+					new = true
+				}
+				if participationFlags[spec.AttHeadFlagIndex] && !epochParticipation[valIdx][spec.AttHeadFlagIndex] { // head
+					attReward += attesterBaseReward * spec.TimelyHeadWeight
+					epochParticipation[valIdx][spec.AttHeadFlagIndex] = true
+					new = true
+				}
+				if new {
+					block.NewVotesIncluded += 1
+				}
+			}
+
+			// only process rewards for blocks in NextState
+			if block.Slot >= phase0.Slot(p.baseMetrics.NextState.Epoch)*spec.SlotsPerEpoch {
+				denominator := phase0.Gwei((spec.WeightDenominator - spec.ProposerWeight) * spec.WeightDenominator / spec.ProposerWeight)
+				attReward = attReward / denominator
+
+				p.baseMetrics.MaxBlockRewards[block.ProposerIndex] += attReward
+				block.ManualReward += attReward
+			}
+
+		}
+
+	}
+}
+
+func (p *DenebMetrics) ProcessInclusionDelays() {
+	for _, block := range append(p.baseMetrics.PrevState.Blocks, p.baseMetrics.CurrentState.Blocks...) {
+		// we assume the blocks are in order asc
+		for _, attestation := range block.Attestations {
+			attSlot := attestation.Data.Slot
+			// Calculate inclusion delays only for attestations corresponding to slots from the previous epoch
+			attSlotNotInPrevEpoch := attSlot < phase0.Slot(p.baseMetrics.PrevState.Epoch)*spec.SlotsPerEpoch || attSlot >= phase0.Slot(p.baseMetrics.CurrentState.Epoch)*spec.SlotsPerEpoch
+			if attSlotNotInPrevEpoch {
+				continue
+			}
+			inclusionDelay := p.GetInclusionDelay(*attestation, *block)
+			committeIndex := attestation.Data.Index
+
+			attestingIndices := attestation.AggregationBits.BitIndices()
+
+			for _, idx := range attestingIndices {
+				valIdx, err := p.GetValidatorFromCommitteeIndex(attSlot, committeIndex, idx)
+				if err != nil {
+					log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
+				}
+
+				if p.baseMetrics.InclusionDelays[valIdx] == 0 {
+					p.baseMetrics.InclusionDelays[valIdx] = inclusionDelay
+				}
+			}
+		}
+	}
+
+	for valIdx, inclusionDelay := range p.baseMetrics.InclusionDelays {
+		if inclusionDelay == 0 {
+			p.baseMetrics.InclusionDelays[valIdx] = p.maxInclusionDelay(phase0.ValidatorIndex(valIdx)) + 1
+		}
+	}
+}
+
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#get_flag_index_deltas
+func (p DenebMetrics) GetMaxFlagIndexDeltas() {
+
+	for valIdx, validator := range p.baseMetrics.NextState.Validators {
+		maxFlagsReward := phase0.Gwei(0)
+		// the maxReward would be each flag_index_weight * base_reward * (attesting_balance_inc / total_active_balance_inc) / WEIGHT_DENOMINATOR
+
+		if spec.IsActive(*validator, phase0.Epoch(p.baseMetrics.PrevState.Epoch)) {
+			baseReward := p.GetBaseReward(phase0.ValidatorIndex(valIdx), p.baseMetrics.CurrentState.Validators[valIdx].EffectiveBalance, p.baseMetrics.CurrentState.TotalActiveBalance)
+			// only consider flag Index rewards if the validator was active in the previous epoch
+
+			for i := range p.baseMetrics.CurrentState.AttestingBalance {
+
+				if !p.isFlagPossible(phase0.ValidatorIndex(valIdx), i) { // consider if the attester could have achieved the flag (inclusion delay wise)
+					continue
+				}
+				// apply formula
+				attestingBalanceInc := p.baseMetrics.CurrentState.AttestingBalance[i] / spec.EffectiveBalanceInc
+
+				flagReward := phase0.Gwei(spec.ParticipatingFlagsWeight[i]) * baseReward * attestingBalanceInc
+				flagReward = flagReward / ((phase0.Gwei(p.baseMetrics.CurrentState.TotalActiveBalance / spec.EffectiveBalanceInc)) * phase0.Gwei(spec.WeightDenominator))
+				maxFlagsReward += flagReward
+			}
+		}
+
+		p.baseMetrics.MaxAttesterRewards[phase0.ValidatorIndex(valIdx)] += maxFlagsReward
+	}
+}
+
+func (p DenebMetrics) getParticipationFlags(attestation phase0.Attestation, includedInBlock spec.AgnosticBlock) [3]bool {
 	var result [3]bool
 
 	justifiedCheckpoint, err := p.GetJustifiedRootfromSlot(attestation.Data.Slot)
@@ -95,4 +276,15 @@ func (p DenebMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int
 	}
 	return false
 
+}
+
+func (p DenebMetrics) maxInclusionDelay(valIdx phase0.ValidatorIndex) int {
+
+	// check attestationSlot in prev epoch
+
+	slot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
+
+	slotsUntilEpochEnd := spec.SlotsPerEpoch - (slot % spec.SlotsPerEpoch) - 1
+
+	return spec.SlotsPerEpoch + int(slotsUntilEpochEnd)
 }
