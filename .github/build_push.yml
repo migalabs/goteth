@@ -1,0 +1,54 @@
+on:
+  push:
+    branches:
+      - main*
+    tags:
+      - 'v*'
+name: Build and Publish Docker Image
+jobs:
+  build-docker:
+    runs-on: charon-ci
+    name: Build Docker Image
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: docker/setup-buildx-action@v2
+      with:
+        driver-opts: "image=moby/buildkit:v0.10.5" # avoid unknown/unknown arch in ghcr
+
+    - name: Define docker image meta data tags
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: |
+          ghcr.io/obolnetwork/goteth
+        tags: |
+          # Tag "git short sha" on all git events
+          type=sha,prefix=
+
+          # Tag "next" on git-push-to-main-branch events
+          type=raw,value=next,event=branch,enable={{is_default_branch}}
+
+          # Tag "latest" on git-tag events
+          type=raw,value=latest,event=tag
+
+          # Tag "tag ref" on git-tag events
+          type=ref,event=tag
+
+    - name: Login to Github container registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - uses: docker/build-push-action@v4
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        build-args: |
+          GITHUB_SHA=${{ github.sha }}
+          GO_BUILD_FLAG=${{ env.GO_BUILD_FLAG }}
+        tags: ${{ steps.meta.outputs.tags }}
