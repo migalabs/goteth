@@ -2,7 +2,8 @@ package db
 
 import (
 	"context"
-
+	
+	"crypto/tls"
 	"fmt"
 	"net"
 	"strings"
@@ -55,10 +56,8 @@ func ParseChUrlIntoOptionsHighLevel(url string) clickhouse.Options {
 			Username: user,
 			Password: password,
 		},
-		DialContext: func(ctx context.Context, addr string) (net.Conn, error) {
-			dialCount++
-			var d net.Dialer
-			return d.DialContext(ctx, "tcp", addr)
+		TLS: tls.Config{
+			InsecureSkipVerify: false,
 		},
 		Debug: false,
 		Debugf: func(format string, v ...any) {
