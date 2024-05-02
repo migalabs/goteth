@@ -5,7 +5,6 @@ import (
 	
 	"crypto/tls"
 	"fmt"
-	"net"
 	"strings"
 	"time"
 
@@ -48,7 +47,6 @@ func ParseChUrlIntoOptionsHighLevel(url string) clickhouse.Options {
 	user = strings.Split(credentials, ":")[0]
 	password = strings.Split(credentials, ":")[1]
 
-	var dialCount int
 	return clickhouse.Options{
 		Addr: []string{fqdn},
 		Auth: clickhouse.Auth{
@@ -56,7 +54,7 @@ func ParseChUrlIntoOptionsHighLevel(url string) clickhouse.Options {
 			Username: user,
 			Password: password,
 		},
-		TLS: tls.Config{
+		TLS: &tls.Config{
 			InsecureSkipVerify: false,
 		},
 		Debug: false,
