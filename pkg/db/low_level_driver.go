@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"crypto/tls"
 	"strings"
 	"time"
 
@@ -51,7 +52,11 @@ func ParseChUrlIntoOptionsLowLevel(url string) ch.Options {
 		Address:  fqdn,
 		Database: database,
 		User:     user,
-		Password: password}
+		Password: password,
+		DialTimeout: time.Second * 30,
+		TLS: &tls.Config{
+			InsecureSkipVerify: false,
+		}}
 }
 
 func (p *DBService) Persist(
