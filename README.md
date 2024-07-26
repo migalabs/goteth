@@ -4,27 +4,33 @@ GotEth is a go-written client that indexes all validator-related duties and para
 
 The client indexes all the validator/epoch related metrics into a set of postgreSQL tables which later on can be used to monitor the performance of validators in the beaconchain.
 
-This tool has been used to power the 
+This tool has been used to power the
+
 - [pandametrics.xyz](https://pandametrics.xyz/) public dashboard
 - [ethseer.io](https://ethseer.io) public dashboard
 
 ## Prerequisites
+
 To use the tool, the following requirements need to be installed in the machine:
-- [go](https://go.dev/doc/install) preferably on its 1.20 version or above. Go also needs to be executable from the terminal.
+
+- [go](https://go.dev/doc/install) preferably on its 1.21 version or above. Go also needs to be executable from the terminal.
 - Clickhouse DB
 - Access to an Ethereum CL beacon node (preferably an archive node to index the slots faster)
 - Access to an Ethereum execution node (optional)
 - Access to a Clickhouse server database (use native port, usually 9000)
 
 ## Installation
+
 The repository provides a Makefile that will take care of all your problems.
 
 To compile locally the client, just type the following command at the root of the directory:
+
 ```
 make build
 ```
 
 Or if you prefer to install the client locally type:
+
 ```
 make install
 ```
@@ -40,17 +46,20 @@ make install
 ## Download mode
 
 - Historical: this mode loops over slots between `initSlot` and `finalSlot`, which are configurable. Once all slots have been analyzed, the tool finishes the execution.
-- Finalized: `initSlot` and `finalSlot` are ignored. The tool starts the historical mode from the database last slot to the current head (beacon node) and then follows the chain head. To do this, the tool subscribes to `head` events. See [here](https://ethereum.github.io/beacon-APIs/#/Events/eventstream) for more information. 
+- Finalized: `initSlot` and `finalSlot` are ignored. The tool starts the historical mode from the database last slot to the current head (beacon node) and then follows the chain head. To do this, the tool subscribes to `head` events. See [here](https://ethereum.github.io/beacon-APIs/#/Events/eventstream) for more information.
 
 ## Running the tool
+
 To execute the tool, you can simply modify the `.env` file with your own configuration.
 
-*Running the tool (configurable in the `.env` file)*:
+_Running the tool (configurable in the `.env` file)_:
+
 ```
 docker-compose up goteth
 ```
 
-*Available Commands*:
+_Available Commands_:
+
 ```
 COMMANDS:
    blocks   analyze the Beacon Block of a given slot range
@@ -58,7 +67,8 @@ COMMANDS:
    help, h  Shows a list of commands or help for one command
 ```
 
-*Available Options (configurable in the `.env` file)*
+_Available Options (configurable in the `.env` file)_
+
 ```
 
 Blocks
@@ -72,18 +82,19 @@ OPTIONS:
    --workers-num value     example: 3 (default: 4)
    --db-workers-num value  example: 3 (default: 4)
    --download-mode value   example: hybrid,historical,finalized. Default: hybrid
-   --metrics value         example: epoch,block,rewards,transactions. Empty for all (default: epoch,block)
+   --metrics value         example: epoch,block,rewards,transactions,api_rewards. Empty for all (default: epoch,block)
    --prometheus-port value Port on which to expose prometheus metrics (default: 9081)
    --help, -h              show help (default: false)
 ```
 
 ### Validator window (experimental)
 
-Validator rewards represent 95% of the disk usage of the database. When activated, the database grows very big, sometimes becoming too much data. 
+Validator rewards represent 95% of the disk usage of the database. When activated, the database grows very big, sometimes becoming too much data.
 We have developed a subcommand of the tool which maintains the last n epochs of rewards data in the database, prunning from the defined threshold backwards. So, one can configure the tool to maintain the last 100 epochs of data in the database, while prunning the rest.
 The pruning only affects the `t_validator_rewards_summary` table.
 
 Simply configure `GOTETH_VAL_WINDOW_NUM_EPOCHS` variable and run
+
 ```
 docker-compose up val-window
 ```
@@ -96,17 +107,19 @@ Keep in mind `api_rewards` data also downloads block rewards from the Beacon API
 
 In case you encounter any issue with the database, you can force the database version using the golang-migrate command line. Please refer [here](https://github.com/golang-migrate/migrate) for more information.
 More specifically, one could clean the migrations by forcing the version with <br>
-```migrate -path / -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" force <current_version>``` <br>
+`migrate -path / -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" force <current_version>` <br>
 If specific upgrades or downgrades need to be done manually, one could do this with <br>
-```migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" -verbose up```
-
+`migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" -verbose up`
 
 # From PostgreSQL to Clickhouse
+
 During `v3.0.0` we will migrate our database system from PostgreSQL to Clickhouse.
 If you wish to migrate your existing database, please follow [this](https://migalabs.notion.site/PostgreSQL-to-Clickhouse-migration-611a52a457824cd494d701773365f62f) guide.
 
 # Maintainers
+
 @cortze @tdahar
 
 # Contributing
-The project is open for everyone to contribute! 
+
+The project is open for everyone to contribute!
