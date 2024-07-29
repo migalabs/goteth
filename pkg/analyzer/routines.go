@@ -177,10 +177,11 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 			if i >= finalizedSlot.Slot {
 				// keep 2 epochs before finalized, needed to calculate epoch metrics
 				s.AdvanceFinalized(finalizedSlot.Slot - spec.SlotsPerEpoch*5) // includes check and clean
-			} else {
+			} else if i > (5 * spec.SlotsPerEpoch) {
 				// keep 5 epochs before current downloading slot, need 3 at least for epoch metrics
 				// magic number, 2 extra if processer takes long
-				s.downloadCache.CleanUpTo(i - (5 * spec.SlotsPerEpoch)) // only clean, no check, keep
+				cleanUpToSlot := i - (5 * spec.SlotsPerEpoch)
+				s.downloadCache.CleanUpTo(cleanUpToSlot) // only clean, no check, keep
 			}
 		}
 
