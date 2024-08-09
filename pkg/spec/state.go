@@ -181,10 +181,12 @@ func (p *AgnosticState) TrackMissingBlocks() {
 	p.MissedBlocks = make([]phase0.Slot, 0)
 
 	for i := firstIndex; i < lastIndex; i++ {
+		var previousItem phase0.Root
 		if i == 0 {
-			continue
+			previousItem = p.BlockRoots[SlotsPerHistoricalRoot-1] // wrap around
+		} else {
+			previousItem = p.BlockRoots[i-1] // prevBlock, starting at previous slot of prevEpoch
 		}
-		previousItem := p.BlockRoots[i-1]              // prevBlock, starting at previous slot of prevEpoch
 		item := p.BlockRoots[i]                        // currentBlock, starting at slot0 of the epoch
 		res := bytes.Compare(previousItem[:], item[:]) // if equal, currentBlock was missed
 
