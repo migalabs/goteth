@@ -252,7 +252,7 @@ func NewCapellaBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			GasLimit:      block.Capella.Message.Body.ExecutionPayload.GasLimit,
 			GasUsed:       block.Capella.Message.Body.ExecutionPayload.GasUsed,
 			Timestamp:     block.Capella.Message.Body.ExecutionPayload.Timestamp,
-			BaseFeePerGas: binary.BigEndian.Uint64(block.Bellatrix.Message.Body.ExecutionPayload.BaseFeePerGas[:]),
+			BaseFeePerGas: binary.BigEndian.Uint64(block.Capella.Message.Body.ExecutionPayload.BaseFeePerGas[:]),
 			BlockHash:     block.Capella.Message.Body.ExecutionPayload.BlockHash,
 			Transactions:  block.Capella.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Capella.Message.Body.ExecutionPayload.BlockNumber,
