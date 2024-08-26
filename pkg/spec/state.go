@@ -36,6 +36,7 @@ type AgnosticState struct {
 	Withdrawals                []phase0.Gwei                // one position per validator
 	Deposits                   []phase0.Gwei                // one per validator index
 	CurrentJustifiedCheckpoint phase0.Checkpoint            // the latest justified checkpoint
+	LatestBlockHeader          *phase0.BeaconBlockHeader
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -173,24 +174,32 @@ func IsActive(validator phase0.Validator, epoch phase0.Epoch) bool {
 
 // We use blockroots to track missed blocks. When there is a missed block, the block root is repeated
 func (p *AgnosticState) TrackMissingBlocks() {
-
-	firstIndex := phase0.Slot(p.Epoch*SlotsPerEpoch) % SlotsPerHistoricalRoot                // first slot of the epoch
-	lastIndex := phase0.Slot(p.Epoch*SlotsPerEpoch+SlotsPerEpoch-1) % SlotsPerHistoricalRoot // last slot of the epoch
+	firstSlotOfEpoch := phase0.Slot(p.Epoch * SlotsPerEpoch)
+	lastSlotOfEpoch := phase0.Slot(p.Epoch*SlotsPerEpoch + SlotsPerEpoch - 1)
+	firstIndex := firstSlotOfEpoch % SlotsPerHistoricalRoot // first slot of the epoch
+	lastIndex := lastSlotOfEpoch % SlotsPerHistoricalRoot   // last slot of the epoch
 	p.MissedBlocks = make([]phase0.Slot, 0)
 
-	for i := firstIndex; i <= lastIndex; i++ {
+	for i := firstIndex; i < lastIndex; i++ {
+		var previousItem phase0.Root
 		if i == 0 {
-			continue
+			previousItem = p.BlockRoots[SlotsPerHistoricalRoot-1] // wrap around
+		} else {
+			previousItem = p.BlockRoots[i-1] // prevBlock, starting at previous slot of prevEpoch
 		}
-		lastItem := p.BlockRoots[i-1]              // prevBlock, starting at last slot of prevEpoch
-		item := p.BlockRoots[i]                    // currentBlock, starting at slot0 of the epoch
-		res := bytes.Compare(lastItem[:], item[:]) // if equal, currentBlock was missed
+		item := p.BlockRoots[i]                        // currentBlock, starting at slot0 of the epoch
+		res := bytes.Compare(previousItem[:], item[:]) // if equal, currentBlock was missed
 
 		if res == 0 {
 			// both consecutive roots were the same ==> missed block
 			slot := i - firstIndex + phase0.Slot(p.Epoch*SlotsPerEpoch) // delta + start of the epoch
 			p.MissedBlocks = append(p.MissedBlocks, slot)
 		}
+	}
+
+	// Handle the last slot of the epoch separately since the block root of the last slot of the epoch is not included in the block roots list
+	if p.LatestBlockHeader.Slot != lastSlotOfEpoch {
+		p.MissedBlocks = append(p.MissedBlocks, lastSlotOfEpoch)
 	}
 }
 
@@ -301,6 +310,7 @@ func NewPhase0State(bstate spec.VersionedBeaconState, duties EpochDuties) Agnost
 		PrevAttestations:           bstate.Phase0.PreviousEpochAttestations,
 		GenesisTimestamp:           bstate.Phase0.GenesisTime,
 		CurrentJustifiedCheckpoint: *bstate.Phase0.CurrentJustifiedCheckpoint,
+		LatestBlockHeader:          bstate.Phase0.LatestBlockHeader,
 	}
 
 	phase0Obj.Setup()
@@ -323,6 +333,7 @@ func NewAltairState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnost
 		SyncCommittee:              *bstate.Altair.CurrentSyncCommittee,
 		GenesisTimestamp:           bstate.Altair.GenesisTime,
 		CurrentJustifiedCheckpoint: *bstate.Altair.CurrentJustifiedCheckpoint,
+		LatestBlockHeader:          bstate.Altair.LatestBlockHeader,
 	}
 
 	altairObj.Setup()
@@ -373,6 +384,7 @@ func NewBellatrixState(bstate spec.VersionedBeaconState, duties EpochDuties) Agn
 		SyncCommittee:              *bstate.Bellatrix.CurrentSyncCommittee,
 		GenesisTimestamp:           bstate.Bellatrix.GenesisTime,
 		CurrentJustifiedCheckpoint: *bstate.Bellatrix.CurrentJustifiedCheckpoint,
+		LatestBlockHeader:          bstate.Bellatrix.LatestBlockHeader,
 	}
 
 	bellatrixObj.Setup()
@@ -396,6 +408,7 @@ func NewCapellaState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnos
 		SyncCommittee:              *bstate.Capella.CurrentSyncCommittee,
 		GenesisTimestamp:           bstate.Capella.GenesisTime,
 		CurrentJustifiedCheckpoint: *bstate.Capella.CurrentJustifiedCheckpoint,
+		LatestBlockHeader:          bstate.Capella.LatestBlockHeader,
 	}
 
 	capellaObj.Setup()
@@ -419,6 +432,7 @@ func NewDenebState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnosti
 		SyncCommittee:              *bstate.Deneb.CurrentSyncCommittee,
 		GenesisTimestamp:           bstate.Deneb.GenesisTime,
 		CurrentJustifiedCheckpoint: *bstate.Deneb.CurrentJustifiedCheckpoint,
+		LatestBlockHeader:          bstate.Deneb.LatestBlockHeader,
 	}
 
 	denebObj.Setup()
