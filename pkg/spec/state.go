@@ -25,6 +25,7 @@ type AgnosticState struct {
 	EpochStructs               EpochDuties                  // structs about beacon committees, proposers and attestation
 	PrevEpochCorrectFlags      [][]bool                     // one aray per flag
 	PrevAttestations           []*phase0.PendingAttestation // array of attestations (currently only for Phase0)
+	NumAttestations            int                          // number of attestations in the epoch
 	NumActiveVals              uint                         // number of active validators in the epoch
 	NumExitedVals              uint                         // number of exited validators in the epoch
 	NumSlashedVals             uint                         // number of slashed validators in the epoch
@@ -86,6 +87,13 @@ func (p *AgnosticState) AddBlocks(blockList []*AgnosticBlock) {
 	p.Blocks = blockList
 	p.CalculateWithdrawals()
 	p.CalculateDeposits()
+	p.CalculateNumAttestations()
+}
+
+func (p *AgnosticState) CalculateNumAttestations() {
+	for _, block := range p.Blocks {
+		p.NumAttestations += len(block.Attestations)
+	}
 }
 
 func (p *AgnosticState) CalculateWithdrawals() {

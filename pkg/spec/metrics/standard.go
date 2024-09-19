@@ -80,7 +80,7 @@ func (s StateMetricsBase) ExportToEpoch() local_spec.Epoch {
 	return local_spec.Epoch{
 		Epoch:                     s.CurrentState.Epoch,
 		Slot:                      s.CurrentState.Slot,
-		NumAttestations:           len(s.NextState.PrevAttestations),
+		NumAttestations:           s.CurrentState.NumAttestations,
 		NumAttValidators:          int(countTrue(s.CurrentNumAttestingVals)),
 		NumValidators:             len(s.CurrentState.Validators),
 		TotalBalance:              float32(s.CurrentState.TotalActiveRealBalance) / float32(local_spec.EffectiveBalanceInc),
