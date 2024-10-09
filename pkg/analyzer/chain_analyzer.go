@@ -36,13 +36,14 @@ type ChainAnalyzer struct {
 	dbClient  *db.DBService        // client to communicate with clickhouse
 
 	// Control Variables
-	wgMainRoutine *sync.WaitGroup    // wait group for main routine (either historical or head)
-	wgDownload    *sync.WaitGroup    // wait group for download routine
-	stop          bool               // flag to notify all routine to finish
-	routineClosed chan struct{}      // signal that everything was closed succesfully
-	downloadMode  string             // whether to download historical blocks (defined by user) or follow chain head
-	metrics       db.DBMetrics       // waht metrics to be downloaded / processed
-	processerBook *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
+	wgMainRoutine            *sync.WaitGroup    // wait group for main routine (either historical or head)
+	wgDownload               *sync.WaitGroup    // wait group for download routine
+	stop                     bool               // flag to notify all routine to finish
+	routineClosed            chan struct{}      // signal that everything was closed succesfully
+	downloadMode             string             // whether to download historical blocks (defined by user) or follow chain head
+	rewardsAggregationEpochs int                // number of epochs to aggregate rewards
+	metrics                  db.DBMetrics       // what metrics to be downloaded / processed
+	processerBook            *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
 
 	downloadCache ChainCache // store the blocks and states downloaded
 
@@ -54,7 +55,7 @@ func NewChainAnalyzer(
 	pCtx context.Context,
 	iConfig config.AnalyzerConfig) (*ChainAnalyzer, error) {
 
-	// gen new ctx from parent
+	// generate new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
 
 	// generate the central exporting service
@@ -127,23 +128,24 @@ func NewChainAnalyzer(
 	idbClient.InitGenesis(genesisTime)
 
 	analyzer := &ChainAnalyzer{
-		ctx:              ctx,
-		cancel:           cancel,
-		initSlot:         phase0.Slot(iConfig.InitSlot),
-		finalSlot:        phase0.Slot(iConfig.FinalSlot),
-		downloadTaskChan: make(chan phase0.Slot, rateLimit), // TODO: define size of buffer depending on performance
-		cli:              cli,
-		relayCli:         relayCli,
-		dbClient:         idbClient,
-		routineClosed:    make(chan struct{}, 1),
-		eventsObj:        events.NewEventsObj(ctx, cli),
-		downloadMode:     iConfig.DownloadMode,
-		metrics:          metricsObj,
-		PromMetrics:      promethMetrics,
-		downloadCache:    NewQueue(),
-		processerBook:    utils.NewRoutineBook(32, "processer"), // one whole epoch
-		wgMainRoutine:    &sync.WaitGroup{},
-		wgDownload:       &sync.WaitGroup{},
+		ctx:                      ctx,
+		cancel:                   cancel,
+		initSlot:                 phase0.Slot(iConfig.InitSlot),
+		finalSlot:                phase0.Slot(iConfig.FinalSlot),
+		downloadTaskChan:         make(chan phase0.Slot, rateLimit), // TODO: define size of buffer depending on performance
+		cli:                      cli,
+		relayCli:                 relayCli,
+		dbClient:                 idbClient,
+		routineClosed:            make(chan struct{}, 1),
+		eventsObj:                events.NewEventsObj(ctx, cli),
+		downloadMode:             iConfig.DownloadMode,
+		rewardsAggregationEpochs: iConfig.RewardsAggregationEpochs,
+		metrics:                  metricsObj,
+		PromMetrics:              promethMetrics,
+		downloadCache:            NewQueue(),
+		processerBook:            utils.NewRoutineBook(32, "processer"), // one whole epoch
+		wgMainRoutine:            &sync.WaitGroup{},
+		wgDownload:               &sync.WaitGroup{},
 	}
 
 	analyzerMet := analyzer.GetPrometheusMetrics()

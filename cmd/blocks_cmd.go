@@ -8,7 +8,6 @@ import (
 
 	"github.com/migalabs/goteth/pkg/config"
 	"github.com/migalabs/goteth/pkg/utils"
-
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
@@ -43,6 +42,12 @@ var BlocksCommand = &cli.Command{
 			Usage:       "Slot from where to finish the backfill",
 			EnvVars:     []string{"ANALYZER_FINAL_SLOT"},
 			DefaultText: "0",
+		},
+		&cli.IntFlag{
+			Name:        "rewards-aggregation-epochs",
+			Usage:       "Number of epochs to aggregate rewards",
+			EnvVars:     []string{"ANALYZER_REWARDS_AGGREGATION_EPOCHS"},
+			DefaultText: "1 (no aggregation)",
 		},
 		&cli.StringFlag{
 			Name:        "log-level",
