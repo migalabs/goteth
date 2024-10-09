@@ -70,8 +70,9 @@ func NewChainAnalyzer(
 				cancel: cancel,
 			}, errors.Errorf("Final Slot cannot be greater than Init Slot")
 		}
-		iConfig.InitSlot = iConfig.InitSlot / spec.SlotsPerEpoch * spec.SlotsPerEpoch
-		iConfig.FinalSlot = iConfig.FinalSlot / spec.SlotsPerEpoch * spec.SlotsPerEpoch
+		// Start 2 epochs before and finish 1 epoch after
+		iConfig.InitSlot = iConfig.InitSlot/spec.SlotsPerEpoch*spec.SlotsPerEpoch - spec.SlotsPerEpoch*2
+		iConfig.FinalSlot = iConfig.FinalSlot/spec.SlotsPerEpoch*spec.SlotsPerEpoch + spec.SlotsPerEpoch
 		log.Infof("generating new Block Analyzer from slots %d:%d", iConfig.InitSlot, iConfig.FinalSlot)
 	}
 
