@@ -155,36 +155,33 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 }
 
 func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
+	var insertValsObj []spec.ValidatorRewards
+	log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
 
-	if s.metrics.ValidatorRewards { // only if flag is activated
-		var insertValsObj []spec.ValidatorRewards
-		log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
+	// process each validator
+	for valIdx := range bundle.GetMetricsBase().NextState.Validators {
 
-		// process each validator
-		for valIdx := range bundle.GetMetricsBase().NextState.Validators {
-
-			if valIdx >= len(bundle.GetMetricsBase().NextState.Validators) {
-				continue // validator is not in the chain yet
-			}
-			// get max reward at given epoch using the formulas
-			maxRewards, err := bundle.GetMaxReward(phase0.ValidatorIndex(valIdx))
-
-			if err != nil {
-				log.Errorf("Error obtaining max reward: %s", err.Error())
-				continue
-			}
-
-			insertValsObj = append(insertValsObj, maxRewards)
+		if valIdx >= len(bundle.GetMetricsBase().NextState.Validators) {
+			continue // validator is not in the chain yet
 		}
-		if len(insertValsObj) > 0 { // persist everything
-			err := s.dbClient.PersistValidatorRewards(insertValsObj)
-			if err != nil {
-				log.Fatalf("error persisting validator rewards: %s", err.Error())
-			}
+		// get max reward at given epoch using the formulas
+		maxRewards, err := bundle.GetMaxReward(phase0.ValidatorIndex(valIdx))
 
+		if err != nil {
+			log.Errorf("Error obtaining max reward: %s", err.Error())
+			continue
+		}
+
+		insertValsObj = append(insertValsObj, maxRewards)
+	}
+	if len(insertValsObj) > 0 { // persist everything
+		err := s.dbClient.PersistValidatorRewards(insertValsObj)
+		if err != nil {
+			log.Fatalf("error persisting validator rewards: %s", err.Error())
 		}
 
 	}
+
 }
 
 func (s *ChainAnalyzer) processBlockRewards(bundle metrics.StateMetrics) {
