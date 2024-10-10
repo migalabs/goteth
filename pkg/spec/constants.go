@@ -68,6 +68,7 @@ const (
 	ReorgModel
 	FinalizedCheckpointModel
 	HeadEventModel
+	ValidatorRewardsAggregationModel
 )
 
 type ValidatorStatus int8

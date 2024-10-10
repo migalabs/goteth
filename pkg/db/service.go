@@ -141,6 +141,7 @@ type PersistableObject[
 		spec.AgnosticTransaction |
 		spec.ValidatorLastStatus |
 		spec.ValidatorRewards |
+		spec.ValidatorRewardsAggregation |
 		spec.Withdrawal |
 		HeadEvent |
 		spec.AgnosticBlobSidecar |
