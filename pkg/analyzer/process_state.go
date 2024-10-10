@@ -170,14 +170,13 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 			log.Errorf("Error obtaining max reward: %s", err.Error())
 			continue
 		}
-		if s.rewardsAggregationEpochs == 1 {
-			continue
+		if s.rewardsAggregationEpochs > 1 {
+			// if validator is not in s.validatorsRewardsAggregations, we need to create it
+			if _, ok := s.validatorsRewardsAggregations[phase0.ValidatorIndex(valIdx)]; !ok {
+				s.validatorsRewardsAggregations[phase0.ValidatorIndex(valIdx)] = spec.NewValidatorRewardsAggregation(valIdx, s.startEpochAggregation, s.endEpochAggregation)
+			}
+			s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
 		}
-		// if validator is not in s.validatorsRewardsAggregations, we need to create it
-		if _, ok := s.validatorsRewardsAggregations[phase0.ValidatorIndex(valIdx)]; !ok {
-			s.validatorsRewardsAggregations[phase0.ValidatorIndex(valIdx)] = spec.NewValidatorRewardsAggregation(valIdx, s.startEpochAggregation, s.endEpochAggregation)
-		}
-		s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
 		insertValsObj = append(insertValsObj, maxRewards)
 	}
 	if len(insertValsObj) > 0 { // persist everything
