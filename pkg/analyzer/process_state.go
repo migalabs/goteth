@@ -160,18 +160,24 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 
 	// process each validator
 	for valIdx := range bundle.GetMetricsBase().NextState.Validators {
-
 		if valIdx >= len(bundle.GetMetricsBase().NextState.Validators) {
 			continue // validator is not in the chain yet
 		}
+		valIdx := phase0.ValidatorIndex(valIdx)
 		// get max reward at given epoch using the formulas
-		maxRewards, err := bundle.GetMaxReward(phase0.ValidatorIndex(valIdx))
-
+		maxRewards, err := bundle.GetMaxReward(valIdx)
 		if err != nil {
 			log.Errorf("Error obtaining max reward: %s", err.Error())
 			continue
 		}
-
+		if s.rewardsAggregationEpochs == 1 {
+			continue
+		}
+		// if validator is not in s.validatorsRewardsAggregations, we need to create it
+		if _, ok := s.validatorsRewardsAggregations[phase0.ValidatorIndex(valIdx)]; !ok {
+			s.validatorsRewardsAggregations[phase0.ValidatorIndex(valIdx)] = spec.NewValidatorRewardsAggregation(valIdx, s.startEpochAggregation, s.endEpochAggregation)
+		}
+		s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
 		insertValsObj = append(insertValsObj, maxRewards)
 	}
 	if len(insertValsObj) > 0 { // persist everything
@@ -179,7 +185,18 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 		if err != nil {
 			log.Fatalf("error persisting validator rewards: %s", err.Error())
 		}
+	}
 
+	if s.rewardsAggregationEpochs > 1 && bundle.GetMetricsBase().NextState.Epoch == s.endEpochAggregation {
+		if len(s.validatorsRewardsAggregations) > 0 {
+			err := s.dbClient.PersistValidatorRewardsAggregation(s.validatorsRewardsAggregations)
+			if err != nil {
+				log.Fatalf("error persisting validator rewards aggregation: %s", err.Error())
+			}
+		}
+		s.validatorsRewardsAggregations = make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation)
+		s.startEpochAggregation = s.endEpochAggregation + 1
+		s.endEpochAggregation = s.endEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs)
 	}
 
 }
