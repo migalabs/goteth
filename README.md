@@ -118,7 +118,7 @@ If you wish to migrate your existing database, please follow [this](https://miga
 
 # Maintainers
 
-@cortze @tdahar
+@santi1234567
 
 # Contributing
 
