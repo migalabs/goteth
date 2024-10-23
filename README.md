@@ -8,6 +8,7 @@ This tool has been used to power the
 
 - [pandametrics.xyz](https://pandametrics.xyz/) public dashboard
 - [ethseer.io](https://ethseer.io) public dashboard
+- [monitoreth.io](https://monitoreth.io/nodes#validators-entities) public dashboard
 
 ## Prerequisites
 
