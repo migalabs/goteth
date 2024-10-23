@@ -2,7 +2,7 @@
 
 GotEth is a go-written client that indexes all validator-related duties and parameters from Ethereum's beaconchain by fetching the CL States from a node (preferable a locally running archival node).
 
-The client indexes all the validator/epoch related metrics into a set of postgreSQL tables which later on can be used to monitor the performance of validators in the beaconchain.
+The client indexes all the validator/epoch related metrics into a set of clickhouse tables which later on can be used to monitor the performance of validators in the beaconchain.
 
 This tool has been used to power the
 
