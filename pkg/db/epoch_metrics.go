@@ -192,7 +192,7 @@ func (s *DBService) DeleteStateMetrics(epoch phase0.Epoch) error {
 	if err != nil {
 		return err
 	}
-	s.Delete(DeletableObject{
+	err = s.Delete(DeletableObject{
 		query: deleteValidatorRewardsInEpochQuery,
 		table: valRewardsTable,
 		args:  []any{epoch + 1},
@@ -200,7 +200,7 @@ func (s *DBService) DeleteStateMetrics(epoch phase0.Epoch) error {
 	if err != nil {
 		return err
 	}
-	s.Delete(DeletableObject{
+	err = s.Delete(DeletableObject{
 		query: deleteValidatorRewardsInEpochQuery,
 		table: valRewardsTable,
 		args:  []any{epoch},

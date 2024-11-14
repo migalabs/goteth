@@ -29,3 +29,7 @@ type BlockRewardsContent struct {
 func FirstSlotInEpoch(slot phase0.Slot) phase0.Slot {
 	return slot / SlotsPerEpoch * SlotsPerEpoch
 }
+
+func EpochAtSlot(slot phase0.Slot) phase0.Epoch {
+	return phase0.Epoch(slot / SlotsPerEpoch)
+}
