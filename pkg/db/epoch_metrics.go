@@ -30,7 +30,9 @@ var (
 		f_num_slashed_vals,
 		f_num_active_vals,
 		f_num_exited_vals,
-		f_num_in_activation_vals)
+		f_num_in_activation_vals,
+		f_sync_committee_participation		
+		)
 		VALUES`
 
 	selectLastEpochQuery = `
@@ -67,6 +69,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_num_active_vals                  proto.ColUInt64
 		f_num_exited_vals                  proto.ColUInt64
 		f_num_in_activation_vals           proto.ColUInt64
+		f_sync_committee_participation     proto.ColUInt64
 	)
 
 	for _, epoch := range epochs {
@@ -89,7 +92,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_num_active_vals.Append(uint64(epoch.NumActiveVals))
 		f_num_exited_vals.Append(uint64(epoch.NumExitedVals))
 		f_num_in_activation_vals.Append(uint64(epoch.NumInActivationVals))
-
+		f_sync_committee_participation.Append(epoch.SyncCommitteeParticipation)
 	}
 
 	return proto.Input{
@@ -112,6 +115,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		{Name: "f_num_active_vals", Data: f_num_active_vals},
 		{Name: "f_num_exited_vals", Data: f_num_exited_vals},
 		{Name: "f_num_in_activation_vals", Data: f_num_in_activation_vals},
+		{Name: "f_sync_committee_participation", Data: f_sync_committee_participation},
 	}
 }
 
