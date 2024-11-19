@@ -98,5 +98,9 @@ func (s StateMetricsBase) ExportToEpoch() local_spec.Epoch {
 		NumExitedVals:              int(s.CurrentState.NumExitedVals),
 		NumInActivationVals:        int(s.CurrentState.NumQueuedVals),
 		SyncCommitteeParticipation: s.CurrentState.SyncCommitteeParticipation,
+		DepositsNum:                int(s.CurrentState.DepositsNum),
+		TotalDepositsAmount:        s.CurrentState.TotalDepositsAmount,
+		WithdrawalsNum:             int(s.CurrentState.WithdrawalsNum),
+		TotalWithdrawalsAmount:     s.CurrentState.TotalWithdrawalsAmount,
 	}
 }

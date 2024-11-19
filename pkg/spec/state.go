@@ -35,7 +35,11 @@ type AgnosticState struct {
 	SyncCommittee              altair.SyncCommittee         // list of pubkeys in the current sync committe
 	Blocks                     []*AgnosticBlock             // list of blocks in the epoch
 	Withdrawals                []phase0.Gwei                // one position per validator
+	WithdrawalsNum             uint64                       // number of withdrawals
+	TotalWithdrawalsAmount     phase0.Gwei                  // total amount of withdrawals
 	Deposits                   []phase0.Gwei                // one per validator index
+	DepositsNum                uint64                       // number of deposits
+	TotalDepositsAmount        phase0.Gwei                  // total amount of deposits
 	CurrentJustifiedCheckpoint phase0.Checkpoint            // the latest justified checkpoint
 	LatestBlockHeader          *phase0.BeaconBlockHeader
 	SyncCommitteeParticipation uint64 // Tracks sync committee participation
@@ -104,26 +108,29 @@ func (p *AgnosticState) CalculateNumAttestations() {
 	}
 }
 
+// Calculates the amount withdrawn per validator. Also calculates the total amount of withdrawn funds
 func (p *AgnosticState) CalculateWithdrawals() {
-
 	p.Withdrawals = make([]phase0.Gwei, len(p.Validators))
 	for _, block := range p.Blocks {
 		for _, withdrawal := range block.ExecutionPayload.Withdrawals {
 			p.Withdrawals[withdrawal.ValidatorIndex] += withdrawal.Amount
+			p.WithdrawalsNum += 1
+			p.TotalWithdrawalsAmount += withdrawal.Amount
 		}
 
 	}
 }
 
+// Calculates the amount deposited per validator. Also calculates the total amount of deposited funds
 func (p *AgnosticState) CalculateDeposits() {
-
 	p.Deposits = make([]phase0.Gwei, len(p.Validators))
 	for _, block := range p.Blocks {
 		for _, deposit := range block.Deposits {
-
 			for valIDx, validator := range p.Validators {
 				if deposit.Data.PublicKey == validator.PublicKey {
 					p.Deposits[valIDx] += deposit.Data.Amount
+					p.DepositsNum += 1
+					p.TotalDepositsAmount += deposit.Data.Amount
 				}
 			}
 		}
