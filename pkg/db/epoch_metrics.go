@@ -35,7 +35,9 @@ var (
 		f_deposits_num,
 		f_total_deposits_amount,
 		f_withdrawals_num,
-		f_total_withdrawals_amount	
+		f_total_withdrawals_amount,
+		f_new_proposer_slashings,
+		f_new_attester_slashings,	
 		)
 		VALUES`
 
@@ -78,6 +80,8 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_total_deposits_amount            proto.ColUInt64
 		f_withdrawals_num                  proto.ColUInt64
 		f_total_withdrawals_amount         proto.ColUInt64
+		f_new_proposer_slashings           proto.ColUInt64
+		f_new_attester_slashings           proto.ColUInt64
 	)
 
 	for _, epoch := range epochs {
@@ -105,6 +109,8 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_total_deposits_amount.Append(uint64(epoch.TotalDepositsAmount))
 		f_withdrawals_num.Append(uint64(epoch.WithdrawalsNum))
 		f_total_withdrawals_amount.Append(uint64(epoch.TotalWithdrawalsAmount))
+		f_new_proposer_slashings.Append(uint64(epoch.NewProposerSlashings))
+		f_new_attester_slashings.Append(uint64(epoch.NewAttesterSlashings))
 	}
 
 	return proto.Input{
@@ -132,6 +138,8 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		{Name: "f_total_deposits_amount", Data: f_total_deposits_amount},
 		{Name: "f_withdrawals_num", Data: f_withdrawals_num},
 		{Name: "f_total_withdrawals_amount", Data: f_total_withdrawals_amount},
+		{Name: "f_new_proposer_slashings", Data: f_new_proposer_slashings},
+		{Name: "f_new_attester_slashings", Data: f_new_attester_slashings},
 	}
 }
 
