@@ -24,6 +24,19 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 		log.Errorf("error persisting blocks: %s", err.Error())
 	}
 
+	s.ProcessWithdrawals(block)
+
+	if s.metrics.Transactions {
+		s.processTransactions(block)
+		s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
+	}
+
+	s.processSlashings(block)
+
+	s.processerBook.FreePage(routineKey)
+}
+
+func (s *ChainAnalyzer) ProcessWithdrawals(block *spec.AgnosticBlock) {
 	var withdrawals []spec.Withdrawal
 	for _, item := range block.ExecutionPayload.Withdrawals {
 		withdrawals = append(withdrawals, spec.Withdrawal{
@@ -35,19 +48,11 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 		})
 	}
 
-	err = s.dbClient.PersistWithdrawals(withdrawals)
+	err := s.dbClient.PersistWithdrawals(withdrawals)
 	if err != nil {
 		log.Errorf("error persisting withdrawals: %s", err.Error())
 	}
 
-	if s.metrics.Transactions {
-		s.processTransactions(block)
-		s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
-	}
-
-	s.processSlashings(block)
-
-	s.processerBook.FreePage(routineKey)
 }
 
 func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
@@ -66,19 +71,13 @@ func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
 }
 
 func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spec.AgnosticTransaction) {
-
-	persistable := make([]*spec.AgnosticBlobSidecar, 0)
-
 	blobs, err := s.cli.RequestBlobSidecars(block.Slot)
-
 	if err != nil {
 		log.Fatalf("could not download blob sidecars for slot %d: %s", block.Slot, err)
 	}
-
 	if len(blobs) > 0 {
 		for _, blob := range blobs {
 			blob.GetTxHash(txs)
-			persistable = append(persistable, blob)
 		}
 		s.dbClient.PersistBlobSidecars(blobs)
 	}
