@@ -19,7 +19,6 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	s.processerBook.Acquire(routineKey) // register a new slot to process, good for monitoring
 
 	block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](slot))
-
 	err := s.dbClient.PersistBlocks([]spec.AgnosticBlock{*block})
 	if err != nil {
 		log.Errorf("error persisting blocks: %s", err.Error())
@@ -45,6 +44,9 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 		s.processTransactions(block)
 		s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
 	}
+
+	s.processSlashings(block)
+
 	s.processerBook.FreePage(routineKey)
 }
 
@@ -80,4 +82,42 @@ func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spe
 		}
 		s.dbClient.PersistBlobSidecars(blobs)
 	}
+}
+
+func (s *ChainAnalyzer) processSlashings(block *spec.AgnosticBlock) {
+
+	slashings := make([]spec.AgnosticSlashing, 0)
+
+	for _, proposerSlashing := range block.ProposerSlashings {
+		slashings = append(slashings, spec.AgnosticSlashing{
+			SlashedValidator: proposerSlashing.SignedHeader1.Message.ProposerIndex,
+			SlashedBy:        block.ProposerIndex,
+			SlashingReason:   spec.SlashingReasonProposerSlashing,
+			Slot:             block.Slot,
+			Epoch:            spec.EpochAtSlot(block.Slot),
+		})
+	}
+
+	for _, attesterSlashing := range block.AttesterSlashings {
+
+		slashedValidatorsIdxs := spec.SlashingIntersection(attesterSlashing.Attestation1.AttestingIndices, attesterSlashing.Attestation2.AttestingIndices)
+		for _, idx := range slashedValidatorsIdxs {
+			slashings = append(slashings, spec.AgnosticSlashing{
+				SlashedValidator: idx,
+				SlashedBy:        block.ProposerIndex,
+				SlashingReason:   spec.SlashingReasonAttesterSlashing,
+				Slot:             block.Slot,
+				Epoch:            spec.EpochAtSlot(block.Slot),
+			})
+		}
+	}
+
+	if len(slashings) == 0 {
+		return
+	}
+	err := s.dbClient.PersistSlashings(slashings)
+	if err != nil {
+		log.Errorf("error persisting slashings: %s", err.Error())
+	}
+
 }
