@@ -37,7 +37,7 @@ var (
 		f_withdrawals_num,
 		f_total_withdrawals_amount,
 		f_new_proposer_slashings,
-		f_new_attester_slashings,	
+		f_new_attester_slashings	
 		)
 		VALUES`
 
