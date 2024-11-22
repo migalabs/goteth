@@ -252,3 +252,15 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 | f_relays           | []string     | List of relays that were offering this block's payload                                                              |
 | f_builder_pubkey   | []string     | List of builder pubkeys that were submitting this block's payload (usually the same builder through several relays) |
 | f_bid_commission   | integer      | Bid submitted with the payload: what the validator receives as a reward                                             |
+
+# Slashings (`t_slashings`)
+
+Table that stores the data of the slashings that happened in the network.
+
+| Column Name                  | Type of Data | Description                                                  |     |     |
+| ---------------------------- | ------------ | ------------------------------------------------------------ | --- | --- |
+| f_slashed_validator_index    | uint64       | validator that was slashed                                   |
+| f_slashed_by_validator_index | uint64       | validator that slashed the other validator                   |
+| f_slashing_reason            | string       | reason for the slashing (ProposerSlashing, AttesterSlashing) |
+| f_slot                       | uint64       | slot at which the slashing happened                          |
+| f_epoch                      | uint64       | epoch at which the slashing happened                         |
