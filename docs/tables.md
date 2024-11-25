@@ -27,29 +27,36 @@
 | f_compression_time_ms   | integer      | miliseconds taken to compress the block            |
 | f_decompression_time_ms | integer      | miliseconds taken to decompress the block          |
 
-# Epoch Metrics
+# Epoch Metrics (`t_epoch_metrics_summary`)
 
 | Column Name                        | Type of Data | Description                                                                                                            |     |     |
 | ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- | --- | --- |
-| f_epoch                            | integer      | epoch number                                                                                                           |
-| f_slot                             | integer      | slot number                                                                                                            |
-| f_num_att                          | integer      | number of attestations included in blocks in the epoch                                                                 |
-| f_num_att_vals                     | integer      | number of validators that attested to slots in the epoch                                                               |
-| f_num_vals                         | integer      | number validators in the epoch                                                                                         |
+| f_epoch                            | uint64       | epoch number                                                                                                           |
+| f_slot                             | uint64       | slot number                                                                                                            |
+| f_num_att                          | uint64       | number of attestations included in blocks in the epoch                                                                 |
+| f_num_att_vals                     | uint64       | number of validators that attested to slots in the epoch                                                               |
+| f_num_vals                         | uint64       | number validators in the epoch                                                                                         |
 | f_total_balance_eth                | float        | amount of ETH balance taking into account all active validators                                                        |
-| f_att_effective_balance_eth        | integer      | amount of ETH effective balance taking into account all active validators that attested                                |
-| f_source_att_effective_balance_eth | integer      | amount of ETH effective balance taking into account all active validators that achieved the source flag when attesting |
-| f_target_att_effective_balance_eth | integer      | amount of ETH effective balance taking into account all active validators that achieved the target flag when attesting |
-| f_head_att_effective_balance_eth   | integer      | amount of ETH effective balance taking into account all active validators that achieved the head flag when attesting   |
-| f_total_effective_balance_eth      | float        | amount of ETH effective balance taking into account all active validators                                              |
-| f_missing_source                   | integer      | amount of single validator attestations with a missed source flag in the epoch                                         |
-| f_missing_target                   | integer      | amount of single validator attestations with a missed target flag in the epoch                                         |
-| f_missing_head                     | integer      | amount of single validator attestations with a missed head flag in the epoch                                           |
-| f_timestamp                        | integer      | unix time of the epoch                                                                                                 |
-| f_num_slashed_vals                 | integer      | amount of validators slashed up to this epoch                                                                          |
-| f_num_active_vals                  | integer      | amount of validators active in this epoch                                                                              |
-| f_num_exited_vals                  | integer      | amount of validators exited up to this epoch                                                                           |
-| f_num_in_activation_vals           | integer      | amount of validators in the activation queue during this epoch                                                         |
+| f_att_effective_balance_eth        | uint64       | amount of ETH effective balance taking into account all active validators that attested                                |
+| f_source_att_effective_balance_eth | uint64       | amount of ETH effective balance taking into account all active validators that achieved the source flag when attesting |
+| f_target_att_effective_balance_eth | uint64       | amount of ETH effective balance taking into account all active validators that achieved the target flag when attesting |
+| f_head_att_effective_balance_eth   | uint64       | amount of ETH effective balance taking into account all active validators that achieved the head flag when attesting   |
+| f_total_effective_balance_eth      | uint64       | amount of ETH effective balance taking into account all active validators                                              |
+| f_missing_source                   | uint64       | amount of single validator attestations with a missed source flag in the epoch                                         |
+| f_missing_target                   | uint64       | amount of single validator attestations with a missed target flag in the epoch                                         |
+| f_missing_head                     | uint64       | amount of single validator attestations with a missed head flag in the epoch                                           |
+| f_timestamp                        | uint64       | unix time of the epoch                                                                                                 |
+| f_num_slashed_vals                 | uint64       | amount of validators slashed up to this epoch                                                                          |
+| f_num_active_vals                  | uint64       | amount of validators active in this epoch                                                                              |
+| f_num_exited_vals                  | uint64       | amount of validators exited up to this epoch                                                                           |
+| f_num_in_activation_vals           | uint64       | amount of validators in the activation queue during this epoch                                                         |
+| f_sync_committee_participation     | uint64       | amount of validators that participated in the sync committee during this epoch                                         |
+| f_deposits_num                     | uint64       | amount of eth2 deposits included in the epoch                                                                          |
+| f_total_deposits_amount            | uint64       | amount of eth deposited in the epoch                                                                                   |
+| f_withdrawals_num                  | uint64       | amount of withdrawals included in the epoch                                                                            |
+| f_total_withdrawals_amount         | uint64       | amount of eth withdrawn in the epoch                                                                                   |
+| f_new_proposer_slashings           | uint64       | amount of new proposer slashings included in the epoch                                                                 |
+| f_new_attester_slashings           | uint64       | amount of new attester slashings included in the epoch                                                                 |
 
 # Pool Summaries
 
