@@ -38,6 +38,7 @@ type AgnosticState struct {
 	Deposits                   []phase0.Gwei                // one per validator index
 	CurrentJustifiedCheckpoint phase0.Checkpoint            // the latest justified checkpoint
 	LatestBlockHeader          *phase0.BeaconBlockHeader
+	SyncCommitteeParticipation uint64 // Tracks sync committee participation
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -88,6 +89,13 @@ func (p *AgnosticState) AddBlocks(blockList []*AgnosticBlock) {
 	p.CalculateWithdrawals()
 	p.CalculateDeposits()
 	p.CalculateNumAttestations()
+	p.CalculateSyncParticipation()
+}
+
+func (p *AgnosticState) CalculateSyncParticipation() {
+	for _, block := range p.Blocks {
+		p.SyncCommitteeParticipation += block.SyncAggregate.SyncCommitteeBits.Count()
+	}
 }
 
 func (p *AgnosticState) CalculateNumAttestations() {

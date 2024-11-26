@@ -1,0 +1,1 @@
+ALTER TABLE t_epoch_metrics_summary DROP COLUMN f_sync_committee_participation;
