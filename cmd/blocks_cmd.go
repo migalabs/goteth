@@ -129,7 +129,7 @@ func LaunchBlockMetrics(c *cli.Context) error {
 		blockAnalyzer.Close()
 
 	case <-procDoneC:
-		logCmdChain.Info("Process successfully finish!")
+		logCmdChain.Info("Process successfully finished!")
 	}
 	close(sigtermC)
 	close(procDoneC)

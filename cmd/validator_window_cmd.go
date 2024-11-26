@@ -75,7 +75,7 @@ func LaunchValidatorWindow(c *cli.Context) error {
 		valWindowRunner.Close()
 
 	case <-procDoneC:
-		logCmdChain.Info("Process successfully finish!")
+		logCmdChain.Info("Process successfully finished!")
 	}
 	close(sigtermC)
 	close(procDoneC)
