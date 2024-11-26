@@ -26,6 +26,10 @@ type Epoch struct {
 	NumExitedVals              int
 	NumInActivationVals        int
 	SyncCommitteeParticipation uint64
+	DepositsNum                int
+	TotalDepositsAmount        phase0.Gwei
+	WithdrawalsNum             int
+	TotalWithdrawalsAmount     phase0.Gwei
 }
 
 func (f Epoch) Type() ModelType {
