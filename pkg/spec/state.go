@@ -43,6 +43,8 @@ type AgnosticState struct {
 	CurrentJustifiedCheckpoint phase0.Checkpoint            // the latest justified checkpoint
 	LatestBlockHeader          *phase0.BeaconBlockHeader
 	SyncCommitteeParticipation uint64 // Tracks sync committee participation
+	NewProposerSlashings       int    // number of new proposer slashings
+	NewAttesterSlashings       int    // number of new attester slashings
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -94,8 +96,16 @@ func (p *AgnosticState) AddBlocks(blockList []*AgnosticBlock) {
 	p.CalculateDeposits()
 	p.CalculateNumAttestations()
 	p.CalculateSyncParticipation()
+	p.CalculateNewSlashings()
 }
 
+// Calculates the number of new proposer/attester slashings in the epoch
+func (p *AgnosticState) CalculateNewSlashings() {
+	for _, block := range p.Blocks {
+		p.NewProposerSlashings += len(block.ProposerSlashings)
+		p.NewAttesterSlashings += len(block.AttesterSlashings)
+	}
+}
 func (p *AgnosticState) CalculateSyncParticipation() {
 	for _, block := range p.Blocks {
 		p.SyncCommitteeParticipation += block.SyncAggregate.SyncCommitteeBits.Count()
