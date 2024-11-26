@@ -80,8 +80,9 @@ OPTIONS:
    --el-endpoint value 	   execution node endpoint (to request the Transaction Receipts, optional)
    --init-slot value       init slot from where to start (default: 0)
    --final-slot value      init slot from where to finish (default: 0)
+   --rewards-aggregation-epochs value  Number of epochs to aggregate rewards (default: 1 (no aggregation))
    --log-level value       log level: debug, warn, info, error
-   --db-url value          example: clickhouse://beaconchain:beaconchain@localhost:9000/beacon_states
+   --db-url value          example: clickhouse://beaconchain:beaconchain@localhost:9000/beacon_states?x-multi-statement=true
    --workers-num value     example: 3 (default: 4)
    --db-workers-num value  example: 3 (default: 4)
    --download-mode value   example: hybrid,historical,finalized. Default: hybrid
@@ -114,9 +115,9 @@ More specifically, one could clean the migrations by forcing the version with <b
 If specific upgrades or downgrades need to be done manually, one could do this with <br>
 `migrate -path database/migration/ -database "clickhouse://host:port?username=user&password=password&database=clicks&x-multi-statement=true" -verbose up`
 
-# From PostgreSQL to Clickhouse
+# Migrating from `v2` to `v3` (Postgres to Clickhouse)
 
-During `v3.0.0` we will migrate our database system from PostgreSQL to Clickhouse.
+During `v3.0.0` we migrated our database system from PostgreSQL to Clickhouse.
 If you wish to migrate your existing database, please follow [this](https://migalabs.notion.site/PostgreSQL-to-Clickhouse-migration-611a52a457824cd494d701773365f62f) guide.
 
 # Maintainers
