@@ -57,9 +57,9 @@ var BlocksCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:        "db-url",
-			Usage:       "Database where to persist the metrics",
+			Usage:       "Clickhouse database url where to persist the metrics",
 			EnvVars:     []string{"ANALYZER_DB_URL"},
-			DefaultText: "postgres://user:password@localhost:5432/goteth",
+			DefaultText: "clickhouse://beaconchain:beaconchain@localhost:9000/beacon_states?x-multi-statement=true",
 		},
 		&cli.IntFlag{
 			Name:        "workers-num",
