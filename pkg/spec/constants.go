@@ -69,6 +69,7 @@ const (
 	FinalizedCheckpointModel
 	HeadEventModel
 	ValidatorRewardsAggregationModel
+	SlashingModel
 )
 
 type ValidatorStatus int8
