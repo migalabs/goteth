@@ -76,8 +76,15 @@ func NewChainAnalyzer(
 				cancel: cancel,
 			}, errors.Errorf("Final Slot cannot be greater than Init Slot")
 		}
-		// Start 2 epochs before and finish 1 epoch after
-		iConfig.InitSlot = iConfig.InitSlot/spec.SlotsPerEpoch*spec.SlotsPerEpoch - spec.SlotsPerEpoch*2
+
+		slotsIn2Epochs := phase0.Slot(spec.SlotsPerEpoch * 2)
+		iConfig.InitSlot = spec.FirstSlotInEpoch(phase0.Slot(iConfig.InitSlot)) // start from the first slot of the init epoch
+
+		if iConfig.InitSlot > slotsIn2Epochs {
+			// Start 2 epochs before to be able to process rewards
+			iConfig.InitSlot = iConfig.InitSlot - slotsIn2Epochs
+		}
+		// finish 1 epoch after
 		iConfig.FinalSlot = iConfig.FinalSlot/spec.SlotsPerEpoch*spec.SlotsPerEpoch + spec.SlotsPerEpoch
 		log.Infof("generating new Block Analyzer from slots %d:%d", iConfig.InitSlot, iConfig.FinalSlot)
 		// 2 epochs after the start since thats when we start processing rewards
