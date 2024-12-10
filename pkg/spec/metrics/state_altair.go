@@ -228,20 +228,20 @@ func (p AltairMetrics) ProcessAttestations() {
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#sync-aggregate-processing
 func (p AltairMetrics) GetMaxSyncComReward() {
 
-	for _, valPubkey := range p.baseMetrics.NextState.SyncCommittee.Pubkeys {
+	for _, valPubkey := range p.baseMetrics.PrevState.SyncCommittee.Pubkeys {
 
-		for valIdx, validator := range p.baseMetrics.NextState.Validators {
+		for valIdx, validator := range p.baseMetrics.PrevState.Validators {
 
 			if valPubkey == validator.PublicKey { // hit, one validator can be multiple times in the same committee
 				// at this point we know the validator was inside the sync committee and, therefore, active at that point
 
 				reward := phase0.Gwei(0)
-				totalActiveInc := p.baseMetrics.NextState.TotalActiveBalance / spec.EffectiveBalanceInc
-				totalBaseRewards := p.GetBaseRewardPerInc(p.baseMetrics.NextState.TotalActiveBalance) * totalActiveInc
+				totalActiveInc := p.baseMetrics.PrevState.TotalActiveBalance / spec.EffectiveBalanceInc
+				totalBaseRewards := p.GetBaseRewardPerInc(p.baseMetrics.PrevState.TotalActiveBalance) * totalActiveInc
 				maxParticipantRewards := totalBaseRewards * phase0.Gwei(spec.SyncRewardWeight) / phase0.Gwei(spec.WeightDenominator) / spec.SlotsPerEpoch
 				participantReward := maxParticipantRewards / phase0.Gwei(spec.SyncCommitteeSize) // this is the participantReward for a single slot
 
-				reward += participantReward * phase0.Gwei(spec.SlotsPerEpoch-len(p.baseMetrics.NextState.MissedBlocks)) // max reward would be 32 perfect slots
+				reward += participantReward * phase0.Gwei(spec.SlotsPerEpoch-len(p.baseMetrics.PrevState.MissedBlocks)) // max reward would be 32 perfect slots
 				p.MaxSyncCommitteeRewards[phase0.ValidatorIndex(valIdx)] += reward
 			}
 		}
@@ -297,13 +297,12 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	proposerApiReward := phase0.Gwei(0)
 	proposerManualReward := phase0.Gwei(0)
 
-	for _, block := range p.baseMetrics.NextState.Blocks {
+	for _, block := range p.baseMetrics.PrevState.Blocks {
 		if block.Proposed && block.ProposerIndex == valIdx {
 			proposerApiReward += phase0.Gwei(block.Reward.Data.Total)
 			proposerManualReward += phase0.Gwei(block.ManualReward)
 		}
 	}
-
 	proposerReward = proposerManualReward
 	if proposerApiReward > 0 {
 		proposerReward = proposerApiReward // if API rewards, always prioritize api
@@ -311,12 +310,12 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 
 	maxReward := flagIndexMaxReward + syncComMaxReward + proposerReward
 	flags := p.baseMetrics.CurrentState.MissingFlags(valIdx)
-	baseReward := p.GetBaseReward(valIdx, p.baseMetrics.NextState.Validators[valIdx].EffectiveBalance, p.baseMetrics.NextState.TotalActiveBalance)
+	baseReward := p.GetBaseReward(valIdx, p.baseMetrics.PrevState.Validators[valIdx].EffectiveBalance, p.baseMetrics.PrevState.TotalActiveBalance)
 
 	result := spec.ValidatorRewards{
 		ValidatorIndex:       valIdx,
-		Epoch:                p.baseMetrics.NextState.Epoch,
-		ValidatorBalance:     p.baseMetrics.NextState.Balances[valIdx],
+		Epoch:                p.baseMetrics.PrevState.Epoch,
+		ValidatorBalance:     p.baseMetrics.PrevState.Balances[valIdx],
 		Reward:               p.baseMetrics.EpochReward(valIdx),
 		MaxReward:            maxReward,
 		AttestationReward:    flagIndexMaxReward,
@@ -325,7 +324,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		MissingSource:        flags[spec.AttSourceFlagIndex],
 		MissingTarget:        flags[spec.AttTargetFlagIndex],
 		MissingHead:          flags[spec.AttHeadFlagIndex],
-		Status:               p.baseMetrics.NextState.GetValStatus(valIdx),
+		Status:               p.baseMetrics.PrevState.GetValStatus(valIdx),
 		BaseReward:           baseReward,
 		ProposerApiReward:    proposerApiReward,
 		ProposerManualReward: proposerManualReward,
