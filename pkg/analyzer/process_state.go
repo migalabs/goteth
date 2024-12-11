@@ -156,11 +156,11 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 
 func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 	var insertValsObj []spec.ValidatorRewards
-	log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
+	log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().PrevState.Epoch)
 
 	// process each validator
-	for valIdx := range bundle.GetMetricsBase().NextState.Validators {
-		if valIdx >= len(bundle.GetMetricsBase().NextState.Validators) {
+	for valIdx := range bundle.GetMetricsBase().PrevState.Validators {
+		if valIdx >= len(bundle.GetMetricsBase().PrevState.Validators) {
 			continue // validator is not in the chain yet
 		}
 		valIdx := phase0.ValidatorIndex(valIdx)
@@ -186,7 +186,7 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 		}
 	}
 
-	if s.rewardsAggregationEpochs > 1 && bundle.GetMetricsBase().NextState.Epoch == s.endEpochAggregation {
+	if s.rewardsAggregationEpochs > 1 && bundle.GetMetricsBase().PrevState.Epoch == s.endEpochAggregation {
 		if len(s.validatorsRewardsAggregations) > 0 {
 			err := s.dbClient.PersistValidatorRewardsAggregation(s.validatorsRewardsAggregations)
 			if err != nil {
