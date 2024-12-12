@@ -38,8 +38,12 @@ func (p *Phase0Metrics) InitBundle(nextState *spec.AgnosticState,
 }
 
 func (p *Phase0Metrics) PreProcessBundle() {
+	if p.baseMetrics.CurrentState.EmptyStateRoot() {
+		return
+	}
 
-	if !p.baseMetrics.PrevState.EmptyStateRoot() && !p.baseMetrics.CurrentState.EmptyStateRoot() {
+	p.baseMetrics.NextState.PrevEpochBalances = p.baseMetrics.CurrentState.Balances
+	if !p.baseMetrics.PrevState.EmptyStateRoot() {
 		p.GetInclusionDelayDeltas()
 		p.GetMaxAttComponentDeltas()
 	}

@@ -39,8 +39,12 @@ func (p *DenebMetrics) InitBundle(nextState *spec.AgnosticState,
 }
 
 func (p *DenebMetrics) PreProcessBundle() {
+	if p.baseMetrics.CurrentState.EmptyStateRoot() {
+		return
+	}
 
-	if !p.baseMetrics.PrevState.EmptyStateRoot() && !p.baseMetrics.CurrentState.EmptyStateRoot() {
+	p.baseMetrics.NextState.PrevEpochBalances = p.baseMetrics.CurrentState.Balances
+	if !p.baseMetrics.PrevState.EmptyStateRoot() {
 		// block rewards
 		p.ProcessAttestations()
 		p.ProcessSlashings()
@@ -50,6 +54,7 @@ func (p *DenebMetrics) PreProcessBundle() {
 		p.ProcessInclusionDelays()
 		p.GetMaxSyncComReward()
 	}
+
 }
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#modified-process_attestation

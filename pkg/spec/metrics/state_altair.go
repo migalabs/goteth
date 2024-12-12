@@ -42,8 +42,12 @@ func (p *AltairMetrics) InitBundle(nextState *spec.AgnosticState,
 }
 
 func (p *AltairMetrics) PreProcessBundle() {
+	if p.baseMetrics.CurrentState.EmptyStateRoot() {
+		return
+	}
 
-	if !p.baseMetrics.PrevState.EmptyStateRoot() && !p.baseMetrics.CurrentState.EmptyStateRoot() {
+	p.baseMetrics.NextState.PrevEpochBalances = p.baseMetrics.CurrentState.Balances
+	if !p.baseMetrics.PrevState.EmptyStateRoot() {
 		// block rewards
 		p.ProcessAttestations()
 		p.ProcessSlashings()
