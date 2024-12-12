@@ -30,10 +30,10 @@ type StateMetricsBase struct {
 }
 
 func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
-	if valIdx < phase0.ValidatorIndex(len(p.CurrentState.Balances)) && valIdx < phase0.ValidatorIndex(len(p.NextState.Balances)) {
-		reward := int64(p.NextState.Balances[valIdx]) - int64(p.CurrentState.Balances[valIdx])
-		reward += int64(p.NextState.Withdrawals[valIdx])
-		reward -= int64(p.NextState.Deposits[valIdx])
+	if valIdx < phase0.ValidatorIndex(len(p.PrevState.PrevEpochBalances)) {
+		reward := int64(p.PrevState.Balances[valIdx]) - int64(p.PrevState.PrevEpochBalances[valIdx])
+		reward += int64(p.PrevState.Withdrawals[valIdx])
+		reward -= int64(p.PrevState.Deposits[valIdx])
 		return reward
 	}
 
