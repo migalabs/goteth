@@ -94,3 +94,19 @@ func (s *APIClient) GetFinalizedEndSlotStateRoot() (phase0.Slot, phase0.Root) {
 
 	return finalizedSlot, root
 }
+
+func (s *APIClient) RequestValidatorBalancesBySlot(slot phase0.Slot) ([]phase0.Gwei, error) {
+
+	balances, err := s.Api.ValidatorBalances(s.ctx, &api.ValidatorBalancesOpts{
+		State: fmt.Sprintf("%d", slot),
+	})
+	if err != nil {
+		log.Errorf("could not download the validator balances at %d: %s", slot, err)
+	}
+	balancesArray := make([]phase0.Gwei, len(balances.Data))
+	for i, balance := range balances.Data {
+		balancesArray[i] = balance
+	}
+
+	return balancesArray, nil
+}
