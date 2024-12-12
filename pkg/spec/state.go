@@ -18,6 +18,7 @@ type AgnosticState struct {
 	Epoch                      phase0.Epoch                 // Epoch of the state
 	Slot                       phase0.Slot                  // Slot of the state
 	Balances                   []phase0.Gwei                // balance of each validator
+	PrevEpochBalances          []phase0.Gwei                // balance of each validator in the previous epoch
 	Validators                 []*phase0.Validator          // list of validators
 	TotalActiveBalance         phase0.Gwei                  // effective balance
 	TotalActiveRealBalance     phase0.Gwei                  // real balance
