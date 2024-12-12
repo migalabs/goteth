@@ -56,6 +56,19 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		s.processEpochMetrics(bundle)
 		s.processBlockRewards(bundle) // block rewards depend on two previous epochs
 		if s.metrics.ValidatorRewards {
+			// On the first state downloaded, we need to retrieve the previous balances through api call
+			// The next states will have the previous balances already
+			prevStateIsFirstDownloaded := len(prevState.PrevEpochBalances) == 0
+			if prevStateIsFirstDownloaded {
+				previousBalances, err := s.cli.RequestValidatorBalancesBySlot(prevState.Slot - spec.SlotsPerEpoch)
+				if err != nil {
+					log.Errorf("could not retrieve balances for epoch %d: %s", prevState.Epoch, err)
+					s.processerBook.FreePage(routineKey)
+					s.stop = true
+					return
+				}
+				prevState.PrevEpochBalances = previousBalances
+			}
 			s.processEpochValRewards(bundle)
 		}
 	}
