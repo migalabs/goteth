@@ -132,49 +132,49 @@
 | f_exit_epoch       | integer      | epoch at which the validator exited the network    |
 | f_public_key       | string       | public key of the validator                        |
 
-# Validator Rewards Summary
+# Validator Rewards Summary (`t_validator_rewards_summary`)
+
+| Column Name                 | Type of Data | Description                                                                                                                                                                           |     |     |
+| --------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| f_val_idx                   | uint64       | validator index                                                                                                                                                                       |
+| f_epoch                     | uint64       | epoch number                                                                                                                                                                          |
+| f_balance_eth               | float        | eth balance at the end of the given epoch                                                                                                                                             |
+| f_reward                    | int64        | reward obtained from the previous epoch to the given epoch. It's not the reward corresponding to the duties from the epoch since attestation rewards are added 2 epochs after. (Gwei) |
+| f_max_reward                | uint64       | maximum consensus reward that could have been obtained from the duties of the given epoch. (Gwei)                                                                                     |
+| f_max_att_reward            | uint64       | maximum attestation that could have been obtained from the the duties of the given epoch. (Gwei)                                                                                      |
+| f_max_sync_reward           | uint64       | maximum sync committee that could have been obtained from the duties of the given epoch. (Gwei)                                                                                       |
+| f_att_slot                  | uint64       | slot the validator had to attest to                                                                                                                                                   |
+| f_base_reward               | uint64       | base reward taken into account to calculate the rewards (Gwei)                                                                                                                        |
+| f_in_sync_committee         | bool         | whether the validator participated in the sync commmittee in the given epoch                                                                                                          |
+| f_missing_source            | bool         | whether the validator missed the source flag while attesing on the given epoch                                                                                                        |
+| f_missing_target            | bool         | whether the validator missed the target flag while attesing on the given epoch                                                                                                        |
+| f_missing_head              | bool         | whether the validator missed the head flag while attesing on the given epoch                                                                                                          |
+| f_status                    | uint8        | see status table                                                                                                                                                                      |
+| f_block_api_reward          | uint64       | consensus block reward obtained from the Beacon API (only if the validator was a proposer in the given epoch) (Gwei)                                                                  |
+| f_block_experimental_reward | uint64       | consensus block reward manually calculated by goteth (only if the validator was a proposer in the given epoch) (Gwei)                                                                 |
+| f_inclusion_delay           | uint8        | amount of slots after the attested one at which the attestation was included                                                                                                          |
+
+# Validator Rewards Aggregation (`t_validator_rewards_aggregation`)
+
+Table that stores the data from `t_validator_rewards_summary` but aggregated by validator on an epoch range.
 
 | Column Name                 | Type of Data | Description                                                                                                           |     |     |
 | --------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- | --- | --- |
 | f_val_idx                   | integer      | validator index                                                                                                       |
-| f_epoch                     | integer      | epoch number                                                                                                          |
-| f_balance_eth               | float        | eth balance at the end of the given epoch                                                                             |
-| f_reward                    | integer      | reward obtained from the previous epoch to the given epoch (Gwei)                                                     |
-| f_max_reward                | integer      | maximum consensus reward that could have been obtained from the previous epoch to the given epoch (Gwei)              |
-| f_max_att_reward            | integer      | maximum attestation that could have been obtained from the previous epoch to the given epoch (Gwei)                   |
-| f_max_sync_reward           | integer      | maximum sync committee that could have been obtained from the previous epoch to the given epoch (Gwei)                |
-| f_att_slot                  | integer      | slot the validator had to attest to (2 epochs before)                                                                 |
-| f_base_reward               | integer      | base reward taken into account to calculate the rewards (Gwei)                                                        |
-| f_in_sync_committee         | bool         | whether the validator participated in the sync commmittee in the given epoch                                          |
-| f_missing_source            | bool         | whether the validator missed the source flag while attesing (takes into account the attestation to 2 epochs before)   |
-| f_missing_target            | bool         | whether the validator missed the target flag while attesing (takes into account the attestation to 2 epochs before)   |
-| f_missing_head              | bool         | whether the validator missed the head flag while attesing (takes into account the attestation to 2 epochs before)     |
-| f_status                    | integer      | see status table                                                                                                      |
-| f_block_api_reward          | integer      | consensus block reward obtained from the Beacon API (only if the validator was a proposer in the given epoch) (Gwei)  |
-| f_block_experimental_reward | integer      | consensus block reward manually calculated by goteth (only if the validator was a proposer in the given epoch) (Gwei) |
-| f_inclusion_delay           | integer      | amount of slots after the attested one at which the attestation was included                                          |
-
-# Validator Rewards Aggregation
-
-Table that stores the data from `t_validator_rewards_summary` but aggregated by validator on an epoch range.
-
-| Column Name                 | Type of Data | Description                                                                                                                     |     |     |
-| --------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- | --- | --- |
-| f_val_idx                   | integer      | validator index                                                                                                                 |
-| f_start_epoch               | uint64       | aggregation start epoch number                                                                                                  |
-| f_end_epoch                 | uint64       | aggregation end epoch number (inclusive)                                                                                        |
-| f_reward                    | uint64       | reward obtained from the previous epoch in the given epoch range (Gwei)                                                         |
-| f_max_reward                | uint64       | maximum consensus reward that could have been obtained from the previous epoch in the given epoch range (Gwei)                  |
-| f_max_att_reward            | uint64       | maximum attestation that could have been obtained from the previous epoch in the given epoch range (Gwei)                       |
-| f_max_sync_reward           | uint64       | maximum sync committee that could have been obtained from the previous epoch in the given epoch range (Gwei)                    |
-| f_base_reward               | uint64       | base reward taken into account to calculate the rewards (Gwei)                                                                  |
-| f_in_sync_committee_count   | uint16       | number of times the validator participated in the sync commmittee in the given epoch range                                      |
-| f_missing_source_count      | uint16       | the amount of times the validator missed the source flag while attesing (takes into account the attestation to 2 epochs before) |
-| f_missing_target_count      | uint16       | the amount of times the validator missed the target flag while attesing (takes into account the attestation to 2 epochs before) |
-| f_missing_head_count        | uint16       | the amount of times the validator missed the head flag while attesing (takes into account the attestation to 2 epochs before)   |
-| f_block_api_reward          | uint64       | consensus block reward obtained from the Beacon API (only if the validator was a proposer in the given epoch) (Gwei)            |
-| f_block_experimental_reward | uint64       | consensus block reward manually calculated by goteth (only if the validator was a proposer in the given epoch) (Gwei)           |
-| f_inclusion_delay_sum       | uint32       | the sum of amount of slots after the attestations at which the attestations were included                                       |
+| f_start_epoch               | uint64       | aggregation start epoch number                                                                                        |
+| f_end_epoch                 | uint64       | aggregation end epoch number (inclusive)                                                                              |
+| f_reward                    | uint64       | reward obtained from the previous epoch in the given epoch range (Gwei)                                               |
+| f_max_reward                | uint64       | maximum consensus reward that could have been obtained in the given epoch range (Gwei)                                |
+| f_max_att_reward            | uint64       | maximum attestation that could have been obtained in the given epoch range (Gwei)                                     |
+| f_max_sync_reward           | uint64       | maximum sync committee that could have been obtained in the given epoch range (Gwei)                                  |
+| f_base_reward               | uint64       | base reward taken into account to calculate the rewards (Gwei)                                                        |
+| f_in_sync_committee_count   | uint16       | number of times the validator participated in the sync commmittee in the given epoch range                            |
+| f_missing_source_count      | uint16       | the amount of times the validator missed the source flag while attesing on the epoch range                            |
+| f_missing_target_count      | uint16       | the amount of times the validator missed the target flag while attesing on the epoch range                            |
+| f_missing_head_count        | uint16       | the amount of times the validator missed the head flag while attesing on the epoch range                              |
+| f_block_api_reward          | uint64       | consensus block reward obtained from the Beacon API (only if the validator was a proposer in the given epoch) (Gwei)  |
+| f_block_experimental_reward | uint64       | consensus block reward manually calculated by goteth (only if the validator was a proposer in the given epoch) (Gwei) |
+| f_inclusion_delay_sum       | uint32       | the sum of amount of slots after the attestations at which the attestations were included                             |
 
 # Withdrawals
 
