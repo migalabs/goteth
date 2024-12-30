@@ -45,8 +45,9 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 				return s.CreateMissingBlock(slot), nil
 			}
 
-			ticker := time.NewTicker(utils.RoutineFlushTimeout)
-			log.Warnf("retrying request: %s", routineKey)
+			timeoutTime := utils.RoutineFlushTimeout * time.Duration(attempts+1)
+			ticker := time.NewTicker(timeoutTime)
+			log.Warnf("retrying request: %s. Attempt number: %d", routineKey, attempts)
 			<-ticker.C
 
 		}

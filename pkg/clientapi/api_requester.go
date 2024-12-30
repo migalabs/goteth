@@ -20,7 +20,7 @@ var (
 		"module", moduleName)
 	QueryTimeout     = 3 * time.Minute
 	maxParallelConns = 3
-	maxRetries       = 3
+	maxRetries       = 5
 )
 
 type APIClientOption func(*APIClient) error
