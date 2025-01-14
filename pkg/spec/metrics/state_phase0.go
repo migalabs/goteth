@@ -40,8 +40,54 @@ func (p *Phase0Metrics) InitBundle(nextState *spec.AgnosticState,
 func (p *Phase0Metrics) PreProcessBundle() {
 
 	if !p.baseMetrics.PrevState.EmptyStateRoot() && !p.baseMetrics.CurrentState.EmptyStateRoot() {
+		p.ProcessSlashings()
 		p.GetInclusionDelayDeltas()
 		p.GetMaxAttComponentDeltas()
+	}
+}
+
+func (p *Phase0Metrics) ProcessSlashings() {
+	state := p.GetMetricsBase().NextState
+	for _, block := range state.Blocks {
+		whistleBlowerIdx := block.ProposerIndex // spec always contemplates whistleblower to be the block proposer
+		whistleBlowerReward := phase0.Gwei(0)
+		proposerReward := phase0.Gwei(0)
+		for _, attSlashing := range block.AttesterSlashings {
+			slashedValidatorIdxs := spec.SlashingIntersection(attSlashing.Attestation1.AttestingIndices, attSlashing.Attestation2.AttestingIndices)
+			for _, idx := range slashedValidatorIdxs {
+				state.Slashings = append(state.Slashings,
+					spec.AgnosticSlashing{
+						SlashedValidator: idx,
+						SlashedBy:        block.ProposerIndex,
+						SlashingReason:   spec.SlashingReasonAttesterSlashing,
+						Slot:             block.Slot,
+						Epoch:            spec.EpochAtSlot(block.Slot),
+					})
+				state.NewAttesterSlashings += 1
+			}
+		}
+		for _, proposerSlashing := range block.ProposerSlashings {
+			slashedValidatorIdx := proposerSlashing.SignedHeader1.Message.ProposerIndex
+			slashing := spec.AgnosticSlashing{
+				SlashedValidator: slashedValidatorIdx,
+				SlashedBy:        block.ProposerIndex,
+				SlashingReason:   spec.SlashingReasonProposerSlashing,
+				Slot:             block.Slot,
+				Epoch:            spec.EpochAtSlot(block.Slot),
+			}
+			state.Slashings = append(state.Slashings, slashing)
+			state.NewProposerSlashings += 1
+		}
+
+		for _, slashing := range state.Slashings {
+			slashedEffBalance := p.baseMetrics.NextState.Validators[slashing.SlashedValidator].EffectiveBalance
+			whistleBlowerReward += slashedEffBalance / spec.WhistleBlowerRewardQuotient
+			proposerReward += whistleBlowerReward * spec.ProposerWeight / spec.WeightDenominator
+		}
+		p.baseMetrics.MaxSlashingRewards[block.ProposerIndex] += proposerReward
+		p.baseMetrics.MaxSlashingRewards[whistleBlowerIdx] += whistleBlowerReward - proposerReward
+
+		block.ManualReward += proposerReward + (whistleBlowerReward - proposerReward)
 	}
 }
 

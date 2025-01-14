@@ -45,6 +45,7 @@ type AgnosticState struct {
 	SyncCommitteeParticipation uint64 // Tracks sync committee participation
 	NewProposerSlashings       int    // number of new proposer slashings
 	NewAttesterSlashings       int    // number of new attester slashings
+	Slashings                  []AgnosticSlashing
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -87,6 +88,7 @@ func (p *AgnosticState) Setup() error {
 	p.TotalActiveBalance = p.GetTotalActiveEffBalance()
 	p.TotalActiveRealBalance = p.GetTotalActiveRealBalance()
 	p.TrackMissingBlocks()
+	p.Slashings = make([]AgnosticSlashing, 0)
 	return nil
 }
 
