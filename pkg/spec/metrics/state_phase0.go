@@ -55,6 +55,12 @@ func (p *Phase0Metrics) ProcessSlashings() {
 		for _, attSlashing := range block.AttesterSlashings {
 			slashedValidatorIdxs := spec.SlashingIntersection(attSlashing.Attestation1.AttestingIndices, attSlashing.Attestation2.AttestingIndices)
 			for _, idx := range slashedValidatorIdxs {
+				slashedValidator := p.GetMetricsBase().CurrentState.Validators[idx]
+				valid := false
+				if spec.IsSlashableValidator(slashedValidator, spec.EpochAtSlot(block.Slot)) {
+					valid = true
+					state.NewAttesterSlashings += 1
+				}
 				state.Slashings = append(state.Slashings,
 					spec.AgnosticSlashing{
 						SlashedValidator: idx,
@@ -62,21 +68,27 @@ func (p *Phase0Metrics) ProcessSlashings() {
 						SlashingReason:   spec.SlashingReasonAttesterSlashing,
 						Slot:             block.Slot,
 						Epoch:            spec.EpochAtSlot(block.Slot),
+						Valid:            valid,
 					})
-				state.NewAttesterSlashings += 1
 			}
 		}
 		for _, proposerSlashing := range block.ProposerSlashings {
 			slashedValidatorIdx := proposerSlashing.SignedHeader1.Message.ProposerIndex
+			slashedValidator := p.GetMetricsBase().CurrentState.Validators[slashedValidatorIdx]
+			valid := false
+			if spec.IsSlashableValidator(slashedValidator, spec.EpochAtSlot(block.Slot)) {
+				valid = true
+				state.NewProposerSlashings += 1
+			}
 			slashing := spec.AgnosticSlashing{
 				SlashedValidator: slashedValidatorIdx,
 				SlashedBy:        block.ProposerIndex,
 				SlashingReason:   spec.SlashingReasonProposerSlashing,
 				Slot:             block.Slot,
 				Epoch:            spec.EpochAtSlot(block.Slot),
+				Valid:            valid,
 			}
 			state.Slashings = append(state.Slashings, slashing)
-			state.NewProposerSlashings += 1
 		}
 
 		for _, slashing := range state.Slashings {

@@ -15,6 +15,7 @@ type AgnosticSlashing struct {
 	SlashingReason   SlashingReason
 	Epoch            phase0.Epoch
 	Slot             phase0.Slot
+	Valid            bool
 }
 
 func (f AgnosticSlashing) Type() ModelType {
