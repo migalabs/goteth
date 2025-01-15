@@ -264,10 +264,11 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 
 Table that stores the data of the slashings that happened in the network.
 
-| Column Name                  | Type of Data | Description                                                  |     |     |
-| ---------------------------- | ------------ | ------------------------------------------------------------ | --- | --- |
-| f_slashed_validator_index    | uint64       | validator that was slashed                                   |
-| f_slashed_by_validator_index | uint64       | validator that slashed the other validator                   |
-| f_slashing_reason            | string       | reason for the slashing (ProposerSlashing, AttesterSlashing) |
-| f_slot                       | uint64       | slot at which the slashing happened                          |
-| f_epoch                      | uint64       | epoch at which the slashing happened                         |
+| Column Name                  | Type of Data | Description                                                                                                                                                                        |     |     |
+| ---------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| f_slashed_validator_index    | uint64       | validator that was slashed                                                                                                                                                         |
+| f_slashed_by_validator_index | uint64       | validator that slashed the other validator                                                                                                                                         |
+| f_slashing_reason            | string       | reason for the slashing (ProposerSlashing, AttesterSlashing)                                                                                                                       |
+| f_slot                       | uint64       | slot at which the slashing happened                                                                                                                                                |
+| f_epoch                      | uint64       | epoch at which the slashing happened                                                                                                                                               |
+| f_valid                      | bool         | whether the slashing was valid or not, mainly due to [double slashings not being valid](https://migalabs.io/blog/post/slashed-validators-discrepancies-in-popular-block-explorers) |
