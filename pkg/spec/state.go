@@ -98,16 +98,8 @@ func (p *AgnosticState) AddBlocks(blockList []*AgnosticBlock) {
 	p.CalculateDeposits()
 	p.CalculateNumAttestations()
 	p.CalculateSyncParticipation()
-	p.CalculateNewSlashings()
 }
 
-// Calculates the number of new proposer/attester slashings in the epoch
-func (p *AgnosticState) CalculateNewSlashings() {
-	for _, block := range p.Blocks {
-		p.NewProposerSlashings += len(block.ProposerSlashings)
-		p.NewAttesterSlashings += len(block.AttesterSlashings)
-	}
-}
 func (p *AgnosticState) CalculateSyncParticipation() {
 	for _, block := range p.Blocks {
 		p.SyncCommitteeParticipation += block.SyncAggregate.SyncCommitteeBits.Count()
