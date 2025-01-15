@@ -55,8 +55,8 @@
 | f_total_deposits_amount            | uint64       | amount of eth deposited in the epoch                                                                                   |
 | f_withdrawals_num                  | uint64       | amount of withdrawals included in the epoch                                                                            |
 | f_total_withdrawals_amount         | uint64       | amount of eth withdrawn in the epoch                                                                                   |
-| f_new_proposer_slashings           | uint64       | amount of new proposer slashings included in the epoch                                                                 |
-| f_new_attester_slashings           | uint64       | amount of new attester slashings included in the epoch                                                                 |
+| f_new_proposer_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) proposer slashings included in the epoch            |
+| f_new_attester_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) attester slashings included in the epoch            |
 
 # Pool Summaries
 
