@@ -20,6 +20,7 @@ services:
       --metrics=${GOTETH_ANALYZER_METRICS}
       --prometheus-port=${GOTETH_ANALYZER_PROMETHEUS_PORT:-9081}
       --rewards-aggregation-epochs=${GOTETH_ANALYZER_REWARDS_AGGREGATION_EPOCHS:-1}
+      --max-request-retries=${GOTETH_ANALYZER_MAX_REQUEST_RETRIES:-5}
     network_mode: "host"
     restart: "always"
     depends_on:
