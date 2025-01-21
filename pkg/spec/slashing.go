@@ -15,6 +15,7 @@ type AgnosticSlashing struct {
 	SlashingReason   SlashingReason
 	Epoch            phase0.Epoch
 	Slot             phase0.Slot
+	Valid            bool
 }
 
 func (f AgnosticSlashing) Type() ModelType {
@@ -36,4 +37,9 @@ func SlashingIntersection(set1 []uint64, set2 []uint64) []phase0.ValidatorIndex 
 
 	return res
 
+}
+
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#is_slashable_validator
+func IsSlashableValidator(validator *phase0.Validator, epoch phase0.Epoch) bool {
+	return !validator.Slashed && validator.ActivationEpoch <= epoch && epoch < validator.WithdrawableEpoch
 }

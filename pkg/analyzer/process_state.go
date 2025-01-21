@@ -58,10 +58,22 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		if s.metrics.ValidatorRewards {
 			s.processEpochValRewards(bundle)
 		}
+		s.processSlashings(bundle)
 	}
 
 	s.processerBook.FreePage(routineKey)
 
+}
+
+func (s *ChainAnalyzer) processSlashings(bundle metrics.StateMetrics) {
+	slashings := bundle.GetMetricsBase().NextState.Slashings
+	if len(slashings) == 0 {
+		return
+	}
+	err := s.dbClient.PersistSlashings(slashings)
+	if err != nil {
+		log.Errorf("error persisting slashings: %s", err.Error())
+	}
 }
 
 func (s *ChainAnalyzer) processEpochMetrics(bundle metrics.StateMetrics) {
