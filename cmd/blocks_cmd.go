@@ -93,7 +93,7 @@ var BlocksCommand = &cli.Command{
 		},
 		&cli.IntFlag{
 			Name:        "max-request-retries",
-			Usage:       "Number of retries to make when a request fails",
+			Usage:       "Number of retries to make when a request fails. For head mode it shouldn't be higher than 3-4, for historical its recommended to be higher",
 			EnvVars:     []string{"ANALYZER_MAX_REQUEST_RETRIES"},
 			DefaultText: "3",
 		}},
