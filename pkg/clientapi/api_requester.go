@@ -65,7 +65,7 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, maxRequestRetries int,
 	for _, o := range options {
 		err := o(apiService)
 		if err != nil {
-			log.Warnf(err.Error()) // these are optional, show error and continue
+			log.Warn(err.Error()) // these are optional, show error and continue
 		}
 	}
 
