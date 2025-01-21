@@ -1,7 +1,6 @@
 package clientapi
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -35,22 +34,22 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 	var newBlock *api.Response[*spec.VersionedSignedBeaconBlock]
 
 	attempts := 0
-	for err != nil && attempts < maxRetries {
+	for err != nil && attempts < s.maxRetries {
 
 		newBlock, err = s.Api.SignedBeaconBlock(s.ctx, &api.SignedBeaconBlockOpts{
 			Block: fmt.Sprintf("%d", slot),
 		})
 		if err != nil {
 			if response404(err.Error()) {
-				log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
+				log.Infof("the beacon block at slot %d does not exist, missing block", slot)
 				return s.CreateMissingBlock(slot), nil
 			}
 
-			if errors.Is(err, context.DeadlineExceeded) {
-				ticker := time.NewTicker(utils.RoutineFlushTimeout)
-				log.Warnf("retrying request: %s", routineKey)
-				<-ticker.C
-			}
+			timeoutTime := utils.RoutineFlushTimeout * time.Duration(attempts+1)
+			ticker := time.NewTicker(timeoutTime)
+			log.Warnf("retrying request: %s. Attempt number: %d", routineKey, attempts)
+			<-ticker.C
+
 		}
 		attempts += 1
 

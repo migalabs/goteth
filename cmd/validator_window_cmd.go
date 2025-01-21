@@ -42,7 +42,14 @@ var ValidatorWindowCommand = &cli.Command{
 			Usage:       "Beacon node endpoint (to request the Beacon States and Blocks)",
 			EnvVars:     []string{"ANALYZER_BN_ENDPOINT"},
 			DefaultText: "http://localhost:5052",
-		}},
+		},
+		&cli.IntFlag{
+			Name:        "max-request-retries",
+			Usage:       "Number of retries to make when a request fails",
+			EnvVars:     []string{"ANALYZER_MAX_REQUEST_RETRIES"},
+			DefaultText: "3",
+		},
+	},
 }
 
 // CrawlAction is the function that is called when running `eth2`.
