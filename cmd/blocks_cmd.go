@@ -90,6 +90,12 @@ var BlocksCommand = &cli.Command{
 			Usage:       "Port on which to expose prometheus metrics",
 			EnvVars:     []string{"ANALYZER_PROMETHEUS_PORT"},
 			DefaultText: "9080",
+		},
+		&cli.IntFlag{
+			Name:        "max-request-retries",
+			Usage:       "Number of retries to make when a request fails",
+			EnvVars:     []string{"ANALYZER_MAX_REQUEST_RETRIES"},
+			DefaultText: "3",
 		}},
 }
 

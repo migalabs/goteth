@@ -5,20 +5,22 @@ import (
 )
 
 type ValidatorWindowConfig struct {
-	LogLevel   string `json:"log-level"`
-	DBUrl      string `json:"db-url"`
-	NumEpochs  int    `json:"num-epochs"`
-	BnEndpoint string `json:"bn-endpoint"`
+	LogLevel          string `json:"log-level"`
+	DBUrl             string `json:"db-url"`
+	NumEpochs         int    `json:"num-epochs"`
+	BnEndpoint        string `json:"bn-endpoint"`
+	MaxRequestRetries int    `json:"max-request-retries"`
 }
 
 // TODO: read from config-file
 func NewValidatorWindowConfig() *ValidatorWindowConfig {
 	// Return Default values for the ethereum configuration
 	return &ValidatorWindowConfig{
-		LogLevel:   DefaultLogLevel,
-		DBUrl:      DefaultDBUrl,
-		NumEpochs:  DefaultValidatorWindowEpochs,
-		BnEndpoint: DefaultBnEndpoint,
+		LogLevel:          DefaultLogLevel,
+		DBUrl:             DefaultDBUrl,
+		NumEpochs:         DefaultValidatorWindowEpochs,
+		BnEndpoint:        DefaultBnEndpoint,
+		MaxRequestRetries: DefaultMaxRequestRetries,
 	}
 }
 
@@ -39,6 +41,10 @@ func (c *ValidatorWindowConfig) Apply(ctx *cli.Context) {
 	// cl url
 	if ctx.IsSet("bn-endpoint") {
 		c.BnEndpoint = ctx.String("bn-endpoint")
+	}
+	// max request retries
+	if ctx.IsSet("max-request-retries") {
+		c.MaxRequestRetries = ctx.Int("max-request-retries")
 	}
 
 }

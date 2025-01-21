@@ -14,4 +14,5 @@ var (
 	DefaultMetrics                  string = "epoch,block"
 	DefaultPrometheusPort           int    = 9080
 	DefaultValidatorWindowEpochs    int    = 100
+	DefaultMaxRequestRetries        int    = 5
 )

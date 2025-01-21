@@ -51,7 +51,7 @@ func NewValidatorWindow(
 
 	// beacon node
 	cli, err := clientapi.NewAPIClient(pCtx,
-		iConfig.BnEndpoint)
+		iConfig.BnEndpoint, iConfig.MaxRequestRetries)
 
 	if err != nil {
 		return &ValidatorWindowRunner{

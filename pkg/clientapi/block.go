@@ -34,7 +34,7 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 	var newBlock *api.Response[*spec.VersionedSignedBeaconBlock]
 
 	attempts := 0
-	for err != nil && attempts < maxRetries {
+	for err != nil && attempts < s.maxRetries {
 
 		newBlock, err = s.Api.SignedBeaconBlock(s.ctx, &api.SignedBeaconBlockOpts{
 			Block: fmt.Sprintf("%d", slot),
