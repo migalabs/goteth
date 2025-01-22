@@ -18,6 +18,7 @@ type AnalyzerConfig struct {
 	DbWorkerNum              int         `json:"db-worker-num"`
 	Metrics                  string      `json:"metrics"`
 	PrometheusPort           int         `json:"prometheus-port"`
+	MaxRequestRetries        int         `json:"max-request-retries"`
 }
 
 // TODO: read from config-file
@@ -36,6 +37,7 @@ func NewAnalyzerConfig() *AnalyzerConfig {
 		DbWorkerNum:              DefaultDbWorkerNum,
 		Metrics:                  DefaultMetrics,
 		PrometheusPort:           DefaultPrometheusPort,
+		MaxRequestRetries:        DefaultMaxRequestRetries,
 	}
 }
 
@@ -88,5 +90,9 @@ func (c *AnalyzerConfig) Apply(ctx *cli.Context) {
 	// prometheus port
 	if ctx.IsSet("prometheus-port") {
 		c.PrometheusPort = ctx.Int("prometheus-port")
+	}
+	// max request retries
+	if ctx.IsSet("max-request-retries") {
+		c.MaxRequestRetries = ctx.Int("max-request-retries")
 	}
 }

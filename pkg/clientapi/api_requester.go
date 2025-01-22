@@ -20,23 +20,22 @@ var (
 		"module", moduleName)
 	QueryTimeout     = 3 * time.Minute
 	maxParallelConns = 3
-	maxRetries       = 3
 )
 
 type APIClientOption func(*APIClient) error
 
 type APIClient struct {
-	ctx     context.Context
-	Api     *http.Service     // Beacon Node
-	ELApi   *ethclient.Client // Execution Node
-	Metrics db.DBMetrics
-
+	ctx        context.Context
+	Api        *http.Service     // Beacon Node
+	ELApi      *ethclient.Client // Execution Node
+	Metrics    db.DBMetrics
+	maxRetries int
 	statesBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: states
 	blocksBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: blocks
 	txBook     *utils.RoutineBook // Book to track what is being downloaded through the EL API: transactions
 }
 
-func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOption) (*APIClient, error) {
+func NewAPIClient(ctx context.Context, bnEndpoint string, maxRequestRetries int, options ...APIClientOption) (*APIClient, error) {
 	log.Debugf("generating http client at %s", bnEndpoint)
 
 	apiService := &APIClient{
@@ -62,11 +61,11 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, options ...APIClientOp
 	}
 
 	apiService.Api = hc
-
+	apiService.maxRetries = maxRequestRetries
 	for _, o := range options {
 		err := o(apiService)
 		if err != nil {
-			log.Warnf(err.Error()) // these are optional, show error and continue
+			log.Warn(err.Error()) // these are optional, show error and continue
 		}
 	}
 

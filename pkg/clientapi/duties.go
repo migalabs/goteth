@@ -15,7 +15,7 @@ func (s *APIClient) NewEpochData(slot phase0.Slot) spec.EpochDuties {
 	})
 
 	if err != nil {
-		log.Errorf(err.Error())
+		log.Error(err.Error())
 	}
 
 	validatorsAttSlot := make(map[phase0.ValidatorIndex]phase0.Slot) // each validator, when it had to attest
@@ -40,7 +40,7 @@ func (s *APIClient) NewEpochData(slot phase0.Slot) spec.EpochDuties {
 	})
 
 	if err != nil {
-		log.Errorf(err.Error())
+		log.Error(err.Error())
 	}
 
 	return spec.EpochDuties{
