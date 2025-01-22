@@ -24,7 +24,7 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 		log.Errorf("error persisting blocks: %s", err.Error())
 	}
 
-	s.ProcessWithdrawals(block)
+	s.processWithdrawals(block)
 
 	if s.metrics.Transactions {
 		s.processTransactions(block)
@@ -36,7 +36,7 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	s.processerBook.FreePage(routineKey)
 }
 
-func (s *ChainAnalyzer) ProcessWithdrawals(block *spec.AgnosticBlock) {
+func (s *ChainAnalyzer) processWithdrawals(block *spec.AgnosticBlock) {
 	var withdrawals []spec.Withdrawal
 	for _, item := range block.ExecutionPayload.Withdrawals {
 		withdrawals = append(withdrawals, spec.Withdrawal{
