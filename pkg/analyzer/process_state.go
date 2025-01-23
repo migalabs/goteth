@@ -67,8 +67,8 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 func (s *ChainAnalyzer) processEpochMetrics(bundle metrics.StateMetrics) {
 
 	// we need sameEpoch and nextEpoch
-
-	epoch := bundle.GetMetricsBase().ExportToEpoch()
+	metricsBase := bundle.GetMetricsBase()
+	epoch := metricsBase.ExportToEpoch()
 
 	log.Debugf("persisting epoch metrics: epoch %d", epoch.Epoch)
 
@@ -204,12 +204,12 @@ func (s *ChainAnalyzer) processBlockRewards(bundle metrics.StateMetrics) {
 
 	blockRewards := make([]db.BlockReward, 0)
 
-	mevBids, err := s.relayCli.GetDeliveredBidsPerSlotRange(bundle.GetMetricsBase().NextState.Slot, spec.SlotsPerEpoch)
+	mevBids, err := s.relayCli.GetDeliveredBidsPerSlotRange(bundle.GetMetricsBase().CurrentState.Slot, spec.SlotsPerEpoch)
 	if err != nil {
 		log.Errorf("error getting mev bids: %s", err.Error())
 	}
 
-	for _, block := range bundle.GetMetricsBase().NextState.Blocks {
+	for _, block := range bundle.GetMetricsBase().CurrentState.Blocks {
 		blockRewards = append(blockRewards, s.getSingleBlockRewards(*block, mevBids))
 	}
 
