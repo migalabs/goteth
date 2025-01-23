@@ -271,3 +271,15 @@ Table that stores the data of the slashings that happened in the network.
 | f_slashing_reason            | string       | reason for the slashing (ProposerSlashing, AttesterSlashing) |
 | f_slot                       | uint64       | slot at which the slashing happened                          |
 | f_epoch                      | uint64       | epoch at which the slashing happened                         |
+
+# BLS To Execution Changes (`t_bls_to_execution_changes`)
+
+Table that stores the BLS to execution changes that happened in the network.
+
+| Column Name            | Type of Data | Description                                   |     |     |
+| ---------------------- | ------------ | --------------------------------------------- | --- | --- |
+| f_slot                 | uint64       | slot at which the change happened             |
+| f_epoch                | uint64       | epoch at which the change happened            |
+| f_validator_index      | uint64       | validator index that had the change           |
+| f_from_bls_pubkey      | string       | BLS public key corresponding to the validator |
+| f_to_execution_address | string       | execution address after the change            |

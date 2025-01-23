@@ -16,28 +16,29 @@ import (
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type AgnosticBlock struct {
-	Slot              phase0.Slot
-	StateRoot         phase0.Root
-	Root              phase0.Root
-	ParentRoot        phase0.Root
-	ProposerIndex     phase0.ValidatorIndex
-	Graffiti          [32]byte
-	Proposed          bool
-	Attestations      []*phase0.Attestation
-	VotesIncluded     uint64
-	NewVotesIncluded  uint64
-	Deposits          []*phase0.Deposit
-	ProposerSlashings []*phase0.ProposerSlashing
-	AttesterSlashings []*phase0.AttesterSlashing
-	VoluntaryExits    []*phase0.SignedVoluntaryExit
-	SyncAggregate     *altair.SyncAggregate
-	ExecutionPayload  AgnosticExecutionPayload
-	Reward            BlockRewards
-	SSZsize           uint32
-	SnappySize        uint32
-	CompressionTime   time.Duration
-	DecompressionTime time.Duration
-	ManualReward      phase0.Gwei
+	Slot                  phase0.Slot
+	StateRoot             phase0.Root
+	Root                  phase0.Root
+	ParentRoot            phase0.Root
+	ProposerIndex         phase0.ValidatorIndex
+	Graffiti              [32]byte
+	Proposed              bool
+	Attestations          []*phase0.Attestation
+	VotesIncluded         uint64
+	NewVotesIncluded      uint64
+	Deposits              []*phase0.Deposit
+	ProposerSlashings     []*phase0.ProposerSlashing
+	AttesterSlashings     []*phase0.AttesterSlashing
+	VoluntaryExits        []*phase0.SignedVoluntaryExit
+	SyncAggregate         *altair.SyncAggregate
+	ExecutionPayload      AgnosticExecutionPayload
+	BLSToExecutionChanges []*capella.SignedBLSToExecutionChange
+	Reward                BlockRewards
+	SSZsize               uint32
+	SnappySize            uint32
+	CompressionTime       time.Duration
+	DecompressionTime     time.Duration
+	ManualReward          phase0.Gwei
 }
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
@@ -259,10 +260,11 @@ func NewCapellaBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			Withdrawals:   block.Capella.Message.Body.ExecutionPayload.Withdrawals,
 			PayloadSize:   uint32(0),
 		}, // snappy
-		SSZsize:           compressionMetrics.SSZsize,
-		SnappySize:        compressionMetrics.SnappySize,
-		CompressionTime:   compressionMetrics.CompressionTime,
-		DecompressionTime: compressionMetrics.DecompressionTime,
+		BLSToExecutionChanges: block.Capella.Message.Body.BLSToExecutionChanges,
+		SSZsize:               compressionMetrics.SSZsize,
+		SnappySize:            compressionMetrics.SnappySize,
+		CompressionTime:       compressionMetrics.CompressionTime,
+		DecompressionTime:     compressionMetrics.DecompressionTime,
 	}
 }
 
@@ -301,9 +303,10 @@ func NewDenebBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			Withdrawals:   block.Deneb.Message.Body.ExecutionPayload.Withdrawals,
 			PayloadSize:   uint32(0),
 		}, // snappy
-		SSZsize:           compressionMetrics.SSZsize,
-		SnappySize:        compressionMetrics.SnappySize,
-		CompressionTime:   compressionMetrics.CompressionTime,
-		DecompressionTime: compressionMetrics.DecompressionTime,
+		BLSToExecutionChanges: block.Deneb.Message.Body.BLSToExecutionChanges,
+		SSZsize:               compressionMetrics.SSZsize,
+		SnappySize:            compressionMetrics.SnappySize,
+		CompressionTime:       compressionMetrics.CompressionTime,
+		DecompressionTime:     compressionMetrics.DecompressionTime,
 	}
 }
