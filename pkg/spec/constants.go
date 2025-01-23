@@ -70,6 +70,7 @@ const (
 	HeadEventModel
 	ValidatorRewardsAggregationModel
 	SlashingModel
+	BLSToExecutionChangeModel
 )
 
 type ValidatorStatus int8
