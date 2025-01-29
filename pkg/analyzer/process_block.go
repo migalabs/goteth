@@ -33,7 +33,31 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 
 	s.processSlashings(block)
 	s.processBLSToExecutionChanges(block)
+	s.processDeposits(block)
 	s.processerBook.FreePage(routineKey)
+}
+
+func (s *ChainAnalyzer) processDeposits(block *spec.AgnosticBlock) {
+	if len(block.Deposits) == 0 {
+		return
+	}
+	var deposits []spec.Deposit
+	for i, item := range block.Deposits {
+		deposits = append(deposits, spec.Deposit{
+			Slot:                  block.Slot,
+			PublicKey:             item.Data.PublicKey,
+			WithdrawalCredentials: item.Data.WithdrawalCredentials,
+			Amount:                item.Data.Amount,
+			Signature:             item.Data.Signature,
+			Index:                 uint8(i),
+		})
+	}
+
+	err := s.dbClient.PersistDeposits(deposits)
+	if err != nil {
+		log.Errorf("error persisting deposits: %s", err.Error())
+	}
+
 }
 
 func (s *ChainAnalyzer) processBLSToExecutionChanges(block *spec.AgnosticBlock) {
