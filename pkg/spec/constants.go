@@ -71,6 +71,7 @@ const (
 	ValidatorRewardsAggregationModel
 	SlashingModel
 	BLSToExecutionChangeModel
+	DepositModel
 )
 
 type ValidatorStatus int8
