@@ -84,6 +84,7 @@ func rewardsAggregationInput(vals []spec.ValidatorRewardsAggregation) proto.Inpu
 		{Name: "f_max_sync_reward", Data: f_max_sync_reward},
 		{Name: "f_base_reward", Data: f_base_reward},
 		{Name: "f_in_sync_committee_count", Data: f_in_sync_committee_count},
+		{Name: "f_attestations_included", Data: f_attestations_included},
 		{Name: "f_missing_source_count", Data: f_missing_source_count},
 		{Name: "f_missing_target_count", Data: f_missing_target_count},
 		{Name: "f_missing_head_count", Data: f_missing_head_count},
