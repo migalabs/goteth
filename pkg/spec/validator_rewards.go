@@ -14,6 +14,7 @@ type ValidatorRewards struct {
 	SyncCommitteeReward  phase0.Gwei
 	BaseReward           phase0.Gwei
 	AttSlot              phase0.Slot
+	AttestationIncluded  bool
 	InSyncCommittee      bool
 	ProposerSlot         phase0.Slot
 	ProposerApiReward    phase0.Gwei
@@ -44,7 +45,11 @@ func (f ValidatorRewards) ToArray() []interface{} {
 		f.SyncCommitteeReward,
 		f.BaseReward,
 		f.AttSlot,
+		f.AttestationIncluded,
 		f.InSyncCommittee,
+		f.ProposerSlot,
+		f.ProposerApiReward,
+		f.ProposerManualReward,
 		f.MissingSource,
 		f.MissingTarget,
 		f.MissingHead,

@@ -58,7 +58,7 @@
 | f_new_proposer_slashings           | uint64       | amount of new proposer slashings included in the epoch                                                                 |
 | f_new_attester_slashings           | uint64       | amount of new attester slashings included in the epoch                                                                 |
 
-# Pool Summaries
+# Pool Summaries (`t_pool_summaries`)
 
 | Column Name                 | Type of Data | Description                                                                   |     |     |
 | --------------------------- | ------------ | ----------------------------------------------------------------------------- | --- | --- |
@@ -71,6 +71,7 @@
 | count_missing_target        | integer      | amount of validator with a missed target flag for the given pool              |
 | count_missing_head          | integer      | amount of validator with a missed head flag for the given pool                |
 | count_expected_attestations | integer      | amount of attestations expected for the given pool (one per active valdiator) |
+| count_attestations_included | integer      | amount of attestations included for the given pool corresponding to the epoch |
 | proposed_blocks_performance | integer      | sum of proposed blocks by validators in the given pool                        |
 | missed_blocks_performance   | integer      | sum of missed blocks by validators in the given pool                          |
 | number_active_vals          | integer      | number of active validators in the given pool                                 |
@@ -132,7 +133,7 @@
 | f_exit_epoch       | integer      | epoch at which the validator exited the network    |
 | f_public_key       | string       | public key of the validator                        |
 
-# Validator Rewards Summary
+# Validator Rewards Summary (`t_validator_rewards_summary`)
 
 | Column Name                 | Type of Data | Description                                                                                                           |     |     |
 | --------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- | --- | --- |
@@ -146,6 +147,7 @@
 | f_att_slot                  | integer      | slot the validator had to attest to (2 epochs before)                                                                 |
 | f_base_reward               | integer      | base reward taken into account to calculate the rewards (Gwei)                                                        |
 | f_in_sync_committee         | bool         | whether the validator participated in the sync commmittee in the given epoch                                          |
+| f_attestation_included      | bool         | whether the attestation was included in the chain (2 epochs before)                                                   |
 | f_missing_source            | bool         | whether the validator missed the source flag while attesing (takes into account the attestation to 2 epochs before)   |
 | f_missing_target            | bool         | whether the validator missed the target flag while attesing (takes into account the attestation to 2 epochs before)   |
 | f_missing_head              | bool         | whether the validator missed the head flag while attesing (takes into account the attestation to 2 epochs before)     |
@@ -154,7 +156,7 @@
 | f_block_experimental_reward | integer      | consensus block reward manually calculated by goteth (only if the validator was a proposer in the given epoch) (Gwei) |
 | f_inclusion_delay           | integer      | amount of slots after the attested one at which the attestation was included                                          |
 
-# Validator Rewards Aggregation
+# Validator Rewards Aggregation (`t_validator_rewards_aggregation`)
 
 Table that stores the data from `t_validator_rewards_summary` but aggregated by validator on an epoch range.
 
@@ -169,6 +171,7 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 | f_max_sync_reward           | uint64       | maximum sync committee that could have been obtained from the previous epoch in the given epoch range (Gwei)                    |
 | f_base_reward               | uint64       | base reward taken into account to calculate the rewards (Gwei)                                                                  |
 | f_in_sync_committee_count   | uint16       | number of times the validator participated in the sync commmittee in the given epoch range                                      |
+| f_attestations_included     | uint16       | number of times the attestation was included in the chain (takes into account the attestation to 2 epochs before)               |
 | f_missing_source_count      | uint16       | the amount of times the validator missed the source flag while attesing (takes into account the attestation to 2 epochs before) |
 | f_missing_target_count      | uint16       | the amount of times the validator missed the target flag while attesing (takes into account the attestation to 2 epochs before) |
 | f_missing_head_count        | uint16       | the amount of times the validator missed the head flag while attesing (takes into account the attestation to 2 epochs before)   |

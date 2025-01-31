@@ -1,0 +1,5 @@
+ALTER TABLE t_validator_rewards_summary ADD COLUMN f_attestation_included BOOL AFTER f_att_slot;
+
+ALTER TABLE t_validator_rewards_aggregation ADD COLUMN f_attestations_included UInt16 AFTER f_in_sync_committee_count;
+
+ALTER TABLE t_pool_summary ADD COLUMN count_attestations_included UInt64 AFTER count_expected_attestations;

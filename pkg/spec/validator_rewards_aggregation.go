@@ -14,6 +14,7 @@ type ValidatorRewardsAggregation struct {
 	MaxSyncCommitteeReward phase0.Gwei
 	BaseReward             phase0.Gwei
 	InSyncCommitteeCount   uint16
+	AttestationsIncluded   uint16
 	MissingSourceCount     uint16
 	MissingTargetCount     uint16
 	MissingHeadCount       uint16
@@ -45,6 +46,7 @@ func (f ValidatorRewardsAggregation) ToArray() []interface{} {
 		f.MaxSyncCommitteeReward,
 		f.BaseReward,
 		f.InSyncCommitteeCount,
+		f.AttestationsIncluded,
 		f.MissingSourceCount,
 		f.MissingTargetCount,
 		f.MissingHeadCount,
@@ -63,6 +65,9 @@ func (f *ValidatorRewardsAggregation) Aggregate(valRewards ValidatorRewards) {
 	f.BaseReward += valRewards.BaseReward
 	if valRewards.InSyncCommittee {
 		f.InSyncCommitteeCount++
+	}
+	if valRewards.AttestationIncluded {
+		f.AttestationsIncluded++
 	}
 	if valRewards.MissingSource {
 		f.MissingSourceCount++

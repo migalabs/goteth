@@ -19,6 +19,7 @@ var (
 		f_max_att_reward,
 		f_max_sync_reward,
 		f_att_slot,
+		f_attestation_included,
 		f_base_reward,
 		f_in_sync_committee,
 		f_missing_source,
@@ -51,6 +52,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		f_max_att_reward            proto.ColUInt64
 		f_max_sync_reward           proto.ColUInt64
 		f_att_slot                  proto.ColUInt64
+		f_attestation_included      proto.ColBool
 		f_base_reward               proto.ColUInt64
 		f_in_sync_committee         proto.ColBool
 		f_missing_source            proto.ColBool
@@ -71,6 +73,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		f_max_att_reward.Append(uint64(val.AttestationReward))
 		f_max_sync_reward.Append(uint64(val.SyncCommitteeReward))
 		f_att_slot.Append(uint64(val.AttSlot))
+		f_attestation_included.Append(val.AttestationIncluded)
 		f_base_reward.Append(uint64(val.BaseReward))
 		f_in_sync_committee.Append(val.InSyncCommittee)
 		f_missing_source.Append(val.MissingSource)
@@ -91,6 +94,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		{Name: "f_max_att_reward", Data: f_max_att_reward},
 		{Name: "f_max_sync_reward", Data: f_max_sync_reward},
 		{Name: "f_att_slot", Data: f_att_slot},
+		{Name: "f_attestation_included", Data: f_attestation_included},
 		{Name: "f_base_reward", Data: f_base_reward},
 		{Name: "f_in_sync_committee", Data: f_in_sync_committee},
 		{Name: "f_missing_source", Data: f_missing_source},
