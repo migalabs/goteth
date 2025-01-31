@@ -20,6 +20,7 @@ var (
 		f_max_sync_reward,
 		f_base_reward,
 		f_in_sync_committee_count,
+		f_attestations_included,
 		f_missing_source_count,
 		f_missing_target_count,
 		f_missing_head_count,
@@ -45,6 +46,7 @@ func rewardsAggregationInput(vals []spec.ValidatorRewardsAggregation) proto.Inpu
 		f_max_sync_reward           proto.ColUInt64
 		f_base_reward               proto.ColUInt64
 		f_in_sync_committee_count   proto.ColUInt16
+		f_attestations_included     proto.ColUInt16
 		f_missing_source_count      proto.ColUInt16
 		f_missing_target_count      proto.ColUInt16
 		f_missing_head_count        proto.ColUInt16
@@ -63,6 +65,7 @@ func rewardsAggregationInput(vals []spec.ValidatorRewardsAggregation) proto.Inpu
 		f_max_sync_reward.Append(uint64(val.MaxSyncCommitteeReward))
 		f_base_reward.Append(uint64(val.BaseReward))
 		f_in_sync_committee_count.Append(val.InSyncCommitteeCount)
+		f_attestations_included.Append(val.AttestationsIncluded)
 		f_missing_source_count.Append(val.MissingSourceCount)
 		f_missing_target_count.Append(val.MissingTargetCount)
 		f_missing_head_count.Append(val.MissingHeadCount)
