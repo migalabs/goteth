@@ -142,7 +142,7 @@ func (s *APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
 	if s.ELApi == nil {
 		log.Warn("EL endpoint not provided. The gas price read from the CL may not be the effective gas price.")
 		attempts := 0
-		for err != nil && attempts < maxRetries {
+		for err != nil && attempts < s.maxRetries {
 			receipt, err = s.ELApi.TransactionReceipt(s.ctx, parsedTx.Hash())
 
 			if err != nil {

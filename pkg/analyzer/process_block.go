@@ -24,17 +24,38 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 		log.Errorf("error persisting blocks: %s", err.Error())
 	}
 
-	s.ProcessWithdrawals(block)
+	s.processWithdrawals(block)
 
 	if s.metrics.Transactions {
 		s.processTransactions(block)
 		s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
 	}
-
+	s.processBLSToExecutionChanges(block)
 	s.processerBook.FreePage(routineKey)
 }
 
-func (s *ChainAnalyzer) ProcessWithdrawals(block *spec.AgnosticBlock) {
+func (s *ChainAnalyzer) processBLSToExecutionChanges(block *spec.AgnosticBlock) {
+	if len(block.BLSToExecutionChanges) == 0 {
+		return
+	}
+	var blsToExecutionChanges []spec.BLSToExecutionChange
+	for _, item := range block.BLSToExecutionChanges {
+		blsToExecutionChanges = append(blsToExecutionChanges, spec.BLSToExecutionChange{
+			Slot:               block.Slot,
+			Epoch:              spec.EpochAtSlot(block.Slot),
+			ValidatorIndex:     item.Message.ValidatorIndex,
+			FromBLSPublicKey:   item.Message.FromBLSPubkey,
+			ToExecutionAddress: item.Message.ToExecutionAddress,
+		})
+	}
+
+	err := s.dbClient.PersistBLSToExecutionChanges(blsToExecutionChanges)
+	if err != nil {
+		log.Errorf("error persisting bls to execution changes: %s", err.Error())
+	}
+}
+
+func (s *ChainAnalyzer) processWithdrawals(block *spec.AgnosticBlock) {
 	var withdrawals []spec.Withdrawal
 	for _, item := range block.ExecutionPayload.Withdrawals {
 		withdrawals = append(withdrawals, spec.Withdrawal{

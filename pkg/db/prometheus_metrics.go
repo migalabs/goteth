@@ -93,6 +93,7 @@ func (r *DBService) initMonitorMetrics() {
 		valRewardsAggregationTable,
 		withdrawalsTable,
 		slashingsTable,
+		blsToExecutionChangeTable,
 	}
 
 	for _, tableName := range tablesArr {
