@@ -239,13 +239,16 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 | f_kzg_proof      | string       | kzg proof of the blob                                      |
 | f_ending_0s      | integer      | amount of consecutive 0s at the end of the blob bytes      |
 
-# Blob Sidecars Events
+# Blob Sidecars Events (`t_blob_sidecars_events`)
 
 | Column Name            | Type of Data | Description                                       |     |     |
 | ---------------------- | ------------ | ------------------------------------------------- | --- | --- |
 | f_arrival_timestamp_ms | integer      | timestamp at which goteth received the blob event |
 | f_blob_hash            | string       | hash of the blob                                  |
 | f_slot                 | integer      | slot at which the blob was sent                   |
+| f_block_root           | string       | block root hash                                   |
+| f_index                | integer      | index of the blob                                 |
+| f_kzg_commitment       | string       | kzg commitment of the blob                        |
 
 # Block Rewards
 
