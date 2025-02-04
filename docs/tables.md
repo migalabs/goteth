@@ -55,8 +55,8 @@
 | f_total_deposits_amount            | uint64       | amount of eth deposited in the epoch                                                                                   |
 | f_withdrawals_num                  | uint64       | amount of withdrawals included in the epoch                                                                            |
 | f_total_withdrawals_amount         | uint64       | amount of eth withdrawn in the epoch                                                                                   |
-| f_new_proposer_slashings           | uint64       | amount of new proposer slashings included in the epoch                                                                 |
-| f_new_attester_slashings           | uint64       | amount of new attester slashings included in the epoch                                                                 |
+| f_new_proposer_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) proposer slashings included in the epoch            |
+| f_new_attester_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) attester slashings included in the epoch            |
 
 # Pool Summaries
 
@@ -264,13 +264,14 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 
 Table that stores the data of the slashings that happened in the network.
 
-| Column Name                  | Type of Data | Description                                                  |     |     |
-| ---------------------------- | ------------ | ------------------------------------------------------------ | --- | --- |
-| f_slashed_validator_index    | uint64       | validator that was slashed                                   |
-| f_slashed_by_validator_index | uint64       | validator that slashed the other validator                   |
-| f_slashing_reason            | string       | reason for the slashing (ProposerSlashing, AttesterSlashing) |
-| f_slot                       | uint64       | slot at which the slashing happened                          |
-| f_epoch                      | uint64       | epoch at which the slashing happened                         |
+| Column Name                  | Type of Data | Description                                                                                                                                                                        |     |     |
+| ---------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| f_slashed_validator_index    | uint64       | validator that was slashed                                                                                                                                                         |
+| f_slashed_by_validator_index | uint64       | validator that slashed the other validator                                                                                                                                         |
+| f_slashing_reason            | string       | reason for the slashing (ProposerSlashing, AttesterSlashing)                                                                                                                       |
+| f_slot                       | uint64       | slot at which the slashing happened                                                                                                                                                |
+| f_epoch                      | uint64       | epoch at which the slashing happened                                                                                                                                               |
+| f_valid                      | bool         | whether the slashing was valid or not, mainly due to [double slashings not being valid](https://migalabs.io/blog/post/slashed-validators-discrepancies-in-popular-block-explorers) |
 
 # BLS To Execution Changes (`t_bls_to_execution_changes`)
 

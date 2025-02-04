@@ -13,7 +13,8 @@ var (
 		f_slashed_by_validator_index,
 		f_slashing_reason,
 		f_slot,
-		f_epoch
+		f_epoch,
+		f_valid
 		)
 		VALUES`
 )
@@ -26,6 +27,7 @@ func slashingsInput(slashings []spec.AgnosticSlashing) proto.Input {
 		f_slashing_reason            proto.ColStr
 		f_slot                       proto.ColUInt64
 		f_epoch                      proto.ColUInt64
+		f_valid                      proto.ColBool
 	)
 
 	for _, slashing := range slashings {
@@ -34,6 +36,7 @@ func slashingsInput(slashings []spec.AgnosticSlashing) proto.Input {
 		f_slashing_reason.Append(string(slashing.SlashingReason))
 		f_slot.Append(uint64(slashing.Slot))
 		f_epoch.Append(uint64(slashing.Epoch))
+		f_valid.Append(slashing.Valid)
 	}
 
 	return proto.Input{
@@ -42,6 +45,7 @@ func slashingsInput(slashings []spec.AgnosticSlashing) proto.Input {
 		{Name: "f_slashing_reason", Data: f_slashing_reason},
 		{Name: "f_slot", Data: f_slot},
 		{Name: "f_epoch", Data: f_epoch},
+		{Name: "f_valid", Data: f_valid},
 	}
 }
 
