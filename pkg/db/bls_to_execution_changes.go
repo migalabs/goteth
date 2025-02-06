@@ -32,13 +32,13 @@ func blsToExecutionChangeInput(blsToExecutionChanges []spec.BLSToExecutionChange
 		f_to_execution_address proto.ColStr
 	)
 
-	for _, withdrawal := range blsToExecutionChanges {
+	for _, blsToExecutionChange := range blsToExecutionChanges {
 
-		f_slot.Append(uint64(withdrawal.Slot))
-		f_epoch.Append(uint64(withdrawal.Epoch))
-		f_validator_index.Append(uint64(withdrawal.ValidatorIndex))
-		f_from_bls_pubkey.Append(withdrawal.FromBLSPublicKey.String())
-		f_to_execution_address.Append(withdrawal.ToExecutionAddress.String())
+		f_slot.Append(uint64(blsToExecutionChange.Slot))
+		f_epoch.Append(uint64(blsToExecutionChange.Epoch))
+		f_validator_index.Append(uint64(blsToExecutionChange.ValidatorIndex))
+		f_from_bls_pubkey.Append(blsToExecutionChange.FromBLSPublicKey.String())
+		f_to_execution_address.Append(blsToExecutionChange.ToExecutionAddress.String())
 	}
 
 	return proto.Input{

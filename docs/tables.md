@@ -287,3 +287,16 @@ Table that stores the BLS to execution changes that happened in the network.
 | f_validator_index      | uint64       | validator index that had the change           |
 | f_from_bls_pubkey      | string       | BLS public key corresponding to the validator |
 | f_to_execution_address | string       | execution address after the change            |
+
+# ETH2 Deposits (`t_deposits`)
+
+Table that stores the data of the deposits on the beaconchain.
+
+| Column Name              | Type of Data | Description                                       |     |     |
+| ------------------------ | ------------ | ------------------------------------------------- | --- | --- |
+| f_slot                   | uint64       | slot at which the deposit was included            |
+| f_public_key             | string       | public key of the validator deposited             |
+| f_withdrawal_credentials | string       | withdrawal credentials of the validator deposited |
+| f_amount                 | uint64       | amount of ETH deposited (Gwei)                    |
+| f_signature              | string       | signature of the deposit data                     |
+| f_index                  | uint64       | index of the deposit in the slot                  |
