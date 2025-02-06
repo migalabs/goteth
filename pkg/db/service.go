@@ -148,7 +148,8 @@ type PersistableObject[
 		spec.BlobSideCarEventWraper |
 		BlockReward |
 		spec.AgnosticSlashing |
-		spec.BLSToExecutionChange] struct {
+		spec.BLSToExecutionChange |
+		spec.Deposit] struct {
 	table string
 	query string
 	data  []T

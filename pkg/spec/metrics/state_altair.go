@@ -58,32 +58,6 @@ func (p AltairMetrics) GetMetricsBase() StateMetricsBase {
 	return p.baseMetrics
 }
 
-func (p *AltairMetrics) ProcessSlashings() {
-
-	for _, block := range p.GetMetricsBase().NextState.Blocks {
-		slashedIdxs := make([]phase0.ValidatorIndex, 0)
-		whistleBlowerIdx := block.ProposerIndex // spec always contemplates whistleblower to be the block proposer
-		whistleBlowerReward := phase0.Gwei(0)
-		proposerReward := phase0.Gwei(0)
-		for _, attSlashing := range block.AttesterSlashings {
-			slashedIdxs = append(slashedIdxs, spec.SlashingIntersection(attSlashing.Attestation1.AttestingIndices, attSlashing.Attestation2.AttestingIndices)...)
-		}
-		for _, proposerSlashing := range block.ProposerSlashings {
-			slashedIdxs = append(slashedIdxs, proposerSlashing.SignedHeader1.Message.ProposerIndex)
-		}
-
-		for _, idx := range slashedIdxs {
-			slashedEffBalance := p.baseMetrics.NextState.Validators[idx].EffectiveBalance
-			whistleBlowerReward += slashedEffBalance / spec.WhistleBlowerRewardQuotient
-			proposerReward += whistleBlowerReward * spec.ProposerWeight / spec.WeightDenominator
-		}
-		p.baseMetrics.MaxSlashingRewards[block.ProposerIndex] += proposerReward
-		p.baseMetrics.MaxSlashingRewards[whistleBlowerIdx] += whistleBlowerReward - proposerReward
-
-		block.ManualReward += proposerReward + (whistleBlowerReward - proposerReward)
-	}
-}
-
 func (p AltairMetrics) ProcessSyncAggregates() {
 	for _, block := range p.baseMetrics.NextState.Blocks {
 
