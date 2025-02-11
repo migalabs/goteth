@@ -55,8 +55,8 @@
 | f_total_deposits_amount            | uint64       | amount of eth deposited in the epoch                                                                                   |
 | f_withdrawals_num                  | uint64       | amount of withdrawals included in the epoch                                                                            |
 | f_total_withdrawals_amount         | uint64       | amount of eth withdrawn in the epoch                                                                                   |
-| f_new_proposer_slashings           | uint64       | amount of new proposer slashings included in the epoch                                                                 |
-| f_new_attester_slashings           | uint64       | amount of new attester slashings included in the epoch                                                                 |
+| f_new_proposer_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) proposer slashings included in the epoch            |
+| f_new_attester_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) attester slashings included in the epoch            |
 
 # Pool Summaries
 
@@ -239,13 +239,16 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 | f_kzg_proof      | string       | kzg proof of the blob                                      |
 | f_ending_0s      | integer      | amount of consecutive 0s at the end of the blob bytes      |
 
-# Blob Sidecars Events
+# Blob Sidecars Events (`t_blob_sidecars_events`)
 
 | Column Name            | Type of Data | Description                                       |     |     |
 | ---------------------- | ------------ | ------------------------------------------------- | --- | --- |
 | f_arrival_timestamp_ms | integer      | timestamp at which goteth received the blob event |
 | f_blob_hash            | string       | hash of the blob                                  |
 | f_slot                 | integer      | slot at which the blob was sent                   |
+| f_block_root           | string       | block root hash                                   |
+| f_index                | integer      | index of the blob                                 |
+| f_kzg_commitment       | string       | kzg commitment of the blob                        |
 
 # Block Rewards
 
@@ -264,10 +267,36 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 
 Table that stores the data of the slashings that happened in the network.
 
-| Column Name                  | Type of Data | Description                                                  |     |     |
-| ---------------------------- | ------------ | ------------------------------------------------------------ | --- | --- |
-| f_slashed_validator_index    | uint64       | validator that was slashed                                   |
-| f_slashed_by_validator_index | uint64       | validator that slashed the other validator                   |
-| f_slashing_reason            | string       | reason for the slashing (ProposerSlashing, AttesterSlashing) |
-| f_slot                       | uint64       | slot at which the slashing happened                          |
-| f_epoch                      | uint64       | epoch at which the slashing happened                         |
+| Column Name                  | Type of Data | Description                                                                                                                                                                        |     |     |
+| ---------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| f_slashed_validator_index    | uint64       | validator that was slashed                                                                                                                                                         |
+| f_slashed_by_validator_index | uint64       | validator that slashed the other validator                                                                                                                                         |
+| f_slashing_reason            | string       | reason for the slashing (ProposerSlashing, AttesterSlashing)                                                                                                                       |
+| f_slot                       | uint64       | slot at which the slashing happened                                                                                                                                                |
+| f_epoch                      | uint64       | epoch at which the slashing happened                                                                                                                                               |
+| f_valid                      | bool         | whether the slashing was valid or not, mainly due to [double slashings not being valid](https://migalabs.io/blog/post/slashed-validators-discrepancies-in-popular-block-explorers) |
+
+# BLS To Execution Changes (`t_bls_to_execution_changes`)
+
+Table that stores the BLS to execution changes that happened in the network.
+
+| Column Name            | Type of Data | Description                                   |     |     |
+| ---------------------- | ------------ | --------------------------------------------- | --- | --- |
+| f_slot                 | uint64       | slot at which the change happened             |
+| f_epoch                | uint64       | epoch at which the change happened            |
+| f_validator_index      | uint64       | validator index that had the change           |
+| f_from_bls_pubkey      | string       | BLS public key corresponding to the validator |
+| f_to_execution_address | string       | execution address after the change            |
+
+# ETH2 Deposits (`t_deposits`)
+
+Table that stores the data of the deposits on the beaconchain.
+
+| Column Name              | Type of Data | Description                                       |     |     |
+| ------------------------ | ------------ | ------------------------------------------------- | --- | --- |
+| f_slot                   | uint64       | slot at which the deposit was included            |
+| f_public_key             | string       | public key of the validator deposited             |
+| f_withdrawal_credentials | string       | withdrawal credentials of the validator deposited |
+| f_amount                 | uint64       | amount of ETH deposited (Gwei)                    |
+| f_signature              | string       | signature of the deposit data                     |
+| f_index                  | uint64       | index of the deposit in the slot                  |
