@@ -35,7 +35,6 @@ func (p *DenebMetrics) InitBundle(nextState *spec.AgnosticState,
 	p.baseMetrics.InclusionDelays = make([]int, len(p.baseMetrics.NextState.Validators))
 	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.MaxSyncCommitteeRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
-	p.baseMetrics.CurrentNumAttestingVals = make([]bool, len(currentState.Validators))
 }
 
 func (p *DenebMetrics) PreProcessBundle() {
@@ -100,7 +99,7 @@ func (p DenebMetrics) ProcessAttestations() {
 				}
 
 				if slotInEpoch(slot, p.baseMetrics.CurrentState.Epoch) {
-					p.baseMetrics.CurrentNumAttestingVals[valIdx] = true
+					p.baseMetrics.CurrentState.ValidatorAttestationIncluded[valIdx] = true
 				}
 
 				// we are only counting rewards at NextState

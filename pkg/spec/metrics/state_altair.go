@@ -38,7 +38,6 @@ func (p *AltairMetrics) InitBundle(nextState *spec.AgnosticState,
 	p.baseMetrics.InclusionDelays = make([]int, len(p.baseMetrics.NextState.Validators))
 	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.MaxSyncCommitteeRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
-	p.baseMetrics.CurrentNumAttestingVals = make([]bool, len(currentState.Validators))
 }
 
 func (p *AltairMetrics) PreProcessBundle() {
@@ -157,7 +156,7 @@ func (p AltairMetrics) ProcessAttestations() {
 				}
 
 				if slotInEpoch(slot, p.baseMetrics.CurrentState.Epoch) {
-					p.baseMetrics.CurrentNumAttestingVals[valIdx] = true
+					p.baseMetrics.CurrentState.ValidatorAttestationIncluded[valIdx] = true
 				}
 
 				// we are only counting rewards at NextState
@@ -287,6 +286,11 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	flags := p.baseMetrics.CurrentState.MissingFlags(valIdx)
 	baseReward := p.GetBaseReward(valIdx, p.baseMetrics.NextState.Validators[valIdx].EffectiveBalance, p.baseMetrics.NextState.TotalActiveBalance)
 
+	attestationIncluded := false
+	if int(valIdx) < len(p.baseMetrics.CurrentState.ValidatorAttestationIncluded) {
+		attestationIncluded = p.baseMetrics.CurrentState.ValidatorAttestationIncluded[valIdx]
+	}
+
 	result := spec.ValidatorRewards{
 		ValidatorIndex:       valIdx,
 		Epoch:                p.baseMetrics.NextState.Epoch,
@@ -296,10 +300,11 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		AttestationReward:    flagIndexMaxReward,
 		SyncCommitteeReward:  syncComMaxReward,
 		AttSlot:              p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx],
+		AttestationIncluded:  attestationIncluded,
 		MissingSource:        flags[spec.AttSourceFlagIndex],
 		MissingTarget:        flags[spec.AttTargetFlagIndex],
 		MissingHead:          flags[spec.AttHeadFlagIndex],
-		Status:               p.baseMetrics.NextState.GetValStatus(valIdx),
+		Status:               p.baseMetrics.CurrentState.GetValStatus(valIdx),
 		BaseReward:           baseReward,
 		ProposerApiReward:    proposerApiReward,
 		ProposerManualReward: proposerManualReward,
@@ -392,6 +397,6 @@ func (p AltairMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex in
 
 }
 
-func (p AltairMetrics) maxInclusionDelay(valIdx phase0.ValidatorIndex) int {
+func (p AltairMetrics) maxInclusionDelay(_ phase0.ValidatorIndex) int {
 	return spec.SlotsPerEpoch
 }

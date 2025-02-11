@@ -12,40 +12,41 @@ import (
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type AgnosticState struct {
-	Version                    spec.DataVersion
-	GenesisTimestamp           uint64 // genesis timestamp
-	StateRoot                  phase0.Root
-	Epoch                      phase0.Epoch                 // Epoch of the state
-	Slot                       phase0.Slot                  // Slot of the state
-	Balances                   []phase0.Gwei                // balance of each validator
-	Validators                 []*phase0.Validator          // list of validators
-	TotalActiveBalance         phase0.Gwei                  // effective balance
-	TotalActiveRealBalance     phase0.Gwei                  // real balance
-	AttestingBalance           []phase0.Gwei                // one attesting balance per flag (of the previous epoch attestations)
-	EpochStructs               EpochDuties                  // structs about beacon committees, proposers and attestation
-	PrevEpochCorrectFlags      [][]bool                     // one aray per flag
-	PrevAttestations           []*phase0.PendingAttestation // array of attestations (currently only for Phase0)
-	NumAttestations            int                          // number of attestations in the epoch
-	NumActiveVals              uint                         // number of active validators in the epoch
-	NumExitedVals              uint                         // number of exited validators in the epoch
-	NumSlashedVals             uint                         // number of slashed validators in the epoch
-	NumQueuedVals              uint                         // number of validators in the queue
-	BlockRoots                 []phase0.Root                // array of block roots at this point (8192)
-	MissedBlocks               []phase0.Slot                // blocks missed in the epoch until this point
-	SyncCommittee              altair.SyncCommittee         // list of pubkeys in the current sync committe
-	Blocks                     []*AgnosticBlock             // list of blocks in the epoch
-	Withdrawals                []phase0.Gwei                // one position per validator
-	WithdrawalsNum             uint64                       // number of withdrawals
-	TotalWithdrawalsAmount     phase0.Gwei                  // total amount of withdrawals
-	Deposits                   []phase0.Gwei                // one per validator index
-	DepositsNum                uint64                       // number of deposits
-	TotalDepositsAmount        phase0.Gwei                  // total amount of deposits
-	CurrentJustifiedCheckpoint phase0.Checkpoint            // the latest justified checkpoint
-	LatestBlockHeader          *phase0.BeaconBlockHeader
-	SyncCommitteeParticipation uint64 // Tracks sync committee participation
-	NewProposerSlashings       int    // number of new proposer slashings
-	NewAttesterSlashings       int    // number of new attester slashings
-	Slashings                  []AgnosticSlashing
+	Version                      spec.DataVersion
+	GenesisTimestamp             uint64 // genesis timestamp
+	StateRoot                    phase0.Root
+	Epoch                        phase0.Epoch                 // Epoch of the state
+	Slot                         phase0.Slot                  // Slot of the state
+	Balances                     []phase0.Gwei                // balance of each validator
+	Validators                   []*phase0.Validator          // list of validators
+	TotalActiveBalance           phase0.Gwei                  // effective balance
+	TotalActiveRealBalance       phase0.Gwei                  // real balance
+	AttestingBalance             []phase0.Gwei                // one attesting balance per flag (of the previous epoch attestations)
+	EpochStructs                 EpochDuties                  // structs about beacon committees, proposers and attestation
+	PrevEpochCorrectFlags        [][]bool                     // one aray per flag
+	PrevAttestations             []*phase0.PendingAttestation // array of attestations (currently only for Phase0)
+	ValidatorAttestationIncluded []bool                       // one per validator, if the validator's attestation was included
+	NumAttestations              int                          // number of attestations in the epoch
+	NumActiveVals                uint                         // number of active validators in the epoch
+	NumExitedVals                uint                         // number of exited validators in the epoch
+	NumSlashedVals               uint                         // number of slashed validators in the epoch
+	NumQueuedVals                uint                         // number of validators in the queue
+	BlockRoots                   []phase0.Root                // array of block roots at this point (8192)
+	MissedBlocks                 []phase0.Slot                // blocks missed in the epoch until this point
+	SyncCommittee                altair.SyncCommittee         // list of pubkeys in the current sync committe
+	Blocks                       []*AgnosticBlock             // list of blocks in the epoch
+	Withdrawals                  []phase0.Gwei                // one position per validator
+	WithdrawalsNum               uint64                       // number of withdrawals
+	TotalWithdrawalsAmount       phase0.Gwei                  // total amount of withdrawals
+	Deposits                     []phase0.Gwei                // one per validator index
+	DepositsNum                  uint64                       // number of deposits
+	TotalDepositsAmount          phase0.Gwei                  // total amount of deposits
+	CurrentJustifiedCheckpoint   phase0.Checkpoint            // the latest justified checkpoint
+	LatestBlockHeader            *phase0.BeaconBlockHeader
+	SyncCommitteeParticipation   uint64 // Tracks sync committee participation
+	NewProposerSlashings         int    // number of new proposer slashings
+	NewAttesterSlashings         int    // number of new attester slashings
+	Slashings                    []AgnosticSlashing
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -74,15 +75,15 @@ func (p *AgnosticState) Setup() error {
 	if p.Validators == nil {
 		return fmt.Errorf("validator list not provided, cannot create")
 	}
-	arrayLen := len(p.Validators)
+	validatorsNum := len(p.Validators)
 	if p.PrevAttestations == nil {
 		p.PrevAttestations = make([]*phase0.PendingAttestation, 0)
 	}
-
+	p.ValidatorAttestationIncluded = make([]bool, validatorsNum)
 	p.AttestingBalance = make([]phase0.Gwei, 3)
 	p.PrevEpochCorrectFlags = make([][]bool, 3) // matrix of 3 x n_validators
 	for i := range p.PrevEpochCorrectFlags {
-		p.PrevEpochCorrectFlags[i] = make([]bool, arrayLen)
+		p.PrevEpochCorrectFlags[i] = make([]bool, validatorsNum)
 	}
 	p.GetValsStateNums()
 	p.TotalActiveBalance = p.GetTotalActiveEffBalance()
@@ -279,6 +280,12 @@ func (p AgnosticState) GetMissingFlagCount(flagIndex int) uint64 {
 }
 
 func (p AgnosticState) GetValStatus(valIdx phase0.ValidatorIndex) ValidatorStatus {
+	// if the validator index is not in the list, return QUEUE_STATUS. Goteth should be designed to avoid this situation
+	// but by the way that the validator rewards are calculated, it is possible that the index is not in the list
+	// since the rewards are calculated based on the next state.
+	if int(valIdx) >= len(p.Validators) {
+		return QUEUE_STATUS
+	}
 
 	if p.Validators[valIdx].Slashed {
 		return SLASHED_STATUS

@@ -21,6 +21,7 @@ var (
 				COUNT(CASE WHEN f_missing_target = TRUE THEN 1 ELSE null END) as count_missing_target,
 				COUNT(CASE WHEN f_missing_head = TRUE THEN 1 ELSE null END) as count_missing_head,
 				COUNT(*) as count_expected_attestations,
+				SUM(CASE WHEN f_attestation_included = TRUE THEN 1 ELSE 0 END) as count_included_attestations,
 				SUM(CASE WHEN t_proposer_duties.f_proposed = TRUE THEN 1 ELSE 0 END) as proposed_blocks_performance,
 				SUM(CASE WHEN t_proposer_duties.f_proposed = FALSE and t_validator_rewards_summary.f_val_idx = t_proposer_duties.f_val_idx THEN 1 ELSE 0 END) as missed_blocks_performance,
 				count(distinct(t_validator_rewards_summary.f_val_idx)) as number_active_vals,
