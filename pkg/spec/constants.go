@@ -72,6 +72,7 @@ const (
 	SlashingModel
 	BLSToExecutionChangeModel
 	DepositModel
+	ETH1DepositModel
 )
 
 type ValidatorStatus int8
