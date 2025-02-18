@@ -123,7 +123,9 @@ func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock, receipts 
 		return err
 	}
 	block.ExecutionPayload.AgnosticTransactions = txs
-
+	if len(txs) == 0 {
+		return nil
+	}
 	err = s.dbClient.PersistTransactions(txs)
 	if err != nil {
 		log.Errorf("error persisting transactions: %s", err.Error())
