@@ -1,13 +1,11 @@
 package clientapi
 
 import (
-	"encoding/hex"
 	"errors"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/migalabs/goteth/pkg/spec"
@@ -18,117 +16,20 @@ var (
 	blobTxType uint8 = 3
 )
 
-func (client *APIClient) ParseSingleTx(
-	parsedTx types.Transaction,
-	receipt *types.Receipt,
-	slot phase0.Slot,
-	blockNumber uint64,
-	timestamp uint64) (spec.AgnosticTransaction, error) {
-
-	from, err := types.Sender(types.LatestSignerForChainID(parsedTx.ChainId()), &parsedTx)
-	if err != nil {
-		log.Warnf("unable to retrieve sender address from transaction: %s", err)
-		return spec.AgnosticTransaction{}, err
-	}
-
-	gasUsed := parsedTx.Gas()
-	gasPrice := parsedTx.GasPrice().Uint64()
-	contractAddress := common.Address{}
-	blobGasUsed := uint64(0)
-	blobGasPrice := uint64(0)
-	blobGasLimit := uint64(0)
-	blobGasFeeCap := uint64(0)
-
-	if receipt != nil {
-		gasUsed = receipt.GasUsed
-		gasPrice = receipt.EffectiveGasPrice.Uint64()
-		contractAddress = receipt.ContractAddress
-	}
-
-	if parsedTx.Type() == blobTxType {
-		blobGasUsed = receipt.BlobGasUsed
-		blobGasPrice = receipt.BlobGasPrice.Uint64()
-		blobGasLimit = parsedTx.BlobGas()
-		blobGasFeeCap = parsedTx.BlobGasFeeCap().Uint64()
-	}
-
-	return spec.AgnosticTransaction{
-		TxType:          parsedTx.Type(),
-		ChainId:         uint8(parsedTx.ChainId().Uint64()),
-		Data:            hex.EncodeToString(parsedTx.Data()),
-		Gas:             gasUsed,
-		GasPrice:        gasPrice,
-		GasTipCap:       parsedTx.GasTipCap().Uint64(),
-		GasFeeCap:       parsedTx.GasFeeCap().Uint64(),
-		Value:           parsedTx.Value().Uint64(),
-		Nonce:           parsedTx.Nonce(),
-		To:              parsedTx.To(),
-		From:            from,
-		Hash:            phase0.Hash32(parsedTx.Hash()),
-		Size:            parsedTx.Size(),
-		Slot:            slot,
-		BlockNumber:     blockNumber,
-		Timestamp:       timestamp,
-		ContractAddress: contractAddress,
-		BlobGasUsed:     blobGasUsed,
-		BlobGasPrice:    blobGasPrice,
-		BlobGasLimit:    blobGasLimit,
-		BlobGasFeeCap:   blobGasFeeCap,
-		BlobHashes:      parsedTx.BlobHashes(),
-	}, nil
-
-}
-
-func (client *APIClient) GetBlockTransactions(block spec.AgnosticBlock) ([]spec.AgnosticTransaction, error) {
-	agnosticTxs := make([]spec.AgnosticTransaction, 0)
+func (client *APIClient) GetBlockReceipts(block spec.AgnosticBlock) ([]*types.Receipt, error) {
 	blockNumber := rpc.BlockNumber(block.ExecutionPayload.BlockNumber)
-
-	receipts := make([]*types.Receipt, 0)
-	var err error
-
-	if client.ELApi != nil {
-		receipts, err = client.ELApi.BlockReceipts(client.ctx, rpc.BlockNumberOrHashWithNumber(blockNumber))
-	}
-
+	receipts, err := client.ELApi.BlockReceipts(client.ctx, rpc.BlockNumberOrHashWithNumber(blockNumber))
 	if err != nil {
 		return nil, err
 	}
-
-	txs := make([]bellatrix.Transaction, len(block.ExecutionPayload.Transactions))
-	copy(txs, block.ExecutionPayload.Transactions)
-
-	// match receipts and transactions
-
-	for _, tx := range txs {
-		var parsedTx = &types.Transaction{}
-		if err := parsedTx.UnmarshalBinary(tx); err != nil {
-			return nil, err
-		}
-		for _, receipt := range receipts {
-			if receipt.TxHash.String() == parsedTx.Hash().String() {
-				// we found a match
-				agnosticTx, err := client.ParseSingleTx(
-					*parsedTx,
-					receipt,
-					block.Slot,
-					block.ExecutionPayload.BlockNumber,
-					block.ExecutionPayload.Timestamp)
-				if err != nil {
-					return nil, err
-				}
-				agnosticTxs = append(agnosticTxs, agnosticTx)
-				break
-			}
-		}
-	}
-	return agnosticTxs, nil
+	return receipts, nil
 }
 
 // convert transactions from byte sequences to Transaction object
-func (s *APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
+func (s *APIClient) GetTransactionReceipt(iTx bellatrix.Transaction,
 	iSlot phase0.Slot,
 	iBlockNumber uint64,
-	iTimestamp uint64) (*spec.AgnosticTransaction, error) {
+	iTimestamp uint64) (*types.Receipt, error) {
 
 	var parsedTx = &types.Transaction{}
 	if err := parsedTx.UnmarshalBinary(iTx); err != nil {
@@ -158,16 +59,6 @@ func (s *APIClient) RequestTransactionDetails(iTx bellatrix.Transaction,
 		}
 	}
 
-	agnosticTx, err := s.ParseSingleTx(
-		*parsedTx,
-		receipt,
-		iSlot,
-		iBlockNumber,
-		iTimestamp)
-
-	if err != nil {
-		return nil, err
-	}
-	return &agnosticTx, nil
+	return receipt, nil
 
 }
