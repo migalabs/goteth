@@ -86,13 +86,7 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 
 		customBlock.Reward = reward
 	}
-	if s.Metrics.Transactions {
-		txs, err := s.GetBlockTransactions(customBlock)
-		if err != nil {
-			log.Errorf("error getting slot %d transactions: %s", customBlock.Slot, err.Error())
-		}
-		customBlock.ExecutionPayload.AgnosticTransactions = txs
-	}
+
 	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 
 	return &customBlock, nil

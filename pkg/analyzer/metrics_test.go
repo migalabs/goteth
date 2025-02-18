@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/migalabs/goteth/pkg/clientapi"
 	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
@@ -321,12 +322,15 @@ func TestCapellaBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 222)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 16)
 
-	transaction, err := blockAnalyzer.cli.RequestTransactionDetails(
-		block.ExecutionPayload.Transactions[0],
-		block.Slot,
-		block.ExecutionPayload.BlockNumber,
-		block.ExecutionPayload.Timestamp,
-	)
+	tx := block.ExecutionPayload.Transactions[0]
+	receipt, err := blockAnalyzer.cli.GetTransactionReceipt(tx, block.Slot, block.ExecutionPayload.BlockNumber, block.ExecutionPayload.Timestamp)
+	var parsedTx = types.Transaction{}
+	if err := parsedTx.UnmarshalBinary(tx); err != nil {
+		t.Errorf("could not unmarshal transaction: %s", err)
+		return
+	}
+	transaction, err := spec.ParseTransactionFromReceipt(parsedTx, receipt, block.Slot, block.ExecutionPayload.BlockNumber, block.ExecutionPayload.Timestamp)
+
 	if err != nil {
 		t.Errorf("could not retrieve transaction details: %s", err)
 		return
@@ -386,12 +390,16 @@ func TestBellatrixBlock(t *testing.T) {
 	assert.Equal(t, len(block.ExecutionPayload.Transactions), 441)
 	assert.Equal(t, len(block.ExecutionPayload.Withdrawals), 0)
 
-	transaction, err := blockAnalyzer.cli.RequestTransactionDetails(
-		block.ExecutionPayload.Transactions[0],
-		block.Slot,
-		block.ExecutionPayload.BlockNumber,
-		block.ExecutionPayload.Timestamp,
-	)
+	tx := block.ExecutionPayload.Transactions[0]
+
+	receipt, err := blockAnalyzer.cli.GetTransactionReceipt(tx, block.Slot, block.ExecutionPayload.BlockNumber, block.ExecutionPayload.Timestamp)
+	var parsedTx = types.Transaction{}
+	if err := parsedTx.UnmarshalBinary(tx); err != nil {
+		t.Errorf("could not unmarshal transaction: %s", err)
+		return
+	}
+
+	transaction, err := spec.ParseTransactionFromReceipt(parsedTx, receipt, block.Slot, block.ExecutionPayload.BlockNumber, block.ExecutionPayload.Timestamp)
 
 	if err != nil {
 		t.Errorf("could not retrieve transaction details: %s", err)
@@ -535,14 +543,25 @@ func TestTransactionGasWhenELIsProvided(t *testing.T) {
 
 	// Test regular case
 	block, err := blockAnalyzer.cli.RequestBeaconBlock(8020631) //block number 18826815
+	if err != nil {
+		t.Errorf("could not download block: %s", err)
+		return
+	}
 	assert.Equal(t, block.Proposed, true)
 
-	transaction, err := blockAnalyzer.cli.RequestTransactionDetails(
-		block.ExecutionPayload.Transactions[10],
-		block.Slot,
-		block.ExecutionPayload.BlockNumber,
-		block.ExecutionPayload.Timestamp,
-	)
+	tx := block.ExecutionPayload.Transactions[10]
+	receipt, err := blockAnalyzer.cli.GetTransactionReceipt(tx, block.Slot, block.ExecutionPayload.BlockNumber, block.ExecutionPayload.Timestamp)
+	if err != nil {
+		t.Errorf("could not retrieve transaction receipt: %s", err)
+		return
+	}
+	var parsedTx = types.Transaction{}
+	if err := parsedTx.UnmarshalBinary(tx); err != nil {
+		t.Errorf("could not unmarshal transaction: %s", err)
+		return
+	}
+
+	transaction, err := spec.ParseTransactionFromReceipt(parsedTx, receipt, block.Slot, block.ExecutionPayload.BlockNumber, block.ExecutionPayload.Timestamp)
 
 	if err != nil {
 		t.Errorf("could not retrieve transaction details: %s", err)
@@ -564,14 +583,25 @@ func TestTransactionGasWhenELNotProvided(t *testing.T) {
 
 	// Test regular case
 	block, err := blockAnalyzer.cli.RequestBeaconBlock(8020631) //block number 18826815
+	if err != nil {
+		t.Errorf("could not download block: %s", err)
+		return
+	}
 	assert.Equal(t, block.Proposed, true)
 
-	transaction, err := blockAnalyzer.cli.RequestTransactionDetails(
-		block.ExecutionPayload.Transactions[10],
-		block.Slot,
-		block.ExecutionPayload.BlockNumber,
-		block.ExecutionPayload.Timestamp,
-	)
+	tx := block.ExecutionPayload.Transactions[10]
+	receipt, err := blockAnalyzer.cli.GetTransactionReceipt(tx, block.Slot, block.ExecutionPayload.BlockNumber, block.ExecutionPayload.Timestamp)
+	if err != nil {
+		t.Errorf("could not retrieve transaction receipt: %s", err)
+		return
+	}
+	var parsedTx = types.Transaction{}
+	if err := parsedTx.UnmarshalBinary(tx); err != nil {
+		t.Errorf("could not unmarshal transaction: %s", err)
+		return
+	}
+
+	transaction, err := spec.ParseTransactionFromReceipt(parsedTx, receipt, block.Slot, block.ExecutionPayload.BlockNumber, block.ExecutionPayload.Timestamp)
 
 	if err != nil {
 		t.Errorf("could not retrieve transaction details: %s", err)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
@@ -27,14 +28,30 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	s.processWithdrawals(block)
 
 	if s.metrics.Transactions {
-		s.processTransactions(block)
-		s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
+		s.ProcessETH1Data(block)
 	}
 	s.processBLSToExecutionChanges(block)
 	s.processDeposits(block)
 	s.processerBook.FreePage(routineKey)
 }
 
+func (s *ChainAnalyzer) ProcessETH1Data(block *spec.AgnosticBlock) {
+	receipts, err := s.cli.GetBlockReceipts(*block)
+	if err != nil {
+		log.Errorf("error getting slot %d receipts: %s", block.Slot, err.Error())
+		return
+	}
+
+	err = s.processTransactions(block, receipts)
+	if err != nil {
+		log.Errorf("error processing transactions: %s", err.Error())
+		return
+	}
+
+	s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
+}
+
+// Process consensus layer deposits
 func (s *ChainAnalyzer) processDeposits(block *spec.AgnosticBlock) {
 	if len(block.Deposits) == 0 {
 		return
@@ -98,19 +115,22 @@ func (s *ChainAnalyzer) processWithdrawals(block *spec.AgnosticBlock) {
 
 }
 
-func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock) {
+func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock, receipts []*types.Receipt) error {
 
-	txs, err := s.cli.GetBlockTransactions(*block)
+	txs, err := spec.ParseTransactionsFromBlock(*block, receipts)
 	if err != nil {
 		log.Errorf("error getting slot %d transactions: %s", block.Slot, err.Error())
+		return err
 	}
 	block.ExecutionPayload.AgnosticTransactions = txs
-
+	if len(txs) == 0 {
+		return nil
+	}
 	err = s.dbClient.PersistTransactions(txs)
 	if err != nil {
 		log.Errorf("error persisting transactions: %s", err.Error())
 	}
-
+	return err
 }
 
 func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spec.AgnosticTransaction) {
