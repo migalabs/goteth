@@ -19,6 +19,7 @@ type AnalyzerConfig struct {
 	Metrics                  string      `json:"metrics"`
 	PrometheusPort           int         `json:"prometheus-port"`
 	MaxRequestRetries        int         `json:"max-request-retries"`
+	BeaconContractAddress    string      `json:"beacon-contract-address"`
 }
 
 // TODO: read from config-file
@@ -38,6 +39,7 @@ func NewAnalyzerConfig() *AnalyzerConfig {
 		Metrics:                  DefaultMetrics,
 		PrometheusPort:           DefaultPrometheusPort,
 		MaxRequestRetries:        DefaultMaxRequestRetries,
+		BeaconContractAddress:    DefaultBeaconContractAddress,
 	}
 }
 
@@ -94,5 +96,9 @@ func (c *AnalyzerConfig) Apply(ctx *cli.Context) {
 	// max request retries
 	if ctx.IsSet("max-request-retries") {
 		c.MaxRequestRetries = ctx.Int("max-request-retries")
+	}
+	// beacon contract address
+	if ctx.IsSet("beacon-contract-address") {
+		c.BeaconContractAddress = ctx.String("beacon-contract-address")
 	}
 }

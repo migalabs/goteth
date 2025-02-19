@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/migalabs/goteth/pkg/spec"
 )
@@ -63,8 +62,7 @@ func (s *ChainAnalyzer) processETH1Deposits(block *spec.AgnosticBlock) error {
 	var deposits []spec.ETH1Deposit
 	for _, tx := range block.ExecutionPayload.AgnosticTransactions {
 		for _, logEntry := range tx.Receipt.Logs {
-			beaconAddress := common.HexToAddress("0x00000000219ab540356cBB839Cbe05303d7705Fa")
-			if logEntry.Address == beaconAddress {
+			if logEntry.Address == s.beaconContractAddress {
 				deposit := spec.ParseETH1DepositFromLog(logEntry, &tx)
 				deposits = append(deposits, deposit)
 			}

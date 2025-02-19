@@ -96,7 +96,14 @@ var BlocksCommand = &cli.Command{
 			Usage:       "Number of retries to make when a request fails. For head mode it shouldn't be higher than 3-4, for historical its recommended to be higher",
 			EnvVars:     []string{"ANALYZER_MAX_REQUEST_RETRIES"},
 			DefaultText: "3",
-		}},
+		},
+		&cli.StringFlag{
+			Name:        "beacon-contract-address",
+			Usage:       "Beacon contract address. Can be 'mainnet', 'holesky', 'sepolia' or directly the contract address in format '0x...'",
+			EnvVars:     []string{"ANALYZER_BEACON_CONTRACT_ADDRESS"},
+			DefaultText: "mainnet",
+		},
+	},
 }
 
 var logCmdChain = logrus.WithField(

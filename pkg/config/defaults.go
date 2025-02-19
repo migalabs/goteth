@@ -15,4 +15,5 @@ var (
 	DefaultPrometheusPort           int    = 9080
 	DefaultValidatorWindowEpochs    int    = 100
 	DefaultMaxRequestRetries        int    = 3
+	DefaultBeaconContractAddress    string = "mainnet"
 )

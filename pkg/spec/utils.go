@@ -1,6 +1,8 @@
 package spec
 
 import (
+	"regexp"
+
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/sirupsen/logrus"
 )
@@ -32,4 +34,9 @@ func FirstSlotInEpoch(slot phase0.Slot) phase0.Slot {
 
 func EpochAtSlot(slot phase0.Slot) phase0.Epoch {
 	return phase0.Epoch(slot / SlotsPerEpoch)
+}
+
+func HexStringAddressIsValid(address string) bool {
+	hexPattern := regexp.MustCompile(`^(0x)?[0-9a-fA-F]+$`)
+	return len(address) == 42 && hexPattern.MatchString(address)
 }
