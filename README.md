@@ -89,6 +89,7 @@ OPTIONS:
    --metrics value         example: epoch,block,rewards,transactions,api_rewards. Empty for all (default: epoch,block)
    --prometheus-port value Port on which to expose prometheus metrics (default: 9081)
    --max-request-retries value         Number of retries to make when a request fails. For head mode it shouldn't be higher than 3-4, for historical its recommended to be higher (default: 3)
+   --beacon-contract-address value     Beacon contract address. Can be 'mainnet', 'holesky', 'sepolia' or directly the contract address in format '0x...' (default: mainnet)
    --help, -h              show help (default: false)
 ```
 

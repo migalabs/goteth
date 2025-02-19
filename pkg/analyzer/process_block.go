@@ -48,7 +48,35 @@ func (s *ChainAnalyzer) ProcessETH1Data(block *spec.AgnosticBlock) {
 		return
 	}
 
+	// process eth1 deposits depends on processTransactions storing the receipts on the Agnostic transactions
+	err = s.processETH1Deposits(block)
+	if err != nil {
+		log.Errorf("error processing eth1 deposits: %s", err.Error())
+		return
+	}
+
 	s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
+}
+
+func (s *ChainAnalyzer) processETH1Deposits(block *spec.AgnosticBlock) error {
+	var deposits []spec.ETH1Deposit
+	for _, tx := range block.ExecutionPayload.AgnosticTransactions {
+		for _, logEntry := range tx.Receipt.Logs {
+			if logEntry.Address == s.beaconContractAddress {
+				deposit := spec.ParseETH1DepositFromLog(logEntry, &tx)
+				deposits = append(deposits, deposit)
+			}
+		}
+	}
+
+	if len(deposits) == 0 {
+		return nil
+	}
+	err := s.dbClient.PersistETH1Deposits(deposits)
+	if err != nil {
+		log.Errorf("error persisting eth1 deposits: %s", err.Error())
+	}
+	return err
 }
 
 // Process consensus layer deposits

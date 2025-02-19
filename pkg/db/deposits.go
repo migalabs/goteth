@@ -19,10 +19,6 @@ var (
 		f_index
 		)
 		VALUES`
-
-	deleteDepositsQuery = `
-		DELETE FROM %s
-		WHERE f_slot = $1;`
 )
 
 func depositsInput(depositss []spec.Deposit) proto.Input {

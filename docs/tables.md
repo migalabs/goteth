@@ -303,3 +303,23 @@ Table that stores the data of the deposits on the beaconchain.
 | f_amount                 | uint64       | amount of ETH deposited (Gwei)                    |
 | f_signature              | string       | signature of the deposit data                     |
 | f_index                  | uint64       | index of the deposit in the slot                  |
+
+# ETH1 Deposits (`t_eth1_deposits`)
+
+Will only be filled if the correct beacon contract address is provided in the `.env` file or from the CLI.
+
+| Column Name              | Type of Data | Description                                    |     |     |
+| ------------------------ | ------------ | ---------------------------------------------- | --- | --- |
+| f_block_number           | uint64       | block number at which the deposit was included |
+| f_block_hash             | string       | hash of the block                              |
+| f_tx_hash                | string       | hash of the transaction                        |
+| f_log_index              | uint64       | log index of the deposit                       |
+| f_sender                 | string       | address of the sender                          |
+| f_recipient              | string       | address of the recipient                       |
+| f_gas_used               | uint64       | gas used for the transaction                   |
+| f_gas_price              | uint64       | gas price for the transaction                  |
+| f_deposit_index          | uint64       | index of the deposit                           |
+| f_validator_pubkey       | string       | public key of the validator                    |
+| f_withdrawal_credentials | string       | withdrawal credentials of the validator        |
+| f_signature              | string       | signature of the deposit data                  |
+| f_amount                 | uint64       | amount of ETH deposited (Gwei)                 |

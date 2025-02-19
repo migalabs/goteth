@@ -104,3 +104,56 @@ func TestFirstSlotInEpoch(t *testing.T) {
 	}
 
 }
+
+func TestHexStringAddressIsValid(t *testing.T) {
+	tests := []struct {
+		name    string
+		address string
+		valid   bool
+	}{
+		{
+			name:    "Empty",
+			address: "",
+			valid:   false,
+		},
+		{
+			name:    "Short",
+			address: "0x123",
+			valid:   false,
+		},
+		{
+			name:    "Long",
+			address: "0x12345678901234567890123456789012345678901",
+			valid:   false,
+		},
+		{
+			name:    "Invalid",
+			address: "0x123456789012345678901234567890123456790g",
+			valid:   false,
+		},
+		{
+			name:    "Valid (Mainnet)",
+			address: "0x00000000219ab540356cBB839Cbe05303d7705Fa",
+			valid:   true,
+		},
+		{
+			name:    "Valid (Sepolia)",
+			address: "0x7f02C3E3c98b133055B8B348B2Ac625669Ed295D",
+			valid:   true,
+		},
+		{
+			name:    "Valid (Holesky)",
+			address: "0x4242424242424242424242424242424242424242",
+			valid:   true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			valid := spec.HexStringAddressIsValid(test.address)
+			if valid != test.valid {
+				t.Errorf("HexStringAddressIsValid() returned %v, expected %v", valid, test.valid)
+			}
+		})
+	}
+}

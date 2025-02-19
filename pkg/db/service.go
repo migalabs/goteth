@@ -149,7 +149,8 @@ type PersistableObject[
 		BlockReward |
 		spec.AgnosticSlashing |
 		spec.BLSToExecutionChange |
-		spec.Deposit] struct {
+		spec.Deposit |
+		spec.ETH1Deposit] struct {
 	table string
 	query string
 	data  []T

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/migalabs/goteth/pkg/clientapi"
 	"github.com/migalabs/goteth/pkg/config"
 	"github.com/migalabs/goteth/pkg/db"
@@ -21,6 +22,9 @@ import (
 type ChainAnalyzer struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// Chain Variables
+	beaconContractAddress common.Address
 
 	// Slot Range for historical
 	initSlot  phase0.Slot
@@ -124,6 +128,19 @@ func NewChainAnalyzer(
 		}, errors.Wrap(err, "unable to generate API Client.")
 	}
 
+	// Parse beacon contract address
+	beaconContractAddressInput := iConfig.BeaconContractAddress
+	// check if input was a network name and the contract address is known
+	if address, ok := spec.BeaconContractAddresses[beaconContractAddressInput]; ok {
+		beaconContractAddressInput = address
+	} else if !spec.HexStringAddressIsValid(beaconContractAddressInput) {
+		return &ChainAnalyzer{
+			ctx:    ctx,
+			cancel: cancel,
+		}, errors.Errorf("Invalid beacon contract address: %s", beaconContractAddressInput)
+	}
+	beaconContractAddress := common.HexToAddress(beaconContractAddressInput)
+
 	genesisTime := cli.RequestGenesis()
 
 	// generate the relays client
@@ -140,6 +157,7 @@ func NewChainAnalyzer(
 	analyzer := &ChainAnalyzer{
 		ctx:                           ctx,
 		cancel:                        cancel,
+		beaconContractAddress:         beaconContractAddress,
 		initSlot:                      phase0.Slot(iConfig.InitSlot),
 		finalSlot:                     phase0.Slot(iConfig.FinalSlot),
 		downloadTaskChan:              make(chan phase0.Slot, rateLimit), // TODO: define size of buffer depending on performance

@@ -39,6 +39,9 @@ type AgnosticTransaction struct {
 	BlobGasPrice  uint64 // price per unit of gas used => Wei
 	BlobGasLimit  uint64 // maximum gas allowed
 	BlobGasFeeCap uint64
+
+	// Receipt
+	Receipt *types.Receipt
 }
 
 func (txs AgnosticTransaction) Type() ModelType {
@@ -134,6 +137,7 @@ func ParseTransactionFromReceipt(
 		BlobGasLimit:    blobGasLimit,
 		BlobGasFeeCap:   blobGasFeeCap,
 		BlobHashes:      parsedTx.BlobHashes(),
+		Receipt:         receipt,
 	}, nil
 
 }

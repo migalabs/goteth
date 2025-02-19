@@ -16,10 +16,6 @@ var (
 		f_to_execution_address
 		)
 		VALUES`
-
-	deleteBLSToExecutionChangesQuery = `
-		DELETE FROM %s
-		WHERE f_slot = $1;`
 )
 
 func blsToExecutionChangeInput(blsToExecutionChanges []spec.BLSToExecutionChange) proto.Input {
