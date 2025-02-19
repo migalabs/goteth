@@ -2,7 +2,6 @@ CREATE TABLE t_eth1_deposits
 (
     f_block_number      UInt64,
     f_block_hash        TEXT,
-    f_block_timestamp   UInt64,
     f_tx_hash           TEXT,
     f_log_index         UInt64,
     f_sender            TEXT,

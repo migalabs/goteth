@@ -6,12 +6,11 @@ import (
 )
 
 var (
-	eth1DepositsTable       = "t_eth1Deposits"
+	eth1DepositsTable       = "t_eth1_deposits"
 	insertETH1DepositsQuery = `
 		INSERT INTO %s(
 			f_block_number,
 			f_block_hash,
-			f_block_timestamp,
 			f_tx_hash,
 			f_log_index,
 			f_sender,
@@ -20,7 +19,7 @@ var (
 			f_gas_price,
 			f_deposit_index,
 			f_validator_pubkey,
-			f_withdrawal_credentials
+			f_withdrawal_credentials,
 			f_signature,
 			f_amount)
 		VALUES`
@@ -31,7 +30,6 @@ func eth1DepositsInput(eth1Deposits []spec.ETH1Deposit) proto.Input {
 	var (
 		f_block_number           proto.ColUInt64
 		f_block_hash             proto.ColStr
-		f_block_timestamp        proto.ColUInt64
 		f_tx_hash                proto.ColStr
 		f_log_index              proto.ColUInt64
 		f_sender                 proto.ColStr
@@ -48,7 +46,6 @@ func eth1DepositsInput(eth1Deposits []spec.ETH1Deposit) proto.Input {
 	for _, eth1Deposit := range eth1Deposits {
 		f_block_number.Append(uint64(eth1Deposit.BlockNumber))
 		f_block_hash.Append(eth1Deposit.BlockHash)
-		f_block_timestamp.Append(uint64(eth1Deposit.BlockTimestamp))
 		f_tx_hash.Append(eth1Deposit.TxHash)
 		f_log_index.Append(uint64(eth1Deposit.LogIndex))
 		f_sender.Append(eth1Deposit.Sender)
@@ -65,7 +62,6 @@ func eth1DepositsInput(eth1Deposits []spec.ETH1Deposit) proto.Input {
 	return proto.Input{
 		{Name: "f_block_number", Data: f_block_number},
 		{Name: "f_block_hash", Data: f_block_hash},
-		{Name: "f_block_timestamp", Data: f_block_timestamp},
 		{Name: "f_tx_hash", Data: f_tx_hash},
 		{Name: "f_log_index", Data: f_log_index},
 		{Name: "f_sender", Data: f_sender},
