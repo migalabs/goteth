@@ -1,3 +1,4 @@
 .pytest_cache/**
 .vscode/**
 clickhouse_data/**
+clickhouse_data
