@@ -306,6 +306,8 @@ Table that stores the data of the deposits on the beaconchain.
 
 # ETH1 Deposits (`t_eth1_deposits`)
 
+Will only be filled if the correct beacon contract address is provided in the `.env` file or from the CLI.
+
 | Column Name              | Type of Data | Description                                    |     |     |
 | ------------------------ | ------------ | ---------------------------------------------- | --- | --- |
 | f_block_number           | uint64       | block number at which the deposit was included |
