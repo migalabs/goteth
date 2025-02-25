@@ -65,6 +65,8 @@ func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (Agnos
 		return NewCapellaState(bstate, duties), nil
 	case spec.DataVersionDeneb:
 		return NewDenebState(bstate, duties), nil
+	case spec.DataVersionElectra:
+		return NewElectraState(bstate, duties), nil
 	default:
 		return AgnosticState{}, fmt.Errorf("could not figure out the Beacon State Fork Version: %s", bstate.Version)
 	}
@@ -452,7 +454,7 @@ func NewCapellaState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnos
 	return capellaObj
 }
 
-// This Wrapper is meant to include all necessary data from the Capella Fork
+// This Wrapper is meant to include all necessary data from the Deneb Fork
 func NewDenebState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
 
 	denebObj := AgnosticState{
@@ -474,4 +476,27 @@ func NewDenebState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnosti
 	ProcessAltairAttestations(&denebObj, bstate.Deneb.PreviousEpochParticipation)
 
 	return denebObj
+}
+
+// This Wrapper is meant to include all necessary data from the Electra Fork
+func NewElectraState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
+	electraObj := AgnosticState{
+		Version:                    bstate.Version,
+		Balances:                   bstate.Electra.Balances,
+		Validators:                 bstate.Electra.Validators,
+		EpochStructs:               duties,
+		Epoch:                      phase0.Epoch(bstate.Electra.Slot / SlotsPerEpoch),
+		Slot:                       bstate.Electra.Slot,
+		BlockRoots:                 bstate.Electra.BlockRoots,
+		SyncCommittee:              *bstate.Electra.CurrentSyncCommittee,
+		GenesisTimestamp:           bstate.Electra.GenesisTime,
+		CurrentJustifiedCheckpoint: *bstate.Electra.CurrentJustifiedCheckpoint,
+		LatestBlockHeader:          bstate.Electra.LatestBlockHeader,
+	}
+
+	electraObj.Setup()
+
+	ProcessAltairAttestations(&electraObj, bstate.Electra.PreviousEpochParticipation)
+
+	return electraObj
 }
