@@ -111,7 +111,11 @@ func (p *AgnosticState) CalculateSyncParticipation() {
 
 func (p *AgnosticState) CalculateNumAttestations() {
 	for _, block := range p.Blocks {
-		p.NumAttestations += len(block.Attestations)
+		if block.Attestations != nil {
+			p.NumAttestations += len(block.Attestations)
+		} else if block.ElectraAttestations != nil {
+			p.NumAttestations += len(block.ElectraAttestations)
+		}
 	}
 }
 
