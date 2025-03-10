@@ -10,6 +10,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -140,16 +141,17 @@ func (s *APIClient) CreateMissingBlock(slot phase0.Slot) *local_spec.AgnosticBlo
 	}
 
 	return &local_spec.AgnosticBlock{
-		Slot:              slot,
-		StateRoot:         s.RequestStateRoot(slot),
-		ProposerIndex:     proposerValIdx,
-		Graffiti:          [32]byte{},
-		Proposed:          false,
-		Attestations:      make([]*phase0.Attestation, 0),
-		Deposits:          make([]*phase0.Deposit, 0),
-		ProposerSlashings: make([]*phase0.ProposerSlashing, 0),
-		AttesterSlashings: make([]*phase0.AttesterSlashing, 0),
-		VoluntaryExits:    make([]*phase0.SignedVoluntaryExit, 0),
+		Slot:                slot,
+		StateRoot:           s.RequestStateRoot(slot),
+		ProposerIndex:       proposerValIdx,
+		Graffiti:            [32]byte{},
+		Proposed:            false,
+		Attestations:        make([]*phase0.Attestation, 0),
+		ElectraAttestations: make([]*electra.Attestation, 0),
+		Deposits:            make([]*phase0.Deposit, 0),
+		ProposerSlashings:   make([]*phase0.ProposerSlashing, 0),
+		AttesterSlashings:   make([]*phase0.AttesterSlashing, 0),
+		VoluntaryExits:      make([]*phase0.SignedVoluntaryExit, 0),
 		SyncAggregate: &altair.SyncAggregate{
 			SyncCommitteeBits:      bitfield.NewBitvector512(),
 			SyncCommitteeSignature: phase0.BLSSignature{},

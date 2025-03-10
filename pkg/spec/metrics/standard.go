@@ -69,6 +69,8 @@ func StateMetricsByForkVersion(
 
 	case spec.DataVersionDeneb:
 		return NewDenebMetrics(nextState, currentState, prevState), nil
+	case spec.DataVersionElectra:
+		return NewElectraMetrics(nextState, currentState, prevState), nil
 	default:
 		return nil, fmt.Errorf("could not figure out the State Metrics Fork Version: %s", currentState.Version)
 	}
