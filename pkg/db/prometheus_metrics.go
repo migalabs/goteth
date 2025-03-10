@@ -96,6 +96,7 @@ func (r *DBService) initMonitorMetrics() {
 		blsToExecutionChangeTable,
 		depositsTable,
 		eth1DepositsTable,
+		consolidationRequestsTable,
 	}
 
 	for _, tableName := range tablesArr {

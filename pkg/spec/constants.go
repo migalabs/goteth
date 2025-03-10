@@ -84,6 +84,7 @@ const (
 	BLSToExecutionChangeModel
 	DepositModel
 	ETH1DepositModel
+	ConsolidationRequestModel
 )
 
 type ValidatorStatus int8
