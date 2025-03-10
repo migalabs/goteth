@@ -100,9 +100,10 @@ func (s *ChainAnalyzer) processConsolidationRequests(block *spec.AgnosticBlock) 
 		return
 	}
 	var consolidationRequests []spec.ConsolidationRequest
-	for _, item := range block.ExecutionRequests.Consolidations {
+	for i, item := range block.ExecutionRequests.Consolidations {
 		consolidationRequests = append(consolidationRequests, spec.ConsolidationRequest{
 			Slot:          block.Slot,
+			Index:         uint64(i),
 			SourceAddress: item.SourceAddress,
 			SourcePubkey:  item.SourcePubkey,
 			TargetPubkey:  item.TargetPubkey,

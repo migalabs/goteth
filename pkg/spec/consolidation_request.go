@@ -7,6 +7,7 @@ import (
 
 type ConsolidationRequest struct {
 	Slot          phase0.Slot
+	Index         uint64
 	SourceAddress bellatrix.ExecutionAddress
 	SourcePubkey  phase0.BLSPubKey
 	TargetPubkey  phase0.BLSPubKey
@@ -19,6 +20,7 @@ func (f ConsolidationRequest) Type() ModelType {
 func (f ConsolidationRequest) ToArray() []interface{} {
 	rows := []interface{}{
 		f.Slot,
+		f.Index,
 		f.SourceAddress,
 		f.SourcePubkey,
 		f.TargetPubkey,

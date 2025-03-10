@@ -10,6 +10,7 @@ var (
 	insertConsolidationRequestQuery = `
 	INSERT INTO %s (
 		f_slot,
+		f_index,
 		f_source_address,
 		f_source_pubkey,
 		f_target_pubkey
@@ -21,6 +22,7 @@ func consolidationRequestsInput(consolidationRequestss []spec.ConsolidationReque
 	// one object per column
 	var (
 		f_slot           proto.ColUInt64
+		f_index          proto.ColUInt64
 		f_source_address proto.ColStr
 		f_source_pubkey  proto.ColStr
 		f_target_pubkey  proto.ColStr
@@ -29,6 +31,7 @@ func consolidationRequestsInput(consolidationRequestss []spec.ConsolidationReque
 	for _, consolidationRequest := range consolidationRequestss {
 
 		f_slot.Append(uint64(consolidationRequest.Slot))
+		f_index.Append(consolidationRequest.Index)
 		f_source_address.Append(consolidationRequest.SourceAddress.String())
 		f_source_pubkey.Append(consolidationRequest.SourcePubkey.String())
 		f_target_pubkey.Append(consolidationRequest.TargetPubkey.String())
@@ -36,6 +39,7 @@ func consolidationRequestsInput(consolidationRequestss []spec.ConsolidationReque
 
 	return proto.Input{
 		{Name: "f_slot", Data: f_slot},
+		{Name: "f_index", Data: f_index},
 		{Name: "f_source_address", Data: f_source_address},
 		{Name: "f_source_pubkey", Data: f_source_pubkey},
 		{Name: "f_target_pubkey", Data: f_target_pubkey},
