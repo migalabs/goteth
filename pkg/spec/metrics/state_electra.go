@@ -176,39 +176,12 @@ func (p *ElectraMetrics) ProcessInclusionDelays() {
 	}
 }
 
-// https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#get_flag_index_deltas
-func (p ElectraMetrics) GetMaxFlagIndexDeltas() {
-
-	for valIdx, validator := range p.baseMetrics.NextState.Validators {
-		maxFlagsReward := phase0.Gwei(0)
-		// the maxReward would be each flag_index_weight * base_reward * (attesting_balance_inc / total_active_balance_inc) / WEIGHT_DENOMINATOR
-
-		if spec.IsActive(*validator, phase0.Epoch(p.baseMetrics.PrevState.Epoch)) {
-			baseReward := p.GetBaseReward(phase0.ValidatorIndex(valIdx), p.baseMetrics.CurrentState.Validators[valIdx].EffectiveBalance, p.baseMetrics.CurrentState.TotalActiveBalance)
-			// only consider flag Index rewards if the validator was active in the previous epoch
-
-			for i := range p.baseMetrics.CurrentState.AttestingBalance {
-
-				if !p.isFlagPossible(phase0.ValidatorIndex(valIdx), i) { // consider if the attester could have achieved the flag (inclusion delay wise)
-					continue
-				}
-				// apply formula
-				attestingBalanceInc := p.baseMetrics.CurrentState.AttestingBalance[i] / spec.EffectiveBalanceInc
-
-				flagReward := phase0.Gwei(spec.ParticipatingFlagsWeight[i]) * baseReward * attestingBalanceInc
-				flagReward = flagReward / ((phase0.Gwei(p.baseMetrics.CurrentState.TotalActiveBalance / spec.EffectiveBalanceInc)) * phase0.Gwei(spec.WeightDenominator))
-				maxFlagsReward += flagReward
-			}
-		}
-
-		p.baseMetrics.MaxAttesterRewards[phase0.ValidatorIndex(valIdx)] += maxFlagsReward
-	}
-}
-
+// Changed the attestation struct to electra.
 func (p ElectraMetrics) GetInclusionDelay(attestation electra.Attestation, includedInBlock spec.AgnosticBlock) int {
 	return int(includedInBlock.Slot - attestation.Data.Slot)
 }
 
+// Changed the attestation struct to electra.
 func (p ElectraMetrics) getParticipationFlags(attestation electra.Attestation, includedInBlock spec.AgnosticBlock) [3]bool {
 	var result [3]bool
 
@@ -229,7 +202,7 @@ func (p ElectraMetrics) getParticipationFlags(attestation electra.Attestation, i
 	// the attestation must be included maximum in the next epoch
 	// the worst case scenario is an attestation to the slot 31, which gives a max inclusion delay of 32
 	// the best case scenario is an attestation to the slot 0, which gives a max inclusion delay of 64
-	// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#modified-get_attestation_participation_flag_indices
+	// https://github.com/ethereum/consensus-specs/blob/dev/specs/deneb/beacon-chain.md#modified-get_attestation_participation_flag_indices
 	includedInEpoch := phase0.Epoch(includedInBlock.Slot / spec.SlotsPerEpoch)
 	attestationEpoch := phase0.Epoch(attestation.Data.Slot / spec.SlotsPerEpoch)
 	targetInclusionOk := includedInEpoch-attestationEpoch <= 1
@@ -245,50 +218,4 @@ func (p ElectraMetrics) getParticipationFlags(attestation electra.Attestation, i
 	}
 
 	return result
-}
-
-func (p ElectraMetrics) isFlagPossible(valIdx phase0.ValidatorIndex, flagIndex int) bool {
-	attSlot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
-	maxInclusionDelay := 0
-
-	switch flagIndex { // for every flag there is a max inclusion delay to obtain a reward
-
-	case spec.AttSourceFlagIndex: // 5
-		maxInclusionDelay = int(math.Sqrt(spec.SlotsPerEpoch))
-
-	case spec.AttTargetFlagIndex: // until end of next epoch
-		remainingSlotsInEpoch := spec.SlotsPerEpoch - int(attSlot%spec.SlotsPerEpoch)
-		maxInclusionDelay = spec.SlotsPerEpoch + remainingSlotsInEpoch
-
-	case spec.AttHeadFlagIndex: // 1
-		maxInclusionDelay = 1
-	default:
-		log.Fatalf("provided flag index %d is not known", flagIndex)
-	}
-
-	// look for any block proposed => the attester could have achieved it
-	for slot := attSlot + 1; slot <= (attSlot + phase0.Slot(maxInclusionDelay)); slot++ {
-		slotInEpoch := slot % spec.SlotsPerEpoch
-		block := p.baseMetrics.PrevState.Blocks[slotInEpoch]
-		if slot >= phase0.Slot(p.baseMetrics.CurrentState.Epoch*spec.SlotsPerEpoch) {
-			block = p.baseMetrics.CurrentState.Blocks[slotInEpoch]
-		}
-
-		if block.Proposed { // if there was a block proposed inside the inclusion window
-			return true
-		}
-	}
-	return false
-
-}
-
-func (p ElectraMetrics) maxInclusionDelay(valIdx phase0.ValidatorIndex) int {
-
-	// check attestationSlot in prev epoch
-
-	slot := p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx]
-
-	slotsUntilEpochEnd := spec.SlotsPerEpoch - (slot % spec.SlotsPerEpoch) - 1
-
-	return spec.SlotsPerEpoch + int(slotsUntilEpochEnd)
 }
