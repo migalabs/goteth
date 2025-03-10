@@ -62,7 +62,18 @@ func (s *ChainAnalyzer) processETH1Deposits(block *spec.AgnosticBlock) error {
 	var deposits []spec.ETH1Deposit
 	for _, tx := range block.ExecutionPayload.AgnosticTransactions {
 		for _, logEntry := range tx.Receipt.Logs {
-			if logEntry.Address == s.beaconContractAddress {
+			if logEntry.Address == s.beaconContractAddress { //&& logEntry.Topics[0] == common.HexToHash(spec.DepositEventTopic) {
+				if len(logEntry.Topics) == 0 {
+					log.Warnf("deposit log entry has no topics")
+					continue
+				}
+				if logEntry.Topics[0].String() != spec.DepositEventTopic { // Added because on sepolia deposits have more than one log
+					continue
+				}
+				if len(logEntry.Data) < spec.DepositEventDataLength {
+					log.Warnf("deposit log entry has the incorrect length")
+					continue
+				}
 				deposit := spec.ParseETH1DepositFromLog(logEntry, &tx)
 				deposits = append(deposits, deposit)
 			}
