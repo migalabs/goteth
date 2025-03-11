@@ -47,6 +47,8 @@ type AgnosticState struct {
 	NewProposerSlashings         int    // number of new proposer slashings
 	NewAttesterSlashings         int    // number of new attester slashings
 	Slashings                    []AgnosticSlashing
+	// Electra
+	ConsolidationRequestsNum uint64 // number of consolidation requests
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -101,6 +103,19 @@ func (p *AgnosticState) AddBlocks(blockList []*AgnosticBlock) {
 	p.CalculateDeposits()
 	p.CalculateNumAttestations()
 	p.CalculateSyncParticipation()
+	p.CalculateCononsolidationRequestsNum()
+}
+
+func (p *AgnosticState) CalculateCononsolidationRequestsNum() {
+	for _, block := range p.Blocks {
+		if block.ExecutionRequests == nil { // If not electra block or if missed block
+			continue
+		}
+		if len(block.ExecutionRequests.Consolidations) > 0 {
+			fmt.Println("Consolidation Requests: ", len(block.ExecutionRequests.Consolidations))
+		}
+		p.ConsolidationRequestsNum += uint64(len(block.ExecutionRequests.Consolidations))
+	}
 }
 
 func (p *AgnosticState) CalculateSyncParticipation() {
