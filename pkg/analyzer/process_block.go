@@ -32,7 +32,6 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	}
 	s.processBLSToExecutionChanges(block)
 	s.processDeposits(block)
-	s.processConsolidationRequests(block)
 	s.processerBook.FreePage(routineKey)
 }
 
@@ -89,31 +88,6 @@ func (s *ChainAnalyzer) processETH1Deposits(block *spec.AgnosticBlock) error {
 		log.Errorf("error persisting eth1 deposits: %s", err.Error())
 	}
 	return err
-}
-
-// Process consolidation requests included on the beacon block.
-func (s *ChainAnalyzer) processConsolidationRequests(block *spec.AgnosticBlock) {
-	if block.ExecutionRequests == nil { // If not an electra+ block or if block was missed
-		return
-	}
-	if len(block.ExecutionRequests.Consolidations) == 0 {
-		return
-	}
-	var consolidationRequests []spec.ConsolidationRequest
-	for i, item := range block.ExecutionRequests.Consolidations {
-		consolidationRequests = append(consolidationRequests, spec.ConsolidationRequest{
-			Slot:          block.Slot,
-			Index:         uint64(i),
-			SourceAddress: item.SourceAddress,
-			SourcePubkey:  item.SourcePubkey,
-			TargetPubkey:  item.TargetPubkey,
-		})
-	}
-
-	err := s.dbClient.PersistConsolidationRequests(consolidationRequests)
-	if err != nil {
-		log.Errorf("error persisting consolidation requests: %s", err.Error())
-	}
 }
 
 // Process consensus layer deposits
