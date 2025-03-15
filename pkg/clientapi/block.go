@@ -173,7 +173,7 @@ func (s *APIClient) CreateMissingBlock(slot phase0.Slot) *local_spec.AgnosticBlo
 	}
 }
 
-// RequestBlockByHash retrieves block from the execution client for the given hash
+// RequestExecutionBlockByHash retrieves block from the execution client for the given hash
 func (s *APIClient) RequestExecutionBlockByHash(hash common.Hash) (*types.Block, error) {
 
 	if s.ELApi == nil {
