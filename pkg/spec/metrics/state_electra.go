@@ -52,6 +52,29 @@ func (p *ElectraMetrics) PreProcessBundle() {
 	}
 }
 
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#modified-get_attesting_indices
+func (p ElectraMetrics) GetAttestingIndices(state spec.AgnosticState, attestation electra.Attestation) ([]phase0.ValidatorIndex, error) {
+	output := make([]phase0.ValidatorIndex, 0)
+	committeeIndices := attestation.CommitteeBits.BitIndices()
+	committeeOffset := 0
+
+	for _, committeeIndex := range committeeIndices {
+		stateAtSlot, err := p.baseMetrics.GetStateAtSlot(attestation.Data.Slot)
+		if err != nil {
+			return nil, err
+		}
+		committee := stateAtSlot.EpochStructs.GetBeaconCommittee(attestation.Data.Slot, phase0.CommitteeIndex(committeeIndex))
+		for i, attesterIndex := range committee.Validators {
+			// Check if the corresponding aggregation bit is set
+			if attestation.AggregationBits.BitAt(uint64(committeeOffset + i)) {
+				output = append(output, attesterIndex)
+			}
+		}
+		// committeeOffset += len(committee)
+	}
+	return output, nil
+}
+
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#modified-process_attestation
 func (p ElectraMetrics) ProcessAttestations() {
 
@@ -83,18 +106,13 @@ func (p ElectraMetrics) ProcessAttestations() {
 			}
 
 			participationFlags := p.getParticipationFlags(*attestation, *block)
-
-			committeIndex := attestation.Data.Index
-
-			attestingIndices := attestation.AggregationBits.BitIndices()
-
-			for _, idx := range attestingIndices {
+			attestingIndices, err := p.GetAttestingIndices(*p.baseMetrics.CurrentState, *attestation)
+			if err != nil {
+				log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
+			}
+			for _, valIdx := range attestingIndices {
 				block.VotesIncluded += 1
 
-				valIdx, err := p.GetValidatorFromCommitteeIndex(slot, committeIndex, idx)
-				if err != nil {
-					log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
-				}
 				if epochParticipation[valIdx] == nil {
 					epochParticipation[valIdx] = make([]bool, len(spec.ParticipatingFlagsWeight))
 				}
@@ -152,15 +170,12 @@ func (p *ElectraMetrics) ProcessInclusionDelays() {
 				continue
 			}
 			inclusionDelay := p.GetInclusionDelay(*attestation, *block)
-			committeIndex := attestation.Data.Index
 
-			attestingIndices := attestation.AggregationBits.BitIndices()
-
-			for _, idx := range attestingIndices {
-				valIdx, err := p.GetValidatorFromCommitteeIndex(attSlot, committeIndex, idx)
-				if err != nil {
-					log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
-				}
+			attestingIndices, err := p.GetAttestingIndices(*p.baseMetrics.CurrentState, *attestation)
+			if err != nil {
+				log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
+			}
+			for _, valIdx := range attestingIndices {
 
 				if p.baseMetrics.InclusionDelays[valIdx] == 0 {
 					p.baseMetrics.InclusionDelays[valIdx] = inclusionDelay
