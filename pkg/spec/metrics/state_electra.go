@@ -70,7 +70,7 @@ func (p ElectraMetrics) GetAttestingIndices(state spec.AgnosticState, attestatio
 				output = append(output, attesterIndex)
 			}
 		}
-		// committeeOffset += len(committee)
+		committeeOffset += len(committee.Validators)
 	}
 	return output, nil
 }
@@ -123,7 +123,6 @@ func (p ElectraMetrics) ProcessAttestations() {
 
 				// we are only counting rewards at NextState
 				attesterBaseReward := p.GetBaseReward(valIdx, p.baseMetrics.NextState.Validators[valIdx].EffectiveBalance, p.baseMetrics.NextState.TotalActiveBalance)
-
 				new := false
 				if participationFlags[spec.AttSourceFlagIndex] && !epochParticipation[valIdx][spec.AttSourceFlagIndex] { // source
 					attReward += attesterBaseReward * spec.TimelySourceWeight
