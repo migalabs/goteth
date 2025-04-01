@@ -29,7 +29,7 @@ var ValidatorWindowCommand = &cli.Command{
 			Name:        "db-url",
 			Usage:       "Database where to persist the metrics",
 			EnvVars:     []string{"ANALYZER_DB_URL"},
-			DefaultText: "postgres://user:password@localhost:5432/goteth",
+			DefaultText: "clickhouse://username:password@localhost:9000/goteth?x-multi-statement=true&max_memory_usage=10000000000",
 		},
 		&cli.StringFlag{
 			Name:        "num-epochs",
