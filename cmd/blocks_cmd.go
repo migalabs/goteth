@@ -8,7 +8,6 @@ import (
 
 	"github.com/migalabs/goteth/pkg/config"
 	"github.com/migalabs/goteth/pkg/utils"
-
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 
@@ -44,6 +43,12 @@ var BlocksCommand = &cli.Command{
 			EnvVars:     []string{"ANALYZER_FINAL_SLOT"},
 			DefaultText: "0",
 		},
+		&cli.IntFlag{
+			Name:        "rewards-aggregation-epochs",
+			Usage:       "Number of epochs to aggregate rewards",
+			EnvVars:     []string{"ANALYZER_REWARDS_AGGREGATION_EPOCHS"},
+			DefaultText: "1 (no aggregation)",
+		},
 		&cli.StringFlag{
 			Name:        "log-level",
 			Usage:       "Log level: debug, warn, info, error",
@@ -52,9 +57,9 @@ var BlocksCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:        "db-url",
-			Usage:       "Database where to persist the metrics",
+			Usage:       "Clickhouse database url where to persist the metrics",
 			EnvVars:     []string{"ANALYZER_DB_URL"},
-			DefaultText: "postgres://user:password@localhost:5432/goteth",
+			DefaultText: "clickhouse://beaconchain:beaconchain@localhost:9000/beacon_states?x-multi-statement=true",
 		},
 		&cli.IntFlag{
 			Name:        "workers-num",
@@ -85,7 +90,20 @@ var BlocksCommand = &cli.Command{
 			Usage:       "Port on which to expose prometheus metrics",
 			EnvVars:     []string{"ANALYZER_PROMETHEUS_PORT"},
 			DefaultText: "9080",
-		}},
+		},
+		&cli.IntFlag{
+			Name:        "max-request-retries",
+			Usage:       "Number of retries to make when a request fails. For head mode it shouldn't be higher than 3-4, for historical its recommended to be higher",
+			EnvVars:     []string{"ANALYZER_MAX_REQUEST_RETRIES"},
+			DefaultText: "3",
+		},
+		&cli.StringFlag{
+			Name:        "beacon-contract-address",
+			Usage:       "Beacon contract address. Can be 'mainnet', 'holesky', 'sepolia' or directly the contract address in format '0x...'",
+			EnvVars:     []string{"ANALYZER_BEACON_CONTRACT_ADDRESS"},
+			DefaultText: "mainnet",
+		},
+	},
 }
 
 var logCmdChain = logrus.WithField(
@@ -124,7 +142,7 @@ func LaunchBlockMetrics(c *cli.Context) error {
 		blockAnalyzer.Close()
 
 	case <-procDoneC:
-		logCmdChain.Info("Process successfully finish!")
+		logCmdChain.Info("Process successfully finished!")
 	}
 	close(sigtermC)
 	close(procDoneC)

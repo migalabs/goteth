@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/migalabs/goteth/pkg/clientapi"
 	"github.com/migalabs/goteth/pkg/config"
 	"github.com/migalabs/goteth/pkg/db"
@@ -22,6 +23,9 @@ type ChainAnalyzer struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	// Chain Variables
+	beaconContractAddress common.Address
+
 	// Slot Range for historical
 	initSlot  phase0.Slot
 	finalSlot phase0.Slot
@@ -36,15 +40,19 @@ type ChainAnalyzer struct {
 	dbClient  *db.DBService        // client to communicate with clickhouse
 
 	// Control Variables
-	wgMainRoutine *sync.WaitGroup    // wait group for main routine (either historical or head)
-	wgDownload    *sync.WaitGroup    // wait group for download routine
-	stop          bool               // flag to notify all routine to finish
-	routineClosed chan struct{}      // signal that everything was closed succesfully
-	downloadMode  string             // whether to download historical blocks (defined by user) or follow chain head
-	metrics       db.DBMetrics       // waht metrics to be downloaded / processed
-	processerBook *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
+	wgMainRoutine            *sync.WaitGroup    // wait group for main routine (either historical or head)
+	wgDownload               *sync.WaitGroup    // wait group for download routine
+	stop                     bool               // flag to notify all routine to finish
+	routineClosed            chan struct{}      // signal that everything was closed succesfully
+	downloadMode             string             // whether to download historical blocks (defined by user) or follow chain head
+	rewardsAggregationEpochs int                // number of epochs to aggregate rewards
+	startEpochAggregation    phase0.Epoch       // epoch to start rewards aggregation
+	endEpochAggregation      phase0.Epoch       // epoch to end rewards aggregation
+	metrics                  db.DBMetrics       // what metrics to be downloaded / processed
+	processerBook            *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
 
-	downloadCache ChainCache // store the blocks and states downloaded
+	downloadCache                 ChainCache // store the blocks and states downloaded
+	validatorsRewardsAggregations map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation
 
 	initTime    time.Time
 	PromMetrics *prom_metrics.PrometheusMetrics // metrics to be stored to prometheus
@@ -54,14 +62,16 @@ func NewChainAnalyzer(
 	pCtx context.Context,
 	iConfig config.AnalyzerConfig) (*ChainAnalyzer, error) {
 
-	// gen new ctx from parent
+	// generate new ctx from parent
 	ctx, cancel := context.WithCancel(pCtx)
 
 	// generate the central exporting service
 	promethMetrics := prom_metrics.NewPrometheusMetrics(ctx, "0.0.0.0", iConfig.PrometheusPort)
 
-	// calculate the list of slots that we will analyze
+	startEpochAggregation := phase0.Epoch(0)
+	endEpochAggregation := phase0.Epoch(0)
 
+	// calculate the list of slots that we will analyze
 	if iConfig.DownloadMode == "historical" {
 
 		if iConfig.FinalSlot <= iConfig.InitSlot {
@@ -70,9 +80,14 @@ func NewChainAnalyzer(
 				cancel: cancel,
 			}, errors.Errorf("Final Slot cannot be greater than Init Slot")
 		}
-		iConfig.InitSlot = iConfig.InitSlot / spec.SlotsPerEpoch * spec.SlotsPerEpoch
-		iConfig.FinalSlot = iConfig.FinalSlot / spec.SlotsPerEpoch * spec.SlotsPerEpoch
+		// Start 2 epochs before and finish 1 epoch after
+		iConfig.InitSlot = iConfig.InitSlot/spec.SlotsPerEpoch*spec.SlotsPerEpoch - spec.SlotsPerEpoch*2
+		iConfig.FinalSlot = iConfig.FinalSlot/spec.SlotsPerEpoch*spec.SlotsPerEpoch + spec.SlotsPerEpoch
 		log.Infof("generating new Block Analyzer from slots %d:%d", iConfig.InitSlot, iConfig.FinalSlot)
+		// 2 epochs after the start since thats when we start processing rewards
+		startEpochAggregation = phase0.Epoch(spec.EpochAtSlot(iConfig.InitSlot) + 2)
+		endEpochAggregation = startEpochAggregation + phase0.Epoch(iConfig.RewardsAggregationEpochs-1)
+
 	}
 
 	metricsObj, err := db.NewMetrics(iConfig.Metrics)
@@ -102,6 +117,7 @@ func NewChainAnalyzer(
 	// generate the httpAPI client
 	cli, err := clientapi.NewAPIClient(pCtx,
 		iConfig.BnEndpoint,
+		iConfig.MaxRequestRetries,
 		clientapi.WithELEndpoint(iConfig.ElEndpoint),
 		clientapi.WithDBMetrics(metricsObj),
 		clientapi.WithPromMetrics(promethMetrics))
@@ -111,6 +127,19 @@ func NewChainAnalyzer(
 			cancel: cancel,
 		}, errors.Wrap(err, "unable to generate API Client.")
 	}
+
+	// Parse beacon contract address
+	beaconContractAddressInput := iConfig.BeaconContractAddress
+	// check if input was a network name and the contract address is known
+	if address, ok := spec.BeaconContractAddresses[beaconContractAddressInput]; ok {
+		beaconContractAddressInput = address
+	} else if !spec.HexStringAddressIsValid(beaconContractAddressInput) {
+		return &ChainAnalyzer{
+			ctx:    ctx,
+			cancel: cancel,
+		}, errors.Errorf("Invalid beacon contract address: %s", beaconContractAddressInput)
+	}
+	beaconContractAddress := common.HexToAddress(beaconContractAddressInput)
 
 	genesisTime := cli.RequestGenesis()
 
@@ -126,23 +155,28 @@ func NewChainAnalyzer(
 	idbClient.InitGenesis(genesisTime)
 
 	analyzer := &ChainAnalyzer{
-		ctx:              ctx,
-		cancel:           cancel,
-		initSlot:         phase0.Slot(iConfig.InitSlot),
-		finalSlot:        phase0.Slot(iConfig.FinalSlot),
-		downloadTaskChan: make(chan phase0.Slot, rateLimit), // TODO: define size of buffer depending on performance
-		cli:              cli,
-		relayCli:         relayCli,
-		dbClient:         idbClient,
-		routineClosed:    make(chan struct{}, 1),
-		eventsObj:        events.NewEventsObj(ctx, cli),
-		downloadMode:     iConfig.DownloadMode,
-		metrics:          metricsObj,
-		PromMetrics:      promethMetrics,
-		downloadCache:    NewQueue(),
-		processerBook:    utils.NewRoutineBook(32, "processer"), // one whole epoch
-		wgMainRoutine:    &sync.WaitGroup{},
-		wgDownload:       &sync.WaitGroup{},
+		ctx:                           ctx,
+		cancel:                        cancel,
+		beaconContractAddress:         beaconContractAddress,
+		initSlot:                      phase0.Slot(iConfig.InitSlot),
+		finalSlot:                     phase0.Slot(iConfig.FinalSlot),
+		downloadTaskChan:              make(chan phase0.Slot, rateLimit), // TODO: define size of buffer depending on performance
+		cli:                           cli,
+		relayCli:                      relayCli,
+		dbClient:                      idbClient,
+		routineClosed:                 make(chan struct{}, 1),
+		eventsObj:                     events.NewEventsObj(ctx, cli),
+		downloadMode:                  iConfig.DownloadMode,
+		rewardsAggregationEpochs:      iConfig.RewardsAggregationEpochs,
+		startEpochAggregation:         startEpochAggregation,
+		endEpochAggregation:           endEpochAggregation,
+		metrics:                       metricsObj,
+		PromMetrics:                   promethMetrics,
+		downloadCache:                 NewQueue(),
+		validatorsRewardsAggregations: make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation),
+		processerBook:                 utils.NewRoutineBook(32, "processer"), // one whole epoch
+		wgMainRoutine:                 &sync.WaitGroup{},
+		wgDownload:                    &sync.WaitGroup{},
 	}
 
 	analyzerMet := analyzer.GetPrometheusMetrics()

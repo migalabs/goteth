@@ -29,7 +29,7 @@ var ValidatorWindowCommand = &cli.Command{
 			Name:        "db-url",
 			Usage:       "Database where to persist the metrics",
 			EnvVars:     []string{"ANALYZER_DB_URL"},
-			DefaultText: "postgres://user:password@localhost:5432/goteth",
+			DefaultText: "clickhouse://username:password@localhost:9000/goteth?x-multi-statement=true&max_memory_usage=10000000000",
 		},
 		&cli.StringFlag{
 			Name:        "num-epochs",
@@ -42,7 +42,14 @@ var ValidatorWindowCommand = &cli.Command{
 			Usage:       "Beacon node endpoint (to request the Beacon States and Blocks)",
 			EnvVars:     []string{"ANALYZER_BN_ENDPOINT"},
 			DefaultText: "http://localhost:5052",
-		}},
+		},
+		&cli.IntFlag{
+			Name:        "max-request-retries",
+			Usage:       "Number of retries to make when a request fails",
+			EnvVars:     []string{"ANALYZER_MAX_REQUEST_RETRIES"},
+			DefaultText: "3",
+		},
+	},
 }
 
 // CrawlAction is the function that is called when running `eth2`.
@@ -75,7 +82,7 @@ func LaunchValidatorWindow(c *cli.Context) error {
 		valWindowRunner.Close()
 
 	case <-procDoneC:
-		logCmdChain.Info("Process successfully finish!")
+		logCmdChain.Info("Process successfully finished!")
 	}
 	close(sigtermC)
 	close(procDoneC)

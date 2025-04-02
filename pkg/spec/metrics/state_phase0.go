@@ -34,14 +34,75 @@ func (p *Phase0Metrics) InitBundle(nextState *spec.AgnosticState,
 	p.baseMetrics.MaxSlashingRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.baseMetrics.InclusionDelays = make([]int, len(p.baseMetrics.NextState.Validators))
 	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
-	p.baseMetrics.CurrentNumAttestingVals = make([]bool, len(currentState.Validators))
 }
 
 func (p *Phase0Metrics) PreProcessBundle() {
-
-	if !p.baseMetrics.PrevState.EmptyStateRoot() && !p.baseMetrics.CurrentState.EmptyStateRoot() {
+	twoConsecutiveEpochsDownloaded := !p.baseMetrics.CurrentState.EmptyStateRoot()
+	if twoConsecutiveEpochsDownloaded {
+		p.ProcessSlashings()
 		p.GetInclusionDelayDeltas()
+	}
+
+	threeConsecutiveEpochsDownloaded := !p.baseMetrics.PrevState.EmptyStateRoot() && twoConsecutiveEpochsDownloaded
+	if threeConsecutiveEpochsDownloaded {
 		p.GetMaxAttComponentDeltas()
+	}
+}
+
+func (p *Phase0Metrics) ProcessSlashings() {
+	state := p.GetMetricsBase().NextState
+	for _, block := range state.Blocks {
+		whistleBlowerIdx := block.ProposerIndex // spec always contemplates whistleblower to be the block proposer
+		whistleBlowerReward := phase0.Gwei(0)
+		proposerReward := phase0.Gwei(0)
+		for _, attSlashing := range block.AttesterSlashings {
+			slashedValidatorIdxs := spec.SlashingIntersection(attSlashing.Attestation1.AttestingIndices, attSlashing.Attestation2.AttestingIndices)
+			for _, idx := range slashedValidatorIdxs {
+				slashedValidator := p.GetMetricsBase().CurrentState.Validators[idx]
+				valid := false
+				if spec.IsSlashableValidator(slashedValidator, spec.EpochAtSlot(block.Slot)) {
+					valid = true
+					state.NewAttesterSlashings += 1
+				}
+				state.Slashings = append(state.Slashings,
+					spec.AgnosticSlashing{
+						SlashedValidator: idx,
+						SlashedBy:        block.ProposerIndex,
+						SlashingReason:   spec.SlashingReasonAttesterSlashing,
+						Slot:             block.Slot,
+						Epoch:            spec.EpochAtSlot(block.Slot),
+						Valid:            valid,
+					})
+			}
+		}
+		for _, proposerSlashing := range block.ProposerSlashings {
+			slashedValidatorIdx := proposerSlashing.SignedHeader1.Message.ProposerIndex
+			slashedValidator := p.GetMetricsBase().CurrentState.Validators[slashedValidatorIdx]
+			valid := false
+			if spec.IsSlashableValidator(slashedValidator, spec.EpochAtSlot(block.Slot)) {
+				valid = true
+				state.NewProposerSlashings += 1
+			}
+			slashing := spec.AgnosticSlashing{
+				SlashedValidator: slashedValidatorIdx,
+				SlashedBy:        block.ProposerIndex,
+				SlashingReason:   spec.SlashingReasonProposerSlashing,
+				Slot:             block.Slot,
+				Epoch:            spec.EpochAtSlot(block.Slot),
+				Valid:            valid,
+			}
+			state.Slashings = append(state.Slashings, slashing)
+		}
+
+		for _, slashing := range state.Slashings {
+			slashedEffBalance := p.baseMetrics.NextState.Validators[slashing.SlashedValidator].EffectiveBalance
+			whistleBlowerReward += slashedEffBalance / spec.WhistleBlowerRewardQuotient
+			proposerReward += whistleBlowerReward * spec.ProposerWeight / spec.WeightDenominator
+		}
+		p.baseMetrics.MaxSlashingRewards[block.ProposerIndex] += proposerReward
+		p.baseMetrics.MaxSlashingRewards[whistleBlowerIdx] += whistleBlowerReward - proposerReward
+
+		block.ManualReward += proposerReward + (whistleBlowerReward - proposerReward)
 	}
 }
 
@@ -52,7 +113,7 @@ func (p Phase0Metrics) GetMetricsBase() StateMetricsBase {
 // Processes attestations and fills several structs
 func (p *Phase0Metrics) GetInclusionDelayDeltas() {
 
-	prevAttestations := orderAttestationsBySlot(p.baseMetrics.CurrentState.PrevAttestations)
+	prevAttestations := orderAttestationsBySlot(p.baseMetrics.NextState.PrevAttestations)
 
 	for _, attestation := range prevAttestations {
 
@@ -65,13 +126,12 @@ func (p *Phase0Metrics) GetInclusionDelayDeltas() {
 		}
 		proposerIndex := inclusionBlock.ProposerIndex
 
-		attValidatorIDs := p.baseMetrics.PrevState.EpochStructs.GetValList(slot, committeeIndex) // Beacon Committee
-		attestingIndices := attestation.AggregationBits.BitIndices()                             // we only get the 1s, meaning the validator voted
+		attValidatorIDs := p.baseMetrics.CurrentState.EpochStructs.GetValList(slot, committeeIndex) // Beacon Committee
+		attestingIndices := attestation.AggregationBits.BitIndices()                                // we only get the 1s, meaning the validator voted
 
 		for _, index := range attestingIndices {
 			attestingValIdx := attValidatorIDs[index]
 			inclusionBlock.VotesIncluded += 1
-
 			// if inclusion delay has not been set. Remember that attestations are order by slot asc
 			if p.baseMetrics.InclusionDelays[attestingValIdx] == 0 {
 				p.baseMetrics.InclusionDelays[attestingValIdx] = int(attestation.InclusionDelay)
@@ -80,11 +140,11 @@ func (p *Phase0Metrics) GetInclusionDelayDeltas() {
 
 				// add correct flags and balances
 				if p.IsCorrectSource() {
-					p.baseMetrics.CurrentState.PrevEpochCorrectFlags[spec.AttSourceFlagIndex][attestingValIdx] = true
-					p.baseMetrics.CurrentState.AttestingBalance[spec.AttSourceFlagIndex] += p.baseMetrics.CurrentState.Validators[attestingValIdx].EffectiveBalance
+					p.baseMetrics.NextState.PrevEpochCorrectFlags[spec.AttSourceFlagIndex][attestingValIdx] = true
+					p.baseMetrics.NextState.AttestingBalance[spec.AttSourceFlagIndex] += p.baseMetrics.NextState.Validators[attestingValIdx].EffectiveBalance
 
 					// configure attester participation
-					p.baseMetrics.CurrentNumAttestingVals[attestingValIdx] = true
+					p.baseMetrics.CurrentState.ValidatorAttestationIncluded[attestingValIdx] = true
 
 					// add proposer reward
 					proposerReward := p.GetProposerReward(attestingValIdx)
@@ -98,13 +158,13 @@ func (p *Phase0Metrics) GetInclusionDelayDeltas() {
 				}
 
 				if p.IsCorrectTarget(*attestation) {
-					p.baseMetrics.CurrentState.PrevEpochCorrectFlags[spec.AttTargetFlagIndex][attestingValIdx] = true
-					p.baseMetrics.CurrentState.AttestingBalance[spec.AttTargetFlagIndex] += p.baseMetrics.CurrentState.Validators[attestingValIdx].EffectiveBalance
+					p.baseMetrics.NextState.PrevEpochCorrectFlags[spec.AttTargetFlagIndex][attestingValIdx] = true
+					p.baseMetrics.NextState.AttestingBalance[spec.AttTargetFlagIndex] += p.baseMetrics.NextState.Validators[attestingValIdx].EffectiveBalance
 				}
 
 				if p.IsCorrectHead(*attestation) {
-					p.baseMetrics.CurrentState.PrevEpochCorrectFlags[spec.AttHeadFlagIndex][attestingValIdx] = true
-					p.baseMetrics.CurrentState.AttestingBalance[spec.AttHeadFlagIndex] += p.baseMetrics.CurrentState.Validators[attestingValIdx].EffectiveBalance
+					p.baseMetrics.NextState.PrevEpochCorrectFlags[spec.AttHeadFlagIndex][attestingValIdx] = true
+					p.baseMetrics.NextState.AttestingBalance[spec.AttHeadFlagIndex] += p.baseMetrics.NextState.Validators[attestingValIdx].EffectiveBalance
 				}
 			}
 		}
@@ -167,6 +227,7 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		AttestationReward:    p.baseMetrics.MaxAttesterRewards[valIdx],
 		SyncCommitteeReward:  0,
 		AttSlot:              p.baseMetrics.PrevState.EpochStructs.ValidatorAttSlot[valIdx],
+		AttestationIncluded:  p.baseMetrics.CurrentState.ValidatorAttestationIncluded[valIdx],
 		MissingSource:        !p.baseMetrics.CurrentState.PrevEpochCorrectFlags[spec.AttSourceFlagIndex][valIdx],
 		MissingTarget:        !p.baseMetrics.CurrentState.PrevEpochCorrectFlags[spec.AttTargetFlagIndex][valIdx],
 		MissingHead:          !p.baseMetrics.CurrentState.PrevEpochCorrectFlags[spec.AttHeadFlagIndex][valIdx],
@@ -182,8 +243,8 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#helper-functions-1
 func (p Phase0Metrics) IsCorrectSource() bool {
-	epoch := phase0.Epoch(p.baseMetrics.CurrentState.Slot / spec.SlotsPerEpoch)
-	if epoch == p.baseMetrics.CurrentState.Epoch || epoch == p.baseMetrics.PrevState.Epoch {
+	epoch := phase0.Epoch(p.baseMetrics.NextState.Slot / spec.SlotsPerEpoch)
+	if epoch == p.baseMetrics.NextState.Epoch || epoch == p.baseMetrics.CurrentState.Epoch {
 		return true
 	}
 	return false
@@ -193,9 +254,9 @@ func (p Phase0Metrics) IsCorrectSource() bool {
 func (p Phase0Metrics) IsCorrectTarget(attestation phase0.PendingAttestation) bool {
 	target := attestation.Data.Target.Root
 
-	slot := p.baseMetrics.PrevState.Slot / spec.SlotsPerEpoch
+	slot := p.baseMetrics.CurrentState.Slot / spec.SlotsPerEpoch
 	slot = slot * spec.SlotsPerEpoch
-	expected := p.baseMetrics.PrevState.BlockRoots[slot%spec.SlotsPerHistoricalRoot]
+	expected := p.baseMetrics.CurrentState.BlockRoots[slot%spec.SlotsPerHistoricalRoot]
 
 	res := bytes.Compare(target[:], expected[:])
 
@@ -207,7 +268,7 @@ func (p Phase0Metrics) IsCorrectHead(attestation phase0.PendingAttestation) bool
 	head := attestation.Data.BeaconBlockRoot
 
 	index := attestation.Data.Slot % spec.SlotsPerHistoricalRoot
-	expected := p.baseMetrics.CurrentState.BlockRoots[index]
+	expected := p.baseMetrics.NextState.BlockRoots[index]
 
 	res := bytes.Compare(head[:], expected[:])
 	return res == 0 // if 0, then block roots are the same

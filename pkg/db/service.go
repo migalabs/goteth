@@ -141,11 +141,16 @@ type PersistableObject[
 		spec.AgnosticTransaction |
 		spec.ValidatorLastStatus |
 		spec.ValidatorRewards |
+		spec.ValidatorRewardsAggregation |
 		spec.Withdrawal |
 		HeadEvent |
 		spec.AgnosticBlobSidecar |
 		spec.BlobSideCarEventWraper |
-		BlockReward] struct {
+		BlockReward |
+		spec.AgnosticSlashing |
+		spec.BLSToExecutionChange |
+		spec.Deposit |
+		spec.ETH1Deposit] struct {
 	table string
 	query string
 	data  []T

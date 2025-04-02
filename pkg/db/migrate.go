@@ -13,24 +13,24 @@ func (s *DBService) makeMigrations() error {
 		"file://pkg/db/migrations",
 		s.connectionUrl)
 	if err != nil {
-		log.Errorf(err.Error())
+		log.Error(err.Error())
 		return err
 	}
 	log.Infof("applying database migrations...")
 	if err := m.Up(); err != nil {
 		if err != migrate.ErrNoChange {
-			log.Errorf(err.Error())
+			log.Error(err.Error())
 			return err
 		}
 	}
 	connErr, dbErr := m.Close()
 
 	if connErr != nil {
-		log.Errorf(connErr.Error())
+		log.Error(connErr.Error())
 		return connErr
 	}
 	if dbErr != nil {
-		log.Errorf(dbErr.Error())
+		log.Error(dbErr.Error())
 		return dbErr
 	}
 	return err

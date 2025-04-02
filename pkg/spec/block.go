@@ -9,6 +9,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/capella"
+	"github.com/attestantio/go-eth2-client/spec/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -16,28 +17,31 @@ import (
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type AgnosticBlock struct {
-	Slot              phase0.Slot
-	StateRoot         phase0.Root
-	Root              phase0.Root
-	ParentRoot        phase0.Root
-	ProposerIndex     phase0.ValidatorIndex
-	Graffiti          [32]byte
-	Proposed          bool
-	Attestations      []*phase0.Attestation
-	VotesIncluded     uint64
-	NewVotesIncluded  uint64
-	Deposits          []*phase0.Deposit
-	ProposerSlashings []*phase0.ProposerSlashing
-	AttesterSlashings []*phase0.AttesterSlashing
-	VoluntaryExits    []*phase0.SignedVoluntaryExit
-	SyncAggregate     *altair.SyncAggregate
-	ExecutionPayload  AgnosticExecutionPayload
-	Reward            BlockRewards
-	SSZsize           uint32
-	SnappySize        uint32
-	CompressionTime   time.Duration
-	DecompressionTime time.Duration
-	ManualReward      phase0.Gwei
+	Slot                     phase0.Slot
+	StateRoot                phase0.Root
+	Root                     phase0.Root
+	ParentRoot               phase0.Root
+	ProposerIndex            phase0.ValidatorIndex
+	Graffiti                 [32]byte
+	Proposed                 bool
+	Attestations             []*phase0.Attestation // For electra blocks, Attestations is nil
+	ElectraAttestations      []*electra.Attestation
+	VotesIncluded            uint64
+	NewVotesIncluded         uint64
+	Deposits                 []*phase0.Deposit
+	ProposerSlashings        []*phase0.ProposerSlashing
+	AttesterSlashings        []*phase0.AttesterSlashing
+	ElectraAttesterSlashings []*electra.AttesterSlashing // For electra blocks, AttesterSlashings is nil
+	VoluntaryExits           []*phase0.SignedVoluntaryExit
+	SyncAggregate            *altair.SyncAggregate
+	ExecutionPayload         AgnosticExecutionPayload
+	BLSToExecutionChanges    []*capella.SignedBLSToExecutionChange
+	Reward                   BlockRewards
+	SSZsize                  uint32
+	SnappySize               uint32
+	CompressionTime          time.Duration
+	DecompressionTime        time.Duration
+	ManualReward             phase0.Gwei
 }
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
@@ -91,6 +95,8 @@ func GetCustomBlock(block spec.VersionedSignedBeaconBlock) (AgnosticBlock, error
 		return NewCapellaBlock(block), nil
 	case spec.DataVersionDeneb:
 		return NewDenebBlock(block), nil
+	case spec.DataVersionElectra:
+		return NewElectraBlock(block), nil
 	default:
 		return AgnosticBlock{}, fmt.Errorf("could not figure out the Beacon Block Fork Version: %s", block.Version)
 	}
@@ -252,17 +258,18 @@ func NewCapellaBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			GasLimit:      block.Capella.Message.Body.ExecutionPayload.GasLimit,
 			GasUsed:       block.Capella.Message.Body.ExecutionPayload.GasUsed,
 			Timestamp:     block.Capella.Message.Body.ExecutionPayload.Timestamp,
-			BaseFeePerGas: binary.BigEndian.Uint64(block.Bellatrix.Message.Body.ExecutionPayload.BaseFeePerGas[:]),
+			BaseFeePerGas: binary.BigEndian.Uint64(block.Capella.Message.Body.ExecutionPayload.BaseFeePerGas[:]),
 			BlockHash:     block.Capella.Message.Body.ExecutionPayload.BlockHash,
 			Transactions:  block.Capella.Message.Body.ExecutionPayload.Transactions,
 			BlockNumber:   block.Capella.Message.Body.ExecutionPayload.BlockNumber,
 			Withdrawals:   block.Capella.Message.Body.ExecutionPayload.Withdrawals,
 			PayloadSize:   uint32(0),
 		}, // snappy
-		SSZsize:           compressionMetrics.SSZsize,
-		SnappySize:        compressionMetrics.SnappySize,
-		CompressionTime:   compressionMetrics.CompressionTime,
-		DecompressionTime: compressionMetrics.DecompressionTime,
+		BLSToExecutionChanges: block.Capella.Message.Body.BLSToExecutionChanges,
+		SSZsize:               compressionMetrics.SSZsize,
+		SnappySize:            compressionMetrics.SnappySize,
+		CompressionTime:       compressionMetrics.CompressionTime,
+		DecompressionTime:     compressionMetrics.DecompressionTime,
 	}
 }
 
@@ -301,9 +308,55 @@ func NewDenebBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 			Withdrawals:   block.Deneb.Message.Body.ExecutionPayload.Withdrawals,
 			PayloadSize:   uint32(0),
 		}, // snappy
-		SSZsize:           compressionMetrics.SSZsize,
-		SnappySize:        compressionMetrics.SnappySize,
-		CompressionTime:   compressionMetrics.CompressionTime,
-		DecompressionTime: compressionMetrics.DecompressionTime,
+		BLSToExecutionChanges: block.Deneb.Message.Body.BLSToExecutionChanges,
+		SSZsize:               compressionMetrics.SSZsize,
+		SnappySize:            compressionMetrics.SnappySize,
+		CompressionTime:       compressionMetrics.CompressionTime,
+		DecompressionTime:     compressionMetrics.DecompressionTime,
+	}
+}
+
+func NewElectraBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
+	// make the compression of the block
+	compressionMetrics, err := utils.CompressConsensusSignedBlock(block.Electra)
+	if err != nil {
+		logrus.Errorf("unable to compress deneb block %d - %s", block.Electra.Message.Slot, err.Error())
+	}
+	root, err := block.Root()
+	if err != nil {
+		log.Fatalf("could not read root from block %d", block.Electra.Message.Slot)
+	}
+	return AgnosticBlock{
+		Slot:                     block.Electra.Message.Slot,
+		Root:                     root,
+		ParentRoot:               block.Electra.Message.ParentRoot,
+		ProposerIndex:            block.Electra.Message.ProposerIndex,
+		Graffiti:                 block.Electra.Message.Body.Graffiti,
+		Proposed:                 true,
+		Attestations:             nil,
+		ElectraAttestations:      block.Electra.Message.Body.Attestations,
+		Deposits:                 block.Electra.Message.Body.Deposits,
+		ProposerSlashings:        block.Electra.Message.Body.ProposerSlashings,
+		AttesterSlashings:        nil,
+		ElectraAttesterSlashings: block.Electra.Message.Body.AttesterSlashings,
+		VoluntaryExits:           block.Electra.Message.Body.VoluntaryExits,
+		SyncAggregate:            block.Electra.Message.Body.SyncAggregate,
+		ExecutionPayload: AgnosticExecutionPayload{
+			FeeRecipient:  block.Electra.Message.Body.ExecutionPayload.FeeRecipient,
+			GasLimit:      block.Electra.Message.Body.ExecutionPayload.GasLimit,
+			GasUsed:       block.Electra.Message.Body.ExecutionPayload.GasUsed,
+			Timestamp:     block.Electra.Message.Body.ExecutionPayload.Timestamp,
+			BaseFeePerGas: block.Electra.Message.Body.ExecutionPayload.BaseFeePerGas.Uint64(),
+			BlockHash:     block.Electra.Message.Body.ExecutionPayload.BlockHash,
+			Transactions:  block.Electra.Message.Body.ExecutionPayload.Transactions,
+			BlockNumber:   block.Electra.Message.Body.ExecutionPayload.BlockNumber,
+			Withdrawals:   block.Electra.Message.Body.ExecutionPayload.Withdrawals,
+			PayloadSize:   uint32(0),
+		}, // snappy
+		BLSToExecutionChanges: block.Electra.Message.Body.BLSToExecutionChanges,
+		SSZsize:               compressionMetrics.SSZsize,
+		SnappySize:            compressionMetrics.SnappySize,
+		CompressionTime:       compressionMetrics.CompressionTime,
+		DecompressionTime:     compressionMetrics.DecompressionTime,
 	}
 }

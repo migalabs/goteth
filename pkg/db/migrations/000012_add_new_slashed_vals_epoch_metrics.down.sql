@@ -1,0 +1,2 @@
+ALTER TABLE t_epoch_metrics_summary DROP COLUMN f_new_proposer_slashings;
+ALTER TABLE t_epoch_metrics_summary DROP COLUMN f_new_attester_slashings;

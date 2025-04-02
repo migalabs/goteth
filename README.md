@@ -2,12 +2,13 @@
 
 GotEth is a go-written client that indexes all validator-related duties and parameters from Ethereum's beaconchain by fetching the CL States from a node (preferable a locally running archival node).
 
-The client indexes all the validator/epoch related metrics into a set of postgreSQL tables which later on can be used to monitor the performance of validators in the beaconchain.
+The client indexes all the validator/epoch related metrics into a set of clickhouse tables which later on can be used to monitor the performance of validators in the beaconchain.
 
 This tool has been used to power the
 
 - [pandametrics.xyz](https://pandametrics.xyz/) public dashboard
-- [ethseer.io](https://ethseer.io) public dashboard
+- [ethseer.io](https://ethseer.io) block explorer
+- [monitoreth.io](https://monitoreth.io/nodes#validators-entities) public dashboard
 
 ## Prerequisites
 
@@ -43,6 +44,8 @@ make install
 - api_rewards (EXPERIMENTAL): block rewards (consensus layer) are hard to calculate, but they can be downloaded from the Beacon API. However, keep in mind this takes a few seconds per block when not at the head. Without this, reward cannot be compared to max_reward when a validator is a proposer (32/900K validators in an epoch). It depends on the Lighthouse API and we have registered some cases where the block reward was not returned.
 - transactions: requests transaction receipts from the execution layer (activates block metrics)
 
+Go to [docs/tables.md](https://github.com/migalabs/goteth/blob/master/docs/tables.md) for more information on the tables indexed by Goteth.
+
 ## Download mode
 
 - Historical: this mode loops over slots between `initSlot` and `finalSlot`, which are configurable. Once all slots have been analyzed, the tool finishes the execution.
@@ -77,13 +80,16 @@ OPTIONS:
    --el-endpoint value 	   execution node endpoint (to request the Transaction Receipts, optional)
    --init-slot value       init slot from where to start (default: 0)
    --final-slot value      init slot from where to finish (default: 0)
+   --rewards-aggregation-epochs value  Number of epochs to aggregate rewards (default: 1 (no aggregation))
    --log-level value       log level: debug, warn, info, error
-   --db-url value          example: clickhouse://beaconchain:beaconchain@localhost:9000/beacon_states
+   --db-url value          example: clickhouse://beaconchain:beaconchain@localhost:9000/beacon_states?x-multi-statement=true
    --workers-num value     example: 3 (default: 4)
    --db-workers-num value  example: 3 (default: 4)
    --download-mode value   example: hybrid,historical,finalized. Default: hybrid
    --metrics value         example: epoch,block,rewards,transactions,api_rewards. Empty for all (default: epoch,block)
    --prometheus-port value Port on which to expose prometheus metrics (default: 9081)
+   --max-request-retries value         Number of retries to make when a request fails. For head mode it shouldn't be higher than 3-4, for historical its recommended to be higher (default: 3)
+   --beacon-contract-address value     Beacon contract address. Can be 'mainnet', 'holesky', 'sepolia' or directly the contract address in format '0x...' (default: mainnet)
    --help, -h              show help (default: false)
 ```
 
@@ -107,18 +113,18 @@ Keep in mind `api_rewards` data also downloads block rewards from the Beacon API
 
 In case you encounter any issue with the database, you can force the database version using the golang-migrate command line. Please refer [here](https://github.com/golang-migrate/migrate) for more information.
 More specifically, one could clean the migrations by forcing the version with <br>
-`migrate -path / -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" force <current_version>` <br>
+`migrate -path / -database "clickhouse://host:port?username=user&password=password&database=clicks&x-multi-statement=true" force <current_version>` <br>
 If specific upgrades or downgrades need to be done manually, one could do this with <br>
-`migrate -path database/migration/ -database "postgresql://username:secretkey@localhost:5432/database_name?sslmode=disable" -verbose up`
+`migrate -path database/migration/ -database "clickhouse://host:port?username=user&password=password&database=clicks&x-multi-statement=true" -verbose up`
 
-# From PostgreSQL to Clickhouse
+# Migrating from `v2` to `v3` (Postgres to Clickhouse)
 
-During `v3.0.0` we will migrate our database system from PostgreSQL to Clickhouse.
+During `v3.0.0` we migrated our database system from PostgreSQL to Clickhouse.
 If you wish to migrate your existing database, please follow [this](https://migalabs.notion.site/PostgreSQL-to-Clickhouse-migration-611a52a457824cd494d701773365f62f) guide.
 
 # Maintainers
 
-@cortze @tdahar
+@santi1234567
 
 # Contributing
 

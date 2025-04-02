@@ -90,7 +90,13 @@ func (r *DBService) initMonitorMetrics() {
 		transactionsTable,
 		valLastStatusTable,
 		valRewardsTable,
-		withdrawalsTable}
+		valRewardsAggregationTable,
+		withdrawalsTable,
+		slashingsTable,
+		blsToExecutionChangeTable,
+		depositsTable,
+		eth1DepositsTable,
+	}
 
 	for _, tableName := range tablesArr {
 		r.monitorMetrics[tableName] = &DBMonitorMetrics{}

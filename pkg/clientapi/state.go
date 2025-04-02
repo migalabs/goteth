@@ -29,15 +29,12 @@ func (s *APIClient) RequestBeaconState(slot phase0.Slot) (*local_spec.AgnosticSt
 	var newState *api.Response[*spec.VersionedBeaconState]
 
 	attempts := 0
-	for err != nil && attempts < maxRetries {
+	for err != nil && attempts < s.maxRetries {
 
 		newState, err = s.Api.BeaconState(s.ctx, &api.BeaconStateOpts{
 			State: fmt.Sprintf("%d", slot),
 		})
 
-		if newState == nil {
-			return nil, fmt.Errorf("unable to retrieve Beacon State from the beacon node, closing requester routine. nil State")
-		}
 		if errors.Is(err, context.DeadlineExceeded) {
 			ticker := time.NewTicker(utils.RoutineFlushTimeout)
 			log.Warnf("retrying request: %s", routineKey)

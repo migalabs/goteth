@@ -30,7 +30,15 @@ var (
 		f_num_slashed_vals,
 		f_num_active_vals,
 		f_num_exited_vals,
-		f_num_in_activation_vals)
+		f_num_in_activation_vals,
+		f_sync_committee_participation,
+		f_deposits_num,
+		f_total_deposits_amount,
+		f_withdrawals_num,
+		f_total_withdrawals_amount,
+		f_new_proposer_slashings,
+		f_new_attester_slashings	
+		)
 		VALUES`
 
 	selectLastEpochQuery = `
@@ -67,6 +75,13 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_num_active_vals                  proto.ColUInt64
 		f_num_exited_vals                  proto.ColUInt64
 		f_num_in_activation_vals           proto.ColUInt64
+		f_sync_committee_participation     proto.ColUInt64
+		f_deposits_num                     proto.ColUInt64
+		f_total_deposits_amount            proto.ColUInt64
+		f_withdrawals_num                  proto.ColUInt64
+		f_total_withdrawals_amount         proto.ColUInt64
+		f_new_proposer_slashings           proto.ColUInt64
+		f_new_attester_slashings           proto.ColUInt64
 	)
 
 	for _, epoch := range epochs {
@@ -89,7 +104,13 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_num_active_vals.Append(uint64(epoch.NumActiveVals))
 		f_num_exited_vals.Append(uint64(epoch.NumExitedVals))
 		f_num_in_activation_vals.Append(uint64(epoch.NumInActivationVals))
-
+		f_sync_committee_participation.Append(epoch.SyncCommitteeParticipation)
+		f_deposits_num.Append(uint64(epoch.DepositsNum))
+		f_total_deposits_amount.Append(uint64(epoch.TotalDepositsAmount))
+		f_withdrawals_num.Append(uint64(epoch.WithdrawalsNum))
+		f_total_withdrawals_amount.Append(uint64(epoch.TotalWithdrawalsAmount))
+		f_new_proposer_slashings.Append(uint64(epoch.NewProposerSlashings))
+		f_new_attester_slashings.Append(uint64(epoch.NewAttesterSlashings))
 	}
 
 	return proto.Input{
@@ -112,6 +133,13 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		{Name: "f_num_active_vals", Data: f_num_active_vals},
 		{Name: "f_num_exited_vals", Data: f_num_exited_vals},
 		{Name: "f_num_in_activation_vals", Data: f_num_in_activation_vals},
+		{Name: "f_sync_committee_participation", Data: f_sync_committee_participation},
+		{Name: "f_deposits_num", Data: f_deposits_num},
+		{Name: "f_total_deposits_amount", Data: f_total_deposits_amount},
+		{Name: "f_withdrawals_num", Data: f_withdrawals_num},
+		{Name: "f_total_withdrawals_amount", Data: f_total_withdrawals_amount},
+		{Name: "f_new_proposer_slashings", Data: f_new_proposer_slashings},
+		{Name: "f_new_attester_slashings", Data: f_new_attester_slashings},
 	}
 }
 
@@ -192,7 +220,7 @@ func (s *DBService) DeleteStateMetrics(epoch phase0.Epoch) error {
 	if err != nil {
 		return err
 	}
-	s.Delete(DeletableObject{
+	err = s.Delete(DeletableObject{
 		query: deleteValidatorRewardsInEpochQuery,
 		table: valRewardsTable,
 		args:  []any{epoch + 1},
@@ -200,7 +228,7 @@ func (s *DBService) DeleteStateMetrics(epoch phase0.Epoch) error {
 	if err != nil {
 		return err
 	}
-	s.Delete(DeletableObject{
+	err = s.Delete(DeletableObject{
 		query: deleteValidatorRewardsInEpochQuery,
 		table: valRewardsTable,
 		args:  []any{epoch},

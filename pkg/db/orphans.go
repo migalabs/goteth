@@ -79,7 +79,11 @@ func orphansInput(blocks []spec.AgnosticBlock) proto.Input {
 
 		f_proposer_index.Append(uint64(block.ProposerIndex))
 		f_proposed.Append(block.Proposed)
-		f_attestations.Append(uint64(len(block.Attestations)))
+		if block.Attestations != nil {
+			f_attestations.Append(uint64(len(block.Attestations)))
+		} else if block.ElectraAttestations != nil {
+			f_attestations.Append(uint64(len(block.ElectraAttestations)))
+		}
 		f_deposits.Append(uint64(len(block.Deposits)))
 		f_proposer_slashings.Append(uint64(len(block.ProposerSlashings)))
 		f_attester_slashings.Append(uint64(len(block.AttesterSlashings)))

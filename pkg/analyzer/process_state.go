@@ -47,35 +47,40 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		s.stop = true
 	}
 
-	// If nextState is filled, we can process proposer duties
-	if !nextState.EmptyStateRoot() {
+	// If prevState, currentState and nextState are filled, we can process proposer duties, epoch metrics and validator rewards
+	if !nextState.EmptyStateRoot() && !currentState.EmptyStateRoot() && !prevState.EmptyStateRoot() {
 		s.processEpochDuties(bundle)
 		s.processValLastStatus(bundle)
 
-		// If currentState and nextState are filled, we can process epoch metrics
-		if !currentState.EmptyStateRoot() {
-			s.processPoolMetrics(bundle.GetMetricsBase().CurrentState.Epoch)
-			s.processEpochMetrics(bundle)
-
-			// If prevState, currentState and nextState are filled, we can process validator rewards
-			if !prevState.EmptyStateRoot() {
-				s.processBlockRewards(bundle) // block rewards depend on two previous epochs
-				if s.metrics.ValidatorRewards {
-					s.processEpochValRewards(bundle)
-				}
-			}
+		s.processPoolMetrics(bundle.GetMetricsBase().CurrentState.Epoch)
+		s.processEpochMetrics(bundle)
+		s.processBlockRewards(bundle) // block rewards depend on two previous epochs
+		if s.metrics.ValidatorRewards {
+			s.processEpochValRewards(bundle)
 		}
+		s.processSlashings(bundle)
 	}
 
 	s.processerBook.FreePage(routineKey)
 
 }
 
+func (s *ChainAnalyzer) processSlashings(bundle metrics.StateMetrics) {
+	slashings := bundle.GetMetricsBase().NextState.Slashings
+	if len(slashings) == 0 {
+		return
+	}
+	err := s.dbClient.PersistSlashings(slashings)
+	if err != nil {
+		log.Errorf("error persisting slashings: %s", err.Error())
+	}
+}
+
 func (s *ChainAnalyzer) processEpochMetrics(bundle metrics.StateMetrics) {
 
 	// we need sameEpoch and nextEpoch
-
-	epoch := bundle.GetMetricsBase().ExportToEpoch()
+	metricsBase := bundle.GetMetricsBase()
+	epoch := metricsBase.ExportToEpoch()
 
 	log.Debugf("persisting epoch metrics: epoch %d", epoch.Epoch)
 
@@ -162,48 +167,61 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 }
 
 func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
+	var insertValsObj []spec.ValidatorRewards
+	log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
 
-	if s.metrics.ValidatorRewards { // only if flag is activated
-		var insertValsObj []spec.ValidatorRewards
-		log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
-
-		// process each validator
-		for valIdx := range bundle.GetMetricsBase().NextState.Validators {
-
-			if valIdx >= len(bundle.GetMetricsBase().NextState.Validators) {
-				continue // validator is not in the chain yet
-			}
-			// get max reward at given epoch using the formulas
-			maxRewards, err := bundle.GetMaxReward(phase0.ValidatorIndex(valIdx))
-
-			if err != nil {
-				log.Errorf("Error obtaining max reward: %s", err.Error())
-				continue
-			}
-
-			insertValsObj = append(insertValsObj, maxRewards)
+	// process each validator
+	for valIdx := range bundle.GetMetricsBase().NextState.Validators {
+		if valIdx >= len(bundle.GetMetricsBase().NextState.Validators) {
+			continue // validator is not in the chain yet
 		}
-		if len(insertValsObj) > 0 { // persist everything
-			err := s.dbClient.PersistValidatorRewards(insertValsObj)
-			if err != nil {
-				log.Fatalf("error persisting validator rewards: %s", err.Error())
-			}
-
+		valIdx := phase0.ValidatorIndex(valIdx)
+		// get max reward at given epoch using the formulas
+		maxRewards, err := bundle.GetMaxReward(valIdx)
+		if err != nil {
+			log.Errorf("Error obtaining max reward: %s", err.Error())
+			continue
 		}
-
+		if s.rewardsAggregationEpochs > 1 {
+			// if validator is not in s.validatorsRewardsAggregations, we need to create it
+			if _, ok := s.validatorsRewardsAggregations[phase0.ValidatorIndex(valIdx)]; !ok {
+				s.validatorsRewardsAggregations[phase0.ValidatorIndex(valIdx)] = spec.NewValidatorRewardsAggregation(valIdx, s.startEpochAggregation, s.endEpochAggregation)
+			}
+			s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
+		}
+		insertValsObj = append(insertValsObj, maxRewards)
 	}
+	if len(insertValsObj) > 0 { // persist everything
+		err := s.dbClient.PersistValidatorRewards(insertValsObj)
+		if err != nil {
+			log.Fatalf("error persisting validator rewards: %s", err.Error())
+		}
+	}
+
+	if s.rewardsAggregationEpochs > 1 && bundle.GetMetricsBase().NextState.Epoch == s.endEpochAggregation {
+		if len(s.validatorsRewardsAggregations) > 0 {
+			err := s.dbClient.PersistValidatorRewardsAggregation(s.validatorsRewardsAggregations)
+			if err != nil {
+				log.Fatalf("error persisting validator rewards aggregation: %s", err.Error())
+			}
+		}
+		s.validatorsRewardsAggregations = make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation)
+		s.startEpochAggregation = s.endEpochAggregation + 1
+		s.endEpochAggregation = s.endEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs)
+	}
+
 }
 
 func (s *ChainAnalyzer) processBlockRewards(bundle metrics.StateMetrics) {
 
 	blockRewards := make([]db.BlockReward, 0)
 
-	mevBids, err := s.relayCli.GetDeliveredBidsPerSlotRange(bundle.GetMetricsBase().NextState.Slot, spec.SlotsPerEpoch)
+	mevBids, err := s.relayCli.GetDeliveredBidsPerSlotRange(bundle.GetMetricsBase().CurrentState.Slot, spec.SlotsPerEpoch)
 	if err != nil {
 		log.Errorf("error getting mev bids: %s", err.Error())
 	}
 
-	for _, block := range bundle.GetMetricsBase().NextState.Blocks {
+	for _, block := range bundle.GetMetricsBase().CurrentState.Blocks {
 		blockRewards = append(blockRewards, s.getSingleBlockRewards(*block, mevBids))
 	}
 

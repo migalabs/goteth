@@ -1,7 +1,6 @@
 package clientapi
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -35,22 +35,22 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 	var newBlock *api.Response[*spec.VersionedSignedBeaconBlock]
 
 	attempts := 0
-	for err != nil && attempts < maxRetries {
+	for err != nil && attempts < s.maxRetries {
 
 		newBlock, err = s.Api.SignedBeaconBlock(s.ctx, &api.SignedBeaconBlockOpts{
 			Block: fmt.Sprintf("%d", slot),
 		})
 		if err != nil {
 			if response404(err.Error()) {
-				log.Warnf("the beacon block at slot %d does not exist, missing block", slot)
+				log.Infof("the beacon block at slot %d does not exist, missing block", slot)
 				return s.CreateMissingBlock(slot), nil
 			}
 
-			if errors.Is(err, context.DeadlineExceeded) {
-				ticker := time.NewTicker(utils.RoutineFlushTimeout)
-				log.Warnf("retrying request: %s", routineKey)
-				<-ticker.C
-			}
+			timeoutTime := utils.RoutineFlushTimeout * time.Duration(attempts+1)
+			ticker := time.NewTicker(timeoutTime)
+			log.Warnf("retrying request: %s. Attempt number: %d", routineKey, attempts)
+			<-ticker.C
+
 		}
 		attempts += 1
 
@@ -87,13 +87,7 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 
 		customBlock.Reward = reward
 	}
-	if s.Metrics.Transactions {
-		txs, err := s.GetBlockTransactions(customBlock)
-		if err != nil {
-			log.Errorf("error getting slot %d transactions: %s", customBlock.Slot, err.Error())
-		}
-		customBlock.ExecutionPayload.AgnosticTransactions = txs
-	}
+
 	log.Infof("block at slot %d downloaded in %f seconds", slot, time.Since(startTime).Seconds())
 
 	return &customBlock, nil
@@ -147,16 +141,17 @@ func (s *APIClient) CreateMissingBlock(slot phase0.Slot) *local_spec.AgnosticBlo
 	}
 
 	return &local_spec.AgnosticBlock{
-		Slot:              slot,
-		StateRoot:         s.RequestStateRoot(slot),
-		ProposerIndex:     proposerValIdx,
-		Graffiti:          [32]byte{},
-		Proposed:          false,
-		Attestations:      make([]*phase0.Attestation, 0),
-		Deposits:          make([]*phase0.Deposit, 0),
-		ProposerSlashings: make([]*phase0.ProposerSlashing, 0),
-		AttesterSlashings: make([]*phase0.AttesterSlashing, 0),
-		VoluntaryExits:    make([]*phase0.SignedVoluntaryExit, 0),
+		Slot:                slot,
+		StateRoot:           s.RequestStateRoot(slot),
+		ProposerIndex:       proposerValIdx,
+		Graffiti:            [32]byte{},
+		Proposed:            false,
+		Attestations:        make([]*phase0.Attestation, 0),
+		ElectraAttestations: make([]*electra.Attestation, 0),
+		Deposits:            make([]*phase0.Deposit, 0),
+		ProposerSlashings:   make([]*phase0.ProposerSlashing, 0),
+		AttesterSlashings:   make([]*phase0.AttesterSlashing, 0),
+		VoluntaryExits:      make([]*phase0.SignedVoluntaryExit, 0),
 		SyncAggregate: &altair.SyncAggregate{
 			SyncCommitteeBits:      bitfield.NewBitvector512(),
 			SyncCommitteeSignature: phase0.BLSSignature{},
