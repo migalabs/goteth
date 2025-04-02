@@ -27,7 +27,7 @@ func (s StateMetricsBase) GetStateAtSlot(slot phase0.Slot) (*spec.AgnosticState,
 		return s.NextState, nil
 	}
 
-	return &spec.AgnosticState{}, errors.New("could not get state from any epoch")
+	return nil, errors.New("could not get state from any epoch")
 }
 
 func (p AltairMetrics) GetValidatorFromCommitteeIndex(slot phase0.Slot, committeeIndex phase0.CommitteeIndex, idx int) (phase0.ValidatorIndex, error) {
