@@ -7,7 +7,7 @@ var (
 	DefaultBnEndpoint               string = ""
 	DefaultElEndpoint               string = ""
 	DefaultRewardsAggregationEpochs int    = 1
-	DefaultDBUrl                    string = "postgres://user:password@localhost:5432/goteth"
+	DefaultDBUrl                    string = "clickhouse://username:password@localhost:9000/goteth?x-multi-statement=true&max_memory_usage=10000000000"
 	DefaultDownloadMode             string = "finalized"
 	DefaultWorkerNum                int    = 4
 	DefaultDbWorkerNum              int    = 4
