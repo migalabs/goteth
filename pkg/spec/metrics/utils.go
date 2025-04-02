@@ -34,7 +34,7 @@ func (p AltairMetrics) GetValidatorFromCommitteeIndex(slot phase0.Slot, committe
 	state, err := p.baseMetrics.GetStateAtSlot(slot)
 	if err != nil {
 
-		return 0, fmt.Errorf("could not get validator from any epoch: slot %d, committee %d, index %d", slot, committeeIndex, idx)
+		return 0, fmt.Errorf("could not get validator from any epoch (slot %d, committee %d, index %d): %w", slot, committeeIndex, idx, err)
 	}
 	valList := state.EpochStructs.GetValList(slot, committeeIndex)
 	return valList[idx], nil
