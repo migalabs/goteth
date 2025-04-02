@@ -58,11 +58,11 @@ func (p ElectraMetrics) GetAttestingIndices(attestation electra.Attestation) ([]
 	committeeIndices := attestation.CommitteeBits.BitIndices()
 	committeeOffset := 0
 	stateAtSlot, err := p.baseMetrics.GetStateAtSlot(attestation.Data.Slot)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, committeeIndex := range committeeIndices {
-		if err != nil {
-			return nil, err
-		}
 		committee := stateAtSlot.EpochStructs.GetBeaconCommittee(attestation.Data.Slot, phase0.CommitteeIndex(committeeIndex))
 		for i, attesterIndex := range committee.Validators {
 			// Check if the corresponding aggregation bit is set
