@@ -78,11 +78,11 @@ func (s *ChainAnalyzer) processSlashings(bundle metrics.StateMetrics) {
 }
 
 func (s *ChainAnalyzer) storeConsolidationRequests(bundle metrics.StateMetrics) {
-	slashings := bundle.GetMetricsBase().NextState.ConsolidationRequests
-	if len(slashings) == 0 {
+	consolidationRequests := bundle.GetMetricsBase().NextState.ConsolidationRequests
+	if len(consolidationRequests) == 0 {
 		return
 	}
-	err := s.dbClient.PersistConsolidationRequests(slashings)
+	err := s.dbClient.PersistConsolidationRequests(consolidationRequests)
 	if err != nil {
 		log.Errorf("error persisting consolidation requests: %s", err.Error())
 	}
