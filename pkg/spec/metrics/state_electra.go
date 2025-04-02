@@ -53,13 +53,13 @@ func (p *ElectraMetrics) PreProcessBundle() {
 }
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#modified-get_attesting_indices
-func (p ElectraMetrics) GetAttestingIndices(state spec.AgnosticState, attestation electra.Attestation) ([]phase0.ValidatorIndex, error) {
+func (p ElectraMetrics) GetAttestingIndices(attestation electra.Attestation) ([]phase0.ValidatorIndex, error) {
 	output := make([]phase0.ValidatorIndex, 0)
 	committeeIndices := attestation.CommitteeBits.BitIndices()
 	committeeOffset := 0
+	stateAtSlot, err := p.baseMetrics.GetStateAtSlot(attestation.Data.Slot)
 
 	for _, committeeIndex := range committeeIndices {
-		stateAtSlot, err := p.baseMetrics.GetStateAtSlot(attestation.Data.Slot)
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +106,7 @@ func (p ElectraMetrics) ProcessAttestations() {
 			}
 
 			participationFlags := p.getParticipationFlags(*attestation, *block)
-			attestingIndices, err := p.GetAttestingIndices(*p.baseMetrics.CurrentState, *attestation)
+			attestingIndices, err := p.GetAttestingIndices(*attestation)
 			if err != nil {
 				log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
 			}
@@ -170,7 +170,7 @@ func (p *ElectraMetrics) ProcessInclusionDelays() {
 			}
 			inclusionDelay := p.GetInclusionDelay(*attestation, *block)
 
-			attestingIndices, err := p.GetAttestingIndices(*p.baseMetrics.CurrentState, *attestation)
+			attestingIndices, err := p.GetAttestingIndices(*attestation)
 			if err != nil {
 				log.Fatalf("error processing attestations at block %d: %s", block.Slot, err)
 			}
