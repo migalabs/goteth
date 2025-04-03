@@ -157,3 +157,79 @@ func TestHexStringAddressIsValid(t *testing.T) {
 		})
 	}
 }
+
+func TestUint64Max(t *testing.T) {
+	tests := []struct {
+		name string
+		a    uint64
+		b    uint64
+		max  uint64
+	}{
+		{
+			name: "A greater than B",
+			a:    10,
+			b:    5,
+			max:  10,
+		},
+		{
+			name: "B greater than A",
+			a:    5,
+			b:    10,
+			max:  10,
+		},
+		{
+			name: "A equal to B",
+			a:    5,
+			b:    5,
+			max:  5,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			max := spec.Uint64Max(test.a, test.b)
+			if max != test.max {
+				t.Errorf("Uint64Max() returned %d, expected %d", max, test.max)
+			}
+		})
+	}
+
+}
+
+func TestUint64Min(t *testing.T) {
+	tests := []struct {
+		name string
+		a    uint64
+		b    uint64
+		min  uint64
+	}{
+		{
+			name: "A greater than B",
+			a:    10,
+			b:    5,
+			min:  5,
+		},
+		{
+			name: "B greater than A",
+			a:    5,
+			b:    10,
+			min:  5,
+		},
+		{
+			name: "A equal to B",
+			a:    5,
+			b:    5,
+			min:  5,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			min := spec.Uint64Min(test.a, test.b)
+			if min != test.min {
+				t.Errorf("Uint64Min() returned %d, expected %d", min, test.min)
+			}
+		})
+	}
+
+}

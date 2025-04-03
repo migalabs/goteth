@@ -7,6 +7,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
+	"github.com/attestantio/go-eth2-client/spec/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 )
 
@@ -47,6 +48,11 @@ type AgnosticState struct {
 	NewProposerSlashings         int    // number of new proposer slashings
 	NewAttesterSlashings         int    // number of new attester slashings
 	Slashings                    []AgnosticSlashing
+	// Electra
+	ConsolidationRequests     []ConsolidationRequest
+	PendingConsolidations     []*electra.PendingConsolidation
+	PendingPartialWithdrawals []*electra.PendingPartialWithdrawal
+	ConsolidatedValidators    []phase0.ValidatorIndex // list of validators that have been consolidated, used for tracking errors of a validator trying to consolidate twice on same epoch.
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -92,6 +98,8 @@ func (p *AgnosticState) Setup() error {
 	p.TotalActiveRealBalance = p.GetTotalActiveRealBalance()
 	p.TrackMissingBlocks()
 	p.Slashings = make([]AgnosticSlashing, 0)
+	p.ConsolidationRequests = make([]ConsolidationRequest, 0)
+	p.ConsolidatedValidators = make([]phase0.ValidatorIndex, 0)
 	return nil
 }
 
@@ -496,6 +504,8 @@ func NewElectraState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnos
 		GenesisTimestamp:           bstate.Electra.GenesisTime,
 		CurrentJustifiedCheckpoint: *bstate.Electra.CurrentJustifiedCheckpoint,
 		LatestBlockHeader:          bstate.Electra.LatestBlockHeader,
+		PendingConsolidations:      bstate.Electra.PendingConsolidations,
+		PendingPartialWithdrawals:  bstate.Electra.PendingPartialWithdrawals,
 	}
 
 	electraObj.Setup()
