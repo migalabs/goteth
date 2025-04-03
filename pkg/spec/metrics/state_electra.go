@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"math"
 
+	"slices"
+
 	"github.com/attestantio/go-eth2-client/spec/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/spec"
@@ -64,12 +66,19 @@ func getPendingBalanceToWithdraw(state *spec.AgnosticState, validatorIndex phase
 	return total
 }
 
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-has_compounding_withdrawal_credential
 func hasCompoundingWithdrawalCredential(validator *phase0.Validator) bool {
 	return validator.WithdrawalCredentials[0] == spec.CompoundingWithdrawalPrefix
 }
 
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/beacon-chain.md#has_eth1_withdrawal_credential
 func hasEth1WithdrawalCredential(validator *phase0.Validator) bool {
 	return validator.WithdrawalCredentials[0] == spec.Eth1AddressWithdrawalPrefix
+}
+
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-has_compounding_withdrawal_credential
+func hasExecutionWithdrawalCredential(validator *phase0.Validator) bool {
+	return hasCompoundingWithdrawalCredential(validator) || hasEth1WithdrawalCredential(validator)
 }
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-get_balance_churn_limit
@@ -190,7 +199,7 @@ func (p ElectraMetrics) processConsolidationRequest(consolidationRequest *electr
 	}
 
 	// Verify source withdrawal credentials
-	hasCorrectCredential := hasEth1WithdrawalCredential(sourceValidator)
+	hasCorrectCredential := hasExecutionWithdrawalCredential(sourceValidator)
 
 	isCorrectSourceAddress := bytes.Equal(sourceValidator.WithdrawalCredentials[12:], consolidationRequest.SourceAddress[:])
 	if !(hasCorrectCredential && isCorrectSourceAddress) {
@@ -212,7 +221,8 @@ func (p ElectraMetrics) processConsolidationRequest(consolidationRequest *electr
 	}
 
 	// Verify exits for source and target have not been initiated
-	if sourceValidator.ExitEpoch != phase0.Epoch(spec.FarFutureEpoch) {
+	alreadyConsolidated := slices.Contains(currentState.ConsolidatedValidators, sourceValidatorIndex)
+	if sourceValidator.ExitEpoch != phase0.Epoch(spec.FarFutureEpoch) || alreadyConsolidated {
 		return spec.ConsolidationRequestResultSrcExitAlreadyInitiated
 	}
 	if targetValidator.ExitEpoch != phase0.Epoch(spec.FarFutureEpoch) {
@@ -230,6 +240,7 @@ func (p ElectraMetrics) processConsolidationRequest(consolidationRequest *electr
 		return spec.ConsolidationRequestResultSrcHasPendingWithdrawal
 	}
 
+	currentState.ConsolidatedValidators = append(currentState.ConsolidatedValidators, sourceValidatorIndex)
 	return spec.ConsolidationRequestResultSuccess
 }
 
