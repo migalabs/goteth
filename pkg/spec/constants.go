@@ -7,6 +7,7 @@ const (
 	MainnetBeaconContractAddress = "0x00000000219ab540356cBB839Cbe05303d7705Fa"
 	SepoliaBeaconContractAddress = "0x7f02C3E3c98b133055B8B348B2Ac625669Ed295D"
 	HoleskyBeaconContractAddress = "0x4242424242424242424242424242424242424242"
+	HoodiBeaconContractAddress   = MainnetBeaconContractAddress
 	DepositEventTopic            = "0x649bbc62d0e31342afea4e5cd82d4049e7e1ee912fc0889aa790803be39038c5"
 	DepositEventDataLength       = 576
 )
@@ -15,6 +16,7 @@ var BeaconContractAddresses = map[string]string{
 	"mainnet": MainnetBeaconContractAddress,
 	"sepolia": SepoliaBeaconContractAddress,
 	"holesky": HoleskyBeaconContractAddress,
+	"hoodi":   HoodiBeaconContractAddress,
 }
 
 /*
