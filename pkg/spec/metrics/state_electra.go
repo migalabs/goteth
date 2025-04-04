@@ -307,7 +307,8 @@ func (p ElectraMetrics) processWithdrawalRequest(withdrawalRequest *electra.With
 	}
 
 	// Verify exit has not been initiated
-	if validator.ExitEpoch != phase0.Epoch(spec.FarFutureEpoch) {
+	alreadyExiting := slices.Contains(state.NewExitingValidators, validatorIndex)
+	if validator.ExitEpoch != phase0.Epoch(spec.FarFutureEpoch) || alreadyExiting {
 		return spec.WithdrawalRequestResultExitAlreadyInitiated
 	}
 
@@ -322,6 +323,7 @@ func (p ElectraMetrics) processWithdrawalRequest(withdrawalRequest *electra.With
 	if isFullExitRequest {
 		// Only exit validator if it has no pending withdrawals in the queue
 		if pendingBalanceToWithdraw == 0 {
+			state.NewExitingValidators = append(state.NewExitingValidators, validatorIndex)
 			return spec.WithdrawalRequestResultSuccess
 		}
 		return spec.WithdrawalRequestResultPendingWithdrawalExists
