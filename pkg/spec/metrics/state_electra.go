@@ -223,7 +223,7 @@ func (p ElectraMetrics) processConsolidationRequest(consolidationRequest *electr
 	}
 
 	// Verify exits for source and target have not been initiated
-	alreadyConsolidated := slices.Contains(currentState.ConsolidatedValidators, sourceValidatorIndex)
+	alreadyConsolidated := slices.Contains(currentState.NewExitingValidators, sourceValidatorIndex)
 	if sourceValidator.ExitEpoch != phase0.Epoch(spec.FarFutureEpoch) || alreadyConsolidated {
 		return spec.ConsolidationRequestResultSrcExitAlreadyInitiated
 	}
@@ -242,7 +242,7 @@ func (p ElectraMetrics) processConsolidationRequest(consolidationRequest *electr
 		return spec.ConsolidationRequestResultSrcHasPendingWithdrawal
 	}
 
-	currentState.ConsolidatedValidators = append(currentState.ConsolidatedValidators, sourceValidatorIndex)
+	currentState.NewExitingValidators = append(currentState.NewExitingValidators, sourceValidatorIndex)
 	return spec.ConsolidationRequestResultSuccess
 }
 
