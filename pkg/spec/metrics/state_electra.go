@@ -476,5 +476,6 @@ func (p ElectraMetrics) processPendingConsolidations(s *spec.AgnosticState) {
 		sourceEffectiveBalance := min(s.Balances[pendingConsolidation.SourceIndex], sourceValidator.EffectiveBalance)
 		consolidationProcessed.ConsolidatedAmount = sourceEffectiveBalance
 		s.ConsolidationsProcessed = append(s.ConsolidationsProcessed, *consolidationProcessed)
+		s.ConsolidationsProcessedAmount += sourceEffectiveBalance
 	}
 }
