@@ -49,6 +49,7 @@ func (p *ElectraMetrics) PreProcessBundle() {
 		p.ProcessSlashings()
 		p.ProcessSyncAggregates()
 		p.processConsolidationRequests()
+		p.processWithdrawalRequests()
 		p.GetMaxFlagIndexDeltas()
 		p.ProcessInclusionDelays()
 		p.GetMaxSyncComReward()
@@ -265,6 +266,108 @@ func (p ElectraMetrics) processConsolidationRequests() {
 		}
 	}
 	p.baseMetrics.NextState.ConsolidationRequests = consolidationRequests
+}
+
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_withdrawal_request
+func (p ElectraMetrics) processWithdrawalRequest(withdrawalRequest *electra.WithdrawalRequest) spec.WithdrawalRequestResult {
+	amount := withdrawalRequest.Amount
+	isFullExitRequest := uint64(amount) == spec.FullExitRequestAmount
+	state := p.baseMetrics.CurrentState
+	// If partial withdrawal queue is full, only full exits are processed
+	if uint64(len(state.PendingPartialWithdrawals)) == spec.PendingPartialWithdrawalsLimit && !isFullExitRequest {
+		return spec.WithdrawalRequestResultQueueFull
+	}
+
+	// Verify pubkey exists
+	requestPubkeyExists := false
+	var validator *phase0.Validator
+	validatorIndex := phase0.ValidatorIndex(0)
+	for i, v := range state.Validators {
+		if bytes.Equal(v.PublicKey[:], withdrawalRequest.ValidatorPubkey[:]) {
+			requestPubkeyExists = true
+			validator = v
+			validatorIndex = phase0.ValidatorIndex(i)
+			break
+		}
+	}
+	if !requestPubkeyExists {
+		return spec.WithdrawalRequestResultValidatorNotFound
+	}
+
+	// Verify withdrawal credentials
+	hasCorrectCredential := hasExecutionWithdrawalCredential(validator)
+	isCorrectSourceAddress := bytes.Equal(validator.WithdrawalCredentials[12:], withdrawalRequest.SourceAddress[:])
+	if !(hasCorrectCredential && isCorrectSourceAddress) {
+		return spec.WithdrawalRequestResultInvalidCredentials
+	}
+
+	// Verify the validator is active
+	if !spec.IsActive(*validator, state.Epoch) {
+		return spec.WithdrawalRequestResultValidatorNotActive
+	}
+
+	// Verify exit has not been initiated
+	if validator.ExitEpoch != phase0.Epoch(spec.FarFutureEpoch) {
+		return spec.WithdrawalRequestResultExitAlreadyInitiated
+	}
+
+	// Verify the validator has been active long enough
+	currentEpoch := state.Epoch
+	if uint64(currentEpoch) < uint64(validator.ActivationEpoch)+spec.ShardCommitteePeriod {
+		return spec.WithdrawalRequestResultValidatorNotOldEnough
+	}
+
+	pendingBalanceToWithdraw := getPendingBalanceToWithdraw(state, validatorIndex)
+
+	if isFullExitRequest {
+		// Only exit validator if it has no pending withdrawals in the queue
+		if pendingBalanceToWithdraw == 0 {
+			return spec.WithdrawalRequestResultSuccess
+		}
+		return spec.WithdrawalRequestResultPendingWithdrawalExists
+	}
+
+	hasSufficientEffectiveBalance := validator.EffectiveBalance >= phase0.Gwei(spec.MinActivationBalance)
+	hasExcessBalance := state.Balances[validatorIndex] > phase0.Gwei(spec.MinActivationBalance)+pendingBalanceToWithdraw
+
+	// Only allow partial withdrawals with compounding withdrawal credentials
+	if !hasCompoundingWithdrawalCredential(validator) {
+		return spec.WithdrawalRequestResultValidatorNotCompounding
+	}
+
+	// Only allow partial withdrawals if the validator has sufficient effective balance
+	if !hasSufficientEffectiveBalance {
+		return spec.WithdrawalRequestResultInsufficientBalance
+	}
+	// and excess balance
+	if !hasExcessBalance {
+		return spec.WithdrawalRequestResultNoExcessBalance
+	}
+
+	return spec.WithdrawalRequestResultSuccess
+}
+
+// The function obtains the result of the withdrawal requests processing and adds it to the requests.
+func (p ElectraMetrics) processWithdrawalRequests() {
+	var withdrawalRequests []spec.WithdrawalRequest
+	for _, block := range p.baseMetrics.NextState.Blocks {
+		if block.ExecutionRequests == nil { // If not an electra+ block or if block was missed
+			continue
+		}
+		for i, withdrawalRequest := range block.ExecutionRequests.Withdrawals {
+			result := p.processWithdrawalRequest(withdrawalRequest)
+
+			withdrawalRequests = append(withdrawalRequests, spec.WithdrawalRequest{
+				Slot:            block.Slot,
+				Index:           uint64(i),
+				SourceAddress:   withdrawalRequest.SourceAddress,
+				ValidatorPubkey: withdrawalRequest.ValidatorPubkey,
+				Amount:          withdrawalRequest.Amount,
+				Result:          result,
+			})
+		}
+	}
+	p.baseMetrics.NextState.WithdrawalRequests = withdrawalRequests
 }
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#modified-get_attesting_indices

@@ -50,6 +50,7 @@ type AgnosticState struct {
 	Slashings                    []AgnosticSlashing
 	// Electra
 	ConsolidationRequests         []ConsolidationRequest
+	WithdrawalRequests            []WithdrawalRequest
 	PendingConsolidations         []*electra.PendingConsolidation
 	PendingPartialWithdrawals     []*electra.PendingPartialWithdrawal
 	ConsolidationsProcessed       []ConsolidationProcessed
