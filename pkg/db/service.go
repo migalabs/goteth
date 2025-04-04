@@ -151,7 +151,8 @@ type PersistableObject[
 		spec.BLSToExecutionChange |
 		spec.Deposit |
 		spec.ETH1Deposit |
-		spec.ConsolidationRequest] struct {
+		spec.ConsolidationRequest |
+		spec.ConsolidationProcessed] struct {
 	table string
 	query string
 	data  []T
