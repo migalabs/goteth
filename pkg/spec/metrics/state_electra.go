@@ -52,6 +52,7 @@ func (p *ElectraMetrics) PreProcessBundle() {
 		p.GetMaxFlagIndexDeltas()
 		p.ProcessInclusionDelays()
 		p.GetMaxSyncComReward()
+		p.processPendingConsolidations(*p.baseMetrics.NextState)
 	}
 }
 
@@ -449,23 +450,31 @@ func (p ElectraMetrics) getParticipationFlags(attestation electra.Attestation, i
 }
 
 // // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_pending_consolidations
-// func (p ElectraMetrics) processPendingConsolidations(s spec.AgnosticState) {
-// 	nextEpoch := s.Epoch + 1
-// 	nextPendingConsolidation := 0
-// 	for _, pendingConsolidation := range s.PendingConsolidations {
-// 		sourceValidator := s.Validators[pendingConsolidation.SourceIndex]
-// 		if sourceValidator.Slashed {
-// 			nextPendingConsolidation += 1
-// 			continue
-// 		}
-// 		if sourceValidator.WithdrawableEpoch > nextEpoch {
-// 			break
-// 		}
+func (p ElectraMetrics) processPendingConsolidations(s spec.AgnosticState) {
+	nextEpoch := s.Epoch + 1
 
-// 		sourceEffectiveBalance := min(s.Balances[pendingConsolidation.SourceIndex], sourceValidator.EffectiveBalance)
+	for index, pendingConsolidation := range s.PendingConsolidations {
+		sourceValidator := s.Validators[pendingConsolidation.SourceIndex]
+		consolidationProcessed := &spec.ConsolidationProcessed{
+			Epoch:              s.Epoch,
+			Index:              uint64(index),
+			SourceIndex:        pendingConsolidation.SourceIndex,
+			TargetIndex:        pendingConsolidation.TargetIndex,
+			ConsolidatedAmount: phase0.Gwei(0),
+			Valid:              true,
+		}
 
-// 		// decreaseBalance(s, pendingConsolidation.SourceIndex, sourceEffectiveBalance)
-// 		// increaseBalance(s, pendingConsolidation.TargetIndex, sourceEffectiveBalance)
-// 		nextPendingConsolidation += 1
-// 	}
-// }
+		if sourceValidator.Slashed {
+			consolidationProcessed.Valid = false
+			s.ConsolidationsProcessed = append(s.ConsolidationsProcessed, *consolidationProcessed)
+			continue
+		}
+		if sourceValidator.WithdrawableEpoch > nextEpoch {
+			break
+		}
+
+		sourceEffectiveBalance := min(s.Balances[pendingConsolidation.SourceIndex], sourceValidator.EffectiveBalance)
+		consolidationProcessed.ConsolidatedAmount = sourceEffectiveBalance
+		s.ConsolidationsProcessed = append(s.ConsolidationsProcessed, *consolidationProcessed)
+	}
+}

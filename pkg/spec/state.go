@@ -52,6 +52,7 @@ type AgnosticState struct {
 	ConsolidationRequests     []ConsolidationRequest
 	PendingConsolidations     []*electra.PendingConsolidation
 	PendingPartialWithdrawals []*electra.PendingPartialWithdrawal
+	ConsolidationsProcessed   []ConsolidationProcessed
 	ConsolidatedValidators    []phase0.ValidatorIndex // list of validators that have been consolidated, used for tracking errors of a validator trying to consolidate twice on same epoch.
 }
 
@@ -99,6 +100,7 @@ func (p *AgnosticState) Setup() error {
 	p.TrackMissingBlocks()
 	p.Slashings = make([]AgnosticSlashing, 0)
 	p.ConsolidationRequests = make([]ConsolidationRequest, 0)
+	p.ConsolidationsProcessed = make([]ConsolidationProcessed, 0)
 	p.ConsolidatedValidators = make([]phase0.ValidatorIndex, 0)
 	return nil
 }
