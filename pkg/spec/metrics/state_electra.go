@@ -52,7 +52,7 @@ func (p *ElectraMetrics) PreProcessBundle() {
 		p.GetMaxFlagIndexDeltas()
 		p.ProcessInclusionDelays()
 		p.GetMaxSyncComReward()
-		p.processPendingConsolidations(*p.baseMetrics.NextState)
+		p.processPendingConsolidations(p.baseMetrics.NextState)
 	}
 }
 
@@ -450,7 +450,7 @@ func (p ElectraMetrics) getParticipationFlags(attestation electra.Attestation, i
 }
 
 // // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_pending_consolidations
-func (p ElectraMetrics) processPendingConsolidations(s spec.AgnosticState) {
+func (p ElectraMetrics) processPendingConsolidations(s *spec.AgnosticState) {
 	nextEpoch := s.Epoch + 1
 
 	for index, pendingConsolidation := range s.PendingConsolidations {
