@@ -60,6 +60,7 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		}
 		s.processSlashings(bundle)
 		s.storeConsolidationRequests(bundle)
+		s.storeConsoidationsProcessed(bundle)
 	}
 
 	s.processerBook.FreePage(routineKey)
@@ -74,6 +75,17 @@ func (s *ChainAnalyzer) processSlashings(bundle metrics.StateMetrics) {
 	err := s.dbClient.PersistSlashings(slashings)
 	if err != nil {
 		log.Errorf("error persisting slashings: %s", err.Error())
+	}
+}
+
+func (s *ChainAnalyzer) storeConsoidationsProcessed(bundle metrics.StateMetrics) {
+	consolidationsProcessed := bundle.GetMetricsBase().NextState.ConsolidationsProcessed
+	if len(consolidationsProcessed) == 0 {
+		return
+	}
+	err := s.dbClient.PersistConsolidationsProcessed(consolidationsProcessed)
+	if err != nil {
+		log.Errorf("error persisting consolidationsProcessed: %s", err.Error())
 	}
 }
 
