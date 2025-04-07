@@ -39,6 +39,14 @@ const (
 	AttSourceFlagIndex = 0
 	AttTargetFlagIndex = 1
 	AttHeadFlagIndex   = 2
+
+	Eth1AddressWithdrawalPrefix = 0x01
+
+	ChurnLimitQuotient uint64 = 1 << 16
+
+	FarFutureEpoch uint64 = 1<<64 - 1
+
+	ShardCommitteePeriod uint64 = 256
 )
 
 /*
@@ -54,6 +62,19 @@ const (
 	ProposerWeight    = 8
 	WeightDenominator = 64
 	SyncCommitteeSize = 512
+)
+
+// Electra
+const (
+	CompoundingWithdrawalPrefix = 0x02
+
+	// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#state-list-lengths
+	PendingConsolidationsLimit uint64 = 1 << 18
+
+	MinPerEpochChurnLimitElectra               uint64 = 128000000000 // Gwei(2**7 * 10**9)
+	MaxPerEpochActivationExitChurnLimitElectra uint64 = 256000000000 // Gwei(2**8 * 10**9)
+
+	MinActivationBalance uint64 = 32000000000 // Gwei(2**5 * 10**9)
 )
 
 var (
@@ -86,6 +107,7 @@ const (
 	BLSToExecutionChangeModel
 	DepositModel
 	ETH1DepositModel
+	ConsolidationRequestModel
 )
 
 type ValidatorStatus int8

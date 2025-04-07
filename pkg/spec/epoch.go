@@ -32,6 +32,7 @@ type Epoch struct {
 	TotalWithdrawalsAmount     phase0.Gwei
 	NewProposerSlashings       int
 	NewAttesterSlashings       int
+	ConsolidationRequestsNum   int
 }
 
 func (f Epoch) Type() ModelType {

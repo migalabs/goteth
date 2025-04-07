@@ -105,5 +105,6 @@ func (s StateMetricsBase) ExportToEpoch() local_spec.Epoch {
 		TotalWithdrawalsAmount:     s.CurrentState.TotalWithdrawalsAmount,
 		NewProposerSlashings:       int(s.CurrentState.NewProposerSlashings),
 		NewAttesterSlashings:       int(s.CurrentState.NewAttesterSlashings),
+		ConsolidationRequestsNum:   int(len(s.CurrentState.ConsolidationRequests)),
 	}
 }
