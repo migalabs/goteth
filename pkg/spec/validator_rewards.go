@@ -8,6 +8,7 @@ type ValidatorRewards struct {
 	ValidatorIndex       phase0.ValidatorIndex
 	Epoch                phase0.Epoch
 	ValidatorBalance     phase0.Gwei
+	WithdrawalPrefix     byte
 	Reward               int64 // it can be negative
 	MaxReward            phase0.Gwei
 	AttestationReward    phase0.Gwei
@@ -35,7 +36,7 @@ func (f ValidatorRewards) BalanceToEth() float32 {
 }
 
 func (f ValidatorRewards) ToArray() []interface{} {
-	rows := []interface{}{
+	rows := []any{
 		f.ValidatorIndex,
 		f.Epoch,
 		f.BalanceToEth(),
