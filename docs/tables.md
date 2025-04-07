@@ -1,31 +1,32 @@
 # Block Metrics | Orphans (`t_block_metrics`, `t_orphans`)
 
-| Column Name             | Type of Data | Description                                        |     |     |
-| ----------------------- | ------------ | -------------------------------------------------- | --- | --- |
-| f_timestamp             | uint64       | unix time of the slot                              |
-| f_epoch                 | uint64       | epoch number                                       |
-| f_slot                  | uint64       | slot number                                        |
-| f_graffiti              | string       | graffiti                                           |
-| f_proposer_index        | uint64       | validator index of the proposer                    |
-| f_proposed              | bool         | whether the block was proposed or not              |
-| f_attestations          | uint64       | number of attestations included in the block       |
-| f_deposits              | uint64       | number of deposits included in the block           |
-| f_proposer_slashings    | uint64       | number of proposer slashings included in the block |
-| f_attester_slashings    | uint64       | number of attester slashings included in the block |
-| f_voluntary_exits       | uint64       | number of voluntary exits included in the block    |
-| f_sync_bits             | uint64       | number of sync bits = 1 included in the block      |
-| f_el_fee_recp           | string       | fee recipient                                      |
-| f_el_gas_limit          | uint64       | gas limit                                          |
-| f_el_gas_used           | uint64       | gas used                                           |
-| f_el_base_fee_per_gas   | uint64       | base fee per gas                                   |
-| f_el_block_hash         | string       | hash of the execution payload                      |
-| f_el_transactions       | uint64       | amount of transactions included                    |
-| f_el_block_number       | uint64       | block number                                       |
-| f_payload_size_bytes    | uint64       | amount of bytes of the execution payload           |
-| f_ssz_size_bytes        | float32      | block size in bytes when serialized with SSZ       |
-| f_snappy_size_bytes     | float32      | block size in bytes when compressed with snappy    |
-| f_compression_time_ms   | float32      | miliseconds taken to compress the block            |
-| f_decompression_time_ms | float32      | miliseconds taken to decompress the block          |
+| Column Name                  | Type of Data | Description                                            |     |     |
+| ---------------------------- | ------------ | ------------------------------------------------------ | --- | --- |
+| f_timestamp                  | uint64       | unix time of the slot                                  |
+| f_epoch                      | uint64       | epoch number                                           |
+| f_slot                       | uint64       | slot number                                            |
+| f_graffiti                   | string       | graffiti                                               |
+| f_proposer_index             | uint64       | validator index of the proposer                        |
+| f_proposed                   | bool         | whether the block was proposed or not                  |
+| f_attestations               | uint64       | number of attestations included in the block           |
+| f_deposits                   | uint64       | number of deposits included in the block               |
+| f_consolidation_requests_num | uint64       | number of consolidation requests included in the block |
+| f_proposer_slashings         | uint64       | number of proposer slashings included in the block     |
+| f_attester_slashings         | uint64       | number of attester slashings included in the block     |
+| f_voluntary_exits            | uint64       | number of voluntary exits included in the block        |
+| f_sync_bits                  | uint64       | number of sync bits = 1 included in the block          |
+| f_el_fee_recp                | string       | fee recipient                                          |
+| f_el_gas_limit               | uint64       | gas limit                                              |
+| f_el_gas_used                | uint64       | gas used                                               |
+| f_el_base_fee_per_gas        | uint64       | base fee per gas                                       |
+| f_el_block_hash              | string       | hash of the execution payload                          |
+| f_el_transactions            | uint64       | amount of transactions included                        |
+| f_el_block_number            | uint64       | block number                                           |
+| f_payload_size_bytes         | uint64       | amount of bytes of the execution payload               |
+| f_ssz_size_bytes             | float32      | block size in bytes when serialized with SSZ           |
+| f_snappy_size_bytes          | float32      | block size in bytes when compressed with snappy        |
+| f_compression_time_ms        | float32      | milliseconds taken to compress the block               |
+| f_decompression_time_ms      | float32      | milliseconds taken to decompress the block             |
 
 # Epoch Metrics (`t_epoch_metrics_summary`)
 
@@ -35,7 +36,7 @@
 | f_slot                             | uint64       | slot number                                                                                                            |
 | f_num_att                          | uint64       | number of attestations included in blocks in the epoch                                                                 |
 | f_num_att_vals                     | uint64       | number of validators that attested to slots in the epoch                                                               |
-| f_num_vals                         | uint64       | number validators in the epoch                                                                                         |
+| f_num_vals                         | uint64       | number of validators in the epoch                                                                                      |
 | f_total_balance_eth                | float        | amount of ETH balance taking into account all active validators                                                        |
 | f_att_effective_balance_eth        | uint64       | amount of ETH effective balance taking into account all active validators that attested                                |
 | f_source_att_effective_balance_eth | uint64       | amount of ETH effective balance taking into account all active validators that achieved the source flag when attesting |
@@ -57,6 +58,9 @@
 | f_total_withdrawals_amount         | uint64       | amount of eth withdrawn in the epoch                                                                                   |
 | f_new_proposer_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) proposer slashings included in the epoch            |
 | f_new_attester_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) attester slashings included in the epoch            |
+| f_consolidation_requests_num       | uint64       | number of consolidation requests included in the epoch                                                                 |
+| f_consolidations_processed_num     | uint64       | number of consolidations processed in the epoch                                                                        |
+| f_consolidations_processed_amount  | uint64       | total amount of ETH consolidated in the epoch (Gwei)                                                                   |
 
 # Pool Summaries (`t_pool_summary`)
 
