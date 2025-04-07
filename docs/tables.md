@@ -1,7 +1,7 @@
 # Block Metrics | Orphans (`t_block_metrics`, `t_orphans`)
 
-| Column Name                  | Type of Data | Description                                            |     |     |
-| ---------------------------- | ------------ | ------------------------------------------------------ | --- | --- |
+| Column Name                  | Type of Data | Description                                            |
+| ---------------------------- | ------------ | ------------------------------------------------------ |
 | f_timestamp                  | uint64       | unix time of the slot                                  |
 | f_epoch                      | uint64       | epoch number                                           |
 | f_slot                       | uint64       | slot number                                            |
@@ -11,6 +11,7 @@
 | f_attestations               | uint64       | number of attestations included in the block           |
 | f_deposits                   | uint64       | number of deposits included in the block               |
 | f_consolidation_requests_num | uint64       | number of consolidation requests included in the block |
+| f_withdrawal_requests_num    | uint64       | number of withdrawal requests included in the block    |
 | f_proposer_slashings         | uint64       | number of proposer slashings included in the block     |
 | f_attester_slashings         | uint64       | number of attester slashings included in the block     |
 | f_voluntary_exits            | uint64       | number of voluntary exits included in the block        |
@@ -30,8 +31,8 @@
 
 # Epoch Metrics (`t_epoch_metrics_summary`)
 
-| Column Name                        | Type of Data | Description                                                                                                            |     |     |
-| ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| Column Name                        | Type of Data | Description                                                                                                            |
+| ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | f_epoch                            | uint64       | epoch number                                                                                                           |
 | f_slot                             | uint64       | slot number                                                                                                            |
 | f_num_att                          | uint64       | number of attestations included in blocks in the epoch                                                                 |
@@ -59,6 +60,7 @@
 | f_new_proposer_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) proposer slashings included in the epoch            |
 | f_new_attester_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) attester slashings included in the epoch            |
 | f_consolidation_requests_num       | uint64       | number of consolidation requests included in the epoch                                                                 |
+| f_withdrawal_requests_num          | uint64       | number of withdrawal requests included in the epoch                                                                    |
 | f_consolidations_processed_num     | uint64       | number of consolidations processed in the epoch                                                                        |
 | f_consolidations_processed_amount  | uint64       | total amount of ETH consolidated in the epoch (Gwei)                                                                   |
 
@@ -373,19 +375,6 @@ Table that stores the data of consolidation requests in the network.
 - `34`: **TgtNotActive** - Target validator is not active.
 - `35`: **TgtExitAlreadyInitiated** - Target validator has already initiated an exit.
 
-# Consolidations Processed (`t_consolidations_processed`)
-
-Table that stores the data of processed consolidations in the network.
-
-| Column Name           | Type of Data | Description                                                 |
-| --------------------- | ------------ | ----------------------------------------------------------- |
-| f_epoch               | uint64       | Epoch at which the consolidation was processed              |
-| f_index               | uint64       | Index of the consolidation within the epoch                 |
-| f_source_index        | uint64       | Index of the source validator involved in the consolidation |
-| f_target_index        | uint64       | Index of the target validator involved in the consolidation |
-| f_consolidated_amount | uint64       | Amount of ETH consolidated (Gwei)                           |
-| f_valid               | bool         | Whether the consolidation was valid (default is `true`)     |
-
 # Withdrawal Requests (`t_withdrawal_requests`)
 
 Table that stores the data of withdrawal requests in the network.
@@ -418,3 +407,16 @@ Table that stores the data of withdrawal requests in the network.
 - `9`: **InsufficientBalance** - The validator has insufficient balance for the withdrawal.
 - `10`: **ValidatorNotCompounding** - The validator is not compounding.
 - `11`: **NoExcessBalance** - The validator has no excess balance to withdraw.
+
+# Consolidations Processed (`t_consolidations_processed`)
+
+Table that stores the data of processed consolidations in the network.
+
+| Column Name           | Type of Data | Description                                                 |
+| --------------------- | ------------ | ----------------------------------------------------------- |
+| f_epoch               | uint64       | Epoch at which the consolidation was processed              |
+| f_index               | uint64       | Index of the consolidation within the epoch                 |
+| f_source_index        | uint64       | Index of the source validator involved in the consolidation |
+| f_target_index        | uint64       | Index of the target validator involved in the consolidation |
+| f_consolidated_amount | uint64       | Amount of ETH consolidated (Gwei)                           |
+| f_valid               | bool         | Whether the consolidation was valid (default is `true`)     |
