@@ -8,7 +8,8 @@ import (
 type WithdrawalRequestResult uint8
 
 const (
-	WithdrawalRequestResultSuccess WithdrawalRequestResult = iota
+	WithdrawalRequestResultUnknown WithdrawalRequestResult = iota
+	WithdrawalRequestResultSuccess
 	WithdrawalRequestResultQueueFull
 	WithdrawalRequestResultValidatorNotFound
 	WithdrawalRequestResultInvalidCredentials
