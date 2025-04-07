@@ -243,6 +243,7 @@ func (p ElectraMetrics) processConsolidationRequest(consolidationRequest *electr
 	}
 
 	currentState.NewExitingValidators = append(currentState.NewExitingValidators, sourceValidatorIndex)
+	currentState.PendingConsolidations = append(currentState.PendingConsolidations, &electra.PendingConsolidation{}) // Wont be processed, just used to check the queue limit
 	return spec.ConsolidationRequestResultSuccess
 }
 
@@ -345,7 +346,10 @@ func (p ElectraMetrics) processWithdrawalRequest(withdrawalRequest *electra.With
 	if !hasExcessBalance {
 		return spec.WithdrawalRequestResultNoExcessBalance
 	}
-
+	state.PendingPartialWithdrawals = append(state.PendingPartialWithdrawals, &electra.PendingPartialWithdrawal{
+		ValidatorIndex: validatorIndex,
+		Amount:         amount,
+	}) // Wont be processed, just used to check the queue limit
 	return spec.WithdrawalRequestResultSuccess
 }
 
