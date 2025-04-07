@@ -368,3 +368,16 @@ Table that stores the data of consolidation requests in the network.
 - `33`: **TgtNotCompounding** - Target validator is not compounding.
 - `34`: **TgtNotActive** - Target validator is not active.
 - `35`: **TgtExitAlreadyInitiated** - Target validator has already initiated an exit.
+
+# Consolidations Processed (`t_consolidations_processed`)
+
+Table that stores the data of processed consolidations in the network.
+
+| Column Name           | Type of Data | Description                                                 |
+| --------------------- | ------------ | ----------------------------------------------------------- |
+| f_epoch               | uint64       | Epoch at which the consolidation was processed              |
+| f_index               | uint64       | Index of the consolidation within the epoch                 |
+| f_source_index        | uint64       | Index of the source validator involved in the consolidation |
+| f_target_index        | uint64       | Index of the target validator involved in the consolidation |
+| f_consolidated_amount | uint64       | Amount of ETH consolidated (Gwei)                           |
+| f_valid               | bool         | Whether the consolidation was valid (default is `true`)     |
