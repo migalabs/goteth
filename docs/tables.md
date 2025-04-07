@@ -323,3 +323,48 @@ Will only be filled if the correct beacon contract address is provided in the `.
 | f_withdrawal_credentials | string       | withdrawal credentials of the validator        |
 | f_signature              | string       | signature of the deposit data                  |
 | f_amount                 | uint64       | amount of ETH deposited (Gwei)                 |
+
+# Consolidation Requests (`t_consolidation_requests`)
+
+Table that stores the data of consolidation requests in the network.
+
+| Column Name      | Type of Data | Description                                                           |
+| ---------------- | ------------ | --------------------------------------------------------------------- |
+| f_slot           | uint64       | Slot at which the consolidation request was made                      |
+| f_index          | uint64       | Index of the consolidation request within the slot                    |
+| f_source_address | string       | Address of the source from which the consolidation request originated |
+| f_source_pubkey  | string       | Public key of the source involved in the consolidation request        |
+| f_target_pubkey  | string       | Public key of the target involved in the consolidation request        |
+| f_result         | uint8        | Result of the consolidation request (see reference below)             |
+
+## Reference for `f_result`
+
+### General Results
+
+- `0`: **Unknown** - Consolidation request result is unknown.
+- `1`: **Success** - Consolidation request was successful.
+
+### Global Errors
+
+- `10`: **TotalBalanceTooLow** - Total balance is too low to process the request.
+- `11`: **QueueFull** - The consolidation request queue is full.
+- `12`: **RequestUsedAsExit** - The consolidation request was used as an exit.
+
+### Source Validator Errors
+
+- `20`: **SrcNotFound** - Source validator was not found.
+- `21`: **SrcInvalidCredentials** - Source validator has invalid credentials.
+- `22`: **SrcInvalidSender** - Source validator sender is invalid.
+- `23`: **SrcNotActive** - Source validator is not active.
+- `24`: **SrcNotOldEnough** - Source validator is not old enough.
+- `25`: **SrcHasPendingWithdrawal** - Source validator has a pending withdrawal.
+- `26`: **SrcExitAlreadyInitiated** - Source validator has already initiated an exit.
+
+### Target Validator Errors
+
+- `30`: **TgtNotFound** - Target validator was not found.
+- `31`: **TgtInvalidCredentials** - Target validator has invalid credentials.
+- `32`: **TgtInvalidSender** - Target validator sender is invalid.
+- `33`: **TgtNotCompounding** - Target validator is not compounding.
+- `34`: **TgtNotActive** - Target validator is not active.
+- `35`: **TgtExitAlreadyInitiated** - Target validator has already initiated an exit.
