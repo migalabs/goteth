@@ -385,3 +385,36 @@ Table that stores the data of processed consolidations in the network.
 | f_target_index        | uint64       | Index of the target validator involved in the consolidation |
 | f_consolidated_amount | uint64       | Amount of ETH consolidated (Gwei)                           |
 | f_valid               | bool         | Whether the consolidation was valid (default is `true`)     |
+
+# Withdrawal Requests (`t_withdrawal_requests`)
+
+Table that stores the data of withdrawal requests in the network.
+
+| Column Name        | Type of Data | Description                                                        |
+| ------------------ | ------------ | ------------------------------------------------------------------ |
+| f_slot             | uint64       | Slot at which the withdrawal request was made                      |
+| f_index            | uint64       | Index of the withdrawal request within the slot                    |
+| f_source_address   | string       | Address of the source from which the withdrawal request originated |
+| f_validator_pubkey | string       | Public key of the validator involved in the withdrawal request     |
+| f_amount           | uint64       | Amount of ETH requested for withdrawal (Gwei)                      |
+| f_result           | uint8        | Result of the withdrawal request (see reference below)             |
+
+## Reference for `f_result`
+
+### General Results
+
+- `0`: **Unknown** - Withdrawal request result is unknown.
+- `1`: **Success** - Withdrawal request was successful.
+
+### Errors
+
+- `2`: **QueueFull** - The withdrawal request queue is full.
+- `3`: **ValidatorNotFound** - The validator associated with the request was not found.
+- `4`: **InvalidCredentials** - The validator has invalid credentials.
+- `5`: **ValidatorNotActive** - The validator is not active.
+- `6`: **ExitAlreadyInitiated** - The validator has already initiated an exit.
+- `7`: **ValidatorNotOldEnough** - The validator is not old enough.
+- `8`: **PendingWithdrawalExists** - A pending withdrawal already exists for the validator.
+- `9`: **InsufficientBalance** - The validator has insufficient balance for the withdrawal.
+- `10`: **ValidatorNotCompounding** - The validator is not compounding.
+- `11`: **NoExcessBalance** - The validator has no excess balance to withdraw.
