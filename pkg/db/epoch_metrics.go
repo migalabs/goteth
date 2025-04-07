@@ -17,6 +17,7 @@ var (
 		f_num_att,
 		f_num_att_vals,
 		f_num_vals,
+		f_num_compounding_vals,
 		f_total_balance_eth,
 		f_att_effective_balance_eth,
 		f_source_att_effective_balance_eth,
@@ -65,6 +66,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_num_att                          proto.ColUInt64
 		f_num_att_vals                     proto.ColUInt64
 		f_num_vals                         proto.ColUInt64
+		f_num_compounding_vals             proto.ColUInt64
 		f_total_balance_eth                proto.ColFloat32
 		f_att_effective_balance_eth        proto.ColUInt64
 		f_source_att_effective_balance_eth proto.ColUInt64
@@ -98,6 +100,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_num_att.Append(uint64(epoch.NumAttestations))
 		f_num_att_vals.Append(uint64(epoch.NumAttValidators))
 		f_num_vals.Append(uint64(epoch.NumValidators))
+		f_num_compounding_vals.Append(epoch.NumCompoundingVals)
 		f_total_balance_eth.Append(float32(epoch.TotalBalance))
 		f_att_effective_balance_eth.Append(uint64(epoch.AttEffectiveBalance))
 		f_source_att_effective_balance_eth.Append(uint64(epoch.SourceAttEffectiveBalance))
@@ -131,6 +134,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		{Name: "f_num_att", Data: f_num_att},
 		{Name: "f_num_att_vals", Data: f_num_att_vals},
 		{Name: "f_num_vals", Data: f_num_vals},
+		{Name: "f_num_compounding_vals", Data: f_num_compounding_vals},
 		{Name: "f_total_balance_eth", Data: f_total_balance_eth},
 		{Name: "f_att_effective_balance_eth", Data: f_att_effective_balance_eth},
 		{Name: "f_source_att_effective_balance_eth", Data: f_source_att_effective_balance_eth},
