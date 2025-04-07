@@ -1,7 +1,7 @@
 # Block Metrics | Orphans (`t_block_metrics`, `t_orphans`)
 
-| Column Name                  | Type of Data | Description                                            |     |     |
-| ---------------------------- | ------------ | ------------------------------------------------------ | --- | --- |
+| Column Name                  | Type of Data | Description                                            |
+| ---------------------------- | ------------ | ------------------------------------------------------ |
 | f_timestamp                  | uint64       | unix time of the slot                                  |
 | f_epoch                      | uint64       | epoch number                                           |
 | f_slot                       | uint64       | slot number                                            |
@@ -11,6 +11,7 @@
 | f_attestations               | uint64       | number of attestations included in the block           |
 | f_deposits                   | uint64       | number of deposits included in the block               |
 | f_consolidation_requests_num | uint64       | number of consolidation requests included in the block |
+| f_withdrawal_requests_num    | uint64       | number of withdrawal requests included in the block    |
 | f_proposer_slashings         | uint64       | number of proposer slashings included in the block     |
 | f_attester_slashings         | uint64       | number of attester slashings included in the block     |
 | f_voluntary_exits            | uint64       | number of voluntary exits included in the block        |
@@ -30,8 +31,8 @@
 
 # Epoch Metrics (`t_epoch_metrics_summary`)
 
-| Column Name                        | Type of Data | Description                                                                                                            |     |     |
-| ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| Column Name                        | Type of Data | Description                                                                                                            |
+| ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | f_epoch                            | uint64       | epoch number                                                                                                           |
 | f_slot                             | uint64       | slot number                                                                                                            |
 | f_num_att                          | uint64       | number of attestations included in blocks in the epoch                                                                 |
@@ -59,6 +60,7 @@
 | f_new_proposer_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) proposer slashings included in the epoch            |
 | f_new_attester_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) attester slashings included in the epoch            |
 | f_consolidation_requests_num       | uint64       | number of consolidation requests included in the epoch                                                                 |
+| f_withdrawal_requests_num          | uint64       | number of withdrawal requests included in the epoch                                                                    |
 | f_consolidations_processed_num     | uint64       | number of consolidations processed in the epoch                                                                        |
 | f_consolidations_processed_amount  | uint64       | total amount of ETH consolidated in the epoch (Gwei)                                                                   |
 
@@ -372,6 +374,39 @@ Table that stores the data of consolidation requests in the network.
 - `33`: **TgtNotCompounding** - Target validator is not compounding.
 - `34`: **TgtNotActive** - Target validator is not active.
 - `35`: **TgtExitAlreadyInitiated** - Target validator has already initiated an exit.
+
+# Withdrawal Requests (`t_withdrawal_requests`)
+
+Table that stores the data of withdrawal requests in the network.
+
+| Column Name        | Type of Data | Description                                                        |
+| ------------------ | ------------ | ------------------------------------------------------------------ |
+| f_slot             | uint64       | Slot at which the withdrawal request was made                      |
+| f_index            | uint64       | Index of the withdrawal request within the slot                    |
+| f_source_address   | string       | Address of the source from which the withdrawal request originated |
+| f_validator_pubkey | string       | Public key of the validator involved in the withdrawal request     |
+| f_amount           | uint64       | Amount of ETH requested for withdrawal (Gwei)                      |
+| f_result           | uint8        | Result of the withdrawal request (see reference below)             |
+
+## Reference for `f_result`
+
+### General Results
+
+- `0`: **Unknown** - Withdrawal request result is unknown.
+- `1`: **Success** - Withdrawal request was successful.
+
+### Errors
+
+- `2`: **QueueFull** - The withdrawal request queue is full.
+- `3`: **ValidatorNotFound** - The validator associated with the request was not found.
+- `4`: **InvalidCredentials** - The validator has invalid credentials.
+- `5`: **ValidatorNotActive** - The validator is not active.
+- `6`: **ExitAlreadyInitiated** - The validator has already initiated an exit.
+- `7`: **ValidatorNotOldEnough** - The validator is not old enough.
+- `8`: **PendingWithdrawalExists** - A pending withdrawal already exists for the validator.
+- `9`: **InsufficientBalance** - The validator has insufficient balance for the withdrawal.
+- `10`: **ValidatorNotCompounding** - The validator is not compounding.
+- `11`: **NoExcessBalance** - The validator has no excess balance to withdraw.
 
 # Consolidations Processed (`t_consolidations_processed`)
 
