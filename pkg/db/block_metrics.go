@@ -23,6 +23,7 @@ var (
 		f_attestations,
 		f_deposits,
 		f_consolidation_requests_num,
+		f_deposit_requests_num,
 		f_withdrawal_requests_num,
 		f_proposer_slashings,
 		f_attester_slashings,
@@ -65,6 +66,7 @@ func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 		f_attestations               proto.ColUInt64
 		f_deposits                   proto.ColUInt64
 		f_consolidation_requests_num proto.ColUInt64
+		f_deposit_requests_num       proto.ColUInt64
 		f_withdrawal_requests_num    proto.ColUInt64
 		f_proposer_slashings         proto.ColUInt64
 		f_attester_slashings         proto.ColUInt64
@@ -104,9 +106,11 @@ func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 
 		if block.ExecutionRequests != nil {
 			f_consolidation_requests_num.Append(uint64(len(block.ExecutionRequests.Consolidations)))
+			f_deposit_requests_num.Append(uint64(len(block.ExecutionRequests.Deposits)))
 			f_withdrawal_requests_num.Append(uint64(len(block.ExecutionRequests.Withdrawals)))
 		} else {
 			f_consolidation_requests_num.Append(uint64(0))
+			f_deposit_requests_num.Append(uint64(0))
 			f_withdrawal_requests_num.Append(uint64(0))
 		}
 
@@ -143,6 +147,7 @@ func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 		{Name: "f_attestations", Data: f_attestations},
 		{Name: "f_deposits", Data: f_deposits},
 		{Name: "f_consolidation_requests_num", Data: f_consolidation_requests_num},
+		{Name: "f_deposit_requests_num", Data: f_deposit_requests_num},
 		{Name: "f_withdrawal_requests_num", Data: f_withdrawal_requests_num},
 		{Name: "f_proposer_slashings", Data: f_proposer_slashings},
 		{Name: "f_attester_slashings", Data: f_attester_slashings},
