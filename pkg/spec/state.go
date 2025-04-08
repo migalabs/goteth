@@ -51,6 +51,7 @@ type AgnosticState struct {
 	// Electra
 	ConsolidationRequests         []ConsolidationRequest
 	WithdrawalRequests            []WithdrawalRequest
+	DepositRequests               []DepositRequest
 	PendingConsolidations         []*electra.PendingConsolidation
 	PendingPartialWithdrawals     []*electra.PendingPartialWithdrawal
 	ConsolidationsProcessed       []ConsolidationProcessed
