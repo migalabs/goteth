@@ -10,6 +10,7 @@ type Epoch struct {
 	NumAttestations               int
 	NumAttValidators              int
 	NumValidators                 int
+	NumCompoundingVals            uint64
 	TotalBalance                  float32
 	AttEffectiveBalance           phase0.Gwei
 	SourceAttEffectiveBalance     phase0.Gwei

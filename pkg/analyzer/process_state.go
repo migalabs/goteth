@@ -176,15 +176,16 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 		for valIdx, validator := range bundle.GetMetricsBase().NextState.Validators {
 
 			newVal := spec.ValidatorLastStatus{
-				ValIdx:          phase0.ValidatorIndex(valIdx),
-				Epoch:           bundle.GetMetricsBase().NextState.Epoch,
-				CurrentBalance:  bundle.GetMetricsBase().NextState.Balances[valIdx],
-				CurrentStatus:   bundle.GetMetricsBase().NextState.GetValStatus(phase0.ValidatorIndex(valIdx)),
-				Slashed:         validator.Slashed,
-				ActivationEpoch: validator.ActivationEpoch,
-				WithdrawalEpoch: validator.WithdrawableEpoch,
-				ExitEpoch:       validator.ExitEpoch,
-				PublicKey:       validator.PublicKey,
+				ValIdx:                phase0.ValidatorIndex(valIdx),
+				Epoch:                 bundle.GetMetricsBase().NextState.Epoch,
+				CurrentBalance:        bundle.GetMetricsBase().NextState.Balances[valIdx],
+				CurrentStatus:         bundle.GetMetricsBase().NextState.GetValStatus(phase0.ValidatorIndex(valIdx)),
+				Slashed:               validator.Slashed,
+				ActivationEpoch:       validator.ActivationEpoch,
+				WithdrawalEpoch:       validator.WithdrawableEpoch,
+				ExitEpoch:             validator.ExitEpoch,
+				PublicKey:             validator.PublicKey,
+				WithdrawalCredentials: validator.WithdrawalCredentials,
 			}
 			valStatusArr = append(valStatusArr, newVal)
 		}

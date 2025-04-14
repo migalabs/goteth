@@ -222,6 +222,7 @@ func (p Phase0Metrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		ValidatorIndex:       valIdx,
 		Epoch:                p.baseMetrics.NextState.Epoch,
 		ValidatorBalance:     p.baseMetrics.CurrentState.Balances[valIdx],
+		WithdrawalPrefix:     p.baseMetrics.CurrentState.Validators[valIdx].WithdrawalCredentials[0],
 		Reward:               p.baseMetrics.EpochReward(valIdx),
 		MaxReward:            maxReward,
 		AttestationReward:    p.baseMetrics.MaxAttesterRewards[valIdx],

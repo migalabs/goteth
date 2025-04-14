@@ -197,6 +197,16 @@ func (p *AgnosticState) GetValsStateNums() {
 	p.NumQueuedVals = uint(len(result[QUEUE_STATUS]))
 }
 
+func (p *AgnosticState) GetCompoundingValsNum() uint64 {
+	numCompoundingVals := uint64(0)
+	for _, validator := range p.Validators {
+		if uint8(validator.WithdrawalCredentials[0]) == CompoundingWithdrawalPrefix {
+			numCompoundingVals += 1
+		}
+	}
+	return numCompoundingVals
+}
+
 // Not effective balance, but balance
 func (p AgnosticState) GetTotalActiveRealBalance() phase0.Gwei {
 	totalBalance := phase0.Gwei(0)

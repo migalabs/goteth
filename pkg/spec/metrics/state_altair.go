@@ -295,6 +295,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		ValidatorIndex:       valIdx,
 		Epoch:                p.baseMetrics.NextState.Epoch,
 		ValidatorBalance:     p.baseMetrics.NextState.Balances[valIdx],
+		WithdrawalPrefix:     p.baseMetrics.NextState.Validators[valIdx].WithdrawalCredentials[0],
 		Reward:               p.baseMetrics.EpochReward(valIdx),
 		MaxReward:            maxReward,
 		AttestationReward:    flagIndexMaxReward,

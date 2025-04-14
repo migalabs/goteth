@@ -38,6 +38,7 @@
 | f_num_att                          | uint64       | number of attestations included in blocks in the epoch                                                                 |
 | f_num_att_vals                     | uint64       | number of validators that attested to slots in the epoch                                                               |
 | f_num_vals                         | uint64       | number of validators in the epoch                                                                                      |
+| f_num_compounding_vals             | uint64       | number of validators compounding their rewards in the epoch                                                            |
 | f_total_balance_eth                | float        | amount of ETH balance taking into account all active validators                                                        |
 | f_att_effective_balance_eth        | uint64       | amount of ETH effective balance taking into account all active validators that attested                                |
 | f_source_att_effective_balance_eth | uint64       | amount of ETH effective balance taking into account all active validators that achieved the source flag when attesting |
@@ -66,8 +67,8 @@
 
 # Pool Summaries (`t_pool_summary`)
 
-| Column Name                 | Type of Data | Description                                                                   |     |     |
-| --------------------------- | ------------ | ----------------------------------------------------------------------------- | --- | --- |
+| Column Name                 | Type of Data | Description                                                                   |
+| --------------------------- | ------------ | ----------------------------------------------------------------------------- |
 | f_pool_name                 | string       | name of the pool                                                              |
 | f_epoch                     | uint64       | epoch number                                                                  |
 | aggregated_rewards          | uint64       | sum of rewards of validators in the given pool                                |
@@ -76,11 +77,12 @@
 | count_missing_source        | uint64       | amount of validator with a missed source flag for the given pool              |
 | count_missing_target        | uint64       | amount of validator with a missed target flag for the given pool              |
 | count_missing_head          | uint64       | amount of validator with a missed head flag for the given pool                |
-| count_expected_attestations | uint64       | amount of attestations expected for the given pool (one per active valdiator) |
+| count_expected_attestations | uint64       | amount of attestations expected for the given pool (one per active validator) |
 | count_attestations_included | uint64       | amount of attestations included for the given pool corresponding to the epoch |
 | proposed_blocks_performance | uint64       | sum of proposed blocks by validators in the given pool                        |
 | missed_blocks_performance   | uint64       | sum of missed blocks by validators in the given pool                          |
 | number_active_vals          | uint64       | number of active validators in the given pool                                 |
+| number_compounding_vals     | uint64       | number of validators compounding their rewards in the given pool              |
 | f_avg_inclusion_delay       | float32      | average of inclusion delay of active validators in the given pool             |
 
 # Proposer Duties (`t_proposer_duties`)
@@ -127,36 +129,47 @@
 
 # Validator Last Status (`t_validator_last_status`)
 
-| Column Name        | Type of Data | Description                                        |     |     |
-| ------------------ | ------------ | -------------------------------------------------- | --- | --- |
-| f_val_idx          | uint64       | validator index                                    |
-| f_epoch            | uint64       | epoch number                                       |
-| f_balance_eth      | float32      | eth balance of the validator                       |
-| f_status           | uint8        | status (see status table)                          |
-| f_slashed          | bool         | whether the validator has ever been slashed or not |
-| f_activation_epoch | uint64       | epoch at which the validator was activated         |
-| f_withdrawal_epoch | uint64       | epoch at which the validator can withdraw funds    |
-| f_exit_epoch       | uint64       | epoch at which the validator exited the network    |
-| f_public_key       | string       | public key of the validator                        |
+| Column Name              | Type of Data | Description                                         |
+| ------------------------ | ------------ | --------------------------------------------------- |
+| f_val_idx                | uint64       | validator index                                     |
+| f_epoch                  | uint64       | epoch number                                        |
+| f_balance_eth            | float32      | eth balance of the validator                        |
+| f_status                 | uint8        | status (see status table)                           |
+| f_slashed                | bool         | whether the validator has ever been slashed or not  |
+| f_activation_epoch       | uint64       | epoch at which the validator was activated          |
+| f_withdrawal_epoch       | uint64       | epoch at which the validator can withdraw funds     |
+| f_exit_epoch             | uint64       | epoch at which the validator exited the network     |
+| f_public_key             | string       | public key of the validator                         |
+| f_withdrawal_prefix      | uint8        | withdrawal prefix of the validator's credentials    |
+| f_withdrawal_credentials | text         | withdrawal credentials of the validator (see below) |
+
+## Appendix: Reference for `f_withdrawal_prefix`
+
+The `f_withdrawal_prefix` column indicates the type of withdrawal credentials associated with the validator. The possible values are:
+
+- `0x00`: **BLS_WITHDRAWAL_PREFIX** - Indicates a BLS withdrawal prefix.
+- `0x01`: **ETH1_ADDRESS_WITHDRAWAL_PREFIX** - Indicates an ETH1 address withdrawal prefix.
+- `0x02`: **COMPOUNDING_WITHDRAWAL_PREFIX** - Indicates a compounding withdrawal prefix.
 
 # Validator Rewards Summary (`t_validator_rewards_summary`)
 
-| Column Name                 | Type of Data | Description                                                                                                           |     |     |
-| --------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| Column Name                 | Type of Data | Description                                                                                                           |
+| --------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
 | f_val_idx                   | uint64       | validator index                                                                                                       |
 | f_epoch                     | uint64       | epoch number                                                                                                          |
 | f_balance_eth               | float        | eth balance at the end of the given epoch                                                                             |
+| f_withdrawal_prefix         | uint8        | withdrawal prefix of the validator's withdrawal credentials (see above)                                               |
 | f_reward                    | int64        | reward obtained from the previous epoch to the given epoch, can be negative (Gwei)                                    |
 | f_max_reward                | uint64       | maximum consensus reward that could have been obtained from the previous epoch to the given epoch (Gwei)              |
 | f_max_att_reward            | uint64       | maximum attestation that could have been obtained from the previous epoch to the given epoch (Gwei)                   |
 | f_max_sync_reward           | uint64       | maximum sync committee that could have been obtained from the previous epoch to the given epoch (Gwei)                |
 | f_att_slot                  | uint64       | slot the validator had to attest to (2 epochs before)                                                                 |
 | f_base_reward               | uint64       | base reward taken into account to calculate the rewards (Gwei)                                                        |
-| f_in_sync_committee         | bool         | whether the validator participated in the sync commmittee in the given epoch                                          |
+| f_in_sync_committee         | bool         | whether the validator participated in the sync committee in the given epoch                                           |
 | f_attestation_included      | bool         | whether the attestation was included in the chain (2 epochs before)                                                   |
-| f_missing_source            | bool         | whether the validator missed the source flag while attesing (takes into account the attestation to 2 epochs before)   |
-| f_missing_target            | bool         | whether the validator missed the target flag while attesing (takes into account the attestation to 2 epochs before)   |
-| f_missing_head              | bool         | whether the validator missed the head flag while attesing (takes into account the attestation to 2 epochs before)     |
+| f_missing_source            | bool         | whether the validator missed the source flag while attesting (takes into account the attestation to 2 epochs before)  |
+| f_missing_target            | bool         | whether the validator missed the target flag while attesting (takes into account the attestation to 2 epochs before)  |
+| f_missing_head              | bool         | whether the validator missed the head flag while attesting (takes into account the attestation to 2 epochs before)    |
 | f_status                    | uint8        | see status table                                                                                                      |
 | f_block_api_reward          | uint64       | consensus block reward obtained from the Beacon API (only if the validator was a proposer in the given epoch) (Gwei)  |
 | f_block_experimental_reward | uint64       | consensus block reward manually calculated by goteth (only if the validator was a proposer in the given epoch) (Gwei) |

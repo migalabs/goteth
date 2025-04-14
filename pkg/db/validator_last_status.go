@@ -18,7 +18,9 @@ var (
 		f_activation_epoch,
 		f_withdrawal_epoch,
 		f_exit_epoch,
-		f_public_key)
+		f_public_key,
+		f_withdrawal_prefix,
+		f_withdrawal_credentials)
 	VALUES`
 
 	deleteValidatorStatus = `
@@ -29,15 +31,17 @@ var (
 func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 	// one object per column
 	var (
-		f_val_idx          proto.ColUInt64
-		f_epoch            proto.ColUInt64
-		f_balance_eth      proto.ColFloat32
-		f_status           proto.ColUInt8
-		f_slashed          proto.ColBool
-		f_activation_epoch proto.ColUInt64
-		f_withdrawal_epoch proto.ColUInt64
-		f_exit_epoch       proto.ColUInt64
-		f_public_key       proto.ColStr
+		f_val_idx                proto.ColUInt64
+		f_epoch                  proto.ColUInt64
+		f_balance_eth            proto.ColFloat32
+		f_status                 proto.ColUInt8
+		f_slashed                proto.ColBool
+		f_activation_epoch       proto.ColUInt64
+		f_withdrawal_epoch       proto.ColUInt64
+		f_exit_epoch             proto.ColUInt64
+		f_public_key             proto.ColStr
+		f_withdrawal_prefix      proto.ColUInt8
+		f_withdrawal_credentials proto.ColStr
 	)
 
 	for _, status := range validatorStatuses {
@@ -51,6 +55,8 @@ func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 		f_withdrawal_epoch.Append(uint64(status.WithdrawalEpoch))
 		f_exit_epoch.Append(uint64(status.ExitEpoch))
 		f_public_key.Append(status.PublicKey.String())
+		f_withdrawal_prefix.Append(status.WithdrawalCredentials[0])
+		f_withdrawal_credentials.Append(status.WithdrawalCredentialsString())
 	}
 
 	return proto.Input{
@@ -64,6 +70,8 @@ func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 		{Name: "f_withdrawal_epoch", Data: f_withdrawal_epoch},
 		{Name: "f_exit_epoch", Data: f_exit_epoch},
 		{Name: "f_public_key", Data: f_public_key},
+		{Name: "f_withdrawal_prefix", Data: f_withdrawal_prefix},
+		{Name: "f_withdrawal_credentials", Data: f_withdrawal_credentials},
 	}
 }
 

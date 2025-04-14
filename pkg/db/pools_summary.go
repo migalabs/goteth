@@ -25,6 +25,7 @@ var (
 				SUM(CASE WHEN t_proposer_duties.f_proposed = TRUE THEN 1 ELSE 0 END) as proposed_blocks_performance,
 				SUM(CASE WHEN t_proposer_duties.f_proposed = FALSE and t_validator_rewards_summary.f_val_idx = t_proposer_duties.f_val_idx THEN 1 ELSE 0 END) as missed_blocks_performance,
 				count(distinct(t_validator_rewards_summary.f_val_idx)) as number_active_vals,
+				count(CASE WHEN f_withdrawal_prefix = 2 THEN 1 ELSE null END) as number_compounding_vals,
 				AVG(f_inclusion_delay) as avg_inclusion_delay
 			FROM t_validator_rewards_summary
 			LEFT JOIN t_eth2_pubkeys 

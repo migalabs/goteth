@@ -66,7 +66,7 @@ const (
 
 // Electra
 const (
-	CompoundingWithdrawalPrefix = 0x02
+	CompoundingWithdrawalPrefix uint8 = 0x02
 
 	// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#state-list-lengths
 	PendingConsolidationsLimit     uint64 = 1 << 18
