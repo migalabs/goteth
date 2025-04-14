@@ -16,7 +16,7 @@ import (
 
 const (
 	moduleName      = "relays"
-	mevRelayTimeout = 3 * time.Minute
+	mevRelayTimeout = 10 * time.Second
 )
 
 var (
