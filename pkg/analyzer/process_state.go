@@ -61,6 +61,7 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		s.processSlashings(bundle)
 		s.storeConsolidationRequests(bundle)
 		s.storeWithdrawalRequests(bundle)
+		s.storeDepositRequests(bundle)
 		s.storeConsoidationsProcessed(bundle)
 	}
 
@@ -109,6 +110,17 @@ func (s *ChainAnalyzer) storeConsolidationRequests(bundle metrics.StateMetrics) 
 	err := s.dbClient.PersistConsolidationRequests(consolidationRequests)
 	if err != nil {
 		log.Errorf("error persisting consolidation requests: %s", err.Error())
+	}
+}
+
+func (s *ChainAnalyzer) storeDepositRequests(bundle metrics.StateMetrics) {
+	depositRequests := bundle.GetMetricsBase().NextState.DepositRequests
+	if len(depositRequests) == 0 {
+		return
+	}
+	err := s.dbClient.PersistDepositRequests(depositRequests)
+	if err != nil {
+		log.Errorf("error persisting deposit requests: %s", err.Error())
 	}
 }
 

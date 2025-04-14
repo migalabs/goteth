@@ -50,6 +50,7 @@ func (p *ElectraMetrics) PreProcessBundle() {
 		p.ProcessSyncAggregates()
 		p.processConsolidationRequests()
 		p.processWithdrawalRequests()
+		p.processDepositRequests()
 		p.GetMaxFlagIndexDeltas()
 		p.ProcessInclusionDelays()
 		p.GetMaxSyncComReward()
@@ -374,6 +375,26 @@ func (p ElectraMetrics) processWithdrawalRequests() {
 		}
 	}
 	p.baseMetrics.NextState.WithdrawalRequests = withdrawalRequests
+}
+
+func (p ElectraMetrics) processDepositRequests() {
+	for _, block := range p.baseMetrics.NextState.Blocks {
+		if block.ExecutionRequests == nil { // If not an electra+ block or if block was missed
+			continue
+		}
+		// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_deposit_request
+		for _, d := range block.ExecutionRequests.Deposits {
+			depositRequest := spec.DepositRequest{
+				Slot:                  block.Slot,
+				Pubkey:                d.Pubkey,
+				WithdrawalCredentials: d.WithdrawalCredentials,
+				Amount:                d.Amount,
+				Signature:             d.Signature,
+				Index:                 d.Index,
+			}
+			p.baseMetrics.NextState.DepositRequests = append(p.baseMetrics.NextState.DepositRequests, depositRequest)
+		}
+	}
 }
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#modified-get_attesting_indices

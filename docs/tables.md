@@ -12,6 +12,7 @@
 | f_deposits                   | uint64       | number of deposits included in the block               |
 | f_consolidation_requests_num | uint64       | number of consolidation requests included in the block |
 | f_withdrawal_requests_num    | uint64       | number of withdrawal requests included in the block    |
+| f_deposit_requests_num       | uint64       | number of deposit requests included in the block       |
 | f_proposer_slashings         | uint64       | number of proposer slashings included in the block     |
 | f_attester_slashings         | uint64       | number of attester slashings included in the block     |
 | f_voluntary_exits            | uint64       | number of voluntary exits included in the block        |
@@ -62,6 +63,7 @@
 | f_new_attester_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) attester slashings included in the epoch            |
 | f_consolidation_requests_num       | uint64       | number of consolidation requests included in the epoch                                                                 |
 | f_withdrawal_requests_num          | uint64       | number of withdrawal requests included in the epoch                                                                    |
+| f_deposit_requests_num             | uint64       | number of deposit requests included in the epoch                                                                       |
 | f_consolidations_processed_num     | uint64       | number of consolidations processed in the epoch                                                                        |
 | f_consolidations_processed_amount  | uint64       | total amount of ETH consolidated in the epoch (Gwei)                                                                   |
 
@@ -387,6 +389,19 @@ Table that stores the data of consolidation requests in the network.
 - `33`: **TgtNotCompounding** - Target validator is not compounding.
 - `34`: **TgtNotActive** - Target validator is not active.
 - `35`: **TgtExitAlreadyInitiated** - Target validator has already initiated an exit.
+
+# Deposit Requests (`t_deposit_requests`)
+
+Table that stores the data of deposit requests in the network.
+
+| Column Name              | Type of Data | Description                                        |
+| ------------------------ | ------------ | -------------------------------------------------- |
+| f_slot                   | uint64       | Slot at which the deposit request was made         |
+| f_pubkey                 | text         | Public key of the validator making the deposit     |
+| f_withdrawal_credentials | text         | Withdrawal credentials associated with the deposit |
+| f_amount                 | uint64       | Amount of ETH requested for deposit (Gwei)         |
+| f_signature              | text         | Signature of the deposit data                      |
+| f_index                  | uint64       | Index of the deposit request within the slot       |
 
 # Withdrawal Requests (`t_withdrawal_requests`)
 

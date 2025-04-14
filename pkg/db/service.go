@@ -153,7 +153,8 @@ type PersistableObject[
 		spec.ETH1Deposit |
 		spec.ConsolidationRequest |
 		spec.ConsolidationProcessed |
-		spec.WithdrawalRequest] struct {
+		spec.WithdrawalRequest |
+		spec.DepositRequest] struct {
 	table string
 	query string
 	data  []T

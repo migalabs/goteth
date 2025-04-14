@@ -33,6 +33,7 @@ type Epoch struct {
 	NewProposerSlashings          int
 	NewAttesterSlashings          int
 	ConsolidationRequestsNum      int
+	DepositRequestsNum            int
 	WithdrawalRequestsNum         int
 	ConsolidationsProcessedNum    uint64
 	ConsolidationsProcessedAmount phase0.Gwei

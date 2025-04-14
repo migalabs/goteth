@@ -40,6 +40,7 @@ var (
 		f_new_proposer_slashings,
 		f_new_attester_slashings,
 		f_consolidation_requests_num,
+		f_deposit_requests_num,
 		f_withdrawal_requests_num,
 		f_consolidations_processed_num,
 		f_consolidations_processed_amount	
@@ -89,6 +90,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_new_proposer_slashings           proto.ColUInt64
 		f_new_attester_slashings           proto.ColUInt64
 		f_consolidation_requests_num       proto.ColUInt64
+		f_deposit_requests_num             proto.ColUInt64
 		f_withdrawal_requests_num          proto.ColUInt64
 		f_consolidations_processed_num     proto.ColUInt64
 		f_consolidations_processed_amount  proto.ColUInt64
@@ -123,6 +125,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_new_proposer_slashings.Append(uint64(epoch.NewProposerSlashings))
 		f_new_attester_slashings.Append(uint64(epoch.NewAttesterSlashings))
 		f_consolidation_requests_num.Append(uint64(epoch.ConsolidationRequestsNum))
+		f_deposit_requests_num.Append(uint64(epoch.DepositRequestsNum))
 		f_withdrawal_requests_num.Append(uint64(epoch.WithdrawalRequestsNum))
 		f_consolidations_processed_num.Append(epoch.ConsolidationsProcessedNum)
 		f_consolidations_processed_amount.Append(uint64(epoch.ConsolidationsProcessedAmount))
@@ -157,8 +160,9 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		{Name: "f_new_proposer_slashings", Data: f_new_proposer_slashings},
 		{Name: "f_new_attester_slashings", Data: f_new_attester_slashings},
 		{Name: "f_consolidation_requests_num", Data: f_consolidation_requests_num},
-		{Name: "f_consolidations_processed_num", Data: f_consolidations_processed_num},
+		{Name: "f_deposit_requests_num", Data: f_deposit_requests_num},
 		{Name: "f_withdrawal_requests_num", Data: f_withdrawal_requests_num},
+		{Name: "f_consolidations_processed_num", Data: f_consolidations_processed_num},
 		{Name: "f_consolidations_processed_amount", Data: f_consolidations_processed_amount},
 	}
 }
