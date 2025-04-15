@@ -218,13 +218,29 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 	var insertValsObj []spec.ValidatorRewards
 	log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
-
+	nextState := bundle.GetMetricsBase().NextState
 	// process each validator
-	for valIdx := range bundle.GetMetricsBase().NextState.Validators {
-		if valIdx >= len(bundle.GetMetricsBase().NextState.Validators) {
+	for valIdx := range nextState.Validators {
+		if valIdx >= len(nextState.Validators) {
 			continue // validator is not in the chain yet
 		}
 		valIdx := phase0.ValidatorIndex(valIdx)
+
+		// Check validator status conditions
+		validator := nextState.Validators[valIdx]
+		isActive := spec.IsActive(*validator, nextState.Epoch)
+		isSlashed := validator.Slashed
+		isExited := validator.ExitEpoch <= nextState.Epoch
+
+		// Only process validators that are active or slashed and not exited
+		if !isActive && (!isSlashed || isExited) {
+			continue
+		}
+
+		if validator.Slashed {
+			log.Debugf("validator %d is slashed", valIdx)
+		}
+
 		// get max reward at given epoch using the formulas
 		maxRewards, err := bundle.GetMaxReward(valIdx)
 		if err != nil {
@@ -247,7 +263,7 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 		}
 	}
 
-	if s.rewardsAggregationEpochs > 1 && bundle.GetMetricsBase().NextState.Epoch == s.endEpochAggregation {
+	if s.rewardsAggregationEpochs > 1 && nextState.Epoch == s.endEpochAggregation {
 		if len(s.validatorsRewardsAggregations) > 0 {
 			err := s.dbClient.PersistValidatorRewardsAggregation(s.validatorsRewardsAggregations)
 			if err != nil {
