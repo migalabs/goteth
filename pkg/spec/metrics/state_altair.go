@@ -42,15 +42,17 @@ func (p *AltairMetrics) InitBundle(nextState *spec.AgnosticState,
 
 func (p *AltairMetrics) PreProcessBundle() {
 
-	if !p.baseMetrics.PrevState.EmptyStateRoot() && !p.baseMetrics.CurrentState.EmptyStateRoot() {
+	if !p.baseMetrics.PrevState.EmptyStateRoot() {
 		// block rewards
 		p.ProcessAttestations()
-		p.ProcessSlashings()
-		p.ProcessSyncAggregates()
+		if !p.baseMetrics.CurrentState.EmptyStateRoot() {
+			p.ProcessSlashings()
+			p.ProcessSyncAggregates()
 
-		p.GetMaxFlagIndexDeltas()
-		p.ProcessInclusionDelays()
-		p.GetMaxSyncComReward()
+			p.GetMaxFlagIndexDeltas()
+			p.ProcessInclusionDelays()
+			p.GetMaxSyncComReward()
+		}
 	}
 }
 
@@ -276,7 +278,6 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 			proposerManualReward += phase0.Gwei(block.ManualReward)
 		}
 	}
-
 	proposerReward = proposerManualReward
 	if proposerApiReward > 0 {
 		proposerReward = proposerApiReward // if API rewards, always prioritize api
@@ -287,8 +288,8 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	baseReward := p.GetBaseReward(valIdx, p.baseMetrics.NextState.Validators[valIdx].EffectiveBalance, p.baseMetrics.NextState.TotalActiveBalance)
 
 	attestationIncluded := false
-	if int(valIdx) < len(p.baseMetrics.CurrentState.ValidatorAttestationIncluded) {
-		attestationIncluded = p.baseMetrics.CurrentState.ValidatorAttestationIncluded[valIdx]
+	if int(valIdx) < len(p.baseMetrics.PrevState.ValidatorAttestationIncluded) {
+		attestationIncluded = p.baseMetrics.PrevState.ValidatorAttestationIncluded[valIdx]
 	}
 
 	result := spec.ValidatorRewards{
