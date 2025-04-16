@@ -8,5 +8,5 @@ ADD COLUMN f_effective_balance UInt64 DEFAULT 0 AFTER f_balance_eth;
 
 -- Add aggregated_effective_balance column to t_pool_summary
 ALTER TABLE t_pool_summary
-ADD COLUMN aggregated_effective_balance UInt64 DEFAULT 0 AFTER aggregated_rewards;
+ADD COLUMN aggregated_effective_balance UInt64 DEFAULT 0 AFTER aggregated_max_rewards;
 
