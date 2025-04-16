@@ -269,7 +269,6 @@ func (p AltairMetrics) GetMaxFlagIndexDeltas() {
 // Attestations from last epoch (we see them in this epoch), balance change will take effect in the first slot of next epoch
 // Sync Committee attestations from next epoch: balance change is added on the fly
 // Proposer Rewards from next epoch: balance change is added on the fly
-
 func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.ValidatorRewards, error) {
 	nextState := p.baseMetrics.NextState
 	prevState := p.baseMetrics.PrevState
@@ -298,14 +297,15 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	baseReward := p.GetBaseReward(valIdx, nextState.Validators[valIdx].EffectiveBalance, nextState.TotalActiveBalance)
 
 	attestationIncluded := false
-	if int(valIdx) < len(p.baseMetrics.PrevState.ValidatorAttestationIncluded) {
-		attestationIncluded = p.baseMetrics.PrevState.ValidatorAttestationIncluded[valIdx]
+	if int(valIdx) < len(prevState.ValidatorAttestationIncluded) {
+		attestationIncluded = prevState.ValidatorAttestationIncluded[valIdx]
 	}
 
 	result := spec.ValidatorRewards{
 		ValidatorIndex:       valIdx,
 		Epoch:                nextState.Epoch,
 		ValidatorBalance:     nextState.Balances[valIdx],
+		EffectiveBalance:     nextState.Validators[valIdx].EffectiveBalance,
 		WithdrawalPrefix:     nextState.Validators[valIdx].WithdrawalCredentials[0],
 		Reward:               p.baseMetrics.EpochReward(valIdx),
 		MaxReward:            maxReward,
