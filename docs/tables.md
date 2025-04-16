@@ -127,7 +127,7 @@
 | Column Name | Type of Data | Description                                                                                          |     |     |
 | ----------- | ------------ | ---------------------------------------------------------------------------------------------------- | --- | --- |
 | f_id        | uint64       | id of the status                                                                                     |
-| f_status    | string       | name of the status <br> 0, 'in_activation_queue' <br> 1, 'active' <br> 2, 'slashed' <br> 3, 'exited' |
+| f_status    | string       | name of the status <br> 0, 'in_activation_queue' <br> 1, 'active' <br> 2, 'exited' <br> 3, 'slashed' |
 
 # Validator Last Status (`t_validator_last_status`)
 
