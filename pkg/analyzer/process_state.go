@@ -185,13 +185,15 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 
 	if s.downloadMode == "finalized" {
 		var valStatusArr []spec.ValidatorLastStatus
-		for valIdx, validator := range bundle.GetMetricsBase().NextState.Validators {
-
+		nextState := bundle.GetMetricsBase().NextState
+		for i, validator := range nextState.Validators {
+			valIdx := phase0.ValidatorIndex(i)
 			newVal := spec.ValidatorLastStatus{
-				ValIdx:                phase0.ValidatorIndex(valIdx),
-				Epoch:                 bundle.GetMetricsBase().NextState.Epoch,
-				CurrentBalance:        bundle.GetMetricsBase().NextState.Balances[valIdx],
-				CurrentStatus:         bundle.GetMetricsBase().NextState.GetValStatus(phase0.ValidatorIndex(valIdx)),
+				ValIdx:                valIdx,
+				Epoch:                 nextState.Epoch,
+				CurrentBalance:        nextState.Balances[valIdx],
+				EffectiveBalance:      validator.EffectiveBalance,
+				CurrentStatus:         nextState.GetValStatus(valIdx),
 				Slashed:               validator.Slashed,
 				ActivationEpoch:       validator.ActivationEpoch,
 				WithdrawalEpoch:       validator.WithdrawableEpoch,
