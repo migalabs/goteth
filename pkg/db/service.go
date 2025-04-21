@@ -150,7 +150,11 @@ type PersistableObject[
 		spec.AgnosticSlashing |
 		spec.BLSToExecutionChange |
 		spec.Deposit |
-		spec.ETH1Deposit] struct {
+		spec.ETH1Deposit |
+		spec.ConsolidationRequest |
+		spec.ConsolidationProcessed |
+		spec.WithdrawalRequest |
+		spec.DepositRequest] struct {
 	table string
 	query string
 	data  []T

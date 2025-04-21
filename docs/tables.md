@@ -1,41 +1,45 @@
 # Block Metrics | Orphans (`t_block_metrics`, `t_orphans`)
 
-| Column Name             | Type of Data | Description                                        |     |     |
-| ----------------------- | ------------ | -------------------------------------------------- | --- | --- |
-| f_timestamp             | uint64       | unix time of the slot                              |
-| f_epoch                 | uint64       | epoch number                                       |
-| f_slot                  | uint64       | slot number                                        |
-| f_graffiti              | string       | graffiti                                           |
-| f_proposer_index        | uint64       | validator index of the proposer                    |
-| f_proposed              | bool         | whether the block was proposed or not              |
-| f_attestations          | uint64       | number of attestations included in the block       |
-| f_deposits              | uint64       | number of deposits included in the block           |
-| f_proposer_slashings    | uint64       | number of proposer slashings included in the block |
-| f_attester_slashings    | uint64       | number of attester slashings included in the block |
-| f_voluntary_exits       | uint64       | number of voluntary exits included in the block    |
-| f_sync_bits             | uint64       | number of sync bits = 1 included in the block      |
-| f_el_fee_recp           | string       | fee recipient                                      |
-| f_el_gas_limit          | uint64       | gas limit                                          |
-| f_el_gas_used           | uint64       | gas used                                           |
-| f_el_base_fee_per_gas   | uint64       | base fee per gas                                   |
-| f_el_block_hash         | string       | hash of the execution payload                      |
-| f_el_transactions       | uint64       | amount of transactions included                    |
-| f_el_block_number       | uint64       | block number                                       |
-| f_payload_size_bytes    | uint64       | amount of bytes of the execution payload           |
-| f_ssz_size_bytes        | float32      | block size in bytes when serialized with SSZ       |
-| f_snappy_size_bytes     | float32      | block size in bytes when compressed with snappy    |
-| f_compression_time_ms   | float32      | miliseconds taken to compress the block            |
-| f_decompression_time_ms | float32      | miliseconds taken to decompress the block          |
+| Column Name                  | Type of Data | Description                                            |
+| ---------------------------- | ------------ | ------------------------------------------------------ |
+| f_timestamp                  | uint64       | unix time of the slot                                  |
+| f_epoch                      | uint64       | epoch number                                           |
+| f_slot                       | uint64       | slot number                                            |
+| f_graffiti                   | string       | graffiti                                               |
+| f_proposer_index             | uint64       | validator index of the proposer                        |
+| f_proposed                   | bool         | whether the block was proposed or not                  |
+| f_attestations               | uint64       | number of attestations included in the block           |
+| f_deposits                   | uint64       | number of deposits included in the block               |
+| f_consolidation_requests_num | uint64       | number of consolidation requests included in the block |
+| f_withdrawal_requests_num    | uint64       | number of withdrawal requests included in the block    |
+| f_deposit_requests_num       | uint64       | number of deposit requests included in the block       |
+| f_proposer_slashings         | uint64       | number of proposer slashings included in the block     |
+| f_attester_slashings         | uint64       | number of attester slashings included in the block     |
+| f_voluntary_exits            | uint64       | number of voluntary exits included in the block        |
+| f_sync_bits                  | uint64       | number of sync bits = 1 included in the block          |
+| f_el_fee_recp                | string       | fee recipient                                          |
+| f_el_gas_limit               | uint64       | gas limit                                              |
+| f_el_gas_used                | uint64       | gas used                                               |
+| f_el_base_fee_per_gas        | uint64       | base fee per gas                                       |
+| f_el_block_hash              | string       | hash of the execution payload                          |
+| f_el_transactions            | uint64       | amount of transactions included                        |
+| f_el_block_number            | uint64       | block number                                           |
+| f_payload_size_bytes         | uint64       | amount of bytes of the execution payload               |
+| f_ssz_size_bytes             | float32      | block size in bytes when serialized with SSZ           |
+| f_snappy_size_bytes          | float32      | block size in bytes when compressed with snappy        |
+| f_compression_time_ms        | float32      | milliseconds taken to compress the block               |
+| f_decompression_time_ms      | float32      | milliseconds taken to decompress the block             |
 
 # Epoch Metrics (`t_epoch_metrics_summary`)
 
-| Column Name                        | Type of Data | Description                                                                                                            |     |     |
-| ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| Column Name                        | Type of Data | Description                                                                                                            |
+| ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | f_epoch                            | uint64       | epoch number                                                                                                           |
 | f_slot                             | uint64       | slot number                                                                                                            |
 | f_num_att                          | uint64       | number of attestations included in blocks in the epoch                                                                 |
 | f_num_att_vals                     | uint64       | number of validators that attested to slots in the epoch                                                               |
-| f_num_vals                         | uint64       | number validators in the epoch                                                                                         |
+| f_num_vals                         | uint64       | number of validators in the epoch                                                                                      |
+| f_num_compounding_vals             | uint64       | number of validators compounding their rewards in the epoch                                                            |
 | f_total_balance_eth                | float        | amount of ETH balance taking into account all active validators                                                        |
 | f_att_effective_balance_eth        | uint64       | amount of ETH effective balance taking into account all active validators that attested                                |
 | f_source_att_effective_balance_eth | uint64       | amount of ETH effective balance taking into account all active validators that achieved the source flag when attesting |
@@ -57,11 +61,16 @@
 | f_total_withdrawals_amount         | uint64       | amount of eth withdrawn in the epoch                                                                                   |
 | f_new_proposer_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) proposer slashings included in the epoch            |
 | f_new_attester_slashings           | uint64       | amount of new [valid](https://github.com/migalabs/goteth/pull/146) attester slashings included in the epoch            |
+| f_consolidation_requests_num       | uint64       | number of consolidation requests included in the epoch                                                                 |
+| f_withdrawal_requests_num          | uint64       | number of withdrawal requests included in the epoch                                                                    |
+| f_deposit_requests_num             | uint64       | number of deposit requests included in the epoch                                                                       |
+| f_consolidations_processed_num     | uint64       | number of consolidations processed in the epoch                                                                        |
+| f_consolidations_processed_amount  | uint64       | total amount of ETH consolidated in the epoch (Gwei)                                                                   |
 
 # Pool Summaries (`t_pool_summary`)
 
-| Column Name                 | Type of Data | Description                                                                   |     |     |
-| --------------------------- | ------------ | ----------------------------------------------------------------------------- | --- | --- |
+| Column Name                 | Type of Data | Description                                                                   |
+| --------------------------- | ------------ | ----------------------------------------------------------------------------- |
 | f_pool_name                 | string       | name of the pool                                                              |
 | f_epoch                     | uint64       | epoch number                                                                  |
 | aggregated_rewards          | uint64       | sum of rewards of validators in the given pool                                |
@@ -70,11 +79,12 @@
 | count_missing_source        | uint64       | amount of validator with a missed source flag for the given pool              |
 | count_missing_target        | uint64       | amount of validator with a missed target flag for the given pool              |
 | count_missing_head          | uint64       | amount of validator with a missed head flag for the given pool                |
-| count_expected_attestations | uint64       | amount of attestations expected for the given pool (one per active valdiator) |
+| count_expected_attestations | uint64       | amount of attestations expected for the given pool (one per active validator) |
 | count_attestations_included | uint64       | amount of attestations included for the given pool corresponding to the epoch |
 | proposed_blocks_performance | uint64       | sum of proposed blocks by validators in the given pool                        |
 | missed_blocks_performance   | uint64       | sum of missed blocks by validators in the given pool                          |
 | number_active_vals          | uint64       | number of active validators in the given pool                                 |
+| number_compounding_vals     | uint64       | number of validators compounding their rewards in the given pool              |
 | f_avg_inclusion_delay       | float32      | average of inclusion delay of active validators in the given pool             |
 
 # Proposer Duties (`t_proposer_duties`)
@@ -121,36 +131,47 @@
 
 # Validator Last Status (`t_validator_last_status`)
 
-| Column Name        | Type of Data | Description                                        |     |     |
-| ------------------ | ------------ | -------------------------------------------------- | --- | --- |
-| f_val_idx          | uint64       | validator index                                    |
-| f_epoch            | uint64       | epoch number                                       |
-| f_balance_eth      | float32      | eth balance of the validator                       |
-| f_status           | uint8        | status (see status table)                          |
-| f_slashed          | bool         | whether the validator has ever been slashed or not |
-| f_activation_epoch | uint64       | epoch at which the validator was activated         |
-| f_withdrawal_epoch | uint64       | epoch at which the validator can withdraw funds    |
-| f_exit_epoch       | uint64       | epoch at which the validator exited the network    |
-| f_public_key       | string       | public key of the validator                        |
+| Column Name              | Type of Data | Description                                         |
+| ------------------------ | ------------ | --------------------------------------------------- |
+| f_val_idx                | uint64       | validator index                                     |
+| f_epoch                  | uint64       | epoch number                                        |
+| f_balance_eth            | float32      | eth balance of the validator                        |
+| f_status                 | uint8        | status (see status table)                           |
+| f_slashed                | bool         | whether the validator has ever been slashed or not  |
+| f_activation_epoch       | uint64       | epoch at which the validator was activated          |
+| f_withdrawal_epoch       | uint64       | epoch at which the validator can withdraw funds     |
+| f_exit_epoch             | uint64       | epoch at which the validator exited the network     |
+| f_public_key             | string       | public key of the validator                         |
+| f_withdrawal_prefix      | uint8        | withdrawal prefix of the validator's credentials    |
+| f_withdrawal_credentials | text         | withdrawal credentials of the validator (see below) |
+
+## Appendix: Reference for `f_withdrawal_prefix`
+
+The `f_withdrawal_prefix` column indicates the type of withdrawal credentials associated with the validator. The possible values are:
+
+- `0x00`: **BLS_WITHDRAWAL_PREFIX** - Indicates a BLS withdrawal prefix.
+- `0x01`: **ETH1_ADDRESS_WITHDRAWAL_PREFIX** - Indicates an ETH1 address withdrawal prefix.
+- `0x02`: **COMPOUNDING_WITHDRAWAL_PREFIX** - Indicates a compounding withdrawal prefix.
 
 # Validator Rewards Summary (`t_validator_rewards_summary`)
 
-| Column Name                 | Type of Data | Description                                                                                                           |     |     |
-| --------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| Column Name                 | Type of Data | Description                                                                                                           |
+| --------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
 | f_val_idx                   | uint64       | validator index                                                                                                       |
 | f_epoch                     | uint64       | epoch number                                                                                                          |
 | f_balance_eth               | float        | eth balance at the end of the given epoch                                                                             |
+| f_withdrawal_prefix         | uint8        | withdrawal prefix of the validator's withdrawal credentials (see above)                                               |
 | f_reward                    | int64        | reward obtained from the previous epoch to the given epoch, can be negative (Gwei)                                    |
 | f_max_reward                | uint64       | maximum consensus reward that could have been obtained from the previous epoch to the given epoch (Gwei)              |
 | f_max_att_reward            | uint64       | maximum attestation that could have been obtained from the previous epoch to the given epoch (Gwei)                   |
 | f_max_sync_reward           | uint64       | maximum sync committee that could have been obtained from the previous epoch to the given epoch (Gwei)                |
 | f_att_slot                  | uint64       | slot the validator had to attest to (2 epochs before)                                                                 |
 | f_base_reward               | uint64       | base reward taken into account to calculate the rewards (Gwei)                                                        |
-| f_in_sync_committee         | bool         | whether the validator participated in the sync commmittee in the given epoch                                          |
+| f_in_sync_committee         | bool         | whether the validator participated in the sync committee in the given epoch                                           |
 | f_attestation_included      | bool         | whether the attestation was included in the chain (2 epochs before)                                                   |
-| f_missing_source            | bool         | whether the validator missed the source flag while attesing (takes into account the attestation to 2 epochs before)   |
-| f_missing_target            | bool         | whether the validator missed the target flag while attesing (takes into account the attestation to 2 epochs before)   |
-| f_missing_head              | bool         | whether the validator missed the head flag while attesing (takes into account the attestation to 2 epochs before)     |
+| f_missing_source            | bool         | whether the validator missed the source flag while attesting (takes into account the attestation to 2 epochs before)  |
+| f_missing_target            | bool         | whether the validator missed the target flag while attesting (takes into account the attestation to 2 epochs before)  |
+| f_missing_head              | bool         | whether the validator missed the head flag while attesting (takes into account the attestation to 2 epochs before)    |
 | f_status                    | uint8        | see status table                                                                                                      |
 | f_block_api_reward          | uint64       | consensus block reward obtained from the Beacon API (only if the validator was a proposer in the given epoch) (Gwei)  |
 | f_block_experimental_reward | uint64       | consensus block reward manually calculated by goteth (only if the validator was a proposer in the given epoch) (Gwei) |
@@ -323,3 +344,107 @@ Will only be filled if the correct beacon contract address is provided in the `.
 | f_withdrawal_credentials | string       | withdrawal credentials of the validator        |
 | f_signature              | string       | signature of the deposit data                  |
 | f_amount                 | uint64       | amount of ETH deposited (Gwei)                 |
+
+# Consolidation Requests (`t_consolidation_requests`)
+
+Table that stores the data of consolidation requests in the network.
+
+| Column Name      | Type of Data | Description                                                           |
+| ---------------- | ------------ | --------------------------------------------------------------------- |
+| f_slot           | uint64       | Slot at which the consolidation request was made                      |
+| f_index          | uint64       | Index of the consolidation request within the slot                    |
+| f_source_address | string       | Address of the source from which the consolidation request originated |
+| f_source_pubkey  | string       | Public key of the source involved in the consolidation request        |
+| f_target_pubkey  | string       | Public key of the target involved in the consolidation request        |
+| f_result         | uint8        | Result of the consolidation request (see reference below)             |
+
+## Reference for `f_result`
+
+### General Results
+
+- `0`: **Unknown** - Consolidation request result is unknown.
+- `1`: **Success** - Consolidation request was successful.
+
+### Global Errors
+
+- `10`: **TotalBalanceTooLow** - Total balance is too low to process the request.
+- `11`: **QueueFull** - The consolidation request queue is full.
+- `12`: **RequestUsedAsExit** - The consolidation request was used as an exit.
+
+### Source Validator Errors
+
+- `20`: **SrcNotFound** - Source validator was not found.
+- `21`: **SrcInvalidCredentials** - Source validator has invalid credentials.
+- `22`: **SrcInvalidSender** - Source validator sender is invalid.
+- `23`: **SrcNotActive** - Source validator is not active.
+- `24`: **SrcNotOldEnough** - Source validator is not old enough.
+- `25`: **SrcHasPendingWithdrawal** - Source validator has a pending withdrawal.
+- `26`: **SrcExitAlreadyInitiated** - Source validator has already initiated an exit.
+
+### Target Validator Errors
+
+- `30`: **TgtNotFound** - Target validator was not found.
+- `31`: **TgtInvalidCredentials** - Target validator has invalid credentials.
+- `32`: **TgtInvalidSender** - Target validator sender is invalid.
+- `33`: **TgtNotCompounding** - Target validator is not compounding.
+- `34`: **TgtNotActive** - Target validator is not active.
+- `35`: **TgtExitAlreadyInitiated** - Target validator has already initiated an exit.
+
+# Deposit Requests (`t_deposit_requests`)
+
+Table that stores the data of deposit requests in the network.
+
+| Column Name              | Type of Data | Description                                        |
+| ------------------------ | ------------ | -------------------------------------------------- |
+| f_slot                   | uint64       | Slot at which the deposit request was made         |
+| f_pubkey                 | text         | Public key of the validator making the deposit     |
+| f_withdrawal_credentials | text         | Withdrawal credentials associated with the deposit |
+| f_amount                 | uint64       | Amount of ETH requested for deposit (Gwei)         |
+| f_signature              | text         | Signature of the deposit data                      |
+| f_index                  | uint64       | Index of the deposit request within the slot       |
+
+# Withdrawal Requests (`t_withdrawal_requests`)
+
+Table that stores the data of withdrawal requests in the network.
+
+| Column Name        | Type of Data | Description                                                        |
+| ------------------ | ------------ | ------------------------------------------------------------------ |
+| f_slot             | uint64       | Slot at which the withdrawal request was made                      |
+| f_index            | uint64       | Index of the withdrawal request within the slot                    |
+| f_source_address   | string       | Address of the source from which the withdrawal request originated |
+| f_validator_pubkey | string       | Public key of the validator involved in the withdrawal request     |
+| f_amount           | uint64       | Amount of ETH requested for withdrawal (Gwei)                      |
+| f_result           | uint8        | Result of the withdrawal request (see reference below)             |
+
+## Reference for `f_result`
+
+### General Results
+
+- `0`: **Unknown** - Withdrawal request result is unknown.
+- `1`: **Success** - Withdrawal request was successful.
+
+### Errors
+
+- `2`: **QueueFull** - The withdrawal request queue is full.
+- `3`: **ValidatorNotFound** - The validator associated with the request was not found.
+- `4`: **InvalidCredentials** - The validator has invalid credentials.
+- `5`: **ValidatorNotActive** - The validator is not active.
+- `6`: **ExitAlreadyInitiated** - The validator has already initiated an exit.
+- `7`: **ValidatorNotOldEnough** - The validator is not old enough.
+- `8`: **PendingWithdrawalExists** - A pending withdrawal already exists for the validator.
+- `9`: **InsufficientBalance** - The validator has insufficient balance for the withdrawal.
+- `10`: **ValidatorNotCompounding** - The validator is not compounding.
+- `11`: **NoExcessBalance** - The validator has no excess balance to withdraw.
+
+# Consolidations Processed (`t_consolidations_processed`)
+
+Table that stores the data of processed consolidations in the network.
+
+| Column Name           | Type of Data | Description                                                 |
+| --------------------- | ------------ | ----------------------------------------------------------- |
+| f_epoch               | uint64       | Epoch at which the consolidation was processed              |
+| f_index               | uint64       | Index of the consolidation within the epoch                 |
+| f_source_index        | uint64       | Index of the source validator involved in the consolidation |
+| f_target_index        | uint64       | Index of the target validator involved in the consolidation |
+| f_consolidated_amount | uint64       | Amount of ETH consolidated (Gwei)                           |
+| f_valid               | bool         | Whether the consolidation was valid (default is `true`)     |

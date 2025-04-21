@@ -22,6 +22,9 @@ var (
 		f_proposed,
 		f_attestations,
 		f_deposits,
+		f_consolidation_requests_num,
+		f_deposit_requests_num,
+		f_withdrawal_requests_num,
 		f_proposer_slashings,
 		f_attester_slashings,
 		f_voluntary_exits,
@@ -54,30 +57,33 @@ var (
 func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 	// one object per column
 	var (
-		f_timestamp             proto.ColUInt64
-		f_epoch                 proto.ColUInt64
-		f_slot                  proto.ColUInt64
-		f_graffiti              proto.ColStr
-		f_proposer_index        proto.ColUInt64
-		f_proposed              proto.ColBool
-		f_attestations          proto.ColUInt64
-		f_deposits              proto.ColUInt64
-		f_proposer_slashings    proto.ColUInt64
-		f_attester_slashings    proto.ColUInt64
-		f_voluntary_exits       proto.ColUInt64
-		f_sync_bits             proto.ColUInt64
-		f_el_fee_recp           proto.ColStr
-		f_el_gas_limit          proto.ColUInt64
-		f_el_gas_used           proto.ColUInt64
-		f_el_base_fee_per_gas   proto.ColUInt64
-		f_el_block_hash         proto.ColStr
-		f_el_transactions       proto.ColUInt64
-		f_el_block_number       proto.ColUInt64
-		f_payload_size_bytes    proto.ColUInt64
-		f_ssz_size_bytes        proto.ColFloat32
-		f_snappy_size_bytes     proto.ColFloat32
-		f_compression_time_ms   proto.ColFloat32
-		f_decompression_time_ms proto.ColFloat32
+		f_timestamp                  proto.ColUInt64
+		f_epoch                      proto.ColUInt64
+		f_slot                       proto.ColUInt64
+		f_graffiti                   proto.ColStr
+		f_proposer_index             proto.ColUInt64
+		f_proposed                   proto.ColBool
+		f_attestations               proto.ColUInt64
+		f_deposits                   proto.ColUInt64
+		f_consolidation_requests_num proto.ColUInt64
+		f_deposit_requests_num       proto.ColUInt64
+		f_withdrawal_requests_num    proto.ColUInt64
+		f_proposer_slashings         proto.ColUInt64
+		f_attester_slashings         proto.ColUInt64
+		f_voluntary_exits            proto.ColUInt64
+		f_sync_bits                  proto.ColUInt64
+		f_el_fee_recp                proto.ColStr
+		f_el_gas_limit               proto.ColUInt64
+		f_el_gas_used                proto.ColUInt64
+		f_el_base_fee_per_gas        proto.ColUInt64
+		f_el_block_hash              proto.ColStr
+		f_el_transactions            proto.ColUInt64
+		f_el_block_number            proto.ColUInt64
+		f_payload_size_bytes         proto.ColUInt64
+		f_ssz_size_bytes             proto.ColFloat32
+		f_snappy_size_bytes          proto.ColFloat32
+		f_compression_time_ms        proto.ColFloat32
+		f_decompression_time_ms      proto.ColFloat32
 	)
 
 	for _, block := range blocks {
@@ -97,6 +103,17 @@ func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 			f_attestations.Append(uint64(len(block.ElectraAttestations)))
 		}
 		f_deposits.Append(uint64(len(block.Deposits)))
+
+		if block.ExecutionRequests != nil {
+			f_consolidation_requests_num.Append(uint64(len(block.ExecutionRequests.Consolidations)))
+			f_deposit_requests_num.Append(uint64(len(block.ExecutionRequests.Deposits)))
+			f_withdrawal_requests_num.Append(uint64(len(block.ExecutionRequests.Withdrawals)))
+		} else {
+			f_consolidation_requests_num.Append(uint64(0))
+			f_deposit_requests_num.Append(uint64(0))
+			f_withdrawal_requests_num.Append(uint64(0))
+		}
+
 		f_proposer_slashings.Append(uint64(len(block.ProposerSlashings)))
 		f_attester_slashings.Append(uint64(len(block.AttesterSlashings)))
 		f_voluntary_exits.Append(uint64(len(block.VoluntaryExits)))
@@ -129,6 +146,9 @@ func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 		{Name: "f_proposed", Data: f_proposed},
 		{Name: "f_attestations", Data: f_attestations},
 		{Name: "f_deposits", Data: f_deposits},
+		{Name: "f_consolidation_requests_num", Data: f_consolidation_requests_num},
+		{Name: "f_deposit_requests_num", Data: f_deposit_requests_num},
+		{Name: "f_withdrawal_requests_num", Data: f_withdrawal_requests_num},
 		{Name: "f_proposer_slashings", Data: f_proposer_slashings},
 		{Name: "f_attester_slashings", Data: f_attester_slashings},
 		{Name: "f_voluntary_exits", Data: f_voluntary_exits},

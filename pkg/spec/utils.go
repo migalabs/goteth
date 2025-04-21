@@ -40,3 +40,17 @@ func HexStringAddressIsValid(address string) bool {
 	hexPattern := regexp.MustCompile(`^(0x)?[0-9a-fA-F]+$`)
 	return len(address) == 42 && hexPattern.MatchString(address)
 }
+
+func Uint64Max(a, b uint64) uint64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func Uint64Min(a, b uint64) uint64 {
+	if a < b {
+		return a
+	}
+	return b
+}

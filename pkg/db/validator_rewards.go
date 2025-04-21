@@ -14,6 +14,7 @@ var (
 		f_val_idx, 
 		f_epoch, 
 		f_balance_eth, 
+		f_withdrawal_prefix,
 		f_reward, 
 		f_max_reward,
 		f_max_att_reward,
@@ -47,6 +48,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		f_val_idx                   proto.ColUInt64
 		f_epoch                     proto.ColUInt64
 		f_balance_eth               proto.ColFloat32
+		f_withdrawal_prefix         proto.ColUInt8
 		f_reward                    proto.ColInt64
 		f_max_reward                proto.ColUInt64
 		f_max_att_reward            proto.ColUInt64
@@ -68,6 +70,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		f_val_idx.Append(uint64(val.ValidatorIndex))
 		f_epoch.Append(uint64(val.Epoch))
 		f_balance_eth.Append(float32(val.BalanceToEth()))
+		f_withdrawal_prefix.Append(uint8(val.WithdrawalPrefix))
 		f_reward.Append(int64(val.Reward))
 		f_max_reward.Append(uint64(val.MaxReward))
 		f_max_att_reward.Append(uint64(val.AttestationReward))
@@ -89,6 +92,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		{Name: "f_val_idx", Data: f_val_idx},
 		{Name: "f_epoch", Data: f_epoch},
 		{Name: "f_balance_eth", Data: f_balance_eth},
+		{Name: "f_withdrawal_prefix", Data: f_withdrawal_prefix},
 		{Name: "f_reward", Data: f_reward},
 		{Name: "f_max_reward", Data: f_max_reward},
 		{Name: "f_max_att_reward", Data: f_max_att_reward},

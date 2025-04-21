@@ -59,6 +59,10 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 			s.processEpochValRewards(bundle)
 		}
 		s.processSlashings(bundle)
+		s.storeConsolidationRequests(bundle)
+		s.storeWithdrawalRequests(bundle)
+		s.storeDepositRequests(bundle)
+		s.storeConsoidationsProcessed(bundle)
 	}
 
 	s.processerBook.FreePage(routineKey)
@@ -73,6 +77,50 @@ func (s *ChainAnalyzer) processSlashings(bundle metrics.StateMetrics) {
 	err := s.dbClient.PersistSlashings(slashings)
 	if err != nil {
 		log.Errorf("error persisting slashings: %s", err.Error())
+	}
+}
+
+func (s *ChainAnalyzer) storeConsoidationsProcessed(bundle metrics.StateMetrics) {
+	consolidationsProcessed := bundle.GetMetricsBase().NextState.ConsolidationsProcessed
+	if len(consolidationsProcessed) == 0 {
+		return
+	}
+	err := s.dbClient.PersistConsolidationsProcessed(consolidationsProcessed)
+	if err != nil {
+		log.Errorf("error persisting consolidationsProcessed: %s", err.Error())
+	}
+}
+
+func (s *ChainAnalyzer) storeWithdrawalRequests(bundle metrics.StateMetrics) {
+	withdrawalRequests := bundle.GetMetricsBase().NextState.WithdrawalRequests
+	if len(withdrawalRequests) == 0 {
+		return
+	}
+	err := s.dbClient.PersistWithdrawalRequests(withdrawalRequests)
+	if err != nil {
+		log.Errorf("error persisting withdrawal requests: %s", err.Error())
+	}
+}
+
+func (s *ChainAnalyzer) storeConsolidationRequests(bundle metrics.StateMetrics) {
+	consolidationRequests := bundle.GetMetricsBase().NextState.ConsolidationRequests
+	if len(consolidationRequests) == 0 {
+		return
+	}
+	err := s.dbClient.PersistConsolidationRequests(consolidationRequests)
+	if err != nil {
+		log.Errorf("error persisting consolidation requests: %s", err.Error())
+	}
+}
+
+func (s *ChainAnalyzer) storeDepositRequests(bundle metrics.StateMetrics) {
+	depositRequests := bundle.GetMetricsBase().NextState.DepositRequests
+	if len(depositRequests) == 0 {
+		return
+	}
+	err := s.dbClient.PersistDepositRequests(depositRequests)
+	if err != nil {
+		log.Errorf("error persisting deposit requests: %s", err.Error())
 	}
 }
 
@@ -140,15 +188,16 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 		for valIdx, validator := range bundle.GetMetricsBase().NextState.Validators {
 
 			newVal := spec.ValidatorLastStatus{
-				ValIdx:          phase0.ValidatorIndex(valIdx),
-				Epoch:           bundle.GetMetricsBase().NextState.Epoch,
-				CurrentBalance:  bundle.GetMetricsBase().NextState.Balances[valIdx],
-				CurrentStatus:   bundle.GetMetricsBase().NextState.GetValStatus(phase0.ValidatorIndex(valIdx)),
-				Slashed:         validator.Slashed,
-				ActivationEpoch: validator.ActivationEpoch,
-				WithdrawalEpoch: validator.WithdrawableEpoch,
-				ExitEpoch:       validator.ExitEpoch,
-				PublicKey:       validator.PublicKey,
+				ValIdx:                phase0.ValidatorIndex(valIdx),
+				Epoch:                 bundle.GetMetricsBase().NextState.Epoch,
+				CurrentBalance:        bundle.GetMetricsBase().NextState.Balances[valIdx],
+				CurrentStatus:         bundle.GetMetricsBase().NextState.GetValStatus(phase0.ValidatorIndex(valIdx)),
+				Slashed:               validator.Slashed,
+				ActivationEpoch:       validator.ActivationEpoch,
+				WithdrawalEpoch:       validator.WithdrawableEpoch,
+				ExitEpoch:             validator.ExitEpoch,
+				PublicKey:             validator.PublicKey,
+				WithdrawalCredentials: validator.WithdrawalCredentials,
 			}
 			valStatusArr = append(valStatusArr, newVal)
 		}

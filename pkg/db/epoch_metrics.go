@@ -17,6 +17,7 @@ var (
 		f_num_att,
 		f_num_att_vals,
 		f_num_vals,
+		f_num_compounding_vals,
 		f_total_balance_eth,
 		f_att_effective_balance_eth,
 		f_source_att_effective_balance_eth,
@@ -37,7 +38,12 @@ var (
 		f_withdrawals_num,
 		f_total_withdrawals_amount,
 		f_new_proposer_slashings,
-		f_new_attester_slashings	
+		f_new_attester_slashings,
+		f_consolidation_requests_num,
+		f_deposit_requests_num,
+		f_withdrawal_requests_num,
+		f_consolidations_processed_num,
+		f_consolidations_processed_amount	
 		)
 		VALUES`
 
@@ -61,6 +67,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_num_att                          proto.ColUInt64
 		f_num_att_vals                     proto.ColUInt64
 		f_num_vals                         proto.ColUInt64
+		f_num_compounding_vals             proto.ColUInt64
 		f_total_balance_eth                proto.ColFloat32
 		f_att_effective_balance_eth        proto.ColUInt64
 		f_source_att_effective_balance_eth proto.ColUInt64
@@ -82,6 +89,11 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_total_withdrawals_amount         proto.ColUInt64
 		f_new_proposer_slashings           proto.ColUInt64
 		f_new_attester_slashings           proto.ColUInt64
+		f_consolidation_requests_num       proto.ColUInt64
+		f_deposit_requests_num             proto.ColUInt64
+		f_withdrawal_requests_num          proto.ColUInt64
+		f_consolidations_processed_num     proto.ColUInt64
+		f_consolidations_processed_amount  proto.ColUInt64
 	)
 
 	for _, epoch := range epochs {
@@ -90,6 +102,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_num_att.Append(uint64(epoch.NumAttestations))
 		f_num_att_vals.Append(uint64(epoch.NumAttValidators))
 		f_num_vals.Append(uint64(epoch.NumValidators))
+		f_num_compounding_vals.Append(epoch.NumCompoundingVals)
 		f_total_balance_eth.Append(float32(epoch.TotalBalance))
 		f_att_effective_balance_eth.Append(uint64(epoch.AttEffectiveBalance))
 		f_source_att_effective_balance_eth.Append(uint64(epoch.SourceAttEffectiveBalance))
@@ -111,6 +124,11 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		f_total_withdrawals_amount.Append(uint64(epoch.TotalWithdrawalsAmount))
 		f_new_proposer_slashings.Append(uint64(epoch.NewProposerSlashings))
 		f_new_attester_slashings.Append(uint64(epoch.NewAttesterSlashings))
+		f_consolidation_requests_num.Append(uint64(epoch.ConsolidationRequestsNum))
+		f_deposit_requests_num.Append(uint64(epoch.DepositRequestsNum))
+		f_withdrawal_requests_num.Append(uint64(epoch.WithdrawalRequestsNum))
+		f_consolidations_processed_num.Append(epoch.ConsolidationsProcessedNum)
+		f_consolidations_processed_amount.Append(uint64(epoch.ConsolidationsProcessedAmount))
 	}
 
 	return proto.Input{
@@ -119,6 +137,7 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		{Name: "f_num_att", Data: f_num_att},
 		{Name: "f_num_att_vals", Data: f_num_att_vals},
 		{Name: "f_num_vals", Data: f_num_vals},
+		{Name: "f_num_compounding_vals", Data: f_num_compounding_vals},
 		{Name: "f_total_balance_eth", Data: f_total_balance_eth},
 		{Name: "f_att_effective_balance_eth", Data: f_att_effective_balance_eth},
 		{Name: "f_source_att_effective_balance_eth", Data: f_source_att_effective_balance_eth},
@@ -140,6 +159,11 @@ func epochsInput(epochs []spec.Epoch) proto.Input {
 		{Name: "f_total_withdrawals_amount", Data: f_total_withdrawals_amount},
 		{Name: "f_new_proposer_slashings", Data: f_new_proposer_slashings},
 		{Name: "f_new_attester_slashings", Data: f_new_attester_slashings},
+		{Name: "f_consolidation_requests_num", Data: f_consolidation_requests_num},
+		{Name: "f_deposit_requests_num", Data: f_deposit_requests_num},
+		{Name: "f_withdrawal_requests_num", Data: f_withdrawal_requests_num},
+		{Name: "f_consolidations_processed_num", Data: f_consolidations_processed_num},
+		{Name: "f_consolidations_processed_amount", Data: f_consolidations_processed_amount},
 	}
 }
 

@@ -17,31 +17,33 @@ import (
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type AgnosticBlock struct {
-	Slot                     phase0.Slot
-	StateRoot                phase0.Root
-	Root                     phase0.Root
-	ParentRoot               phase0.Root
-	ProposerIndex            phase0.ValidatorIndex
-	Graffiti                 [32]byte
-	Proposed                 bool
-	Attestations             []*phase0.Attestation // For electra blocks, Attestations is nil
+	Slot                  phase0.Slot
+	StateRoot             phase0.Root
+	Root                  phase0.Root
+	ParentRoot            phase0.Root
+	ProposerIndex         phase0.ValidatorIndex
+	Graffiti              [32]byte
+	Proposed              bool
+	Attestations          []*phase0.Attestation // For electra blocks, Attestations is nil
+	VotesIncluded         uint64
+	NewVotesIncluded      uint64
+	Deposits              []*phase0.Deposit
+	ProposerSlashings     []*phase0.ProposerSlashing
+	AttesterSlashings     []*phase0.AttesterSlashing // For electra blocks, AttesterSlashings is nil
+	VoluntaryExits        []*phase0.SignedVoluntaryExit
+	SyncAggregate         *altair.SyncAggregate
+	ExecutionPayload      AgnosticExecutionPayload
+	BLSToExecutionChanges []*capella.SignedBLSToExecutionChange
+	Reward                BlockRewards
+	SSZsize               uint32
+	SnappySize            uint32
+	CompressionTime       time.Duration
+	DecompressionTime     time.Duration
+	ManualReward          phase0.Gwei
+	// Electra
 	ElectraAttestations      []*electra.Attestation
-	VotesIncluded            uint64
-	NewVotesIncluded         uint64
-	Deposits                 []*phase0.Deposit
-	ProposerSlashings        []*phase0.ProposerSlashing
-	AttesterSlashings        []*phase0.AttesterSlashing
-	ElectraAttesterSlashings []*electra.AttesterSlashing // For electra blocks, AttesterSlashings is nil
-	VoluntaryExits           []*phase0.SignedVoluntaryExit
-	SyncAggregate            *altair.SyncAggregate
-	ExecutionPayload         AgnosticExecutionPayload
-	BLSToExecutionChanges    []*capella.SignedBLSToExecutionChange
-	Reward                   BlockRewards
-	SSZsize                  uint32
-	SnappySize               uint32
-	CompressionTime          time.Duration
-	DecompressionTime        time.Duration
-	ManualReward             phase0.Gwei
+	ElectraAttesterSlashings []*electra.AttesterSlashing
+	ExecutionRequests        *electra.ExecutionRequests
 }
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
@@ -358,5 +360,6 @@ func NewElectraBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 		SnappySize:            compressionMetrics.SnappySize,
 		CompressionTime:       compressionMetrics.CompressionTime,
 		DecompressionTime:     compressionMetrics.DecompressionTime,
+		ExecutionRequests:     block.Electra.Message.Body.ExecutionRequests,
 	}
 }

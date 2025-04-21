@@ -7,6 +7,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
+	"github.com/attestantio/go-eth2-client/spec/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 )
 
@@ -47,6 +48,15 @@ type AgnosticState struct {
 	NewProposerSlashings         int    // number of new proposer slashings
 	NewAttesterSlashings         int    // number of new attester slashings
 	Slashings                    []AgnosticSlashing
+	// Electra
+	ConsolidationRequests         []ConsolidationRequest
+	WithdrawalRequests            []WithdrawalRequest
+	DepositRequests               []DepositRequest
+	PendingConsolidations         []*electra.PendingConsolidation
+	PendingPartialWithdrawals     []*electra.PendingPartialWithdrawal
+	ConsolidationsProcessed       []ConsolidationProcessed
+	ConsolidationsProcessedAmount phase0.Gwei             // total amount of Gwei consolidated
+	NewExitingValidators          []phase0.ValidatorIndex // list of validators that are exiting due to consolidation/withdrawal requests, used for tracking errors of a validator trying to consolidate/withdraw twice on same epoch.
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -92,6 +102,9 @@ func (p *AgnosticState) Setup() error {
 	p.TotalActiveRealBalance = p.GetTotalActiveRealBalance()
 	p.TrackMissingBlocks()
 	p.Slashings = make([]AgnosticSlashing, 0)
+	p.ConsolidationRequests = make([]ConsolidationRequest, 0)
+	p.ConsolidationsProcessed = make([]ConsolidationProcessed, 0)
+	p.NewExitingValidators = make([]phase0.ValidatorIndex, 0)
 	return nil
 }
 
@@ -183,6 +196,16 @@ func (p *AgnosticState) GetValsStateNums() {
 	p.NumExitedVals = uint(len(result[EXIT_STATUS]))
 	p.NumSlashedVals = uint(len(result[SLASHED_STATUS]))
 	p.NumQueuedVals = uint(len(result[QUEUE_STATUS]))
+}
+
+func (p *AgnosticState) GetCompoundingValsNum() uint64 {
+	numCompoundingVals := uint64(0)
+	for _, validator := range p.Validators {
+		if uint8(validator.WithdrawalCredentials[0]) == CompoundingWithdrawalPrefix {
+			numCompoundingVals += 1
+		}
+	}
+	return numCompoundingVals
 }
 
 // Not effective balance, but balance
@@ -496,6 +519,8 @@ func NewElectraState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnos
 		GenesisTimestamp:           bstate.Electra.GenesisTime,
 		CurrentJustifiedCheckpoint: *bstate.Electra.CurrentJustifiedCheckpoint,
 		LatestBlockHeader:          bstate.Electra.LatestBlockHeader,
+		PendingConsolidations:      bstate.Electra.PendingConsolidations,
+		PendingPartialWithdrawals:  bstate.Electra.PendingPartialWithdrawals,
 	}
 
 	electraObj.Setup()
