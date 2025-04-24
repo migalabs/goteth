@@ -316,7 +316,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		MissingSource:        flags[spec.AttSourceFlagIndex],
 		MissingTarget:        flags[spec.AttTargetFlagIndex],
 		MissingHead:          flags[spec.AttHeadFlagIndex],
-		Status:               currentState.GetValStatus(valIdx),
+		Status:               nextState.GetValStatus(valIdx),
 		BaseReward:           baseReward,
 		ProposerApiReward:    proposerApiReward,
 		ProposerManualReward: proposerManualReward,
