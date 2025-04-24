@@ -82,11 +82,15 @@ func (s *ValidatorWindowRunner) Run() {
 		case <-s.eventsObj.FinalizedChan:
 
 			dbHeadEpoch, err := s.dbClient.RetrieveLastEpoch()
-
 			if err != nil {
 				log.Errorf("could not detect current head epoch in database: %s", err)
 				s.EndProcesses()
 				return
+			}
+
+			if dbHeadEpoch < phase0.Epoch(s.windowEpochSize) {
+				log.Infof("database head epoch: %d is less than window epoch size: %d", dbHeadEpoch, s.windowEpochSize)
+				continue
 			}
 			windowLowerEpochBoundary := dbHeadEpoch - phase0.Epoch(s.windowEpochSize)
 
