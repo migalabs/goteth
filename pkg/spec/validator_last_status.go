@@ -10,6 +10,7 @@ type ValidatorLastStatus struct {
 	ValIdx                phase0.ValidatorIndex
 	Epoch                 phase0.Epoch
 	CurrentBalance        phase0.Gwei
+	EffectiveBalance      phase0.Gwei
 	CurrentStatus         ValidatorStatus
 	Slashed               bool
 	ActivationEpoch       phase0.Epoch
@@ -24,6 +25,7 @@ func (f ValidatorLastStatus) ToArray() []interface{} {
 	resultArgs = append(resultArgs, f.ValIdx)
 	resultArgs = append(resultArgs, f.Epoch)
 	resultArgs = append(resultArgs, f.BalanceToEth())
+	resultArgs = append(resultArgs, f.EffectiveBalance)
 	resultArgs = append(resultArgs, f.CurrentStatus)
 	resultArgs = append(resultArgs, f.Slashed)
 	resultArgs = append(resultArgs, f.ActivationEpoch)

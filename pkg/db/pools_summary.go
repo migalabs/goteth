@@ -16,6 +16,7 @@ var (
 				t_eth2_pubkeys.f_pool_name, f_epoch,
 				SUM(CASE WHEN (f_reward <= f_max_reward) THEN f_reward ELSE 0 END) as aggregated_rewards,
 				SUM(CASE WHEN (f_reward <= f_max_reward) THEN f_max_reward ELSE 0 END) as aggregated_max_rewards,
+				SUM(f_effective_balance) as aggregated_effective_balance,
 				COUNT(CASE WHEN f_in_sync_committee = TRUE THEN 1 ELSE null END) as count_sync_committee,
 				COUNT(CASE WHEN f_missing_source = TRUE THEN 1 ELSE null END) as count_missing_source,
 				COUNT(CASE WHEN f_missing_target = TRUE THEN 1 ELSE null END) as count_missing_target,
