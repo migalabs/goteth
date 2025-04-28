@@ -43,18 +43,20 @@ func (p *ElectraMetrics) InitBundle(nextState *spec.AgnosticState,
 
 func (p *ElectraMetrics) PreProcessBundle() {
 
-	if !p.baseMetrics.PrevState.EmptyStateRoot() && !p.baseMetrics.CurrentState.EmptyStateRoot() {
-		// block rewards
+	if !p.baseMetrics.CurrentState.EmptyStateRoot() {
 		p.ProcessAttestations()
-		p.ProcessSlashings()
-		p.ProcessSyncAggregates()
-		p.processConsolidationRequests()
-		p.processWithdrawalRequests()
-		p.processDepositRequests()
-		p.GetMaxFlagIndexDeltas()
-		p.ProcessInclusionDelays()
-		p.GetMaxSyncComReward()
-		p.processPendingConsolidations(p.baseMetrics.NextState)
+		if !p.baseMetrics.PrevState.EmptyStateRoot() {
+			// block rewards
+			p.ProcessSlashings()
+			p.ProcessSyncAggregates()
+			p.processConsolidationRequests()
+			p.processWithdrawalRequests()
+			p.processDepositRequests()
+			p.GetMaxFlagIndexDeltas()
+			p.ProcessInclusionDelays()
+			p.GetMaxSyncComReward()
+			p.processPendingConsolidations(p.baseMetrics.NextState)
+		}
 	}
 }
 
