@@ -1,0 +1,5 @@
+ALTER TABLE t_validator_rewards_summary ADD COLUMN f_sync_committee_participations_included UInt8 AFTER f_in_sync_committee;
+
+ALTER TABLE t_validator_rewards_aggregation ADD COLUMN f_sync_committee_participations_included UInt16 AFTER f_in_sync_committee_count;
+
+ALTER TABLE t_pool_summary ADD COLUMN count_sync_committee_participations_included UInt64 AFTER count_sync_committee;

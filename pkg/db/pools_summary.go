@@ -18,6 +18,7 @@ var (
 				SUM(CASE WHEN (f_reward <= f_max_reward) THEN f_max_reward ELSE 0 END) as aggregated_max_rewards,
 				SUM(f_effective_balance) as aggregated_effective_balance,
 				COUNT(CASE WHEN f_in_sync_committee = TRUE THEN 1 ELSE null END) as count_sync_committee,
+				SUM(f_sync_committee_participations_included) as count_sync_committee_participations_included,
 				COUNT(CASE WHEN f_missing_source = TRUE THEN 1 ELSE null END) as count_missing_source,
 				COUNT(CASE WHEN f_missing_target = TRUE THEN 1 ELSE null END) as count_missing_target,
 				COUNT(CASE WHEN f_missing_head = TRUE THEN 1 ELSE null END) as count_missing_head,
