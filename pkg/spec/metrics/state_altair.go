@@ -10,7 +10,8 @@ import (
 
 type AltairMetrics struct {
 	Phase0Metrics
-	MaxSyncCommitteeRewards map[phase0.ValidatorIndex]phase0.Gwei // rewards from participating in the sync committee
+	MaxSyncCommitteeRewards    map[phase0.ValidatorIndex]phase0.Gwei // rewards from participating in the sync committee
+	SyncCommitteeParticipation map[phase0.ValidatorIndex]uint8
 }
 
 func NewAltairMetrics(
@@ -38,6 +39,7 @@ func (p *AltairMetrics) InitBundle(nextState *spec.AgnosticState,
 	p.baseMetrics.InclusionDelays = make([]int, len(p.baseMetrics.NextState.Validators))
 	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.MaxSyncCommitteeRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.SyncCommitteeParticipation = make(map[phase0.ValidatorIndex]uint8)
 }
 
 func (p *AltairMetrics) PreProcessBundle() {
@@ -213,6 +215,8 @@ func (p *AltairMetrics) ProcessSyncAggregates() {
 			participationBit := block.SyncAggregate.SyncCommitteeBits.BitAt(uint64(participantIndex))
 			if participationBit {
 				block.ManualReward += proposerReward
+				valIdx := committeeIndices[participantIndex]
+				p.SyncCommitteeParticipation[valIdx] += 1
 			}
 		}
 	}
@@ -268,7 +272,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	flagIndexMaxReward := p.baseMetrics.MaxAttesterRewards[valIdx]
 	syncComMaxReward := p.MaxSyncCommitteeRewards[valIdx]
 	inSyncCommitte := syncComMaxReward > 0
-
+	syncComParticipationsIncluded := p.SyncCommitteeParticipation[valIdx]
 	proposerReward := phase0.Gwei(0)
 	proposerApiReward := phase0.Gwei(0)
 	proposerManualReward := phase0.Gwei(0)
@@ -294,26 +298,27 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	}
 
 	result := spec.ValidatorRewards{
-		ValidatorIndex:       valIdx,
-		Epoch:                nextState.Epoch,
-		ValidatorBalance:     nextState.Balances[valIdx],
-		EffectiveBalance:     nextState.Validators[valIdx].EffectiveBalance,
-		WithdrawalPrefix:     nextState.Validators[valIdx].WithdrawalCredentials[0],
-		Reward:               p.baseMetrics.EpochReward(valIdx),
-		MaxReward:            maxReward,
-		AttestationReward:    flagIndexMaxReward,
-		SyncCommitteeReward:  syncComMaxReward,
-		AttSlot:              prevState.EpochStructs.ValidatorAttSlot[valIdx],
-		AttestationIncluded:  attestationIncluded,
-		MissingSource:        flags[spec.AttSourceFlagIndex],
-		MissingTarget:        flags[spec.AttTargetFlagIndex],
-		MissingHead:          flags[spec.AttHeadFlagIndex],
-		Status:               nextState.GetValStatus(valIdx),
-		BaseReward:           baseReward,
-		ProposerApiReward:    proposerApiReward,
-		ProposerManualReward: proposerManualReward,
-		InSyncCommittee:      inSyncCommitte,
-		InclusionDelay:       p.baseMetrics.InclusionDelays[valIdx],
+		ValidatorIndex:                      valIdx,
+		Epoch:                               nextState.Epoch,
+		ValidatorBalance:                    nextState.Balances[valIdx],
+		EffectiveBalance:                    nextState.Validators[valIdx].EffectiveBalance,
+		WithdrawalPrefix:                    nextState.Validators[valIdx].WithdrawalCredentials[0],
+		Reward:                              p.baseMetrics.EpochReward(valIdx),
+		MaxReward:                           maxReward,
+		AttestationReward:                   flagIndexMaxReward,
+		SyncCommitteeReward:                 syncComMaxReward,
+		AttSlot:                             prevState.EpochStructs.ValidatorAttSlot[valIdx],
+		AttestationIncluded:                 attestationIncluded,
+		BaseReward:                          baseReward,
+		InSyncCommittee:                     inSyncCommitte,
+		SyncCommitteeParticipationsIncluded: syncComParticipationsIncluded,
+		MissingSource:                       flags[spec.AttSourceFlagIndex],
+		MissingTarget:                       flags[spec.AttTargetFlagIndex],
+		MissingHead:                         flags[spec.AttHeadFlagIndex],
+		Status:                              nextState.GetValStatus(valIdx),
+		ProposerApiReward:                   proposerApiReward,
+		ProposerManualReward:                proposerManualReward,
+		InclusionDelay:                      p.baseMetrics.InclusionDelays[valIdx],
 	}
 	return result, nil
 
