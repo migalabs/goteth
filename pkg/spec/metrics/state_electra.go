@@ -54,7 +54,6 @@ func (p *ElectraMetrics) PreProcessBundle() {
 			p.processDepositRequests()
 			p.GetMaxFlagIndexDeltas()
 			p.ProcessInclusionDelays()
-			p.GetMaxSyncComReward()
 			p.processPendingConsolidations(p.baseMetrics.NextState)
 		}
 	}

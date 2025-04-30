@@ -51,29 +51,12 @@ func (p *AltairMetrics) PreProcessBundle() {
 
 			p.GetMaxFlagIndexDeltas()
 			p.ProcessInclusionDelays()
-			p.GetMaxSyncComReward()
 		}
 	}
 }
 
 func (p AltairMetrics) GetMetricsBase() StateMetricsBase {
 	return p.baseMetrics
-}
-
-func (p AltairMetrics) ProcessSyncAggregates() {
-	nextState := p.baseMetrics.NextState
-	for _, block := range nextState.Blocks {
-
-		totalActiveInc := nextState.TotalActiveBalance / spec.EffectiveBalanceInc
-		totalBaseRewards := p.GetBaseRewardPerInc(nextState.TotalActiveBalance) * totalActiveInc
-		maxParticipantRewards := totalBaseRewards * phase0.Gwei(spec.SyncRewardWeight) / phase0.Gwei(spec.WeightDenominator) / spec.SlotsPerEpoch
-		participantReward := maxParticipantRewards / phase0.Gwei(spec.SyncCommitteeSize) // this is the participantReward for a single slot
-		singleProposerSyncReward := phase0.Gwei(participantReward * spec.ProposerWeight / (spec.WeightDenominator - spec.ProposerWeight))
-		proposerSyncReward := singleProposerSyncReward * phase0.Gwei(block.SyncAggregate.SyncCommitteeBits.Count())
-
-		p.baseMetrics.MaxBlockRewards[block.ProposerIndex] += proposerSyncReward
-		block.ManualReward += proposerSyncReward
-	}
 }
 
 func (p *AltairMetrics) ProcessInclusionDelays() {
@@ -204,29 +187,38 @@ func (p AltairMetrics) ProcessAttestations() {
 	}
 }
 
-// So far we have computed the max sync committee proposer reward for a slot. Since the validator remains in the sync committee for the full epoch, we multiply the reward for the 32 slots in the epoch.
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#sync-aggregate-processing
-func (p AltairMetrics) GetMaxSyncComReward() {
-
+func (p *AltairMetrics) ProcessSyncAggregates() {
 	nextState := p.baseMetrics.NextState
-	for _, valPubkey := range nextState.SyncCommittee.Pubkeys {
 
-		for valIdx, validator := range nextState.Validators {
+	totalActiveInc := nextState.TotalActiveBalance / spec.EffectiveBalanceInc
+	totalBaseRewards := p.GetBaseRewardPerInc(nextState.TotalActiveBalance) * totalActiveInc
+	maxParticipantRewards := totalBaseRewards * phase0.Gwei(spec.SyncRewardWeight) / phase0.Gwei(spec.WeightDenominator) / spec.SlotsPerEpoch
+	participantReward := maxParticipantRewards / phase0.Gwei(spec.SyncCommitteeSize) // this is the participantReward for a single slot
+	proposerReward := phase0.Gwei(participantReward * spec.ProposerWeight / (spec.WeightDenominator - spec.ProposerWeight))
 
-			if valPubkey == validator.PublicKey { // hit, one validator can be multiple times in the same committee
-				// at this point we know the validator was inside the sync committee and, therefore, active at that point
+	allPubkeys := make(map[phase0.BLSPubKey]phase0.ValidatorIndex, len(nextState.Validators))
+	for idx, validator := range nextState.Validators {
+		allPubkeys[validator.PublicKey] = phase0.ValidatorIndex(idx)
+	}
 
-				reward := phase0.Gwei(0)
-				totalActiveInc := nextState.TotalActiveBalance / spec.EffectiveBalanceInc
-				totalBaseRewards := p.GetBaseRewardPerInc(nextState.TotalActiveBalance) * totalActiveInc
-				maxParticipantRewards := totalBaseRewards * phase0.Gwei(spec.SyncRewardWeight) / phase0.Gwei(spec.WeightDenominator) / spec.SlotsPerEpoch
-				participantReward := maxParticipantRewards / phase0.Gwei(spec.SyncCommitteeSize) // this is the participantReward for a single slot
+	committeeIndices := make([]phase0.ValidatorIndex, len(nextState.SyncCommittee.Pubkeys))
+	for i, pubkey := range nextState.SyncCommittee.Pubkeys {
+		committeeIndices[i] = allPubkeys[pubkey]
+	}
 
-				reward += participantReward * phase0.Gwei(spec.SlotsPerEpoch-len(nextState.MissedBlocks)) // max reward would be 32 perfect slots
-				p.MaxSyncCommitteeRewards[phase0.ValidatorIndex(valIdx)] += reward
+	for _, block := range nextState.Blocks {
+
+		for participantIndex := range block.SyncAggregate.SyncCommitteeBits.Len() {
+			participationBit := block.SyncAggregate.SyncCommitteeBits.BitAt(uint64(participantIndex))
+			if participationBit {
+				block.ManualReward += proposerReward
 			}
 		}
-
+	}
+	maxSyncCommitteeReward := participantReward * phase0.Gwei(spec.SlotsPerEpoch-len(nextState.MissedBlocks))
+	for _, committeeIndex := range committeeIndices {
+		p.MaxSyncCommitteeRewards[committeeIndex] += maxSyncCommitteeReward
 	}
 
 }

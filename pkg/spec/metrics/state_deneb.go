@@ -47,7 +47,6 @@ func (p *DenebMetrics) PreProcessBundle() {
 
 		p.GetMaxFlagIndexDeltas()
 		p.ProcessInclusionDelays()
-		p.GetMaxSyncComReward()
 	}
 }
 
