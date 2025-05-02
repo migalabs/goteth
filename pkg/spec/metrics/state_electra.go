@@ -39,6 +39,7 @@ func (p *ElectraMetrics) InitBundle(nextState *spec.AgnosticState,
 	p.baseMetrics.InclusionDelays = make([]int, len(p.baseMetrics.NextState.Validators))
 	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.MaxSyncCommitteeRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.SyncCommitteeParticipation = make(map[phase0.ValidatorIndex]uint8)
 }
 
 func (p *ElectraMetrics) PreProcessBundle() {
@@ -54,7 +55,6 @@ func (p *ElectraMetrics) PreProcessBundle() {
 			p.processDepositRequests()
 			p.GetMaxFlagIndexDeltas()
 			p.ProcessInclusionDelays()
-			p.GetMaxSyncComReward()
 			p.processPendingConsolidations(p.baseMetrics.NextState)
 		}
 	}

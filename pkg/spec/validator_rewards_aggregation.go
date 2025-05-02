@@ -5,22 +5,23 @@ import (
 )
 
 type ValidatorRewardsAggregation struct {
-	ValidatorIndex         phase0.ValidatorIndex
-	StartEpoch             phase0.Epoch
-	EndEpoch               phase0.Epoch // Inclusive
-	Reward                 int64        // it can be negative
-	MaxReward              phase0.Gwei
-	MaxAttestationReward   phase0.Gwei
-	MaxSyncCommitteeReward phase0.Gwei
-	BaseReward             phase0.Gwei
-	InSyncCommitteeCount   uint16
-	AttestationsIncluded   uint16
-	MissingSourceCount     uint16
-	MissingTargetCount     uint16
-	MissingHeadCount       uint16
-	ProposerApiReward      phase0.Gwei
-	ProposerManualReward   phase0.Gwei
-	InclusionDelaySum      uint32
+	ValidatorIndex                      phase0.ValidatorIndex
+	StartEpoch                          phase0.Epoch
+	EndEpoch                            phase0.Epoch // Inclusive
+	Reward                              int64        // it can be negative
+	MaxReward                           phase0.Gwei
+	MaxAttestationReward                phase0.Gwei
+	MaxSyncCommitteeReward              phase0.Gwei
+	BaseReward                          phase0.Gwei
+	InSyncCommitteeCount                uint16
+	SyncCommitteeParticipationsIncluded uint16
+	AttestationsIncluded                uint16
+	MissingSourceCount                  uint16
+	MissingTargetCount                  uint16
+	MissingHeadCount                    uint16
+	ProposerApiReward                   phase0.Gwei
+	ProposerManualReward                phase0.Gwei
+	InclusionDelaySum                   uint32
 }
 
 func NewValidatorRewardsAggregation(validatorIndex phase0.ValidatorIndex, startEpoch phase0.Epoch, endEpoch phase0.Epoch) *ValidatorRewardsAggregation {
@@ -35,8 +36,8 @@ func (f ValidatorRewardsAggregation) Type() ModelType {
 	return ValidatorRewardsAggregationModel
 }
 
-func (f ValidatorRewardsAggregation) ToArray() []interface{} {
-	rows := []interface{}{
+func (f ValidatorRewardsAggregation) ToArray() []any {
+	rows := []any{
 		f.ValidatorIndex,
 		f.StartEpoch,
 		f.EndEpoch,
@@ -46,6 +47,7 @@ func (f ValidatorRewardsAggregation) ToArray() []interface{} {
 		f.MaxSyncCommitteeReward,
 		f.BaseReward,
 		f.InSyncCommitteeCount,
+		f.SyncCommitteeParticipationsIncluded,
 		f.AttestationsIncluded,
 		f.MissingSourceCount,
 		f.MissingTargetCount,
@@ -66,6 +68,7 @@ func (f *ValidatorRewardsAggregation) Aggregate(valRewards ValidatorRewards) {
 	if valRewards.InSyncCommittee {
 		f.InSyncCommitteeCount++
 	}
+	f.SyncCommitteeParticipationsIncluded += uint16(valRewards.SyncCommitteeParticipationsIncluded)
 	if valRewards.AttestationIncluded {
 		f.AttestationsIncluded++
 	}

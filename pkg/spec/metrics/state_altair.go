@@ -10,7 +10,8 @@ import (
 
 type AltairMetrics struct {
 	Phase0Metrics
-	MaxSyncCommitteeRewards map[phase0.ValidatorIndex]phase0.Gwei // rewards from participating in the sync committee
+	MaxSyncCommitteeRewards    map[phase0.ValidatorIndex]phase0.Gwei // rewards from participating in the sync committee
+	SyncCommitteeParticipation map[phase0.ValidatorIndex]uint8
 }
 
 func NewAltairMetrics(
@@ -38,6 +39,7 @@ func (p *AltairMetrics) InitBundle(nextState *spec.AgnosticState,
 	p.baseMetrics.InclusionDelays = make([]int, len(p.baseMetrics.NextState.Validators))
 	p.baseMetrics.MaxAttesterRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.MaxSyncCommitteeRewards = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.SyncCommitteeParticipation = make(map[phase0.ValidatorIndex]uint8)
 }
 
 func (p *AltairMetrics) PreProcessBundle() {
@@ -51,29 +53,12 @@ func (p *AltairMetrics) PreProcessBundle() {
 
 			p.GetMaxFlagIndexDeltas()
 			p.ProcessInclusionDelays()
-			p.GetMaxSyncComReward()
 		}
 	}
 }
 
 func (p AltairMetrics) GetMetricsBase() StateMetricsBase {
 	return p.baseMetrics
-}
-
-func (p AltairMetrics) ProcessSyncAggregates() {
-	nextState := p.baseMetrics.NextState
-	for _, block := range nextState.Blocks {
-
-		totalActiveInc := nextState.TotalActiveBalance / spec.EffectiveBalanceInc
-		totalBaseRewards := p.GetBaseRewardPerInc(nextState.TotalActiveBalance) * totalActiveInc
-		maxParticipantRewards := totalBaseRewards * phase0.Gwei(spec.SyncRewardWeight) / phase0.Gwei(spec.WeightDenominator) / spec.SlotsPerEpoch
-		participantReward := maxParticipantRewards / phase0.Gwei(spec.SyncCommitteeSize) // this is the participantReward for a single slot
-		singleProposerSyncReward := phase0.Gwei(participantReward * spec.ProposerWeight / (spec.WeightDenominator - spec.ProposerWeight))
-		proposerSyncReward := singleProposerSyncReward * phase0.Gwei(block.SyncAggregate.SyncCommitteeBits.Count())
-
-		p.baseMetrics.MaxBlockRewards[block.ProposerIndex] += proposerSyncReward
-		block.ManualReward += proposerSyncReward
-	}
 }
 
 func (p *AltairMetrics) ProcessInclusionDelays() {
@@ -204,29 +189,39 @@ func (p AltairMetrics) ProcessAttestations() {
 	}
 }
 
-// So far we have computed the max sync committee proposer reward for a slot. Since the validator remains in the sync committee for the full epoch, we multiply the reward for the 32 slots in the epoch.
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/altair/beacon-chain.md#sync-aggregate-processing
-func (p AltairMetrics) GetMaxSyncComReward() {
-
+func (p *AltairMetrics) ProcessSyncAggregates() {
 	nextState := p.baseMetrics.NextState
-	for _, valPubkey := range nextState.SyncCommittee.Pubkeys {
 
-		for valIdx, validator := range nextState.Validators {
+	totalActiveInc := nextState.TotalActiveBalance / spec.EffectiveBalanceInc
+	totalBaseRewards := p.GetBaseRewardPerInc(nextState.TotalActiveBalance) * totalActiveInc
+	maxParticipantRewards := totalBaseRewards * phase0.Gwei(spec.SyncRewardWeight) / phase0.Gwei(spec.WeightDenominator) / spec.SlotsPerEpoch
+	participantReward := maxParticipantRewards / phase0.Gwei(spec.SyncCommitteeSize) // this is the participantReward for a single slot
+	proposerReward := phase0.Gwei(participantReward * spec.ProposerWeight / (spec.WeightDenominator - spec.ProposerWeight))
 
-			if valPubkey == validator.PublicKey { // hit, one validator can be multiple times in the same committee
-				// at this point we know the validator was inside the sync committee and, therefore, active at that point
+	allPubkeys := make(map[phase0.BLSPubKey]phase0.ValidatorIndex, len(nextState.Validators))
+	for idx, validator := range nextState.Validators {
+		allPubkeys[validator.PublicKey] = phase0.ValidatorIndex(idx)
+	}
 
-				reward := phase0.Gwei(0)
-				totalActiveInc := nextState.TotalActiveBalance / spec.EffectiveBalanceInc
-				totalBaseRewards := p.GetBaseRewardPerInc(nextState.TotalActiveBalance) * totalActiveInc
-				maxParticipantRewards := totalBaseRewards * phase0.Gwei(spec.SyncRewardWeight) / phase0.Gwei(spec.WeightDenominator) / spec.SlotsPerEpoch
-				participantReward := maxParticipantRewards / phase0.Gwei(spec.SyncCommitteeSize) // this is the participantReward for a single slot
+	committeeIndices := make([]phase0.ValidatorIndex, len(nextState.SyncCommittee.Pubkeys))
+	for i, pubkey := range nextState.SyncCommittee.Pubkeys {
+		committeeIndices[i] = allPubkeys[pubkey]
+	}
 
-				reward += participantReward * phase0.Gwei(spec.SlotsPerEpoch-len(nextState.MissedBlocks)) // max reward would be 32 perfect slots
-				p.MaxSyncCommitteeRewards[phase0.ValidatorIndex(valIdx)] += reward
+	for _, block := range nextState.Blocks {
+		for participantIndex := uint64(0); participantIndex < block.SyncAggregate.SyncCommitteeBits.Len(); participantIndex++ {
+			participationBit := block.SyncAggregate.SyncCommitteeBits.BitAt(uint64(participantIndex))
+			if participationBit {
+				block.ManualReward += proposerReward
+				valIdx := committeeIndices[participantIndex]
+				p.SyncCommitteeParticipation[valIdx] += 1
 			}
 		}
-
+	}
+	maxSyncCommitteeReward := participantReward * phase0.Gwei(spec.SlotsPerEpoch-len(nextState.MissedBlocks))
+	for _, committeeIndex := range committeeIndices {
+		p.MaxSyncCommitteeRewards[committeeIndex] += maxSyncCommitteeReward
 	}
 
 }
@@ -276,7 +271,7 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	flagIndexMaxReward := p.baseMetrics.MaxAttesterRewards[valIdx]
 	syncComMaxReward := p.MaxSyncCommitteeRewards[valIdx]
 	inSyncCommitte := syncComMaxReward > 0
-
+	syncComParticipationsIncluded := p.SyncCommitteeParticipation[valIdx]
 	proposerReward := phase0.Gwei(0)
 	proposerApiReward := phase0.Gwei(0)
 	proposerManualReward := phase0.Gwei(0)
@@ -302,26 +297,27 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	}
 
 	result := spec.ValidatorRewards{
-		ValidatorIndex:       valIdx,
-		Epoch:                nextState.Epoch,
-		ValidatorBalance:     nextState.Balances[valIdx],
-		EffectiveBalance:     nextState.Validators[valIdx].EffectiveBalance,
-		WithdrawalPrefix:     nextState.Validators[valIdx].WithdrawalCredentials[0],
-		Reward:               p.baseMetrics.EpochReward(valIdx),
-		MaxReward:            maxReward,
-		AttestationReward:    flagIndexMaxReward,
-		SyncCommitteeReward:  syncComMaxReward,
-		AttSlot:              prevState.EpochStructs.ValidatorAttSlot[valIdx],
-		AttestationIncluded:  attestationIncluded,
-		MissingSource:        flags[spec.AttSourceFlagIndex],
-		MissingTarget:        flags[spec.AttTargetFlagIndex],
-		MissingHead:          flags[spec.AttHeadFlagIndex],
-		Status:               nextState.GetValStatus(valIdx),
-		BaseReward:           baseReward,
-		ProposerApiReward:    proposerApiReward,
-		ProposerManualReward: proposerManualReward,
-		InSyncCommittee:      inSyncCommitte,
-		InclusionDelay:       p.baseMetrics.InclusionDelays[valIdx],
+		ValidatorIndex:                      valIdx,
+		Epoch:                               nextState.Epoch,
+		ValidatorBalance:                    nextState.Balances[valIdx],
+		EffectiveBalance:                    nextState.Validators[valIdx].EffectiveBalance,
+		WithdrawalPrefix:                    nextState.Validators[valIdx].WithdrawalCredentials[0],
+		Reward:                              p.baseMetrics.EpochReward(valIdx),
+		MaxReward:                           maxReward,
+		AttestationReward:                   flagIndexMaxReward,
+		SyncCommitteeReward:                 syncComMaxReward,
+		AttSlot:                             prevState.EpochStructs.ValidatorAttSlot[valIdx],
+		AttestationIncluded:                 attestationIncluded,
+		BaseReward:                          baseReward,
+		InSyncCommittee:                     inSyncCommitte,
+		SyncCommitteeParticipationsIncluded: syncComParticipationsIncluded,
+		MissingSource:                       flags[spec.AttSourceFlagIndex],
+		MissingTarget:                       flags[spec.AttTargetFlagIndex],
+		MissingHead:                         flags[spec.AttHeadFlagIndex],
+		Status:                              nextState.GetValStatus(valIdx),
+		ProposerApiReward:                   proposerApiReward,
+		ProposerManualReward:                proposerManualReward,
+		InclusionDelay:                      p.baseMetrics.InclusionDelays[valIdx],
 	}
 	return result, nil
 

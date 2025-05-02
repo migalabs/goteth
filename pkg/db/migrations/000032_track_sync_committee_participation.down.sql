@@ -1,0 +1,5 @@
+ALTER TABLE t_validator_rewards_summary DROP COLUMN f_sync_committee_participation_included;
+
+ALTER TABLE t_validator_rewards_aggregation DROP COLUMN f_sync_committee_participations_included;
+
+ALTER TABLE t_pool_summary DROP COLUMN count_sync_committee_participations_included;
