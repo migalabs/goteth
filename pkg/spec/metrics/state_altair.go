@@ -210,8 +210,7 @@ func (p *AltairMetrics) ProcessSyncAggregates() {
 	}
 
 	for _, block := range nextState.Blocks {
-
-		for participantIndex := range block.SyncAggregate.SyncCommitteeBits.Len() {
+		for participantIndex := uint64(0); participantIndex < block.SyncAggregate.SyncCommitteeBits.Len(); participantIndex++ {
 			participationBit := block.SyncAggregate.SyncCommitteeBits.BitAt(uint64(participantIndex))
 			if participationBit {
 				block.ManualReward += proposerReward
