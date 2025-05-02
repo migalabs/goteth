@@ -17,6 +17,7 @@ import (
 
 // This Wrapper is meant to include all common objects across Ethereum Hard Fork Specs
 type AgnosticBlock struct {
+	HardForkVersion       spec.DataVersion
 	Slot                  phase0.Slot
 	StateRoot             phase0.Root
 	Root                  phase0.Root
@@ -117,6 +118,7 @@ func NewPhase0Block(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 	}
 
 	return AgnosticBlock{
+		HardForkVersion:   spec.DataVersionPhase0,
 		Slot:              block.Phase0.Message.Slot,
 		ParentRoot:        block.Phase0.Message.ParentRoot,
 		Root:              root,
@@ -159,6 +161,7 @@ func NewAltairBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 		log.Fatalf("could not read root from block %d", block.Altair.Message.Slot)
 	}
 	return AgnosticBlock{
+		HardForkVersion:   spec.DataVersionAltair,
 		Slot:              block.Altair.Message.Slot,
 		Root:              root,
 		ParentRoot:        block.Altair.Message.ParentRoot,
@@ -201,6 +204,7 @@ func NewBellatrixBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 		log.Fatalf("could not read root from block %d", block.Bellatrix.Message.Slot)
 	}
 	return AgnosticBlock{
+		HardForkVersion:   spec.DataVersionBellatrix,
 		Slot:              block.Bellatrix.Message.Slot,
 		Root:              root,
 		ParentRoot:        block.Bellatrix.Message.ParentRoot,
@@ -243,6 +247,7 @@ func NewCapellaBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 		log.Fatalf("could not read root from block %d", block.Capella.Message.Slot)
 	}
 	return AgnosticBlock{
+		HardForkVersion:   spec.DataVersionCapella,
 		Slot:              block.Capella.Message.Slot,
 		Root:              root,
 		ParentRoot:        block.Capella.Message.ParentRoot,
@@ -286,6 +291,7 @@ func NewDenebBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 		log.Fatalf("could not read root from block %d", block.Deneb.Message.Slot)
 	}
 	return AgnosticBlock{
+		HardForkVersion:   spec.DataVersionDeneb,
 		Slot:              block.Deneb.Message.Slot,
 		Root:              root,
 		ParentRoot:        block.Deneb.Message.ParentRoot,
@@ -329,6 +335,7 @@ func NewElectraBlock(block spec.VersionedSignedBeaconBlock) AgnosticBlock {
 		log.Fatalf("could not read root from block %d", block.Electra.Message.Slot)
 	}
 	return AgnosticBlock{
+		HardForkVersion:          spec.DataVersionElectra,
 		Slot:                     block.Electra.Message.Slot,
 		Root:                     root,
 		ParentRoot:               block.Electra.Message.ParentRoot,
