@@ -4,4 +4,4 @@
 	
 [submodule "go-eth2-client"]
 	path = go-eth2-client
-	url = @https://github.com/attestantio/go-eth2-client
+	url = https://github.com/attestantio/go-eth2-client
