@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	clmulti "github.com/attestantio/go-eth2-client/multi"
-	// http "github.com/attestantio/go-eth2-client/multi"
+	"github.com/attestantio/go-eth2-client/http"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/migalabs/goteth/pkg/db"
 	prom_metrics "github.com/migalabs/goteth/pkg/metrics"
@@ -27,7 +26,7 @@ type APIClientOption func(*APIClient) error
 
 type APIClient struct {
 	ctx        context.Context
-	Api        *clhttp.Service   // Beacon Node
+	Api        *http.Service     // Beacon Node
 	ELApi      *ethclient.Client // Execution Node
 	Metrics    db.DBMetrics
 	maxRetries int
@@ -46,10 +45,10 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, bnApiKey string, cfAcc
 		txBook:     utils.NewRoutineBook(maxParallelConns, "api-cli-tx"),
 	}
 
-	clientBuildingOpts := []clmulti.Parameter{
-		clmulti.WithAddresses([]string{bnEndpoint}),
-		clmulti.WithLogLevel(zerolog.WarnLevel),
-		clmulti.WithTimeout(QueryTimeout),
+	clientBuildingOpts := []http.Parameter{
+		http.WithAddress(bnEndpoint),
+		http.WithLogLevel(zerolog.WarnLevel),
+		http.WithTimeout(QueryTimeout),
 	}
 
 	extraHeadersMap := make(map[string]string)
@@ -68,18 +67,20 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, bnApiKey string, cfAcc
 	log.Infof("extra headers: %v", extraHeadersMap)
 
 	if len(extraHeadersMap) > 0 {
-		clientBuildingOpts = append(clientBuildingOpts, clmulti.WithExtraHeaders(extraHeadersMap))
+		clientBuildingOpts = append(clientBuildingOpts, http.WithExtraHeaders(extraHeadersMap))
 	}
 
-	bnCli, err := clmulti.New(
+	bnCli, err := http.New(
 		ctx,
-		clientBuildingOpts...,
+		http.WithAddress(bnEndpoint),
+		http.WithLogLevel(zerolog.WarnLevel),
+		http.WithTimeout(QueryTimeout),
 	)
 	if err != nil {
 		return &APIClient{}, err
 	}
 
-	hc, ok := bnCli.(*clmulti.Service)
+	hc, ok := bnCli.(*http.Service)
 	if !ok {
 		log.Error("generating the http api client")
 	}
