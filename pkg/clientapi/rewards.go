@@ -24,6 +24,8 @@ func (s *APIClient) RequestBlockRewards(slot phase0.Slot) (spec.BlockRewards, er
 	}
 
 	var rewards spec.BlockRewards
+
+	log.Infof("block rewards: %s", string(body))
 	err = json.Unmarshal(body, &rewards)
 
 	if err != nil {
