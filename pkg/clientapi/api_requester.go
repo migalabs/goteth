@@ -75,6 +75,7 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, bnApiKey string, cfAcc
 		http.WithAddress(bnEndpoint),
 		http.WithLogLevel(zerolog.WarnLevel),
 		http.WithTimeout(QueryTimeout),
+		http.WithExtraHeaders(extraHeadersMap),
 	)
 	if err != nil {
 		return &APIClient{}, err
