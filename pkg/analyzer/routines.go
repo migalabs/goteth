@@ -132,7 +132,7 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 	// }
 	// if we did not get a last slot from the database, or we were too close to the head
 	// then start from two epochs before current finalized in the chain
-	nextSlotDownload := headSlot
+	nextSlotDownload := headSlot - 1
 	if nextSlotDownload == 0 || nextSlotDownload > finalizedBlock.Slot {
 		log.Infof("continue from finalized slot %d, epoch %d", finalizedBlock.Slot, finalizedBlock.Slot/spec.SlotsPerEpoch)
 		nextSlotDownload = finalizedBlock.Slot - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
@@ -149,7 +149,7 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 
 	log.Infof("filling to head...")
 	s.wgMainRoutine.Add(1) // add because historical will defer it
-	// s.runHistorical(nextSlotDownload, headSlot)
+	s.runHistorical(nextSlotDownload, headSlot)
 	return headSlot
 }
 
