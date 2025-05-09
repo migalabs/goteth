@@ -26,6 +26,12 @@ var BlocksCommand = &cli.Command{
 			DefaultText: "http://localhost:5052",
 		},
 		&cli.StringFlag{
+			Name:        "bn-api-key",
+			Usage:       "Beacon node API key",
+			EnvVars:     []string{"ANALYZER_BN_API_KEY"},
+			DefaultText: "Beacon Node API key",
+		},
+		&cli.StringFlag{
 			Name:        "el-endpoint",
 			Usage:       "Execution node endpoint (to request more specific data on Blocks)",
 			EnvVars:     []string{"ANALYZER_EL_ENDPOINT"},

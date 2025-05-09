@@ -117,6 +117,7 @@ func NewChainAnalyzer(
 	// generate the httpAPI client
 	cli, err := clientapi.NewAPIClient(pCtx,
 		iConfig.BnEndpoint,
+		iConfig.BnApiKey,
 		iConfig.MaxRequestRetries,
 		clientapi.WithELEndpoint(iConfig.ElEndpoint),
 		clientapi.WithDBMetrics(metricsObj),

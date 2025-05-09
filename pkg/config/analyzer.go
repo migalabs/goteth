@@ -11,6 +11,7 @@ type AnalyzerConfig struct {
 	FinalSlot                phase0.Slot `json:"final-slot"`
 	RewardsAggregationEpochs int         `json:"rewards-aggregation-epochs"`
 	BnEndpoint               string      `json:"bn-endpoint"`
+	BnApiKey                 string      `json:"bn-api-key"`
 	ElEndpoint               string      `json:"el-endpoint"`
 	DBUrl                    string      `json:"db-url"`
 	DownloadMode             string      `json:"download-mode"`
@@ -31,6 +32,7 @@ func NewAnalyzerConfig() *AnalyzerConfig {
 		FinalSlot:                phase0.Slot(DefaultFinalSlot),
 		RewardsAggregationEpochs: DefaultRewardsAggregationEpochs,
 		BnEndpoint:               DefaultBnEndpoint,
+		BnApiKey:                 DefaultBnApiKey,
 		ElEndpoint:               DefaultElEndpoint,
 		DBUrl:                    DefaultDBUrl,
 		DownloadMode:             DefaultDownloadMode,
@@ -65,6 +67,11 @@ func (c *AnalyzerConfig) Apply(ctx *cli.Context) {
 	if ctx.IsSet("bn-endpoint") {
 		c.BnEndpoint = ctx.String("bn-endpoint")
 	}
+	// bn api key
+	if ctx.IsSet("bn-api-key") {
+		c.BnApiKey = ctx.String("bn-api-key")
+	}
+
 	// el url
 	if ctx.IsSet("el-endpoint") {
 		c.ElEndpoint = ctx.String("el-endpoint")

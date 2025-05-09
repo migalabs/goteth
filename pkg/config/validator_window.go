@@ -9,6 +9,7 @@ type ValidatorWindowConfig struct {
 	DBUrl             string `json:"db-url"`
 	NumEpochs         int    `json:"num-epochs"`
 	BnEndpoint        string `json:"bn-endpoint"`
+	BnApiKey          string `json:"bn-api-key"`
 	MaxRequestRetries int    `json:"max-request-retries"`
 }
 
@@ -21,6 +22,7 @@ func NewValidatorWindowConfig() *ValidatorWindowConfig {
 		NumEpochs:         DefaultValidatorWindowEpochs,
 		BnEndpoint:        DefaultBnEndpoint,
 		MaxRequestRetries: DefaultMaxRequestRetries,
+		BnApiKey:          DefaultBnApiKey,
 	}
 }
 
@@ -42,6 +44,11 @@ func (c *ValidatorWindowConfig) Apply(ctx *cli.Context) {
 	if ctx.IsSet("bn-endpoint") {
 		c.BnEndpoint = ctx.String("bn-endpoint")
 	}
+	// bn api key
+	if ctx.IsSet("bn-api-key") {
+		c.BnApiKey = ctx.String("bn-api-key")
+	}
+
 	// max request retries
 	if ctx.IsSet("max-request-retries") {
 		c.MaxRequestRetries = ctx.Int("max-request-retries")

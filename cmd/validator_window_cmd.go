@@ -43,6 +43,12 @@ var ValidatorWindowCommand = &cli.Command{
 			EnvVars:     []string{"ANALYZER_BN_ENDPOINT"},
 			DefaultText: "http://localhost:5052",
 		},
+		&cli.StringFlag{
+			Name:        "bn-api-key",
+			Usage:       "Beacon node API key",
+			EnvVars:     []string{"ANALYZER_BN_API_KEY"},
+			DefaultText: "",
+		},
 		&cli.IntFlag{
 			Name:        "max-request-retries",
 			Usage:       "Number of retries to make when a request fails",

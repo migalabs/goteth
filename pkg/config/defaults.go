@@ -5,6 +5,7 @@ var (
 	DefaultInitSlot                 int    = 0
 	DefaultFinalSlot                int    = 0
 	DefaultBnEndpoint               string = ""
+	DefaultBnApiKey                 string = ""
 	DefaultElEndpoint               string = ""
 	DefaultRewardsAggregationEpochs int    = 1
 	DefaultDBUrl                    string = "clickhouse://username:password@localhost:9000/goteth?x-multi-statement=true&max_memory_usage=10000000000"

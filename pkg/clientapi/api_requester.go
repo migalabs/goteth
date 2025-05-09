@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/attestantio/go-eth2-client/http"
+	clhttp "github.com/attestantio/go-eth2-client/http"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/migalabs/goteth/pkg/db"
 	prom_metrics "github.com/migalabs/goteth/pkg/metrics"
@@ -26,7 +26,7 @@ type APIClientOption func(*APIClient) error
 
 type APIClient struct {
 	ctx        context.Context
-	Api        *http.Service     // Beacon Node
+	Api        *clhttp.Service   // Beacon Node
 	ELApi      *ethclient.Client // Execution Node
 	Metrics    db.DBMetrics
 	maxRetries int
@@ -35,7 +35,7 @@ type APIClient struct {
 	txBook     *utils.RoutineBook // Book to track what is being downloaded through the EL API: transactions
 }
 
-func NewAPIClient(ctx context.Context, bnEndpoint string, maxRequestRetries int, options ...APIClientOption) (*APIClient, error) {
+func NewAPIClient(ctx context.Context, bnEndpoint string, bnApiKey string, maxRequestRetries int, options ...APIClientOption) (*APIClient, error) {
 	log.Debugf("generating http client at %s", bnEndpoint)
 
 	apiService := &APIClient{
@@ -45,19 +45,29 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, maxRequestRetries int,
 		txBook:     utils.NewRoutineBook(maxParallelConns, "api-cli-tx"),
 	}
 
-	bnCli, err := http.New(
+	clientBuildingOpts := []clhttp.Parameter{
+		clhttp.WithAddress(bnEndpoint),
+		clhttp.WithLogLevel(zerolog.WarnLevel),
+		clhttp.WithTimeout(QueryTimeout),
+	}
+
+	if bnApiKey != "" {
+		extraHeadersMap := make(map[string]string)
+		extraHeadersMap["X-goog-api-key"] = bnApiKey
+		clientBuildingOpts = append(clientBuildingOpts, clhttp.WithExtraHeaders(extraHeadersMap))
+	}
+
+	bnCli, err := clhttp.New(
 		ctx,
-		http.WithAddress(bnEndpoint),
-		http.WithLogLevel(zerolog.WarnLevel),
-		http.WithTimeout(QueryTimeout),
+		clientBuildingOpts...,
 	)
 	if err != nil {
 		return &APIClient{}, err
 	}
 
-	hc, ok := bnCli.(*http.Service)
+	hc, ok := bnCli.(*clhttp.Service)
 	if !ok {
-		log.Error("gernerating the http api client")
+		log.Error("generating the http api client")
 	}
 
 	apiService.Api = hc
