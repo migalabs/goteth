@@ -106,3 +106,4 @@ require (
 )
 
 replace github.com/attestantio/go-relay-client => ./go-relay-client
+replace github.com/attestantio/go-eth2-client => ./go-eth2-client
