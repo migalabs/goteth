@@ -64,6 +64,8 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, bnApiKey string, cfAcc
 		extraHeadersMap["CF-Access-Client-Secret"] = cfAccessClientSecret
 	}
 
+	log.Infof("extra headers: %v", extraHeadersMap)
+
 	if len(extraHeadersMap) > 0 {
 		clientBuildingOpts = append(clientBuildingOpts, clhttp.WithExtraHeaders(extraHeadersMap))
 	}
