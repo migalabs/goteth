@@ -2,6 +2,3 @@
 	path = go-relay-client
 	url = https://github.com/migalabs/go-relay-client.git
 	
-[submodule "go-eth2-client"]
-	path = go-eth2-client
-	url = https://github.com/attestantio/go-eth2-client
