@@ -32,6 +32,8 @@ func BuildChainAnalyzer() (ChainAnalyzer, error) {
 		ctx,
 		"http://localhost:5052",
 		"",
+		"",
+		"",
 		maxRequestRetries,
 		clientapi.WithELEndpoint("http://localhost:8545"),
 		clientapi.WithDBMetrics(dbMetrics))
@@ -51,7 +53,7 @@ func BuildChainAnalyzerWithEL() (ChainAnalyzer, error) {
 	ctx := context.Background()
 	maxRequestRetries := 3
 	// generate the httpAPI client
-	cli, err := clientapi.NewAPIClient(ctx, "http://localhost:5052", "", maxRequestRetries, clientapi.WithELEndpoint("http://localhost:8545"))
+	cli, err := clientapi.NewAPIClient(ctx, "http://localhost:5052", "", "", "", maxRequestRetries, clientapi.WithELEndpoint("http://localhost:8545"))
 	if err != nil {
 		return ChainAnalyzer{}, err
 	}

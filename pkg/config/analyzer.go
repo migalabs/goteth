@@ -12,6 +12,8 @@ type AnalyzerConfig struct {
 	RewardsAggregationEpochs int         `json:"rewards-aggregation-epochs"`
 	BnEndpoint               string      `json:"bn-endpoint"`
 	BnApiKey                 string      `json:"bn-api-key"`
+	CfAccessClientID         string      `json:"cf-access-client-id"`
+	CfAccessClientSecret     string      `json:"cf-access-client-secret"`
 	ElEndpoint               string      `json:"el-endpoint"`
 	DBUrl                    string      `json:"db-url"`
 	DownloadMode             string      `json:"download-mode"`
@@ -33,6 +35,8 @@ func NewAnalyzerConfig() *AnalyzerConfig {
 		RewardsAggregationEpochs: DefaultRewardsAggregationEpochs,
 		BnEndpoint:               DefaultBnEndpoint,
 		BnApiKey:                 DefaultBnApiKey,
+		CfAccessClientID:         DefaultCfAccessClientID,
+		CfAccessClientSecret:     DefaultCfAccessClientSecret,
 		ElEndpoint:               DefaultElEndpoint,
 		DBUrl:                    DefaultDBUrl,
 		DownloadMode:             DefaultDownloadMode,
@@ -70,6 +74,16 @@ func (c *AnalyzerConfig) Apply(ctx *cli.Context) {
 	// bn api key
 	if ctx.IsSet("bn-api-key") {
 		c.BnApiKey = ctx.String("bn-api-key")
+	}
+
+	// cf access client id
+	if ctx.IsSet("cf-access-client-id") {
+		c.CfAccessClientID = ctx.String("cf-access-client-id")
+	}
+
+	// cf access client secret
+	if ctx.IsSet("cf-access-client-secret") {
+		c.CfAccessClientSecret = ctx.String("cf-access-client-secret")
 	}
 
 	// el url

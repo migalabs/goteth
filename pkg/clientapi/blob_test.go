@@ -11,7 +11,7 @@ import (
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/deneb/beacon-chain.md#kzg_commitment_to_versioned_hash
 func TestBlobHash(t *testing.T) {
 	maxRequestRetries := 3
-	cli, err := NewAPIClient(context.Background(), "http://localhost:5052", "", maxRequestRetries)
+	cli, err := NewAPIClient(context.Background(), "http://localhost:5052", "", "", "", maxRequestRetries)
 	if err != nil {
 		return
 	}

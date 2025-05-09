@@ -35,7 +35,7 @@ type APIClient struct {
 	txBook     *utils.RoutineBook // Book to track what is being downloaded through the EL API: transactions
 }
 
-func NewAPIClient(ctx context.Context, bnEndpoint string, bnApiKey string, maxRequestRetries int, options ...APIClientOption) (*APIClient, error) {
+func NewAPIClient(ctx context.Context, bnEndpoint string, bnApiKey string, cfAccessClientID string, cfAccessClientSecret string, maxRequestRetries int, options ...APIClientOption) (*APIClient, error) {
 	log.Debugf("generating http client at %s", bnEndpoint)
 
 	apiService := &APIClient{
@@ -51,9 +51,20 @@ func NewAPIClient(ctx context.Context, bnEndpoint string, bnApiKey string, maxRe
 		clhttp.WithTimeout(QueryTimeout),
 	}
 
+	extraHeadersMap := make(map[string]string)
 	if bnApiKey != "" {
-		extraHeadersMap := make(map[string]string)
 		extraHeadersMap["X-goog-api-key"] = bnApiKey
+	}
+
+	if cfAccessClientID != "" {
+		extraHeadersMap["CF-Access-Client-Id"] = cfAccessClientID
+	}
+
+	if cfAccessClientSecret != "" {
+		extraHeadersMap["CF-Access-Client-Secret"] = cfAccessClientSecret
+	}
+
+	if len(extraHeadersMap) > 0 {
 		clientBuildingOpts = append(clientBuildingOpts, clhttp.WithExtraHeaders(extraHeadersMap))
 	}
 

@@ -118,6 +118,8 @@ func NewChainAnalyzer(
 	cli, err := clientapi.NewAPIClient(pCtx,
 		iConfig.BnEndpoint,
 		iConfig.BnApiKey,
+		iConfig.CfAccessClientID,
+		iConfig.CfAccessClientSecret,
 		iConfig.MaxRequestRetries,
 		clientapi.WithELEndpoint(iConfig.ElEndpoint),
 		clientapi.WithDBMetrics(metricsObj),

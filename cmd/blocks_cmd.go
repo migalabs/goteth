@@ -32,6 +32,18 @@ var BlocksCommand = &cli.Command{
 			DefaultText: "Beacon Node API key",
 		},
 		&cli.StringFlag{
+			Name:        "cf-access-client-id",
+			Usage:       "Cloudflare Access Client ID",
+			EnvVars:     []string{"ANALYZER_CF_ACCESS_CLIENT_ID"},
+			DefaultText: "Cloudflare Access Client ID",
+		},
+		&cli.StringFlag{
+			Name:        "cf-access-client-secret",
+			Usage:       "Cloudflare Access Client Secret",
+			EnvVars:     []string{"ANALYZER_CF_ACCESS_CLIENT_SECRET"},
+			DefaultText: "Cloudflare Access Client Secret",
+		},
+		&cli.StringFlag{
 			Name:        "el-endpoint",
 			Usage:       "Execution node endpoint (to request more specific data on Blocks)",
 			EnvVars:     []string{"ANALYZER_EL_ENDPOINT"},
