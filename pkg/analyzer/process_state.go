@@ -48,6 +48,10 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 	}
 
 	// If prevState, currentState and nextState are filled, we can process proposer duties, epoch metrics and validator rewards
+	// Log the boolean values to see what's happening
+	log.Infof("Boolean values - !nextState.EmptyStateRoot(): %v, !currentState.EmptyStateRoot(): %v, !prevState.EmptyStateRoot(): %v",
+		!nextState.EmptyStateRoot(), !currentState.EmptyStateRoot(), !prevState.EmptyStateRoot())
+
 	if !nextState.EmptyStateRoot() && !currentState.EmptyStateRoot() && !prevState.EmptyStateRoot() {
 		s.processEpochDuties(bundle)
 		s.processValLastStatus(bundle)
