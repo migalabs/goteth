@@ -135,12 +135,11 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 	nextSlotDownload := headSlot - 1
 	if nextSlotDownload == 0 || nextSlotDownload > finalizedBlock.Slot {
 		log.Infof("continue from finalized slot %d, epoch %d", finalizedBlock.Slot, finalizedBlock.Slot/spec.SlotsPerEpoch)
-		nextSlotDownload = finalizedBlock.Slot - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
-
+		nextSlotDownload = finalizedBlock.Slot - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 1 epochs before
 	} else {
 		// database detected
 		log.Infof("database detected, continue from slot %d, epoch %d", nextSlotDownload, nextSlotDownload/spec.SlotsPerEpoch)
-		nextSlotDownload = nextSlotDownload - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
+		nextSlotDownload = nextSlotDownload - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 1 epochs before
 	}
 	nextSlotDownload = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
 	s.initSlot = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch

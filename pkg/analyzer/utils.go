@@ -14,7 +14,7 @@ const (
 	maxWorkers                 = 50                     // maximum number of workers allowed in the tool
 	minBlockReqTime            = 100 * time.Millisecond // max 10 queries per second, dont spam beacon node
 	minStateReqTime            = 1 * time.Second        // max 1 query per second, dont spam beacon node
-	epochsToFinalizedTentative = 0                      // usually, 2 full epochs before the head it is finalized
+	epochsToFinalizedTentative = 1                      // usually, 2 full epochs before the head it is finalized
 	dataWaitInterval           = 1 * time.Minute        // wait for block or epoch to be in the cache
 )
 
