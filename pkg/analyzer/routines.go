@@ -111,16 +111,16 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 	// ------ fill from last epoch in database to current head -------
 
 	// obtain current finalized
-	// finalizedBlock, err := s.cli.RequestFinalizedBeaconBlock()
-	// if err != nil {
-	// 	log.Panicf("could not request the finalized block: %s", err)
-	// }
+	finalizedBlock, err := s.cli.RequestFinalizedBeaconBlock()
+	if err != nil {
+		log.Panicf("could not request the finalized block: %s", err)
+	}
 
 	// obtain current head
 	headSlot := s.cli.RequestCurrentHead()
-	// s.DownloadBlock(headSlot) // inserts in the queue the headblock
+	s.DownloadBlock(headSlot) // inserts in the queue the headblock
 
-	// // obtain last slot in database
+	// obtain last slot in database
 	// dbHead, err := s.dbClient.RetrieveLastSlot()
 	// if err != nil {
 	// 	log.Fatalf("could not get head block from database: %s", err)
@@ -130,24 +130,25 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 	// if err != nil {
 	// 	log.Errorf("could not obtain last slot in database: %s", err)
 	// }
-	// // if we did not get a last slot from the database, or we were too close to the head
-	// // then start from two epochs before current finalized in the chain
-	// if nextSlotDownload == 0 || nextSlotDownload > finalizedBlock.Slot {
-	// 	log.Infof("continue from finalized slot %d, epoch %d", finalizedBlock.Slot, finalizedBlock.Slot/spec.SlotsPerEpoch)
-	// 	nextSlotDownload = finalizedBlock.Slot - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
+	// if we did not get a last slot from the database, or we were too close to the head
+	// then start from two epochs before current finalized in the chain
+	nextSlotDownload := headSlot
+	if nextSlotDownload == 0 || nextSlotDownload > finalizedBlock.Slot {
+		log.Infof("continue from finalized slot %d, epoch %d", finalizedBlock.Slot, finalizedBlock.Slot/spec.SlotsPerEpoch)
+		nextSlotDownload = finalizedBlock.Slot - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
 
-	// } else {
-	// 	// database detected
-	// 	log.Infof("database detected, continue from slot %d, epoch %d", nextSlotDownload, nextSlotDownload/spec.SlotsPerEpoch)
-	// 	nextSlotDownload = nextSlotDownload - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
-	// }
-	// nextSlotDownload = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
-	// s.initSlot = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
-	// s.startEpochAggregation = phase0.Epoch(spec.EpochAtSlot(s.initSlot) + 2)
-	// s.endEpochAggregation = s.startEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs-1)
+	} else {
+		// database detected
+		log.Infof("database detected, continue from slot %d, epoch %d", nextSlotDownload, nextSlotDownload/spec.SlotsPerEpoch)
+		nextSlotDownload = nextSlotDownload - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
+	}
+	nextSlotDownload = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
+	s.initSlot = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
+	s.startEpochAggregation = phase0.Epoch(spec.EpochAtSlot(s.initSlot) + 2)
+	s.endEpochAggregation = s.startEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs-1)
 
-	// log.Infof("filling to head...")
-	// s.wgMainRoutine.Add(1) // add because historical will defer it
+	log.Infof("filling to head...")
+	s.wgMainRoutine.Add(1) // add because historical will defer it
 	// s.runHistorical(nextSlotDownload, headSlot)
 	return headSlot
 }
