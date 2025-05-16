@@ -24,6 +24,7 @@ var (
 		f_attestation_included,
 		f_base_reward,
 		f_in_sync_committee,
+		f_sync_committee_participations_included,
 		f_missing_source,
 		f_missing_target,
 		f_missing_head,
@@ -46,26 +47,27 @@ var (
 func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 	// one object per column
 	var (
-		f_val_idx                   proto.ColUInt64
-		f_epoch                     proto.ColUInt64
-		f_balance_eth               proto.ColFloat32
-		f_effective_balance         proto.ColUInt64
-		f_withdrawal_prefix         proto.ColUInt8
-		f_reward                    proto.ColInt64
-		f_max_reward                proto.ColUInt64
-		f_max_att_reward            proto.ColUInt64
-		f_max_sync_reward           proto.ColUInt64
-		f_att_slot                  proto.ColUInt64
-		f_attestation_included      proto.ColBool
-		f_base_reward               proto.ColUInt64
-		f_in_sync_committee         proto.ColBool
-		f_missing_source            proto.ColBool
-		f_missing_target            proto.ColBool
-		f_missing_head              proto.ColBool
-		f_status                    proto.ColUInt8
-		f_block_api_reward          proto.ColUInt64
-		f_block_experimental_reward proto.ColUInt64
-		f_inclusion_delay           proto.ColUInt8
+		f_val_idx                                proto.ColUInt64
+		f_epoch                                  proto.ColUInt64
+		f_balance_eth                            proto.ColFloat32
+		f_effective_balance                      proto.ColUInt64
+		f_withdrawal_prefix                      proto.ColUInt8
+		f_reward                                 proto.ColInt64
+		f_max_reward                             proto.ColUInt64
+		f_max_att_reward                         proto.ColUInt64
+		f_max_sync_reward                        proto.ColUInt64
+		f_att_slot                               proto.ColUInt64
+		f_attestation_included                   proto.ColBool
+		f_base_reward                            proto.ColUInt64
+		f_in_sync_committee                      proto.ColBool
+		f_sync_committee_participations_included proto.ColUInt8
+		f_missing_source                         proto.ColBool
+		f_missing_target                         proto.ColBool
+		f_missing_head                           proto.ColBool
+		f_status                                 proto.ColUInt8
+		f_block_api_reward                       proto.ColUInt64
+		f_block_experimental_reward              proto.ColUInt64
+		f_inclusion_delay                        proto.ColUInt8
 	)
 
 	for _, val := range vals {
@@ -82,6 +84,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		f_attestation_included.Append(val.AttestationIncluded)
 		f_base_reward.Append(uint64(val.BaseReward))
 		f_in_sync_committee.Append(val.InSyncCommittee)
+		f_sync_committee_participations_included.Append(val.SyncCommitteeParticipationsIncluded)
 		f_missing_source.Append(val.MissingSource)
 		f_missing_target.Append(val.MissingTarget)
 		f_missing_head.Append(val.MissingHead)
@@ -105,6 +108,7 @@ func rewardsInput(vals []spec.ValidatorRewards) proto.Input {
 		{Name: "f_attestation_included", Data: f_attestation_included},
 		{Name: "f_base_reward", Data: f_base_reward},
 		{Name: "f_in_sync_committee", Data: f_in_sync_committee},
+		{Name: "f_sync_committee_participations_included", Data: f_sync_committee_participations_included},
 		{Name: "f_missing_source", Data: f_missing_source},
 		{Name: "f_missing_target", Data: f_missing_target},
 		{Name: "f_missing_head", Data: f_missing_head},
