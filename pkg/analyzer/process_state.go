@@ -51,8 +51,6 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 	if !nextState.EmptyStateRoot() && !currentState.EmptyStateRoot() && !prevState.EmptyStateRoot() {
 		s.processEpochDuties(bundle)
 		s.processValLastStatus(bundle)
-
-		s.processPoolMetrics(bundle.GetMetricsBase().CurrentState.Epoch)
 		s.processEpochMetrics(bundle)
 		s.processBlockRewards(bundle) // block rewards depend on two previous epochs
 		if s.metrics.ValidatorRewards {
@@ -63,6 +61,7 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		s.storeWithdrawalRequests(bundle)
 		s.storeDepositRequests(bundle)
 		s.storeConsoidationsProcessed(bundle)
+		s.processPoolMetrics(bundle.GetMetricsBase().PrevState.Epoch) // Calculated over prev state so we make sure that tables are filled
 	}
 
 	s.processerBook.FreePage(routineKey)
