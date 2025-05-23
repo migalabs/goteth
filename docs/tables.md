@@ -1,5 +1,7 @@
 # Block Metrics | Orphans (`t_block_metrics`, `t_orphans`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_slot`
+
 | Column Name                  | Type of Data | Description                                            |
 | ---------------------------- | ------------ | ------------------------------------------------------ |
 | f_timestamp                  | uint64       | unix time of the slot                                  |
@@ -31,6 +33,8 @@
 | f_decompression_time_ms      | float32      | milliseconds taken to decompress the block             |
 
 # Epoch Metrics (`t_epoch_metrics_summary`)
+
+Config: `engine = ReplacingMergeTree ORDER BY f_epoch`
 
 | Column Name                        | Type of Data | Description                                                                                                            |
 | ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- |
@@ -69,6 +73,8 @@
 
 # Pool Summaries (`t_pool_summary`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_epoch, f_pool_name`
+
 | Column Name                 | Type of Data | Description                                                                   |
 | --------------------------- | ------------ | ----------------------------------------------------------------------------- |
 | f_pool_name                 | string       | name of the pool                                                              |
@@ -89,6 +95,8 @@
 
 # Proposer Duties (`t_proposer_duties`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_proposer_slot, f_val_idx`
+
 | Column Name     | Type of Data | Description                                     |     |     |
 | --------------- | ------------ | ----------------------------------------------- | --- | --- |
 | f_val_idx       | uint64       | validator index                                 |
@@ -96,6 +104,8 @@
 | f_proposed      | bool         | whether the block was proposed or not           |
 
 # Transactions (`t_transactions`)
+
+Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_el_block_number, f_hash`
 
 | Column Name        | Type of Data | Description                                                                                                             |     |     |
 | ------------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------- | --- | --- |
@@ -124,12 +134,16 @@
 
 # Status (`t_status`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_id`
+
 | Column Name | Type of Data | Description                                                                                          |     |     |
 | ----------- | ------------ | ---------------------------------------------------------------------------------------------------- | --- | --- |
 | f_id        | uint64       | id of the status                                                                                     |
 | f_status    | string       | name of the status <br> 0, 'in_activation_queue' <br> 1, 'active' <br> 2, 'exited' <br> 3, 'slashed' |
 
 # Validator Last Status (`t_validator_last_status`)
+
+Config: `engine = MergeTree ORDER BY f_val_idx`
 
 | Column Name              | Type of Data | Description                                         |
 | ------------------------ | ------------ | --------------------------------------------------- |
@@ -155,6 +169,8 @@ The `f_withdrawal_prefix` column indicates the type of withdrawal credentials as
 
 # Validator Rewards Summary (`t_validator_rewards_summary`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_epoch, f_val_idx`
+
 | Column Name                 | Type of Data | Description                                                                                                           |
 | --------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
 | f_val_idx                   | uint64       | validator index                                                                                                       |
@@ -179,6 +195,8 @@ The `f_withdrawal_prefix` column indicates the type of withdrawal credentials as
 
 # Validator Rewards Aggregation (`t_validator_rewards_aggregation`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_start_epoch, f_val_idx`
+
 Table that stores the data from `t_validator_rewards_summary` but aggregated by validator on an epoch range.
 
 | Column Name                 | Type of Data | Description                                                                                                                     |     |     |
@@ -202,6 +220,8 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 
 # Withdrawals (`t_withdrawals`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_index`
+
 | Column Name | Type of Data | Description                                    |     |     |
 | ----------- | ------------ | ---------------------------------------------- | --- | --- |
 | f_slot      | uint64       | slot number                                    |
@@ -211,6 +231,8 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 | f_amount    | uint64       | amount to be withdrawn (Gwei)                  |
 
 # Reorgs (`t_reorgs`)
+
+Config: `engine = ReplacingMergeTree ORDER BY f_slot`
 
 | Column Name           | Type of Data | Description                            |     |     |
 | --------------------- | ------------ | -------------------------------------- | --- | --- |
@@ -223,6 +245,8 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 
 # Finalized Checkpoint (`t_finalized_checkpoint`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_epoch`
+
 | Column Name  | Type of Data | Description                 |     |     |
 | ------------ | ------------ | --------------------------- | --- | --- |
 | f_id         | uint64       | incremental id              |
@@ -232,6 +256,8 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 
 # Eth2 Pubkeys (`t_eth2_pubkeys`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_val_idx`
+
 | Column Name  | Type of Data | Description                       |     |     |
 | ------------ | ------------ | --------------------------------- | --- | --- |
 | f_val_idx    | uint64       | validator index                   |
@@ -240,6 +266,8 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 | f_pool       | string       | extra name for sub categorization |
 
 # Head Events (`t_head_events`)
+
+Config: `engine = ReplacingMergeTree ORDER BY f_block`
 
 | Column Name                    | Type of Data | Description                                                                                   |     |     |
 | ------------------------------ | ------------ | --------------------------------------------------------------------------------------------- | --- | --- |
@@ -253,6 +281,8 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 
 # Blob Sidecars (`t_blob_sidecars`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_index`
+
 | Column Name      | Type of Data | Description                                                |     |     |
 | ---------------- | ------------ | ---------------------------------------------------------- | --- | --- |
 | f_blob_hash      | string       | versioned blob has                                         |
@@ -265,6 +295,8 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 
 # Blob Sidecars Events (`t_blob_sidecars_events`)
 
+Config: `engine = ReplacingMergeTree ORDER BY f_arrival_timestamp_ms, f_blob_hash, f_slot`
+
 | Column Name            | Type of Data | Description                                       |     |     |
 | ---------------------- | ------------ | ------------------------------------------------- | --- | --- |
 | f_arrival_timestamp_ms | uint64       | timestamp at which goteth received the blob event |
@@ -275,6 +307,8 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 | f_kzg_commitment       | string       | kzg commitment of the blob                        |
 
 # Block Rewards (`t_block_rewards`)
+
+Config: `engine = ReplacingMergeTree ORDER BY f_slot`
 
 | Column Name        | Type of Data | Description                                                                                                                       |     |     |
 | ------------------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------- | --- | --- |
@@ -291,6 +325,8 @@ Table that stores the data from `t_validator_rewards_summary` but aggregated by 
 
 Table that stores the data of the slashings that happened in the network.
 
+Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_slashed_validator_index`
+
 | Column Name                  | Type of Data | Description                                                                                                                                                                        |     |     |
 | ---------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | --- |
 | f_slashed_validator_index    | uint64       | validator that was slashed                                                                                                                                                         |
@@ -304,6 +340,8 @@ Table that stores the data of the slashings that happened in the network.
 
 Table that stores the BLS to execution changes that happened in the network.
 
+Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_epoch, f_validator_index`
+
 | Column Name            | Type of Data | Description                                   |     |     |
 | ---------------------- | ------------ | --------------------------------------------- | --- | --- |
 | f_slot                 | uint64       | slot at which the change happened             |
@@ -315,6 +353,8 @@ Table that stores the BLS to execution changes that happened in the network.
 # ETH2 Deposits (`t_deposits`)
 
 Table that stores the data of the deposits on the beaconchain.
+
+Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_index`
 
 | Column Name              | Type of Data | Description                                       |     |     |
 | ------------------------ | ------------ | ------------------------------------------------- | --- | --- |
@@ -328,6 +368,8 @@ Table that stores the data of the deposits on the beaconchain.
 # ETH1 Deposits (`t_eth1_deposits`)
 
 Will only be filled if the correct beacon contract address is provided in the `.env` file or from the CLI.
+
+Config: `engine = ReplacingMergeTree ORDER BY f_block_number, f_deposit_index`
 
 | Column Name              | Type of Data | Description                                    |     |     |
 | ------------------------ | ------------ | ---------------------------------------------- | --- | --- |
@@ -348,6 +390,8 @@ Will only be filled if the correct beacon contract address is provided in the `.
 # Consolidation Requests (`t_consolidation_requests`)
 
 Table that stores the data of consolidation requests in the network.
+
+Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_index`
 
 | Column Name      | Type of Data | Description                                                           |
 | ---------------- | ------------ | --------------------------------------------------------------------- |
@@ -394,6 +438,8 @@ Table that stores the data of consolidation requests in the network.
 
 Table that stores the data of deposit requests in the network.
 
+Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_index`
+
 | Column Name              | Type of Data | Description                                        |
 | ------------------------ | ------------ | -------------------------------------------------- |
 | f_slot                   | uint64       | Slot at which the deposit request was made         |
@@ -406,6 +452,8 @@ Table that stores the data of deposit requests in the network.
 # Withdrawal Requests (`t_withdrawal_requests`)
 
 Table that stores the data of withdrawal requests in the network.
+
+Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_index`
 
 | Column Name        | Type of Data | Description                                                        |
 | ------------------ | ------------ | ------------------------------------------------------------------ |
@@ -439,6 +487,8 @@ Table that stores the data of withdrawal requests in the network.
 # Consolidations Processed (`t_consolidations_processed`)
 
 Table that stores the data of processed consolidations in the network.
+
+Config: `engine = ReplacingMergeTree ORDER BY f_epoch, f_index`
 
 | Column Name           | Type of Data | Description                                                 |
 | --------------------- | ------------ | ----------------------------------------------------------- |
