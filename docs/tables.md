@@ -81,6 +81,7 @@ Config: `engine = ReplacingMergeTree ORDER BY f_epoch, f_pool_name`
 | f_epoch                                      | uint64       | epoch number                                                                  |
 | aggregated_rewards                           | uint64       | sum of rewards of validators in the given pool                                |
 | aggregated_max_rewards                       | uint64       | sum of maximum rewards of validators in the given pool                        |
+| aggregated_effective_balance                 | uint64       | sum of effective balances of validators in the given pool (Gwei)              |
 | count_sync_committee                         | uint64       | number of validators participating in the sync committee for the given pool   |
 | count_sync_committee_participations_included | uint64       | number of sync committee participations included for the pool in the epoch    |
 | count_missing_source                         | uint64       | amount of validator with a missed source flag for the given pool              |
@@ -151,6 +152,7 @@ Config: `engine = MergeTree ORDER BY f_val_idx`
 | f_val_idx                | uint64       | validator index                                     |
 | f_epoch                  | uint64       | epoch number                                        |
 | f_balance_eth            | float32      | eth balance of the validator                        |
+| f_effective_balance      | uint64       | effective balance of the validator (Gwei)           |
 | f_status                 | uint8        | status (see status table)                           |
 | f_slashed                | bool         | whether the validator has ever been slashed or not  |
 | f_activation_epoch       | uint64       | epoch at which the validator was activated          |
@@ -177,6 +179,7 @@ Config: `engine = ReplacingMergeTree ORDER BY f_epoch, f_val_idx`
 | f_val_idx                                | uint64       | validator index                                                                                                       |
 | f_epoch                                  | uint64       | epoch number                                                                                                          |
 | f_balance_eth                            | float        | eth balance at the end of the given epoch                                                                             |
+| f_effective_balance                      | uint64       | effective balance of the validator at the end of the epoch (Gwei)                                                     |
 | f_withdrawal_prefix                      | uint8        | withdrawal prefix of the validator's withdrawal credentials (see above)                                               |
 | f_reward                                 | int64        | reward obtained from the previous epoch to the given epoch, can be negative (Gwei)                                    |
 | f_max_reward                             | uint64       | maximum consensus reward that could have been obtained from the previous epoch to the given epoch (Gwei)              |
