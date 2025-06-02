@@ -29,10 +29,10 @@ var (
 				count(distinct(t_validator_rewards_summary.f_val_idx)) as number_active_vals,
 				count(CASE WHEN f_withdrawal_prefix = 2 THEN 1 ELSE null END) as number_compounding_vals,
 				AVG(f_inclusion_delay) as avg_inclusion_delay
-			FROM t_validator_rewards_summary
-			LEFT JOIN t_eth2_pubkeys 
+			FROM t_validator_rewards_summary final
+			LEFT JOIN t_eth2_pubkeys final
 				ON t_validator_rewards_summary.f_val_idx = t_eth2_pubkeys.f_val_idx
-			LEFT JOIN t_proposer_duties 
+			LEFT JOIN t_proposer_duties final
 				ON t_validator_rewards_summary.f_val_idx = t_proposer_duties.f_val_idx 
 				AND t_validator_rewards_summary.f_epoch = toUInt64(t_proposer_duties.f_proposer_slot/32)
 			WHERE f_epoch = $1 AND f_status = 1 AND f_pool_name != ''
