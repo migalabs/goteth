@@ -46,6 +46,7 @@ func (p *ElectraMetrics) PreProcessBundle() {
 
 	if !p.baseMetrics.CurrentState.EmptyStateRoot() {
 		p.ProcessAttestations()
+		p.processPendingConsolidations(p.baseMetrics.NextState)
 		if !p.baseMetrics.PrevState.EmptyStateRoot() {
 			// block rewards
 			p.ProcessSlashings()
@@ -55,7 +56,6 @@ func (p *ElectraMetrics) PreProcessBundle() {
 			p.processDepositRequests()
 			p.GetMaxFlagIndexDeltas()
 			p.ProcessInclusionDelays()
-			p.processPendingConsolidations(p.baseMetrics.NextState)
 		}
 	}
 }
@@ -607,6 +607,7 @@ func (p ElectraMetrics) processPendingConsolidations(s *spec.AgnosticState) {
 
 		sourceEffectiveBalance := min(s.Balances[pendingConsolidation.SourceIndex], sourceValidator.EffectiveBalance)
 		consolidationProcessed.ConsolidatedAmount = sourceEffectiveBalance
+		s.ConsolidatedAmounts[pendingConsolidation.TargetIndex] += sourceEffectiveBalance
 		s.ConsolidationsProcessed = append(s.ConsolidationsProcessed, *consolidationProcessed)
 		s.ConsolidationsProcessedAmount += sourceEffectiveBalance
 	}

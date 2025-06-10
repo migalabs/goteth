@@ -55,8 +55,9 @@ type AgnosticState struct {
 	PendingConsolidations         []*electra.PendingConsolidation
 	PendingPartialWithdrawals     []*electra.PendingPartialWithdrawal
 	ConsolidationsProcessed       []ConsolidationProcessed
-	ConsolidationsProcessedAmount phase0.Gwei             // total amount of Gwei consolidated
-	NewExitingValidators          []phase0.ValidatorIndex // list of validators that are exiting due to consolidation/withdrawal requests, used for tracking errors of a validator trying to consolidate/withdraw twice on same epoch.
+	ConsolidationsProcessedAmount phase0.Gwei                           // total amount of Gwei consolidated
+	NewExitingValidators          []phase0.ValidatorIndex               // list of validators that are exiting due to consolidation/withdrawal requests, used for tracking errors of a validator trying to consolidate/withdraw twice on same epoch.
+	ConsolidatedAmounts           map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to consolidated amount
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -105,6 +106,7 @@ func (p *AgnosticState) Setup() error {
 	p.ConsolidationRequests = make([]ConsolidationRequest, 0)
 	p.ConsolidationsProcessed = make([]ConsolidationProcessed, 0)
 	p.NewExitingValidators = make([]phase0.ValidatorIndex, 0)
+	p.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	return nil
 }
 
