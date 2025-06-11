@@ -57,6 +57,7 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 			s.processEpochValRewards(bundle)
 		}
 		s.processSlashings(bundle)
+		s.storeDepositsProcessed(bundle) // we store deposits processed from electra + in the database
 		s.storeConsolidationRequests(bundle)
 		s.storeWithdrawalRequests(bundle)
 		s.storeDepositRequests(bundle)
@@ -76,6 +77,18 @@ func (s *ChainAnalyzer) processSlashings(bundle metrics.StateMetrics) {
 	err := s.dbClient.PersistSlashings(slashings)
 	if err != nil {
 		log.Errorf("error persisting slashings: %s", err.Error())
+	}
+}
+
+// storeDepositsProcessed stores the deposits processed from electra + in the database
+func (s *ChainAnalyzer) storeDepositsProcessed(bundle metrics.StateMetrics) {
+	depositsProcessed := bundle.GetMetricsBase().NextState.DepositsProcessed
+	if len(depositsProcessed) == 0 {
+		return
+	}
+	err := s.dbClient.PersistDeposits(depositsProcessed)
+	if err != nil {
+		log.Errorf("error persisting deposits processed: %s", err.Error())
 	}
 }
 
