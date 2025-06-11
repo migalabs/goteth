@@ -716,6 +716,7 @@ func (p *ElectraMetrics) processPendingDeposits() {
 		}
 		processedDeposit := spec.Deposit{
 			Slot:                  deposit.Slot,
+			EpochProcessed:        state.Epoch,
 			PublicKey:             deposit.Pubkey,
 			WithdrawalCredentials: deposit.WithdrawalCredentials,
 			Amount:                deposit.Amount,

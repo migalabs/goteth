@@ -101,6 +101,7 @@ func (s *ChainAnalyzer) processDeposits(block *spec.AgnosticBlock) {
 	for i, item := range block.Deposits {
 		deposits = append(deposits, spec.Deposit{
 			Slot:                  block.Slot,
+			EpochProcessed:        spec.EpochAtSlot(block.Slot),
 			PublicKey:             item.Data.PublicKey,
 			WithdrawalCredentials: item.Data.WithdrawalCredentials,
 			Amount:                item.Data.Amount,

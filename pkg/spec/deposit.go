@@ -6,6 +6,7 @@ import (
 
 type Deposit struct {
 	Slot                  phase0.Slot
+	EpochProcessed        phase0.Epoch
 	PublicKey             phase0.BLSPubKey
 	WithdrawalCredentials []byte
 	Amount                phase0.Gwei
@@ -17,9 +18,10 @@ func (f Deposit) Type() ModelType {
 	return DepositModel
 }
 
-func (f Deposit) ToArray() []interface{} {
-	rows := []interface{}{
+func (f Deposit) ToArray() []any {
+	rows := []any{
 		f.Slot,
+		f.EpochProcessed,
 		f.PublicKey,
 		f.WithdrawalCredentials,
 		f.Amount,
