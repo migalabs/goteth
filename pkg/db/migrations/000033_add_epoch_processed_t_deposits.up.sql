@@ -9,7 +9,7 @@ CREATE TABLE new_t_deposits(
 	f_index UInt8
 	)
 	ENGINE = ReplacingMergeTree()
-ORDER BY (f_slot, f_index);
+ORDER BY (f_slot, f_epoch_processed, f_index);
 
 -- Migrate data from old t_deposits to new_t_deposits
 INSERT INTO new_t_deposits
