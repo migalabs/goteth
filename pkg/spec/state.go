@@ -43,6 +43,7 @@ type AgnosticState struct {
 	DepositsNum                  uint64                       // number of deposits
 	TotalDepositsAmount          phase0.Gwei                  // total amount of deposits
 	CurrentJustifiedCheckpoint   phase0.Checkpoint            // the latest justified checkpoint
+	CurrentFinalizedCheckpoint   phase0.Checkpoint            // the latest finalized checkpoint
 	LatestBlockHeader            *phase0.BeaconBlockHeader
 	SyncCommitteeParticipation   uint64 // Tracks sync committee participation
 	NewProposerSlashings         int    // number of new proposer slashings
@@ -55,8 +56,15 @@ type AgnosticState struct {
 	PendingConsolidations         []*electra.PendingConsolidation
 	PendingPartialWithdrawals     []*electra.PendingPartialWithdrawal
 	ConsolidationsProcessed       []ConsolidationProcessed
-	ConsolidationsProcessedAmount phase0.Gwei             // total amount of Gwei consolidated
-	NewExitingValidators          []phase0.ValidatorIndex // list of validators that are exiting due to consolidation/withdrawal requests, used for tracking errors of a validator trying to consolidate/withdraw twice on same epoch.
+	ConsolidationsProcessedAmount phase0.Gwei                           // total amount of Gwei consolidated
+	NewExitingValidators          []phase0.ValidatorIndex               // list of validators that are exiting due to consolidation/withdrawal requests, used for tracking errors of a validator trying to consolidate/withdraw twice on same epoch.
+	ConsolidatedAmounts           map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to consolidated amount
+	PendingDeposits               []*electra.PendingDeposit
+	DepositsProcessed             []Deposit
+	DepositedAmounts              map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to deposited amount (used for Electra Fork)
+	DepositBalanceToConsume       phase0.Gwei                           // balance to consume for deposits, used for Electra Fork
+	Eth1DepositIndex              uint64                                // index of the next deposit request to be processed, used for Electra Fork
+	DepositRequestsStartIndex     uint64                                // index of the next deposit request to be processed, used for Electra Fork
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -105,6 +113,8 @@ func (p *AgnosticState) Setup() error {
 	p.ConsolidationRequests = make([]ConsolidationRequest, 0)
 	p.ConsolidationsProcessed = make([]ConsolidationProcessed, 0)
 	p.NewExitingValidators = make([]phase0.ValidatorIndex, 0)
+	p.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.DepositedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	return nil
 }
 
@@ -521,6 +531,11 @@ func NewElectraState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnos
 		LatestBlockHeader:          bstate.Electra.LatestBlockHeader,
 		PendingConsolidations:      bstate.Electra.PendingConsolidations,
 		PendingPartialWithdrawals:  bstate.Electra.PendingPartialWithdrawals,
+		DepositBalanceToConsume:    bstate.Electra.DepositBalanceToConsume,
+		PendingDeposits:            bstate.Electra.PendingDeposits,
+		CurrentFinalizedCheckpoint: *bstate.Electra.FinalizedCheckpoint,
+		Eth1DepositIndex:           bstate.Electra.ETH1DepositIndex,
+		DepositRequestsStartIndex:  bstate.Electra.DepositRequestsStartIndex,
 	}
 
 	electraObj.Setup()

@@ -28,6 +28,11 @@ type BlockRewardsContent struct {
 	AttesterSlashings uint64 `json:"attester_slashings,string"`
 }
 
+// https://github.com/ethereum/consensus-specs/blob/master/specs/phase0/beacon-chain.md#compute_start_slot_at_epoch
+func ComputeStartSlotAtEpoch(epoch phase0.Epoch) phase0.Slot {
+	return phase0.Slot(uint64(epoch) * SlotsPerEpoch)
+}
+
 func FirstSlotInEpoch(slot phase0.Slot) phase0.Slot {
 	return slot / SlotsPerEpoch * SlotsPerEpoch
 }

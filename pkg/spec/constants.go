@@ -80,6 +80,8 @@ const (
 	// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#misc
 	FullExitRequestAmount          uint64 = 0
 	UnsetDepositRequestsStartIndex uint64 = 1<<64 - 1 //uint64(2**64 - 1)
+
+	MaxPendingDepositsPerEpoch uint64 = 16 // 2**4
 )
 
 var (
