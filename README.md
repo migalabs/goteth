@@ -1,8 +1,8 @@
 # GotEth
 
-GotEth is a go-written client that indexes all validator-related duties and parameters from Ethereum's beaconchain by fetching the CL States from a node (preferable a locally running archival node).
+GotEth is a go-written client that indexes all validator-related duties, parameters and transactions from Ethereum's consensus and execution layers.
 
-The client indexes all the validator/epoch related metrics into a set of clickhouse tables which later on can be used to monitor the performance of validators in the beaconchain.
+The client indexes all the validator/epoch related metrics into a set of clickhouse tables which later on can be used to monitor the performance of validators in the beaconchain. See the [docs/tables.md](https://github.com/migalabs/goteth/blob/master/docs/tables.md) for more information on the tables indexed by Goteth.
 
 This tool has been used to power the
 
@@ -16,9 +16,12 @@ To use the tool, the following requirements need to be installed in the machine:
 
 - [go](https://go.dev/doc/install) preferably on its 1.21 version or above. Go also needs to be executable from the terminal.
 - Clickhouse DB
-- Access to an Ethereum CL beacon node (preferably an archive node to index the slots faster)
+- Access to an Ethereum consensus archival node (we have only tested using lighthouse in archival mode, other clients/configs might not work)
 - Access to an Ethereum execution node (optional)
 - Access to a Clickhouse server database (use native port, usually 9000)
+
+## Cloning
+Goteth uses a fork of [github.com/attestantio/go-relay-client](https://github.com/attestantio/go-relay-client) as a git submodule. In order to be able to run goteth, you will need to clone the submodule as well with: ` 
 
 ## Installation
 
@@ -41,10 +44,27 @@ make install
 - block: downloads withdrawals, blocks and block rewards
 - epoch: download epoch metrics, proposer duties, validator last status,
 - rewards: persists validator rewards metrics to database (activates epoch metrics)
-- api_rewards (EXPERIMENTAL): block rewards (consensus layer) are hard to calculate, but they can be downloaded from the Beacon API. However, keep in mind this takes a few seconds per block when not at the head. Without this, reward cannot be compared to max_reward when a validator is a proposer (32/900K validators in an epoch). It depends on the Lighthouse API and we have registered some cases where the block reward was not returned.
-- transactions: requests transaction receipts from the execution layer (activates block metrics)
+- api_rewards: block rewards (consensus layer) are hard to calculate, but they can be downloaded from the Beacon API. However, keep in mind this takes a few seconds per block when not at the head (not recommended for backfilling). Without this, reward cannot be compared to max_reward when a validator is a proposer (32/1000k validators in an epoch). It depends on the Lighthouse API and we have registered some cases where the block reward was not returned.
+- transactions: requests transaction receipts from the execution layer, eth1 deposits and blob sidecars from consensus layer (activates block metrics)
 
 Go to [docs/tables.md](https://github.com/migalabs/goteth/blob/master/docs/tables.md) for more information on the tables indexed by Goteth.
+
+### Table Sizes
+
+Data from mainnet, may 2025.
+
+- `t_validator_rewards_summary`: 1 month of data: `68GB`
+- `t_validator_rewards_aggregations`: The size of `t_validator_rewards_summary` divided by `GOTETH_REWARDS_AGGREGATION_EPOCHS`. For example, if you set `GOTETH_REWARDS_AGGREGATION_EPOCHS=10`, the size of this table will be `6.8GB`.
+- `t_transactions`: Since merge: `405GB`
+- Rest of tables: `10GB`
+
+Most tables in Goteth use the ClickHouse `ReplacingMergeTree` engine. For optimal operation, ClickHouse requires free disk space equal to the full size of each table to perform background optimizations and deletions. For example, if the rewards table occupies 68GB, you must have at least 68GB of free disk space available to safely delete rows (such as when using the validator window script). Insufficient free space may prevent these operations from completing successfully, further complicating the situation.
+
+### Validator rewards aggregation
+
+The tool can aggregate the rewards of the validators in the `t_validator_rewards_summary` table. This is done by aggregating the rewards of the last `GOTETH_REWARDS_AGGREGATION_EPOCHS` epochs. The aggregation is done by summing up the columns of each validator in the last `GOTETH_REWARDS_AGGREGATION_EPOCHS` epochs and storing the result in the `t_validator_rewards_aggregations` table.
+
+It can be very useful when monitoring rewards over a long period of time, without having to worry about the size of the `t_validator_rewards_summary` table, if combined with the [`val-window` command](#validator-rewards-window). Please note that `GOTETH_REWARDS_AGGREGATION_EPOCHS` must be set to a value greater than 1 to be enabled and also be lower than `GOTETH_VAL_WINDOW_NUM_EPOCHS` to avoid data loss.
 
 ## Download mode
 
@@ -58,7 +78,7 @@ To execute the tool, you can simply modify the `.env` file with your own configu
 _Running the tool (configurable in the `.env` file)_:
 
 ```
-docker-compose up goteth
+docker compose up goteth
 ```
 
 _Available Commands_:
@@ -85,7 +105,7 @@ OPTIONS:
    --db-url value          example: clickhouse://beaconchain:beaconchain@localhost:9000/beacon_states?x-multi-statement=true
    --workers-num value     example: 3 (default: 4)
    --db-workers-num value  example: 3 (default: 4)
-   --download-mode value   example: hybrid,historical,finalized. Default: hybrid
+   --download-mode value   example: historical,finalized. Default: finalized
    --metrics value         example: epoch,block,rewards,transactions,api_rewards. Empty for all (default: epoch,block)
    --prometheus-port value Port on which to expose prometheus metrics (default: 9081)
    --max-request-retries value         Number of retries to make when a request fails. For head mode it shouldn't be higher than 3-4, for historical its recommended to be higher (default: 3)
@@ -93,21 +113,16 @@ OPTIONS:
    --help, -h              show help (default: false)
 ```
 
-### Validator window (experimental)
+### Validator Rewards Window
 
-Validator rewards represent 95% of the disk usage of the database. When activated, the database grows very big, sometimes becoming too much data.
-We have developed a subcommand of the tool which maintains the last n epochs of rewards data in the database, prunning from the defined threshold backwards. So, one can configure the tool to maintain the last 100 epochs of data in the database, while prunning the rest.
-The pruning only affects the `t_validator_rewards_summary` table.
+The validator rewards table can get large in the database (see [Table Sizes](#table-sizes)), storing rewards for epochs which might not be relevant anymore to the user. We have developed a subcommand of the tool which maintains the last n epochs of rewards data in the database, prunning from the defined threshold backwards. So, one can configure the tool to maintain the last 100 epochs of data in the database, while prunning the rest.
+The window only affects the `t_validator_rewards_summary` table.
 
 Simply configure `GOTETH_VAL_WINDOW_NUM_EPOCHS` variable and run
 
 ```
-docker-compose up val-window
+docker compose up val-window
 ```
-
-# Notes
-
-Keep in mind `api_rewards` data also downloads block rewards from the Beacon API. This is very slow on historical blocks (3 seconds per block), but very fast on blocks near the head.
 
 ## Database migrations
 
