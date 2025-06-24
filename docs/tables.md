@@ -360,7 +360,7 @@ Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_epoch, f_validator_index
 
 Table that stores the data of the deposits on the beaconchain.
 
-Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_index`
+Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_epoch_processed, f_index`
 
 | Column Name              | Type of Data | Description                                                                                            |     |     |
 | ------------------------ | ------------ | ------------------------------------------------------------------------------------------------------ | --- | --- |
