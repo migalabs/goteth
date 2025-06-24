@@ -46,6 +46,8 @@ func (p *ElectraMetrics) PreProcessBundle() {
 
 	if !p.baseMetrics.CurrentState.EmptyStateRoot() {
 		p.ProcessAttestations()
+		p.processPendingDeposits()
+		p.processPendingConsolidations(p.baseMetrics.NextState)
 		if !p.baseMetrics.PrevState.EmptyStateRoot() {
 			// block rewards
 			p.ProcessSlashings()
@@ -55,7 +57,6 @@ func (p *ElectraMetrics) PreProcessBundle() {
 			p.processDepositRequests()
 			p.GetMaxFlagIndexDeltas()
 			p.ProcessInclusionDelays()
-			p.processPendingConsolidations(p.baseMetrics.NextState)
 		}
 	}
 }
@@ -607,6 +608,7 @@ func (p ElectraMetrics) processPendingConsolidations(s *spec.AgnosticState) {
 
 		sourceEffectiveBalance := min(s.Balances[pendingConsolidation.SourceIndex], sourceValidator.EffectiveBalance)
 		consolidationProcessed.ConsolidatedAmount = sourceEffectiveBalance
+		s.ConsolidatedAmounts[pendingConsolidation.TargetIndex] += sourceEffectiveBalance
 		s.ConsolidationsProcessed = append(s.ConsolidationsProcessed, *consolidationProcessed)
 		s.ConsolidationsProcessedAmount += sourceEffectiveBalance
 	}
@@ -669,4 +671,79 @@ func (p *ElectraMetrics) ProcessSlashings() {
 
 		block.ManualReward += proposerReward + (whistleBlowerReward - proposerReward)
 	}
+}
+
+// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_pending_deposits
+func (p *ElectraMetrics) processPendingDeposits() {
+	nextEpoch := p.baseMetrics.NextState.Epoch + 1
+	state := p.baseMetrics.NextState
+	availableForProcessing := state.DepositBalanceToConsume + phase0.Gwei(getActivationExitChurnLimit(state))
+	processedAmount := phase0.Gwei(0)
+	nextDepositIndex := uint64(0)
+	finalizedSlot := spec.ComputeStartSlotAtEpoch(state.CurrentFinalizedCheckpoint.Epoch)
+	processedDeposits := make([]spec.Deposit, 0)
+	index := uint8(0)
+	validatorPubkeys := make(map[[48]byte]phase0.ValidatorIndex)
+	for i, v := range state.Validators {
+		validatorPubkeys[v.PublicKey] = phase0.ValidatorIndex(i)
+	}
+	for _, deposit := range state.PendingDeposits {
+		// Do not process deposit requests if Eth1 bridge deposits are not yet applied.
+		if deposit.Slot > 0 &&
+			state.Eth1DepositIndex < state.DepositRequestsStartIndex {
+			break
+		}
+
+		// Check if deposit has been finalized, otherwise, stop processing.
+		if deposit.Slot > finalizedSlot {
+			break
+		}
+
+		// Check if number of processed deposits has not reached the limit, otherwise, stop processing.
+		if nextDepositIndex >= spec.MaxPendingDepositsPerEpoch {
+			break
+		}
+
+		// Read validator state
+		isValidatorExited := false
+		isValidatorWithdrawn := false
+		validatorIdx, exists := validatorPubkeys[deposit.Pubkey]
+		var validator *phase0.Validator
+		if exists {
+			validator = state.Validators[validatorIdx]
+			isValidatorExited = validator.ExitEpoch < phase0.Epoch(spec.FarFutureEpoch)
+			isValidatorWithdrawn = validator.WithdrawableEpoch < nextEpoch
+		}
+		processedDeposit := spec.Deposit{
+			Slot:                  deposit.Slot,
+			EpochProcessed:        state.Epoch,
+			PublicKey:             deposit.Pubkey,
+			WithdrawalCredentials: deposit.WithdrawalCredentials,
+			Amount:                deposit.Amount,
+			Signature:             deposit.Signature,
+			Index:                 index,
+		}
+		nextDepositIndex++
+
+		if isValidatorWithdrawn {
+			// Deposited balance will never become active. Increase balance but do not consume churn
+			processedDeposits = append(processedDeposits, processedDeposit)
+		} else if isValidatorExited {
+			// Validator is exiting, postpone the deposit until after withdrawable epoch
+			continue
+		} else {
+			// Check if deposit fits in the churn, otherwise, do no more deposit processing in this epoch.
+			if processedAmount+deposit.Amount > phase0.Gwei(availableForProcessing) {
+				break
+			}
+			// Consume churn and apply deposit.
+			processedAmount += deposit.Amount
+			processedDeposits = append(processedDeposits, processedDeposit)
+		}
+		index++
+		state.DepositedAmounts[validatorIdx] += deposit.Amount
+		state.DepositsNum += 1
+		state.TotalDepositsAmount += deposit.Amount
+	}
+	state.DepositsProcessed = processedDeposits
 }

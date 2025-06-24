@@ -316,14 +316,15 @@ Table that stores the BLS to execution changes that happened in the network.
 
 Table that stores the data of the deposits on the beaconchain.
 
-| Column Name              | Type of Data | Description                                       |     |     |
-| ------------------------ | ------------ | ------------------------------------------------- | --- | --- |
-| f_slot                   | uint64       | slot at which the deposit was included            |
-| f_public_key             | string       | public key of the validator deposited             |
-| f_withdrawal_credentials | string       | withdrawal credentials of the validator deposited |
-| f_amount                 | uint64       | amount of ETH deposited (Gwei)                    |
-| f_signature              | string       | signature of the deposit data                     |
-| f_index                  | uint64       | index of the deposit in the slot                  |
+| Column Name              | Type of Data | Description                                                                                            |     |     |
+| ------------------------ | ------------ | ------------------------------------------------------------------------------------------------------ | --- | --- |
+| f_slot                   | uint64       | slot at which the deposit was included                                                                 |
+| f_epoch_processed        | uint64       | epoch at which the deposit was processed (for deposits previous to Electra, it will be `f_slot // 32`) |
+| f_public_key             | string       | public key of the validator deposited                                                                  |
+| f_withdrawal_credentials | string       | withdrawal credentials of the validator deposited                                                      |
+| f_amount                 | uint64       | amount of ETH deposited (Gwei)                                                                         |
+| f_signature              | string       | signature of the deposit data                                                                          |
+| f_index                  | uint64       | index of the deposit in the slot (or in the epoch for deposits after Electra)                          |
 
 # ETH1 Deposits (`t_eth1_deposits`)
 
