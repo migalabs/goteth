@@ -12,6 +12,7 @@ var (
 	insertDepositQuery = `
 	INSERT INTO %s (
 		f_slot,
+		f_epoch_processed,
 		f_public_key,
 		f_withdrawal_credentials,
 		f_amount,
@@ -25,6 +26,7 @@ func depositsInput(depositss []spec.Deposit) proto.Input {
 	// one object per column
 	var (
 		f_slot                   proto.ColUInt64
+		f_epoch_processed        proto.ColUInt64
 		f_public_key             proto.ColStr
 		f_withdrawal_credentials proto.ColStr
 		f_amount                 proto.ColUInt64
@@ -35,6 +37,7 @@ func depositsInput(depositss []spec.Deposit) proto.Input {
 	for _, deposit := range depositss {
 
 		f_slot.Append(uint64(deposit.Slot))
+		f_epoch_processed.Append(uint64(deposit.EpochProcessed))
 		f_public_key.Append(deposit.PublicKey.String())
 		f_withdrawal_credentials.Append(fmt.Sprintf("%#x", deposit.WithdrawalCredentials))
 		f_amount.Append(uint64(deposit.Amount))
@@ -44,6 +47,7 @@ func depositsInput(depositss []spec.Deposit) proto.Input {
 
 	return proto.Input{
 		{Name: "f_slot", Data: f_slot},
+		{Name: "f_epoch_processed", Data: f_epoch_processed},
 		{Name: "f_public_key", Data: f_public_key},
 		{Name: "f_withdrawal_credentials", Data: f_withdrawal_credentials},
 		{Name: "f_amount", Data: f_amount},
