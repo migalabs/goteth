@@ -85,7 +85,6 @@ func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 		f_compression_time_ms        proto.ColFloat32
 		f_decompression_time_ms      proto.ColFloat32
 	)
-
 	for _, block := range blocks {
 		f_timestamp.Append(uint64(block.ExecutionPayload.Timestamp))
 		f_epoch.Append(uint64(block.Slot / spec.SlotsPerEpoch))
@@ -115,7 +114,11 @@ func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 		}
 
 		f_proposer_slashings.Append(uint64(len(block.ProposerSlashings)))
-		f_attester_slashings.Append(uint64(len(block.AttesterSlashings)))
+		if block.ElectraAttesterSlashings != nil {
+			f_attester_slashings.Append(uint64(len(block.ElectraAttesterSlashings)))
+		} else {
+			f_attester_slashings.Append(uint64(len(block.AttesterSlashings)))
+		}
 		f_voluntary_exits.Append(uint64(len(block.VoluntaryExits)))
 		f_sync_bits.Append(uint64(block.SyncAggregate.SyncCommitteeBits.Count()))
 
