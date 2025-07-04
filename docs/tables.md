@@ -174,6 +174,12 @@ The `f_withdrawal_prefix` column indicates the type of withdrawal credentials as
 
 Config: `engine = ReplacingMergeTree ORDER BY f_epoch, f_val_idx`
 
+This table stores the data of the rewards obtained by validators in the network. It will only have rows for validators that are either:
+
+- Active in the current epoch.
+- Inactive but with duties still assigned (edge case of validators that are in the sync committee but not active).
+- Slashed and not yet exited.
+
 | Column Name                              | Type of Data | Description                                                                                                           |
 | ---------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
 | f_val_idx                                | uint64       | validator index                                                                                                       |

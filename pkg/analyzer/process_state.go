@@ -236,15 +236,6 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 	// process each validator
 	for i, validator := range nextState.Validators {
 		valIdx := phase0.ValidatorIndex(i)
-		// Check validator status conditions
-		isActive := spec.IsActive(*validator, nextState.Epoch)
-		isSlashed := validator.Slashed
-		isExited := validator.ExitEpoch <= nextState.Epoch
-
-		// Only process validators that are active or slashed and not exited
-		if !isActive && (!isSlashed || isExited) {
-			continue
-		}
 
 		// get max reward at given epoch using the formulas
 		maxRewards, err := bundle.GetMaxReward(valIdx)
@@ -252,6 +243,16 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 			log.Errorf("Error obtaining max reward: %s", err.Error())
 			continue
 		}
+
+		// Check validator status conditions
+		isActive := spec.IsActive(*validator, nextState.Epoch)
+		isSlashed := validator.Slashed
+		isExited := validator.ExitEpoch <= nextState.Epoch
+		// Only process validators that are active, or slashed and not exited, or in sync committee
+		if !isActive && (!isSlashed || isExited) && !maxRewards.InSyncCommittee {
+			continue
+		}
+
 		if s.rewardsAggregationEpochs > 1 {
 			// if validator is not in s.validatorsRewardsAggregations, we need to create it
 			if _, ok := s.validatorsRewardsAggregations[valIdx]; !ok {
