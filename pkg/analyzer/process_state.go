@@ -306,7 +306,7 @@ func (s *ChainAnalyzer) getSingleBlockRewards(
 	slot := block.Slot
 	bids := mevBids.GetBidsAtSlot(slot)
 	clManualReward := block.ManualReward
-	clApiReward := phase0.Gwei(block.Reward.Data.Total)
+	clApiReward := phase0.Gwei(block.Reward.Total)
 	var err error
 
 	// obtain

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
@@ -35,7 +36,7 @@ type AgnosticBlock struct {
 	SyncAggregate         *altair.SyncAggregate
 	ExecutionPayload      AgnosticExecutionPayload
 	BLSToExecutionChanges []*capella.SignedBLSToExecutionChange
-	Reward                BlockRewards
+	Reward                v1.BlockRewards
 	SSZsize               uint32
 	SnappySize            uint32
 	CompressionTime       time.Duration

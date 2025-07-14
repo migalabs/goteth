@@ -13,21 +13,6 @@ var (
 	)
 )
 
-type BlockRewards struct {
-	ExecutionOptimistic bool                `json:"execution_optimistic"`
-	Finalized           bool                `json:"finalized"`
-	Data                BlockRewardsContent `json:"data"`
-}
-
-type BlockRewardsContent struct {
-	ProposerIndex     uint64 `json:"proposer_index,string"`
-	Total             uint64 `json:"total,string"`
-	Attestations      uint64 `json:"attestations,string"`
-	SyncAggregate     uint64 `json:"sync_aggregate,string"`
-	ProposerSlashings uint64 `json:"proposer_slashings,string"`
-	AttesterSlashings uint64 `json:"attester_slashings,string"`
-}
-
 // https://github.com/ethereum/consensus-specs/blob/master/specs/phase0/beacon-chain.md#compute_start_slot_at_epoch
 func ComputeStartSlotAtEpoch(epoch phase0.Epoch) phase0.Slot {
 	return phase0.Slot(uint64(epoch) * SlotsPerEpoch)
