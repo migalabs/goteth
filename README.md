@@ -16,7 +16,7 @@ To use the tool, the following requirements need to be installed in the machine:
 
 - [go](https://go.dev/doc/install) preferably on its 1.21 version or above. Go also needs to be executable from the terminal.
 - Clickhouse DB
-- Access to an Ethereum consensus archival node (we have only tested using lighthouse in archival mode, other clients/configs might not work)
+- Access to an Ethereum consensus archival node (we have only tested using lighthouse in archival mode, other clients/configs might not work). IMPORTANT: Goteth requires the `/eth/v2/debug/beacon/states` endpoint enabled. 
 - Access to an Ethereum execution node (optional)
 - Access to a Clickhouse server database (use native port, usually 9000)
 
