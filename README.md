@@ -21,7 +21,7 @@ To use the tool, the following requirements need to be installed in the machine:
 - Access to a Clickhouse server database (use native port, usually 9000)
 
 ## Cloning
-Goteth uses a fork of [github.com/attestantio/go-relay-client](https://github.com/attestantio/go-relay-client) as a git submodule. In order to be able to run goteth, you will need to clone the submodule as well with: ` 
+Goteth uses a fork of [github.com/attestantio/go-relay-client](https://github.com/attestantio/go-relay-client) as a git submodule. In order to be able to run goteth, you will need to clone the submodule as well with: `--recurse-submodules` flag. 
 
 ## Installation
 
