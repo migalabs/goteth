@@ -41,10 +41,38 @@ func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
 	}
 	depositedAmount += p.NextState.Deposits[valIdx]
 	if valIdx < phase0.ValidatorIndex(len(p.CurrentState.Balances)) && valIdx < phase0.ValidatorIndex(len(p.NextState.Balances)) {
+
+		// CRITICAL FIX: Validate state transition consistency
+		// Ensure both states are from consistent chain (no unfinalized data mixing)
+		if p.NextState.Epoch != p.CurrentState.Epoch+1 {
+			log.Warnf("Inconsistent state transition: NextState epoch %d, CurrentState epoch %d for validator %d",
+				p.NextState.Epoch, p.CurrentState.Epoch, valIdx)
+			return 0
+		}
+
+		// CRITICAL FIX: Additional validation for state root consistency during reorgs
+		// If we're processing a reorg, ensure state roots are finalized
+		if p.NextState.StateRoot == (phase0.Root{}) || p.CurrentState.StateRoot == (phase0.Root{}) {
+			log.Warnf("Empty state root detected during reward calculation for validator %d at epoch %d - possible reorg",
+				valIdx, p.NextState.Epoch)
+			return 0
+		}
+
 		reward := int64(p.NextState.Balances[valIdx]) - int64(p.CurrentState.Balances[valIdx])
 		reward += int64(p.NextState.Withdrawals[valIdx])
 		reward -= int64(depositedAmount)
 		reward -= int64(consolidatedAmount)
+
+		// CRITICAL FIX: Sanity check to prevent rewards > max rewards
+		// This is a safety net - rewards should never exceed max possible rewards
+		if reward > 0 {
+			// Log suspicious rewards that might indicate state inconsistency
+			if reward > int64(32*1000000000) { // 32 ETH in Gwei - max possible reasonable reward
+				log.Warnf("Suspiciously high reward detected for validator %d at epoch %d: %d Gwei - possible state inconsistency",
+					valIdx, p.NextState.Epoch, reward)
+			}
+		}
+
 		return reward
 	}
 

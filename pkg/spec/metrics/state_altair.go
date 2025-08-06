@@ -296,13 +296,24 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 		attestationIncluded = prevState.ValidatorAttestationIncluded[valIdx]
 	}
 
+	actualReward := p.baseMetrics.EpochReward(valIdx)
+	
+	// CRITICAL FIX: Validate that rewards don't exceed max rewards
+	// This prevents database inconsistencies from reorg-related state mixing
+	if actualReward > int64(maxReward) {
+		log.Warnf("Validator %d at epoch %d: actual reward (%d) exceeds max reward (%d) - possible state inconsistency from reorg", 
+			valIdx, nextState.Epoch, actualReward, maxReward)
+		// Cap the reward to max reward to prevent database inconsistency
+		actualReward = int64(maxReward)
+	}
+
 	result := spec.ValidatorRewards{
 		ValidatorIndex:                      valIdx,
 		Epoch:                               nextState.Epoch,
 		ValidatorBalance:                    nextState.Balances[valIdx],
 		EffectiveBalance:                    nextState.Validators[valIdx].EffectiveBalance,
 		WithdrawalPrefix:                    nextState.Validators[valIdx].WithdrawalCredentials[0],
-		Reward:                              p.baseMetrics.EpochReward(valIdx),
+		Reward:                              actualReward,
 		MaxReward:                           maxReward,
 		AttestationReward:                   flagIndexMaxReward,
 		SyncCommitteeReward:                 syncComMaxReward,

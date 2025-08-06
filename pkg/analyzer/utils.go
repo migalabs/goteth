@@ -129,18 +129,17 @@ func (m *AgnosticMap[T]) Wait(key uint64) *T {
 
 func (m *AgnosticMap[T]) Delete(key uint64) {
 	m.Lock()
+	defer m.Unlock()
 
+	// Always delete the value if it exists to prevent stale data
+	// Subscribers will continue waiting for the new value to be Set()
 	_, valueExists := m.m[key]
-
-	_, subsExist := m.subs[key]
-
-	if valueExists && !subsExist {
+	if valueExists {
 		delete(m.m, key)
-		delete(m.subs, key)
+		// Note: We intentionally do NOT delete subscribers here
+		// They should continue waiting for the new value to be Set()
+		// The subscribers will be cleaned up when Set() is called
 	}
-
-	m.Unlock()
-
 }
 
 func (m *AgnosticMap[T]) Available(key uint64) bool {

@@ -33,8 +33,31 @@ downloadRoutine:
 			// if epoch boundary, download state
 			if (downloadSlot % spec.SlotsPerEpoch) == (spec.SlotsPerEpoch - 1) { // last slot of epoch
 				// new epoch
-				go s.DownloadState(downloadSlot)
-				go s.ProcessStateTransitionMetrics(phase0.Epoch(downloadSlot / spec.SlotsPerEpoch))
+				epoch := phase0.Epoch(downloadSlot / spec.SlotsPerEpoch)
+				
+				// CRITICAL FIX: Ensure state is downloaded before processing metrics
+				// This prevents race conditions during reorgs where metrics are processed
+				// with partially downloaded or inconsistent state data
+				go func(targetEpoch phase0.Epoch, targetSlot phase0.Slot) {
+					// Wait for the state to be downloaded and available
+					s.DownloadState(targetSlot)
+					
+					// Wait for state to be actually available in cache before processing
+					// This ensures we don't process with stale or inconsistent state data
+					s.downloadCache.StateHistory.Wait(EpochTo[uint64](targetEpoch))
+					
+					// Additional safety: ensure previous epoch states are also available
+					// ProcessStateTransitionMetrics needs epoch-2, epoch-1, and epoch states
+					if targetEpoch >= 2 {
+						s.downloadCache.StateHistory.Wait(EpochTo[uint64](targetEpoch) - 2)
+					}
+					if targetEpoch >= 1 {
+						s.downloadCache.StateHistory.Wait(EpochTo[uint64](targetEpoch) - 1)
+					}
+					
+					// Now safely process state transition metrics with consistent state
+					s.ProcessStateTransitionMetrics(targetEpoch)
+				}(epoch, downloadSlot)
 			}
 		case <-ticker.C: // every certain amount of time check if need to finish
 			if s.stop && len(s.downloadTaskChan) == 0 && s.cli.ActiveReqNum() == 0 && s.processerBook.ActivePages() == 0 {

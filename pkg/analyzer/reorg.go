@@ -74,6 +74,9 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 	cacheHeadBlock := s.downloadCache.GetHeadBlock()
 	i := cacheHeadBlock.Slot
 
+	// CRITICAL FIX: Track epochs that need state metric recalculation
+	epochsToRecalculate := make(map[phase0.Epoch]bool)
+
 	for reorgedSlots <= depth { // for every slot in the reorg
 
 		block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i)) // first check that it was already in the cache
@@ -108,13 +111,29 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 			newState := s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))
 
 			if newState.StateRoot != oldState.StateRoot {
-				s.dbClient.DeleteStateMetrics(epoch)
-				log.Infof("rewriting metrics for epoch %d", epoch)
-				// write epoch metrics
-				s.ProcessStateTransitionMetrics(epoch)
+				// CRITICAL FIX: Mark this epoch and related epochs for recalculation
+				epochsToRecalculate[epoch] = true
+				if epoch >= 1 {
+					epochsToRecalculate[epoch-1] = true // prevState dependency
+				}
+				if epoch >= 2 {
+					epochsToRecalculate[epoch-2] = true // might affect rewards calculation
+				}
+				epochsToRecalculate[epoch+1] = true // nextState dependency
+				epochsToRecalculate[epoch+2] = true // might affect rewards calculation
+
+				log.Infof("state root changed for epoch %d, marking related epochs for recalculation", epoch)
 			}
 		}
 		i -= 1
+	}
+
+	// CRITICAL FIX: Recalculate state metrics for all affected epochs atomically
+	// This ensures consistent state transitions across epoch boundaries
+	for epoch := range epochsToRecalculate {
+		log.Infof("recalculating state metrics for epoch %d due to reorg", epoch)
+		s.dbClient.DeleteStateMetrics(epoch)
+		s.ProcessStateTransitionMetrics(epoch)
 	}
 
 }
