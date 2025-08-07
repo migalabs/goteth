@@ -86,6 +86,9 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 		s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", slotProcesserTag, i)) // wait until has been processed
 		oldBlock := *block
 
+		// CRITICAL FIX: Explicitly delete the old block from cache to prevent stale data
+		s.downloadCache.BlockHistory.Delete(SlotTo[uint64](i))
+		
 		s.DownloadBlock(i) // -> inserts into the queue and replaces old block
 		newBlock := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i))
 
@@ -107,6 +110,10 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 			state := s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))           // first check that it was already in the cache
 			s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", epochProcesserTag, i)) // wait until has been processed
 			oldState := *state
+			
+			// CRITICAL FIX: Explicitly delete the old state from cache to prevent stale data
+			s.downloadCache.StateHistory.Delete(EpochTo[uint64](epoch))
+			
 			s.DownloadState(i) // -> inserts into the queue and replaces old block
 			newState := s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))
 
@@ -132,6 +139,19 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 	// This ensures consistent state transitions across epoch boundaries
 	for epoch := range epochsToRecalculate {
 		log.Infof("recalculating state metrics for epoch %d due to reorg", epoch)
+		
+		// CRITICAL FIX: Aggressively invalidate all related states to prevent cross-chain contamination
+		// Delete states that might be used in the calculation
+		if epoch >= 2 {
+			s.downloadCache.StateHistory.Delete(EpochTo[uint64](epoch - 2)) // prevState dependency
+		}
+		if epoch >= 1 {
+			s.downloadCache.StateHistory.Delete(EpochTo[uint64](epoch - 1)) // currentState dependency
+		}
+		s.downloadCache.StateHistory.Delete(EpochTo[uint64](epoch))     // nextState dependency
+		s.downloadCache.StateHistory.Delete(EpochTo[uint64](epoch + 1)) // future state dependency
+		s.downloadCache.StateHistory.Delete(EpochTo[uint64](epoch + 2)) // extended future state dependency
+		
 		s.dbClient.DeleteStateMetrics(epoch)
 		s.ProcessStateTransitionMetrics(epoch)
 	}
