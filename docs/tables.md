@@ -188,7 +188,7 @@ This table stores the data of the rewards obtained by validators in the network.
 | f_effective_balance                      | uint64       | effective balance of the validator at the end of the epoch (Gwei)                                                     |
 | f_withdrawal_prefix                      | uint8        | withdrawal prefix of the validator's withdrawal credentials (see above)                                               |
 | f_reward                                 | int64        | reward obtained from the previous epoch to the given epoch, can be negative (Gwei)                                    |
-| f_max_reward                             | uint64       | maximum consensus reward that could have been obtained from the previous epoch to the given epoch (Gwei)              |
+| f_max_reward                             | uint64       | maximum consensus reward that could have been obtained from the previous epoch to the given epoch (Gwei). Takes into forced missed flags (e.g. if missed head because of a missed slot, the max reward will take that into account)              |
 | f_max_att_reward                         | uint64       | maximum attestation that could have been obtained from the previous epoch to the given epoch (Gwei)                   |
 | f_max_sync_reward                        | uint64       | maximum sync committee that could have been obtained from the previous epoch to the given epoch (Gwei)                |
 | f_att_slot                               | uint64       | slot the validator had to attest to (2 epochs before)                                                                 |
