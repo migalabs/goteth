@@ -254,13 +254,15 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 			continue
 		}
 
-		if s.rewardsAggregationEpochs > 1 {
-			// if validator is not in s.validatorsRewardsAggregations, we need to create it
-			if _, ok := s.validatorsRewardsAggregations[valIdx]; !ok {
-				s.validatorsRewardsAggregations[valIdx] = spec.NewValidatorRewardsAggregation(valIdx, s.startEpochAggregation, s.endEpochAggregation)
-			}
-			s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
-		}
+        if s.rewardsAggregationEpochs > 1 {
+            // Protect concurrent access to the aggregation map
+            s.rewardsAggMu.Lock()
+            if _, ok := s.validatorsRewardsAggregations[valIdx]; !ok {
+                s.validatorsRewardsAggregations[valIdx] = spec.NewValidatorRewardsAggregation(valIdx, s.startEpochAggregation, s.endEpochAggregation)
+            }
+            s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
+            s.rewardsAggMu.Unlock()
+        }
 		insertValsObj = append(insertValsObj, maxRewards)
 	}
 	if len(insertValsObj) > 0 { // persist everything
@@ -270,17 +272,22 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 		}
 	}
 
-	if s.rewardsAggregationEpochs > 1 && nextState.Epoch == s.endEpochAggregation {
-		if len(s.validatorsRewardsAggregations) > 0 {
-			err := s.dbClient.PersistValidatorRewardsAggregation(s.validatorsRewardsAggregations)
-			if err != nil {
-				log.Fatalf("error persisting validator rewards aggregation: %s", err.Error())
-			}
-		}
-		s.validatorsRewardsAggregations = make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation)
-		s.startEpochAggregation = s.endEpochAggregation + 1
-		s.endEpochAggregation = s.endEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs)
-	}
+    if s.rewardsAggregationEpochs > 1 && nextState.Epoch == s.endEpochAggregation {
+        // Take snapshot under lock and rotate epoch range atomically
+        s.rewardsAggMu.Lock()
+        snapshot := s.validatorsRewardsAggregations
+        s.validatorsRewardsAggregations = make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation)
+        s.startEpochAggregation = s.endEpochAggregation + 1
+        s.endEpochAggregation = s.endEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs)
+        s.rewardsAggMu.Unlock()
+
+        if len(snapshot) > 0 {
+            err := s.dbClient.PersistValidatorRewardsAggregation(snapshot)
+            if err != nil {
+                log.Fatalf("error persisting validator rewards aggregation: %s", err.Error())
+            }
+        }
+    }
 
 }
 

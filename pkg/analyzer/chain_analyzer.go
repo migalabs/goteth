@@ -52,7 +52,8 @@ type ChainAnalyzer struct {
 	processerBook            *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
 
 	downloadCache                 ChainCache // store the blocks and states downloaded
-	validatorsRewardsAggregations map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation
+    validatorsRewardsAggregations map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation
+    rewardsAggMu                 sync.Mutex // protects validatorsRewardsAggregations and epoch range updates
 
 	initTime    time.Time
 	PromMetrics *prom_metrics.PrometheusMetrics // metrics to be stored to prometheus
