@@ -25,6 +25,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
         // First, check and fix blocks for this epoch so state computations see correct blocks
         // Track whether we corrected any block or detected state mismatch to decide if we must recompute state metrics
         blocksCorrected := false
+        correctedCount := 0
         stateNeedsRewrite := false
 
         // Peek state mismatch but postpone rewrite until after blocks are fixed
@@ -52,11 +53,13 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
                 // write slot metrics
                 s.ProcessBlock(phase0.Slot(slot))
                 blocksCorrected = true
+                correctedCount += 1
             }
         }
 
         // If we corrected any block in the epoch or state root mismatched, recompute state metrics now
         if stateNeedsRewrite || blocksCorrected {
+            log.Infof("finalized rewrite: epoch=%d stateNeedsRewrite=%t blocksCorrected=%d", epoch, stateNeedsRewrite, correctedCount)
             s.dbClient.DeleteStateMetrics(phase0.Epoch(epoch))
             log.Infof("rewriting metrics for epoch %d", epoch)
             s.ProcessStateTransitionMetrics(phase0.Epoch(epoch))
@@ -81,7 +84,7 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
     i := cacheHeadBlock.Slot
 
     // Track epochs touched during the reorg to recompute their state metrics after fixing blocks
-    epochsTouched := make(map[uint64]struct{})
+    epochsTouched := make(map[uint64]int)
 
     for reorgedSlots <= depth { // for every slot in the reorg
 
@@ -104,7 +107,8 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
             // write slot metrics
             s.ProcessBlock(i)
             // mark epoch for later state rewrite once blocks of this epoch are fixed
-            epochsTouched[SlotTo[uint64](i)/spec.SlotsPerEpoch] = struct{}{}
+            epochKey := SlotTo[uint64](i) / spec.SlotsPerEpoch
+            epochsTouched[epochKey] = epochsTouched[epochKey] + 1
         } else {
             log.Infof("reorg slot %d: block roots are the same", i)
         }
@@ -112,12 +116,13 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
     }
 
     // After fixing all affected blocks, rewrite the state metrics for touched epochs
-    for epochKey := range epochsTouched {
+    for epochKey, touchedCount := range epochsTouched {
         epoch := phase0.Epoch(epochKey)
         // ensure latest state is downloaded
         endSlot := phase0.Slot(epochKey*spec.SlotsPerEpoch + (spec.SlotsPerEpoch - 1))
         s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", epochProcesserTag, endSlot))
         s.DownloadState(endSlot)
+        log.Infof("reorg rewrite: epoch=%d touchedSlots=%d endSlot=%d", epoch, touchedCount, endSlot)
         s.dbClient.DeleteStateMetrics(epoch)
         log.Infof("rewriting metrics for epoch %d", epoch)
         s.ProcessStateTransitionMetrics(epoch)

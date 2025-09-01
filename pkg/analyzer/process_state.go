@@ -230,13 +230,15 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 }
 
 func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
-	var insertValsObj []spec.ValidatorRewards
-	log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
-	nextState := bundle.GetMetricsBase().NextState
-	prevState := bundle.GetMetricsBase().PrevState
-	// process each validator
-	for i, validator := range nextState.Validators {
-		valIdx := phase0.ValidatorIndex(i)
+    abs64 := func(x int64) int64 { if x < 0 { return -x }; return x }
+    var insertValsObj []spec.ValidatorRewards
+    log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
+    nextState := bundle.GetMetricsBase().NextState
+    prevState := bundle.GetMetricsBase().PrevState
+    currentState := bundle.GetMetricsBase().CurrentState
+    // process each validator
+    for i, validator := range nextState.Validators {
+        valIdx := phase0.ValidatorIndex(i)
 
 		// get max reward at given epoch using the formulas
 		maxRewards, err := bundle.GetMaxReward(valIdx)
@@ -261,8 +263,40 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 			}
 			s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
 		}
-		insertValsObj = append(insertValsObj, maxRewards)
-	}
+        // Diagnostics: detect invariant breach before persisting
+        if abs64(maxRewards.Reward) > int64(maxRewards.MaxReward) {
+            // log detailed context to help trace mixed-branch or accounting issues
+            curBal := int64(0)
+            nxtBal := int64(0)
+            if int(valIdx) < len(currentState.Balances) {
+                curBal = int64(currentState.Balances[valIdx])
+            }
+            if int(valIdx) < len(nextState.Balances) {
+                nxtBal = int64(nextState.Balances[valIdx])
+            }
+            deposits := int64(0)
+            if v, ok := currentState.DepositedAmounts[valIdx]; ok {
+                deposits = int64(v)
+            }
+            withdrawals := int64(0)
+            if int(valIdx) < len(nextState.Withdrawals) {
+                withdrawals = int64(nextState.Withdrawals[valIdx])
+            }
+            consolidated := int64(0)
+            if v, ok := currentState.ConsolidatedAmounts[valIdx]; ok {
+                consolidated = int64(v)
+            }
+            log.Warnf("reward>max invariant breach: epoch=%d val=%d reward=%d max=%d att=%d sync=%d prop_api=%d prop_manual=%d base=%d prev_root=%x cur_root=%x next_root=%x balances(cur=%d next=%d) deltas(withdrawals=%d deposits=%d consolidated=%d)",
+                nextState.Epoch, valIdx, maxRewards.Reward, maxRewards.MaxReward,
+                maxRewards.AttestationReward, maxRewards.SyncCommitteeReward,
+                maxRewards.ProposerApiReward, maxRewards.ProposerManualReward,
+                maxRewards.BaseReward,
+                prevState.StateRoot, currentState.StateRoot, nextState.StateRoot,
+                curBal, nxtBal, withdrawals, deposits, consolidated)
+        }
+
+        insertValsObj = append(insertValsObj, maxRewards)
+    }
 	if len(insertValsObj) > 0 { // persist everything
 		err := s.dbClient.PersistValidatorRewards(insertValsObj)
 		if err != nil {
