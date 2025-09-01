@@ -70,6 +70,14 @@ func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
 			if reward > int64(32*1000000000) { // 32 ETH in Gwei - max possible reasonable reward
 				log.Warnf("Suspiciously high reward detected for validator %d at epoch %d: %d Gwei - possible state inconsistency",
 					valIdx, p.NextState.Epoch, reward)
+				log.Warnf("State details: CurrentState: epoch=%d slot=%d root=%x, NextState: epoch=%d slot=%d root=%x",
+					p.CurrentState.Epoch, p.CurrentState.Slot, p.CurrentState.StateRoot,
+					p.NextState.Epoch, p.NextState.Slot, p.NextState.StateRoot)
+				log.Warnf("Balances: Current=%d Next=%d Withdrawals=%d Deposited=%d Consolidated=%d",
+					p.CurrentState.Balances[valIdx], p.NextState.Balances[valIdx],
+					p.NextState.Withdrawals[valIdx], depositedAmount, consolidatedAmount)
+				log.Warnf("Validator %d identifiers: CurrentStateIdx=%d NextStateIdx=%d",
+					valIdx, valIdx, valIdx)
 			}
 		}
 
