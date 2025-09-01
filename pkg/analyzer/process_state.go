@@ -233,6 +233,7 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 	var insertValsObj []spec.ValidatorRewards
 	log.Debugf("persising validator metrics: epoch %d", bundle.GetMetricsBase().NextState.Epoch)
 	nextState := bundle.GetMetricsBase().NextState
+	prevState := bundle.GetMetricsBase().PrevState
 	// process each validator
 	for i, validator := range nextState.Validators {
 		valIdx := phase0.ValidatorIndex(i)
@@ -245,9 +246,9 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 		}
 
 		// Check validator status conditions
-		isActive := spec.IsActive(*validator, nextState.Epoch)
+		isActive := spec.IsActive(*validator, prevState.Epoch)
 		isSlashed := validator.Slashed
-		isExited := validator.ExitEpoch <= nextState.Epoch
+		isExited := validator.ExitEpoch <= prevState.Epoch
 		// Only process validators that are active, or slashed and not exited, or in sync committee
 		if !isActive && (!isSlashed || isExited) && !maxRewards.InSyncCommittee {
 			continue
