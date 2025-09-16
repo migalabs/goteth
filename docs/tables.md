@@ -199,7 +199,7 @@ This table stores the data of the rewards obtained by validators in the network.
 | f_missing_source                         | bool         | whether the validator missed the source flag while attesting (takes into account the attestation to 2 epochs before)  |
 | f_missing_target                         | bool         | whether the validator missed the target flag while attesting (takes into account the attestation to 2 epochs before)  |
 | f_missing_head                           | bool         | whether the validator missed the head flag while attesting (takes into account the attestation to 2 epochs before)    |
-| f_status                                 | uint8        | see status table                                                                                                      |
+| f_status                                 | uint8        | validator status 2 epochs before (see status table)                                                                   |
 | f_block_api_reward                       | uint64       | consensus block reward obtained from the Beacon API (only if the validator was a proposer in the given epoch) (Gwei)  |
 | f_block_experimental_reward              | uint64       | consensus block reward manually calculated by goteth (only if the validator was a proposer in the given epoch) (Gwei) |
 | f_inclusion_delay                        | uint8        | amount of slots after the attested one at which the attestation was included                                          |

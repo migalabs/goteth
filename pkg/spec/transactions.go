@@ -15,6 +15,7 @@ var (
 
 // A wrapper for blockchain transaction with basic information retrieved from the Ethereum blockchain
 type AgnosticTransaction struct {
+	TxIdx           uint64          // transaction index in the block
 	TxType          uint8           // type of transaction: LegacyTxType, AccessListTxType, or DynamicFeeTxType
 	ChainId         uint8           // a unique identifier for the ethereum network
 	Data            string          // the input data of the transaction
@@ -55,7 +56,7 @@ func ParseTransactionsFromBlock(block AgnosticBlock, receipts []*types.Receipt) 
 
 	// match receipts and transactions
 
-	for _, tx := range txs {
+	for txIdx, tx := range txs {
 		var parsedTx = &types.Transaction{}
 		if err := parsedTx.UnmarshalBinary(tx); err != nil {
 			return nil, err
@@ -64,11 +65,12 @@ func ParseTransactionsFromBlock(block AgnosticBlock, receipts []*types.Receipt) 
 			if receipt.TxHash.String() == parsedTx.Hash().String() {
 				// we found a match
 				agnosticTx, err := ParseTransactionFromReceipt(
-					*parsedTx,
+					parsedTx,
 					receipt,
 					block.Slot,
 					block.ExecutionPayload.BlockNumber,
-					block.ExecutionPayload.Timestamp)
+					block.ExecutionPayload.Timestamp,
+					uint64(txIdx))
 				if err != nil {
 					return nil, err
 				}
@@ -81,13 +83,15 @@ func ParseTransactionsFromBlock(block AgnosticBlock, receipts []*types.Receipt) 
 }
 
 func ParseTransactionFromReceipt(
-	parsedTx types.Transaction,
+	parsedTx *types.Transaction,
 	receipt *types.Receipt,
 	slot phase0.Slot,
 	blockNumber uint64,
-	timestamp uint64) (AgnosticTransaction, error) {
+	timestamp uint64,
+	txIdx uint64,
+) (AgnosticTransaction, error) {
 
-	from, err := types.Sender(types.LatestSignerForChainID(parsedTx.ChainId()), &parsedTx)
+	from, err := types.Sender(types.LatestSignerForChainID(parsedTx.ChainId()), parsedTx)
 	if err != nil {
 		log.Warnf("unable to retrieve sender address from transaction: %s", err)
 		return AgnosticTransaction{}, err
@@ -115,6 +119,7 @@ func ParseTransactionFromReceipt(
 	}
 
 	return AgnosticTransaction{
+		TxIdx:           txIdx,
 		TxType:          parsedTx.Type(),
 		ChainId:         uint8(parsedTx.ChainId().Uint64()),
 		Data:            hex.EncodeToString(parsedTx.Data()),

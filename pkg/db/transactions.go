@@ -9,6 +9,7 @@ var (
 	transactionsTable       = "t_transactions"
 	insertTransactionsQuery = `
 		INSERT INTO %s(
+			f_tx_idx,
 			f_tx_type, 
 			f_chain_id, 
 			f_data, f_gas, 
@@ -40,6 +41,7 @@ var (
 func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 	// one object per column
 	var (
+		f_tx_idx           proto.ColUInt64
 		f_tx_type          proto.ColUInt64
 		f_chain_id         proto.ColUInt64
 		f_data             proto.ColStr
@@ -64,7 +66,7 @@ func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 	)
 
 	for _, transaction := range transactions {
-
+		f_tx_idx.Append(transaction.TxIdx)
 		f_tx_type.Append(uint64(transaction.TxType))
 		f_chain_id.Append(uint64(transaction.ChainId))
 		f_data.Append(transaction.Data)
@@ -95,7 +97,7 @@ func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 	}
 
 	return proto.Input{
-
+		{Name: "f_tx_idx", Data: f_tx_idx},
 		{Name: "f_tx_type", Data: f_tx_type},
 		{Name: "f_chain_id", Data: f_chain_id},
 		{Name: "f_data", Data: f_data},
