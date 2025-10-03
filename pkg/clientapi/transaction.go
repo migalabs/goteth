@@ -2,6 +2,7 @@ package clientapi
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
@@ -17,12 +18,46 @@ var (
 )
 
 func (client *APIClient) GetBlockReceipts(block spec.AgnosticBlock) ([]*types.Receipt, error) {
-	blockNumber := rpc.BlockNumber(block.ExecutionPayload.BlockNumber)
-	receipts, err := client.ELApi.BlockReceipts(client.ctx, rpc.BlockNumberOrHashWithNumber(blockNumber))
-	if err != nil {
-		return nil, err
+	if client.ELApi == nil {
+		return nil, errors.New("execution endpoint not configured")
 	}
-	return receipts, nil
+
+	maxAttempts := client.maxRetries
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+
+	blockNumber := rpc.BlockNumber(block.ExecutionPayload.BlockNumber)
+	routineKey := fmt.Sprintf("receipts=%d", block.ExecutionPayload.BlockNumber)
+	client.txBook.Acquire(routineKey)
+	defer client.txBook.FreePage(routineKey)
+
+	var (
+		receipts []*types.Receipt
+		err      error
+	)
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		receipts, err = client.ELApi.BlockReceipts(client.ctx, rpc.BlockNumberOrHashWithNumber(blockNumber))
+		if err == nil {
+			return receipts, nil
+		}
+
+		if attempt < maxAttempts {
+			waitTime := utils.RoutineFlushTimeout * time.Duration(attempt)
+			if waitTime <= 0 {
+				waitTime = utils.RoutineFlushTimeout
+			}
+			log.Warnf("retrying block receipts request: block=%d attempt=%d err=%s", block.ExecutionPayload.BlockNumber, attempt, err)
+			select {
+			case <-time.After(waitTime):
+			case <-client.ctx.Done():
+				return nil, fmt.Errorf("context cancelled while waiting for block %d receipts: %w", block.ExecutionPayload.BlockNumber, client.ctx.Err())
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("unable to retrieve block %d receipts after %d attempts: %w", block.ExecutionPayload.BlockNumber, maxAttempts, err)
 }
 
 // convert transactions from byte sequences to Transaction object
