@@ -3,6 +3,7 @@ package clientapi
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
@@ -52,11 +53,15 @@ func (client *APIClient) GetBlockReceipts(block spec.AgnosticBlock) ([]*types.Re
 			select {
 			case <-time.After(waitTime):
 			case <-client.ctx.Done():
+				reason := classifyReceiptError(err)
+				client.recordReceiptFailure(reason, attempt)
 				return nil, fmt.Errorf("context cancelled while waiting for block %d receipts: %w", block.ExecutionPayload.BlockNumber, client.ctx.Err())
 			}
 		}
 	}
 
+	reason := classifyReceiptError(err)
+	client.recordReceiptFailure(reason, maxAttempts)
 	return nil, fmt.Errorf("unable to retrieve block %d receipts after %d attempts: %w", block.ExecutionPayload.BlockNumber, maxAttempts, err)
 }
 
@@ -96,4 +101,29 @@ func (s *APIClient) GetTransactionReceipt(iTx bellatrix.Transaction,
 
 	return receipt, nil
 
+}
+
+func (client *APIClient) recordReceiptFailure(reason string, attempts int) {
+	if client == nil || client.receiptMetrics == nil {
+		return
+	}
+	client.receiptMetrics.recordFailure(reason, attempts)
+}
+
+func classifyReceiptError(err error) string {
+	if err == nil {
+		return "unknown"
+	}
+
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "not found"):
+		return "not_found"
+	case strings.Contains(msg, "context deadline exceeded"):
+		return "deadline_exceeded"
+	case strings.Contains(msg, "context canceled"), strings.Contains(msg, "context cancelled"):
+		return "context_cancelled"
+	default:
+		return "other"
+	}
 }
