@@ -17,7 +17,7 @@ const (
 
 var (
 	registerReceiptMetricsOnce sync.Once
-	receiptFailureReasons      = []string{"not_found", "deadline_exceeded", "context_cancelled", "other", "unknown"}
+	receiptFailureReasons      = []string{"not_found", "not_canonical", "deadline_exceeded", "context_cancelled", "other", "unknown"}
 
 	receiptRequestFailures = prometheus.NewCounterVec(
 		prometheus.CounterOpts{

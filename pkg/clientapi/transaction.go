@@ -8,6 +8,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/migalabs/goteth/pkg/spec"
@@ -28,18 +29,18 @@ func (client *APIClient) GetBlockReceipts(block spec.AgnosticBlock) ([]*types.Re
 		maxAttempts = 1
 	}
 
+	blockHash := common.BytesToHash(block.ExecutionPayload.BlockHash[:])
 	blockNumber := rpc.BlockNumber(block.ExecutionPayload.BlockNumber)
-	routineKey := fmt.Sprintf("receipts=%d", block.ExecutionPayload.BlockNumber)
+	routineKey := fmt.Sprintf("receipts=%s:%d", blockHash.Hex(), block.ExecutionPayload.BlockNumber)
 	client.txBook.Acquire(routineKey)
 	defer client.txBook.FreePage(routineKey)
-
 	var (
 		receipts []*types.Receipt
 		err      error
 	)
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		receipts, err = client.ELApi.BlockReceipts(client.ctx, rpc.BlockNumberOrHashWithNumber(blockNumber))
+		receipts, err = client.requestBlockReceipts(blockHash, blockNumber)
 		if err == nil {
 			return receipts, nil
 		}
@@ -117,6 +118,8 @@ func classifyReceiptError(err error) string {
 
 	msg := strings.ToLower(err.Error())
 	switch {
+	case strings.Contains(msg, "canonical"):
+		return "not_canonical"
 	case strings.Contains(msg, "not found"):
 		return "not_found"
 	case strings.Contains(msg, "context deadline exceeded"):
@@ -126,4 +129,20 @@ func classifyReceiptError(err error) string {
 	default:
 		return "other"
 	}
+}
+
+func (client *APIClient) requestBlockReceipts(blockHash common.Hash, blockNumber rpc.BlockNumber) ([]*types.Receipt, error) {
+	var selector rpc.BlockNumberOrHash
+	if blockHash != (common.Hash{}) {
+		selector = rpc.BlockNumberOrHashWithHash(blockHash, false)
+	} else {
+		selector = rpc.BlockNumberOrHashWithNumber(blockNumber)
+	}
+
+	receipts, err := client.ELApi.BlockReceipts(client.ctx, selector)
+	if err != nil && blockHash != (common.Hash{}) {
+		log.Debugf("receipt request by hash failed (%s), retrying via block number %d", blockHash.Hex(), blockNumber)
+		return client.ELApi.BlockReceipts(client.ctx, rpc.BlockNumberOrHashWithNumber(blockNumber))
+	}
+	return receipts, err
 }
