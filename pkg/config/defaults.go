@@ -17,4 +17,5 @@ var (
 	DefaultMaxRequestRetries        int    = 3
 	DefaultBeaconContractAddress    string = "mainnet"
 	DefaultTransactionGapBatchSize  int    = 1000
+	DefaultTransactionGapWorkers    int    = 4
 )

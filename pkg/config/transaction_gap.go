@@ -18,6 +18,7 @@ type TransactionGapConfig struct {
 	Limit                 int    `json:"limit"`
 	StartSlot             phase0.Slot
 	BatchSize             int
+	Workers               int
 }
 
 func NewTransactionGapConfig() *TransactionGapConfig {
@@ -32,6 +33,7 @@ func NewTransactionGapConfig() *TransactionGapConfig {
 		Limit:                 0,
 		StartSlot:             0,
 		BatchSize:             DefaultTransactionGapBatchSize,
+		Workers:               DefaultTransactionGapWorkers,
 	}
 }
 
@@ -66,6 +68,9 @@ func (c *TransactionGapConfig) Apply(ctx *cli.Context) {
 	if ctx.IsSet("batch-size") {
 		c.BatchSize = ctx.Int("batch-size")
 	}
+	if ctx.IsSet("workers") {
+		c.Workers = ctx.Int("workers")
+	}
 
 	if !containsMetric(c.Metrics, "transactions") {
 		if strings.TrimSpace(c.Metrics) == "" {
@@ -76,6 +81,9 @@ func (c *TransactionGapConfig) Apply(ctx *cli.Context) {
 	}
 	if c.BatchSize <= 0 {
 		c.BatchSize = DefaultTransactionGapBatchSize
+	}
+	if c.Workers <= 0 {
+		c.Workers = 1
 	}
 }
 

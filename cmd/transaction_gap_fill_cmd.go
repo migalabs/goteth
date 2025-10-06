@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"sync"
+	"sync/atomic"
+
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/analyzer"
 	"github.com/migalabs/goteth/pkg/config"
+	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
@@ -73,6 +77,11 @@ var TransactionGapFillCommand = &cli.Command{
 			Usage: "Number of slots to scan per batch when searching for gaps",
 			Value: config.DefaultTransactionGapBatchSize,
 		},
+		&cli.IntFlag{
+			Name:  "workers",
+			Usage: "Number of concurrent workers processing gaps",
+			Value: config.DefaultTransactionGapWorkers,
+		},
 	},
 }
 
@@ -98,11 +107,15 @@ func LaunchTransactionGapFill(c *cli.Context) error {
 		return nil
 	}
 
-	processed := 0
+	var processed int64
 	limit := conf.Limit
 	current := uint64(conf.StartSlot)
 	batchSize := uint64(conf.BatchSize)
 	lastSlotU := uint64(lastSlot)
+	workers := conf.Workers
+	if workers <= 0 {
+		workers = 1
+	}
 
 	for current <= lastSlotU {
 		end := min(current+batchSize-1, lastSlotU)
@@ -124,10 +137,50 @@ func LaunchTransactionGapFill(c *cli.Context) error {
 			continue
 		}
 
-		for _, gap := range gaps {
-			if limit > 0 && processed >= limit {
-				transactionGapFillLog.Infof("processed %d gap(s); limit reached", processed)
-				return nil
+		limitReached := processGapsWithWorkers(gaps, filler, limit, &processed, workers)
+		if limitReached {
+			total := atomic.LoadInt64(&processed)
+			transactionGapFillLog.Infof("processed %d gap(s); limit reached", total)
+			return nil
+		}
+
+		if end == lastSlotU {
+			break
+		}
+		current = end + 1
+	}
+
+	totalProcessed := atomic.LoadInt64(&processed)
+	if totalProcessed == 0 {
+		transactionGapFillLog.Info("no transaction gaps detected in scanned range")
+	} else {
+		transactionGapFillLog.Infof("processed %d gap(s)", totalProcessed)
+	}
+
+	return nil
+}
+
+func processGapsWithWorkers(
+	gaps []db.TransactionGap,
+	filler *analyzer.TransactionGapFiller,
+	limit int,
+	processed *int64,
+	workers int,
+) bool {
+	if len(gaps) == 0 {
+		return false
+	}
+	if workers <= 0 {
+		workers = 1
+	}
+	jobs := make(chan db.TransactionGap)
+	var wg sync.WaitGroup
+
+	workerFn := func() {
+		defer wg.Done()
+		for gap := range jobs {
+			if limit > 0 && atomic.LoadInt64(processed) >= int64(limit) {
+				return
 			}
 			entry := transactionGapFillLog.WithField("slot", gap.Slot).
 				WithField("expected", gap.Expected).
@@ -139,25 +192,30 @@ func LaunchTransactionGapFill(c *cli.Context) error {
 				continue
 			}
 			entry.Info("gap reprocessing finished")
-			processed++
+			atomic.AddInt64(processed, 1)
 		}
+	}
 
-		if limit > 0 && processed >= limit {
-			transactionGapFillLog.Infof("processed %d gap(s); limit reached", processed)
-			return nil
-		}
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go workerFn()
+	}
 
-		if end == lastSlotU {
+	for _, gap := range gaps {
+		if limit > 0 && atomic.LoadInt64(processed) >= int64(limit) {
 			break
 		}
-		current = end + 1
+		jobs <- gap
 	}
+	close(jobs)
+	wg.Wait()
 
-	if processed == 0 {
-		transactionGapFillLog.Info("no transaction gaps detected in scanned range")
-	} else {
-		transactionGapFillLog.Infof("processed %d gap(s)", processed)
+	return limit > 0 && atomic.LoadInt64(processed) >= int64(limit)
+}
+
+func min(a, b uint64) uint64 {
+	if a < b {
+		return a
 	}
-
-	return nil
+	return b
 }
