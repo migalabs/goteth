@@ -1,6 +1,8 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/migalabs/goteth/pkg/spec"
 )
@@ -36,6 +38,23 @@ var (
 		DELETE FROM %s
 		WHERE f_slot = $1;
 `
+
+	selectTransactionGapsQuery = `
+		WITH tx_counts AS (
+			SELECT
+				f_slot,
+				count() AS tx_count
+			FROM %s
+			GROUP BY f_slot
+		)
+		SELECT
+			bm.f_slot AS f_slot,
+			bm.f_el_transactions AS f_el_transactions,
+			COALESCE(tx_counts.tx_count, 0) AS tx_count
+		FROM %s AS bm
+		LEFT JOIN tx_counts ON bm.f_slot = tx_counts.f_slot
+		WHERE bm.f_el_transactions != COALESCE(tx_counts.tx_count, 0)
+		ORDER BY bm.f_slot`
 )
 
 func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
@@ -138,4 +157,34 @@ func (p *DBService) PersistTransactions(data []spec.AgnosticTransaction) error {
 		log.Errorf("error persisting transactions: %s", err.Error())
 	}
 	return err
+}
+
+type TransactionGap struct {
+	Slot     uint64
+	Expected uint64
+	Actual   uint64
+}
+
+func (p *DBService) RetrieveTransactionGaps() ([]TransactionGap, error) {
+	query := fmt.Sprintf(selectTransactionGapsQuery, transactionsTable, blocksTable)
+	var dest []struct {
+		F_slot            uint64 `ch:"f_slot"`
+		F_el_transactions uint64 `ch:"f_el_transactions"`
+		Tx_count          uint64 `ch:"tx_count"`
+	}
+
+	err := p.highSelect(query, &dest)
+	if err != nil {
+		return nil, err
+	}
+
+	gaps := make([]TransactionGap, len(dest))
+	for i, row := range dest {
+		gaps[i] = TransactionGap{
+			Slot:     row.F_slot,
+			Expected: row.F_el_transactions,
+			Actual:   row.Tx_count,
+		}
+	}
+	return gaps, nil
 }

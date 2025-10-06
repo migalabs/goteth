@@ -12,10 +12,8 @@ import (
 	"github.com/migalabs/goteth/pkg/utils"
 )
 
-var (
-	log = logrus.WithField(
-		"cli", "CliName",
-	)
+var log = logrus.WithField(
+	"cli", "CliName",
 )
 
 func main() {
@@ -47,6 +45,7 @@ func main() {
 		Commands: []*cli.Command{
 			cmd.BlocksCommand,
 			cmd.ValidatorWindowCommand,
+			cmd.TransactionGapFillCommand,
 		},
 	}
 
