@@ -63,6 +63,16 @@ var TransactionGapFillCommand = &cli.Command{
 			Usage: "Maximum number of mismatched slots to process (0 disables the limit)",
 			Value: 0,
 		},
+		&cli.Uint64Flag{
+			Name:  "start-slot",
+			Usage: "Slot from which to start scanning for gaps",
+			Value: 0,
+		},
+		&cli.IntFlag{
+			Name:  "batch-size",
+			Usage: "Number of slots to scan per batch when searching for gaps",
+			Value: config.DefaultTransactionGapBatchSize,
+		},
 	},
 }
 
@@ -78,32 +88,75 @@ func LaunchTransactionGapFill(c *cli.Context) error {
 	}
 	defer filler.Close()
 
-	gaps, err := filler.FindGaps()
+	lastSlot, err := filler.LastSlot()
 	if err != nil {
 		return err
 	}
-	if len(gaps) == 0 {
-		transactionGapFillLog.Info("no transaction gaps detected")
+
+	if conf.StartSlot > lastSlot {
+		transactionGapFillLog.Infof("start slot %d is beyond last stored slot %d; nothing to process", conf.StartSlot, lastSlot)
 		return nil
 	}
 
-	transactionGapFillLog.Infof("found %d transaction gap(s)", len(gaps))
-	if conf.Limit > 0 && len(gaps) > conf.Limit {
-		transactionGapFillLog.Infof("processing first %d gap(s) due to limit", conf.Limit)
-		gaps = gaps[:conf.Limit]
-	}
+	processed := 0
+	limit := conf.Limit
+	current := uint64(conf.StartSlot)
+	batchSize := uint64(conf.BatchSize)
+	lastSlotU := uint64(lastSlot)
 
-	for _, gap := range gaps {
-		entry := transactionGapFillLog.WithField("slot", gap.Slot).
-			WithField("expected", gap.Expected).
-			WithField("actual", gap.Actual)
+	for current <= lastSlotU {
+		end := min(current+batchSize-1, lastSlotU)
 
-		entry.Info("reprocessing block to reconcile transactions")
-		if err := filler.ReprocessSlot(phase0.Slot(gap.Slot)); err != nil {
-			entry.WithError(err).Error("gap reprocessing failed")
+		transactionGapFillLog.WithField("start_slot", current).
+			WithField("end_slot", end).
+			Info("scanning for transaction gaps")
+
+		gaps, err := filler.FindGapsRange(current, end)
+		if err != nil {
+			return err
+		}
+
+		if len(gaps) == 0 {
+			if end == lastSlotU {
+				break
+			}
+			current = end + 1
 			continue
 		}
-		entry.Info("gap reprocessing finished")
+
+		for _, gap := range gaps {
+			if limit > 0 && processed >= limit {
+				transactionGapFillLog.Infof("processed %d gap(s); limit reached", processed)
+				return nil
+			}
+			entry := transactionGapFillLog.WithField("slot", gap.Slot).
+				WithField("expected", gap.Expected).
+				WithField("actual", gap.Actual)
+
+			entry.Info("reprocessing block to reconcile transactions")
+			if err := filler.ReprocessSlot(phase0.Slot(gap.Slot)); err != nil {
+				entry.WithError(err).Error("gap reprocessing failed")
+				continue
+			}
+			entry.Info("gap reprocessing finished")
+			processed++
+		}
+
+		if limit > 0 && processed >= limit {
+			transactionGapFillLog.Infof("processed %d gap(s); limit reached", processed)
+			return nil
+		}
+
+		if end == lastSlotU {
+			break
+		}
+		current = end + 1
+	}
+
+	if processed == 0 {
+		transactionGapFillLog.Info("no transaction gaps detected in scanned range")
+	} else {
+		transactionGapFillLog.Infof("processed %d gap(s)", processed)
 	}
 
 	return nil

@@ -23,7 +23,7 @@ func NewTransactionGapFiller(ctx context.Context, cfg config.TransactionGapConfi
 	analyzerCfg.MaxRequestRetries = cfg.MaxRequestRetries
 	analyzerCfg.BeaconContractAddress = cfg.BeaconContractAddress
 	analyzerCfg.Metrics = cfg.Metrics
-	analyzerCfg.DownloadMode = "historical"
+	analyzerCfg.DownloadMode = "finalized"
 
 	chainAnalyzer, err := NewChainAnalyzer(ctx, *analyzerCfg)
 	if err != nil {
@@ -41,11 +41,18 @@ func (f *TransactionGapFiller) Close() {
 	f.analyzer.cancel()
 }
 
-func (f *TransactionGapFiller) FindGaps() ([]db.TransactionGap, error) {
+func (f *TransactionGapFiller) FindGapsRange(startSlot, endSlot uint64) ([]db.TransactionGap, error) {
 	if f == nil || f.analyzer == nil {
 		return nil, fmt.Errorf("transaction gap filler not initialized")
 	}
-	return f.analyzer.dbClient.RetrieveTransactionGaps()
+	return f.analyzer.dbClient.RetrieveTransactionGapsRange(startSlot, endSlot)
+}
+
+func (f *TransactionGapFiller) LastSlot() (phase0.Slot, error) {
+	if f == nil || f.analyzer == nil {
+		return 0, fmt.Errorf("transaction gap filler not initialized")
+	}
+	return f.analyzer.dbClient.RetrieveLastSlot()
 }
 
 func (f *TransactionGapFiller) ReprocessSlot(slot phase0.Slot) error {
@@ -59,10 +66,6 @@ func (f *TransactionGapFiller) ReprocessSlot(slot phase0.Slot) error {
 	}
 	if block == nil {
 		return fmt.Errorf("beacon node returned nil block at slot %d", slot)
-	}
-
-	if err := f.analyzer.dbClient.DeleteBlockMetrics(slot); err != nil {
-		log.WithField("slot", slot).Warnf("unable to delete existing block data: %s", err)
 	}
 
 	if f.analyzer.metrics.Block {

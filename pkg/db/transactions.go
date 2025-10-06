@@ -39,21 +39,23 @@ var (
 		WHERE f_slot = $1;
 `
 
-	selectTransactionGapsQuery = `
+	selectTransactionGapsRangeQuery = `
 		WITH tx_counts AS (
 			SELECT
 				f_slot,
 				count() AS tx_count
-			FROM %s
+			FROM %[1]s
+			WHERE f_slot BETWEEN %[2]d AND %[3]d
 			GROUP BY f_slot
 		)
 		SELECT
 			bm.f_slot AS f_slot,
 			bm.f_el_transactions AS f_el_transactions,
 			COALESCE(tx_counts.tx_count, 0) AS tx_count
-		FROM %s AS bm
+		FROM %[4]s AS bm
 		LEFT JOIN tx_counts ON bm.f_slot = tx_counts.f_slot
-		WHERE bm.f_el_transactions != COALESCE(tx_counts.tx_count, 0)
+		WHERE bm.f_slot BETWEEN %[2]d AND %[3]d
+			AND bm.f_el_transactions != COALESCE(tx_counts.tx_count, 0)
 		ORDER BY bm.f_slot`
 )
 
@@ -165,8 +167,11 @@ type TransactionGap struct {
 	Actual   uint64
 }
 
-func (p *DBService) RetrieveTransactionGaps() ([]TransactionGap, error) {
-	query := fmt.Sprintf(selectTransactionGapsQuery, transactionsTable, blocksTable)
+func (p *DBService) RetrieveTransactionGapsRange(startSlot, endSlot uint64) ([]TransactionGap, error) {
+	if endSlot < startSlot {
+		return []TransactionGap{}, nil
+	}
+	query := fmt.Sprintf(selectTransactionGapsRangeQuery, transactionsTable, startSlot, endSlot, blocksTable)
 	var dest []struct {
 		F_slot            uint64 `ch:"f_slot"`
 		F_el_transactions uint64 `ch:"f_el_transactions"`

@@ -3,6 +3,7 @@ package config
 import (
 	"strings"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	cli "github.com/urfave/cli/v2"
 )
 
@@ -15,6 +16,8 @@ type TransactionGapConfig struct {
 	BeaconContractAddress string `json:"beacon-contract-address"`
 	Metrics               string `json:"metrics"`
 	Limit                 int    `json:"limit"`
+	StartSlot             phase0.Slot
+	BatchSize             int
 }
 
 func NewTransactionGapConfig() *TransactionGapConfig {
@@ -27,6 +30,8 @@ func NewTransactionGapConfig() *TransactionGapConfig {
 		BeaconContractAddress: DefaultBeaconContractAddress,
 		Metrics:               "transactions",
 		Limit:                 0,
+		StartSlot:             0,
+		BatchSize:             DefaultTransactionGapBatchSize,
 	}
 }
 
@@ -55,6 +60,12 @@ func (c *TransactionGapConfig) Apply(ctx *cli.Context) {
 	if ctx.IsSet("limit") {
 		c.Limit = ctx.Int("limit")
 	}
+	if ctx.IsSet("start-slot") {
+		c.StartSlot = phase0.Slot(ctx.Uint64("start-slot"))
+	}
+	if ctx.IsSet("batch-size") {
+		c.BatchSize = ctx.Int("batch-size")
+	}
 
 	if !containsMetric(c.Metrics, "transactions") {
 		if strings.TrimSpace(c.Metrics) == "" {
@@ -62,6 +73,9 @@ func (c *TransactionGapConfig) Apply(ctx *cli.Context) {
 		} else {
 			c.Metrics = c.Metrics + ",transactions"
 		}
+	}
+	if c.BatchSize <= 0 {
+		c.BatchSize = DefaultTransactionGapBatchSize
 	}
 }
 

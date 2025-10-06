@@ -16,4 +16,5 @@ var (
 	DefaultValidatorWindowEpochs    int    = 100
 	DefaultMaxRequestRetries        int    = 3
 	DefaultBeaconContractAddress    string = "mainnet"
+	DefaultTransactionGapBatchSize  int    = 1000
 )
