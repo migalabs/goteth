@@ -7,7 +7,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/analyzer"
 	"github.com/migalabs/goteth/pkg/config"
-	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/utils"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
