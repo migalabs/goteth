@@ -15,6 +15,13 @@ import (
 
 var transactionGapFillLog = logrus.WithField("module", "transactionGapFillCommand")
 
+type gapTask struct {
+	slot     uint64
+	expected *uint64
+	actual   *uint64
+	reason   string
+}
+
 var TransactionGapFillCommand = &cli.Command{
 	Name:   "transaction-gap-fill",
 	Usage:  "reprocess blocks whose stored transactions count differs from block metrics",
@@ -129,7 +136,35 @@ func LaunchTransactionGapFill(c *cli.Context) error {
 			return err
 		}
 
-		if len(gaps) == 0 {
+		tasks := make([]gapTask, 0, len(gaps))
+		seenSlots := make(map[uint64]struct{}, len(gaps))
+		for _, gap := range gaps {
+			expectedCopy := gap.Expected
+			actualCopy := gap.Actual
+			tasks = append(tasks, gapTask{
+				slot:     gap.Slot,
+				expected: &expectedCopy,
+				actual:   &actualCopy,
+				reason:   "transaction_mismatch",
+			})
+			seenSlots[gap.Slot] = struct{}{}
+		}
+
+		missingSlots, err := filler.FindMissingBlockMetricsRange(current, end)
+		if err != nil {
+			return err
+		}
+		for _, slot := range missingSlots {
+			if _, ok := seenSlots[slot]; ok {
+				continue
+			}
+			tasks = append(tasks, gapTask{
+				slot:   slot,
+				reason: "missing_block_metrics",
+			})
+		}
+
+		if len(tasks) == 0 {
 			if end == lastSlotU {
 				break
 			}
@@ -137,7 +172,7 @@ func LaunchTransactionGapFill(c *cli.Context) error {
 			continue
 		}
 
-		limitReached := processGapsWithWorkers(gaps, filler, limit, &processed, workers)
+		limitReached := processGapTasksWithWorkers(tasks, filler, limit, &processed, workers)
 		if limitReached {
 			total := atomic.LoadInt64(&processed)
 			transactionGapFillLog.Infof("processed %d gap(s); limit reached", total)
@@ -160,34 +195,41 @@ func LaunchTransactionGapFill(c *cli.Context) error {
 	return nil
 }
 
-func processGapsWithWorkers(
-	gaps []db.TransactionGap,
+func processGapTasksWithWorkers(
+	tasks []gapTask,
 	filler *analyzer.TransactionGapFiller,
 	limit int,
 	processed *int64,
 	workers int,
 ) bool {
-	if len(gaps) == 0 {
+	if len(tasks) == 0 {
 		return false
 	}
 	if workers <= 0 {
 		workers = 1
 	}
-	jobs := make(chan db.TransactionGap)
+	jobs := make(chan gapTask)
 	var wg sync.WaitGroup
+	var enqueueLimitReached bool
 
 	workerFn := func() {
 		defer wg.Done()
-		for gap := range jobs {
+		for task := range jobs {
 			if limit > 0 && atomic.LoadInt64(processed) >= int64(limit) {
 				return
 			}
-			entry := transactionGapFillLog.WithField("slot", gap.Slot).
-				WithField("expected", gap.Expected).
-				WithField("actual", gap.Actual)
+
+			entry := transactionGapFillLog.WithField("slot", task.slot).
+				WithField("reason", task.reason)
+			if task.expected != nil {
+				entry = entry.WithField("expected", *task.expected)
+			}
+			if task.actual != nil {
+				entry = entry.WithField("actual", *task.actual)
+			}
 
 			entry.Info("reprocessing block to reconcile transactions")
-			if err := filler.ReprocessSlot(phase0.Slot(gap.Slot)); err != nil {
+			if err := filler.ReprocessSlot(phase0.Slot(task.slot)); err != nil {
 				entry.WithError(err).Error("gap reprocessing failed")
 				continue
 			}
@@ -201,16 +243,20 @@ func processGapsWithWorkers(
 		go workerFn()
 	}
 
-	for _, gap := range gaps {
+	for _, task := range tasks {
 		if limit > 0 && atomic.LoadInt64(processed) >= int64(limit) {
+			enqueueLimitReached = true
 			break
 		}
-		jobs <- gap
+		jobs <- task
 	}
 	close(jobs)
 	wg.Wait()
 
-	return limit > 0 && atomic.LoadInt64(processed) >= int64(limit)
+	if limit > 0 && atomic.LoadInt64(processed) >= int64(limit) {
+		return true
+	}
+	return enqueueLimitReached
 }
 
 func min(a, b uint64) uint64 {

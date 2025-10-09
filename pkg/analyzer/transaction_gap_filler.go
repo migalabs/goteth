@@ -55,6 +55,13 @@ func (f *TransactionGapFiller) LastSlot() (phase0.Slot, error) {
 	return f.analyzer.dbClient.RetrieveLastSlot()
 }
 
+func (f *TransactionGapFiller) FindMissingBlockMetricsRange(startSlot, endSlot uint64) ([]uint64, error) {
+	if f == nil || f.analyzer == nil {
+		return nil, fmt.Errorf("transaction gap filler not initialized")
+	}
+	return f.analyzer.dbClient.RetrieveMissingBlockMetricsRange(startSlot, endSlot)
+}
+
 func (f *TransactionGapFiller) ReprocessSlot(slot phase0.Slot) error {
 	if f == nil || f.analyzer == nil {
 		return fmt.Errorf("transaction gap filler not initialized")

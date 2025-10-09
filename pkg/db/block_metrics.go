@@ -52,6 +52,16 @@ var (
 		DELETE FROM %s
 		WHERE f_slot = $1;
 `
+
+	selectMissingBlockMetricsRangeQuery = `
+		SELECT seq_slot
+		FROM (
+			SELECT number + %[1]d AS seq_slot
+			FROM numbers(%[2]d)
+		) AS seq
+		LEFT JOIN %s AS bm ON seq_slot = bm.f_slot
+		WHERE bm.f_slot IS NULL
+		ORDER BY seq_slot`
 )
 
 func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
@@ -172,7 +182,6 @@ func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
 }
 
 func (s *DBService) DeleteBlockMetrics(slot phase0.Slot) error {
-
 	err := s.Delete(DeletableObject{
 		query: deleteBlockQuery,
 		table: blocksTable,
@@ -228,7 +237,6 @@ func (p *DBService) PersistBlocks(data []spec.AgnosticBlock) error {
 }
 
 func (p *DBService) RetrieveLastSlot() (phase0.Slot, error) {
-
 	var dest []struct {
 		F_slot uint64 `ch:"f_slot"`
 	}
@@ -241,5 +249,26 @@ func (p *DBService) RetrieveLastSlot() (phase0.Slot, error) {
 		return phase0.Slot(dest[0].F_slot), err
 	}
 	return 0, err
+}
 
+func (p *DBService) RetrieveMissingBlockMetricsRange(startSlot, endSlot uint64) ([]uint64, error) {
+	if endSlot < startSlot {
+		return []uint64{}, nil
+	}
+	count := endSlot - startSlot + 1
+	query := fmt.Sprintf(selectMissingBlockMetricsRangeQuery, startSlot, count, blocksTable)
+	var dest []struct {
+		SeqSlot uint64 `ch:"seq_slot"`
+	}
+
+	err := p.highSelect(query, &dest)
+	if err != nil {
+		return nil, err
+	}
+
+	slots := make([]uint64, len(dest))
+	for i, row := range dest {
+		slots[i] = row.SeqSlot
+	}
+	return slots, nil
 }
