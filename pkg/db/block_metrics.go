@@ -54,13 +54,13 @@ var (
 `
 
 	selectMissingBlockMetricsRangeQuery = `
-		SELECT seq.slot
+		SELECT seq.slot AS seq_slot
 		FROM (
 			SELECT number + %[1]d AS slot
 			FROM numbers(%[2]d - %[1]d + 1)
 		) AS seq
 		LEFT JOIN %[3]s AS bm ON seq.slot = bm.f_slot
-		WHERE bm.f_slot=0
+		WHERE bm.f_slot IS NULL
 		ORDER BY seq.slot`
 )
 
