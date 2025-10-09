@@ -60,7 +60,7 @@ var (
 			FROM numbers(%[2]d - %[1]d + 1)
 		) AS seq
 		LEFT JOIN %[3]s AS bm ON seq.slot = bm.f_slot
-		WHERE bm.f_slot IS NULL
+		WHERE bm.f_slot=0
 		ORDER BY seq.slot`
 )
 
