@@ -54,14 +54,14 @@ var (
 `
 
 	selectMissingBlockMetricsRangeQuery = `
-		SELECT seq_slot
+		SELECT seq.slot
 		FROM (
-			SELECT number + %[1]d AS seq_slot
-			FROM numbers(%[2]d)
+			SELECT number + %[1]d AS slot
+			FROM numbers(%[2]d - %[1]d + 1)
 		) AS seq
-		LEFT JOIN %s AS bm ON seq_slot = bm.f_slot
-		WHERE bm.f_slot IS NULL
-		ORDER BY seq_slot`
+		LEFT JOIN %[3]s AS bm ON seq.slot = bm.f_slot
+		WHERE bm.f_slot=0
+		ORDER BY seq.slot`
 )
 
 func blocksInput(blocks []spec.AgnosticBlock) proto.Input {
@@ -255,8 +255,7 @@ func (p *DBService) RetrieveMissingBlockMetricsRange(startSlot, endSlot uint64) 
 	if endSlot < startSlot {
 		return []uint64{}, nil
 	}
-	count := endSlot - startSlot + 1
-	query := fmt.Sprintf(selectMissingBlockMetricsRangeQuery, startSlot, count, blocksTable)
+	query := fmt.Sprintf(selectMissingBlockMetricsRangeQuery, startSlot, endSlot, blocksTable)
 	var dest []struct {
 		SeqSlot uint64 `ch:"seq_slot"`
 	}

@@ -117,11 +117,12 @@ func LaunchTransactionGapFill(c *cli.Context) error {
 	limit := conf.Limit
 	current := uint64(conf.StartSlot)
 	batchSize := uint64(conf.BatchSize)
-	lastSlotU := uint64(lastSlot)
 	workers := conf.Workers
 	if workers <= 0 {
 		workers = 1
 	}
+
+	lastSlotU := uint64(lastSlot)
 
 	for current <= lastSlotU {
 		end := min(current+batchSize-1, lastSlotU)
