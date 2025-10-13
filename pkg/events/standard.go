@@ -3,7 +3,7 @@ package events
 import (
 	"context"
 
-	api "github.com/attestantio/go-eth2-client/api/v1"
+	apiv1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/migalabs/goteth/pkg/clientapi"
 	"github.com/migalabs/goteth/pkg/db"
 	"github.com/migalabs/goteth/pkg/spec"
@@ -23,8 +23,8 @@ type Events struct {
 	HeadChan       chan db.HeadEvent
 
 	SubscribedFinalized bool
-	FinalizedChan       chan api.FinalizedCheckpointEvent
-	ReorgChan           chan api.ChainReorgEvent
+	FinalizedChan       chan apiv1.FinalizedCheckpointEvent
+	ReorgChan           chan apiv1.ChainReorgEvent
 	BlobSidecarChan     chan spec.BlobSideCarEventWraper
 }
 
@@ -35,8 +35,8 @@ func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
 		SubscribedHead:      false,
 		HeadChan:            make(chan db.HeadEvent),
 		SubscribedFinalized: false,
-		FinalizedChan:       make(chan api.FinalizedCheckpointEvent),
-		ReorgChan:           make(chan api.ChainReorgEvent),
+		FinalizedChan:       make(chan apiv1.FinalizedCheckpointEvent),
+		ReorgChan:           make(chan apiv1.ChainReorgEvent),
 		BlobSidecarChan:     make(chan spec.BlobSideCarEventWraper),
 	}
 }

@@ -3,6 +3,7 @@ package relay
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -90,37 +91,50 @@ func InitRelaysMonitorer(pCtx context.Context, genesisTime uint64) (*RelaysMonit
 // Returns a map of bids per slot
 // Each slot contains an array of bids using the same order as relayList
 // Returns results from slot-limit (not included) to slot (included)
-func (m RelaysMonitor) GetDeliveredBidsPerSlotRange(slot phase0.Slot, limit int) (RelayBidsPerSlot, error) {
+func (m RelaysMonitor) GetDeliveredBidsPerSlotRange(slot phase0.Slot, limit int) (*RelayBidsPerSlot, error) {
 	bidsDelivered := newRelayBidsPerSlot()
 
-	for _, relayClient := range m.relays {
-		singleRelayBidsDelivered, err := relayClient.GetDeliveredBidsPerSlotRange(slot, limit)
-		if err != nil || singleRelayBidsDelivered == nil {
-			log.Errorf("%s", err)
-			continue
-		}
+	var wg sync.WaitGroup
 
-		for _, bid := range singleRelayBidsDelivered {
-			if bid.Slot > (slot-phase0.Slot(limit)) && bid.Slot <= slot { // if the bid inside the requested slots
-				bidsDelivered.addBid(relayClient.client.Address(), bid)
+	for _, relayClient := range m.relays {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			singleRelayBidsDelivered, err := relayClient.GetDeliveredBidsPerSlotRange(slot, limit)
+			if err != nil || singleRelayBidsDelivered == nil {
+				log.Errorf("%s", err)
+				return
 			}
 
-		}
+			for _, bid := range singleRelayBidsDelivered {
+				if bid.Slot > (slot-phase0.Slot(limit)) && bid.Slot <= slot { // if the bid inside the requested slots
+					bidsDelivered.addBid(relayClient.client.Address(), bid)
+				}
+			}
+		}()
 	}
+
+	wg.Wait()
+
 	return bidsDelivered, nil
 }
 
 type RelayBidsPerSlot struct {
+	mu   sync.Mutex
 	bids map[phase0.Slot]map[string]*v1.BidTrace
 }
 
-func newRelayBidsPerSlot() RelayBidsPerSlot {
-	return RelayBidsPerSlot{
+func newRelayBidsPerSlot() *RelayBidsPerSlot {
+	return &RelayBidsPerSlot{
 		bids: make(map[phase0.Slot]map[string]*v1.BidTrace),
 	}
 }
 
 func (r *RelayBidsPerSlot) addBid(address string, bid *v1.BidTrace) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	slot := bid.Slot
 
 	if r.bids[slot] == nil {
@@ -130,7 +144,10 @@ func (r *RelayBidsPerSlot) addBid(address string, bid *v1.BidTrace) {
 	slotBidList[address] = bid
 }
 
-func (r RelayBidsPerSlot) GetBidsAtSlot(slot phase0.Slot) map[string]v1.BidTrace {
+func (r *RelayBidsPerSlot) GetBidsAtSlot(slot phase0.Slot) map[string]v1.BidTrace {
+	if r == nil {
+		return nil
+	}
 	bids := make(map[string]v1.BidTrace)
 
 	for address, bid := range r.bids[slot] {
@@ -147,6 +164,10 @@ func getNetworkRelays(genesisTime uint64) []string {
 
 	case spec.HoleskyGenesis:
 		return holeskyRelayList
+	case spec.HoodiGenesis:
+		return hoodiRelayList
+	case spec.SepoliaGenesis:
+		return sepoliaRelayList
 	default:
 		log.Errorf("could not find network. Genesis time: %d", genesisTime)
 		return []string{}
