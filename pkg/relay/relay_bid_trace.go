@@ -147,6 +147,10 @@ func getNetworkRelays(genesisTime uint64) []string {
 
 	case spec.HoleskyGenesis:
 		return holeskyRelayList
+	case spec.HoodiGenesis:
+		return hoodiRelayList
+	case spec.SepoliaGenesis:
+		return sepoliaRelayList
 	default:
 		log.Errorf("could not find network. Genesis time: %d", genesisTime)
 		return []string{}
