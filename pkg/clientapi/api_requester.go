@@ -25,24 +25,26 @@ var (
 type APIClientOption func(*APIClient) error
 
 type APIClient struct {
-	ctx        context.Context
-	Api        *http.Service     // Beacon Node
-	ELApi      *ethclient.Client // Execution Node
-	Metrics    db.DBMetrics
-	maxRetries int
-	statesBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: states
-	blocksBook *utils.RoutineBook // Book to track what is being downloaded through the CL API: blocks
-	txBook     *utils.RoutineBook // Book to track what is being downloaded through the EL API: transactions
+	ctx            context.Context
+	Api            *http.Service     // Beacon Node
+	ELApi          *ethclient.Client // Execution Node
+	Metrics        db.DBMetrics
+	maxRetries     int
+	statesBook     *utils.RoutineBook // Book to track what is being downloaded through the CL API: states
+	blocksBook     *utils.RoutineBook // Book to track what is being downloaded through the CL API: blocks
+	txBook         *utils.RoutineBook // Book to track what is being downloaded through the EL API: transactions
+	receiptMetrics *receiptMetrics
 }
 
 func NewAPIClient(ctx context.Context, bnEndpoint string, maxRequestRetries int, options ...APIClientOption) (*APIClient, error) {
 	log.Debugf("generating http client at %s", bnEndpoint)
 
 	apiService := &APIClient{
-		ctx:        ctx,
-		statesBook: utils.NewRoutineBook(1, "api-cli-states"),
-		blocksBook: utils.NewRoutineBook(1, "api-cli-blocks"),
-		txBook:     utils.NewRoutineBook(maxParallelConns, "api-cli-tx"),
+		ctx:            ctx,
+		statesBook:     utils.NewRoutineBook(1, "api-cli-states"),
+		blocksBook:     utils.NewRoutineBook(1, "api-cli-blocks"),
+		txBook:         utils.NewRoutineBook(maxParallelConns, "api-cli-tx"),
+		receiptMetrics: newReceiptMetrics(),
 	}
 
 	bnCli, err := http.New(
@@ -99,6 +101,9 @@ func WithPromMetrics(metrics *prom_metrics.PrometheusMetrics) APIClientOption {
 		metrics.AddMeticsModule(s.statesBook.GetPrometheusMetrics())
 		metrics.AddMeticsModule(s.blocksBook.GetPrometheusMetrics())
 		metrics.AddMeticsModule(s.txBook.GetPrometheusMetrics())
+		if receiptModule := s.receiptMetrics.getPrometheusMetrics(); receiptModule != nil {
+			metrics.AddMeticsModule(receiptModule)
+		}
 
 		return nil
 	}
