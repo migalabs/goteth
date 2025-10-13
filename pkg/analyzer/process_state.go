@@ -303,7 +303,7 @@ func (s *ChainAnalyzer) processBlockRewards(bundle metrics.StateMetrics) {
 
 func (s *ChainAnalyzer) getSingleBlockRewards(
 	block spec.AgnosticBlock,
-	mevBids relay.RelayBidsPerSlot) db.BlockReward {
+	mevBids *relay.RelayBidsPerSlot) db.BlockReward {
 	slot := block.Slot
 	bids := mevBids.GetBidsAtSlot(slot)
 	clManualReward := block.ManualReward
