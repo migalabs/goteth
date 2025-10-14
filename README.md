@@ -16,12 +16,13 @@ To use the tool, the following requirements need to be installed in the machine:
 
 - [go](https://go.dev/doc/install) preferably on its 1.21 version or above. Go also needs to be executable from the terminal.
 - Clickhouse DB
-- Access to an Ethereum consensus archival node (we have only tested using lighthouse in archival mode, other clients/configs might not work). IMPORTANT: Goteth requires the `/eth/v2/debug/beacon/states` endpoint enabled. 
+- Access to an Ethereum consensus archival node (we have only tested using lighthouse in archival mode, other clients/configs might not work). IMPORTANT: Goteth requires the `/eth/v2/debug/beacon/states` endpoint enabled. To be able to fetch blob sidecars, the `--supernode` flag must be enabled in Lighthouse after Fulu hardfork.
 - Access to an Ethereum execution node (optional)
 - Access to a Clickhouse server database (use native port, usually 9000)
 
 ## Cloning
-Goteth uses a fork of [github.com/attestantio/go-relay-client](https://github.com/attestantio/go-relay-client) as a git submodule. In order to be able to run goteth, you will need to clone the submodule as well with: `--recurse-submodules` flag. 
+
+Goteth uses a fork of [github.com/attestantio/go-relay-client](https://github.com/attestantio/go-relay-client) as a git submodule. In order to be able to run goteth, you will need to clone the submodule as well with: `--recurse-submodules` flag.
 
 ## Installation
 
@@ -106,7 +107,7 @@ OPTIONS:
    --workers-num value     example: 3 (default: 4)
    --db-workers-num value  example: 3 (default: 4)
    --download-mode value   example: historical,finalized. Default: finalized
-   --metrics value         example: epoch,block,rewards,transactions,api_rewards. Empty for all (default: epoch,block)
+   --metrics value         example: epoch,block,rewards,transactions,api_rewards,blob_sidecars. Empty for all (default: epoch,block)
    --prometheus-port value Port on which to expose prometheus metrics (default: 9081)
    --max-request-retries value         Number of retries to make when a request fails. For head mode it shouldn't be higher than 3-4, for historical its recommended to be higher (default: 3)
    --beacon-contract-address value     Beacon contract address. Can be 'mainnet', 'holesky', 'sepolia' or directly the contract address in format '0x...' (default: mainnet)
