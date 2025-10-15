@@ -13,10 +13,6 @@ import (
 	"github.com/migalabs/goteth/pkg/utils"
 )
 
-const (
-	maxBlobsPerBlock int = 6
-)
-
 var (
 	versionedHashVersionKZG = []byte("0x01")
 )

@@ -180,29 +180,29 @@ This table stores the data of the rewards obtained by validators in the network.
 - Inactive but with duties still assigned (edge case of validators that are in the sync committee but not active).
 - Slashed and not yet exited.
 
-| Column Name                              | Type of Data | Description                                                                                                           |
-| ---------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
-| f_val_idx                                | uint64       | validator index                                                                                                       |
-| f_epoch                                  | uint64       | epoch number                                                                                                          |
-| f_balance_eth                            | float        | eth balance at the end of the given epoch                                                                             |
-| f_effective_balance                      | uint64       | effective balance of the validator at the end of the epoch (Gwei)                                                     |
-| f_withdrawal_prefix                      | uint8        | withdrawal prefix of the validator's withdrawal credentials (see above)                                               |
-| f_reward                                 | int64        | reward obtained from the previous epoch to the given epoch, can be negative (Gwei)                                    |
-| f_max_reward                             | uint64       | maximum consensus reward that could have been obtained from the previous epoch to the given epoch (Gwei). Takes into forced missed flags (e.g. if missed head because of a missed slot, the max reward will take that into account)              |
-| f_max_att_reward                         | uint64       | maximum attestation that could have been obtained from the previous epoch to the given epoch (Gwei)                   |
-| f_max_sync_reward                        | uint64       | maximum sync committee that could have been obtained from the previous epoch to the given epoch (Gwei)                |
-| f_att_slot                               | uint64       | slot the validator had to attest to (2 epochs before)                                                                 |
-| f_base_reward                            | uint64       | base reward taken into account to calculate the rewards (Gwei)                                                        |
-| f_in_sync_committee                      | bool         | whether the validator participated in the sync committee in the given epoch                                           |
-| f_sync_committee_participations_included | uint8        | number of sync committee participations included for the validator in the given epoch                                 |
-| f_attestation_included                   | bool         | whether the attestation was included in the chain (2 epochs before)                                                   |
-| f_missing_source                         | bool         | whether the validator missed the source flag while attesting (takes into account the attestation to 2 epochs before)  |
-| f_missing_target                         | bool         | whether the validator missed the target flag while attesting (takes into account the attestation to 2 epochs before)  |
-| f_missing_head                           | bool         | whether the validator missed the head flag while attesting (takes into account the attestation to 2 epochs before)    |
-| f_status                                 | uint8        | validator status 2 epochs before (see status table)                                                                   |
-| f_block_api_reward                       | uint64       | consensus block reward obtained from the Beacon API (only if the validator was a proposer in the given epoch) (Gwei)  |
-| f_block_experimental_reward              | uint64       | consensus block reward manually calculated by goteth (only if the validator was a proposer in the given epoch) (Gwei) |
-| f_inclusion_delay                        | uint8        | amount of slots after the attested one at which the attestation was included                                          |
+| Column Name                              | Type of Data | Description                                                                                                                                                                                                                         |
+| ---------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| f_val_idx                                | uint64       | validator index                                                                                                                                                                                                                     |
+| f_epoch                                  | uint64       | epoch number                                                                                                                                                                                                                        |
+| f_balance_eth                            | float        | eth balance at the end of the given epoch                                                                                                                                                                                           |
+| f_effective_balance                      | uint64       | effective balance of the validator at the end of the epoch (Gwei)                                                                                                                                                                   |
+| f_withdrawal_prefix                      | uint8        | withdrawal prefix of the validator's withdrawal credentials (see above)                                                                                                                                                             |
+| f_reward                                 | int64        | reward obtained from the previous epoch to the given epoch, can be negative (Gwei)                                                                                                                                                  |
+| f_max_reward                             | uint64       | maximum consensus reward that could have been obtained from the previous epoch to the given epoch (Gwei). Takes into forced missed flags (e.g. if missed head because of a missed slot, the max reward will take that into account) |
+| f_max_att_reward                         | uint64       | maximum attestation that could have been obtained from the previous epoch to the given epoch (Gwei)                                                                                                                                 |
+| f_max_sync_reward                        | uint64       | maximum sync committee that could have been obtained from the previous epoch to the given epoch (Gwei)                                                                                                                              |
+| f_att_slot                               | uint64       | slot the validator had to attest to (2 epochs before)                                                                                                                                                                               |
+| f_base_reward                            | uint64       | base reward taken into account to calculate the rewards (Gwei)                                                                                                                                                                      |
+| f_in_sync_committee                      | bool         | whether the validator participated in the sync committee in the given epoch                                                                                                                                                         |
+| f_sync_committee_participations_included | uint8        | number of sync committee participations included for the validator in the given epoch                                                                                                                                               |
+| f_attestation_included                   | bool         | whether the attestation was included in the chain (2 epochs before)                                                                                                                                                                 |
+| f_missing_source                         | bool         | whether the validator missed the source flag while attesting (takes into account the attestation to 2 epochs before)                                                                                                                |
+| f_missing_target                         | bool         | whether the validator missed the target flag while attesting (takes into account the attestation to 2 epochs before)                                                                                                                |
+| f_missing_head                           | bool         | whether the validator missed the head flag while attesting (takes into account the attestation to 2 epochs before)                                                                                                                  |
+| f_status                                 | uint8        | validator status 2 epochs before (see status table)                                                                                                                                                                                 |
+| f_block_api_reward                       | uint64       | consensus block reward obtained from the Beacon API (only if the validator was a proposer in the given epoch) (Gwei)                                                                                                                |
+| f_block_experimental_reward              | uint64       | consensus block reward manually calculated by goteth (only if the validator was a proposer in the given epoch) (Gwei)                                                                                                               |
+| f_inclusion_delay                        | uint8        | amount of slots after the attested one at which the attestation was included                                                                                                                                                        |
 
 # Validator Rewards Aggregation (`t_validator_rewards_aggregation`)
 
@@ -293,17 +293,19 @@ Config: `engine = ReplacingMergeTree ORDER BY f_block`
 
 # Blob Sidecars (`t_blob_sidecars`)
 
+Will be filled only if `blob_sidecars` is present in `--metrics` config (requires a supernode after Fulu hardfork).
+
 Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_index`
 
-| Column Name      | Type of Data | Description                                                |     |     |
-| ---------------- | ------------ | ---------------------------------------------------------- | --- | --- |
-| f_blob_hash      | string       | versioned blob has                                         |
-| f_tx_hash        | string       | hash of the transaction referencing this blob in this slot |
-| f_slot           | uint64       | slot number                                                |
-| f_index          | uint8        | index of the blob                                          |
-| f_kzg_commitment | string       | kzg commitment of the blob                                 |
-| f_kzg_proof      | string       | kzg proof of the blob                                      |
-| f_ending_0s      | uint64       | amount of consecutive 0s at the end of the blob bytes      |
+| Column Name      | Type of Data | Description                                                                                                                   |     |     |
+| ---------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| f_blob_hash      | string       | versioned blob has                                                                                                            |
+| f_tx_hash        | string       | hash of the transaction referencing this blob in this slot, will be filled if `transactions` is present in `--metrics` config |
+| f_slot           | uint64       | slot number                                                                                                                   |
+| f_index          | uint8        | index of the blob                                                                                                             |
+| f_kzg_commitment | string       | kzg commitment of the blob                                                                                                    |
+| f_kzg_proof      | string       | kzg proof of the blob                                                                                                         |
+| f_ending_0s      | uint64       | amount of consecutive 0s at the end of the blob bytes                                                                         |
 
 # Blob Sidecars Events (`t_blob_sidecars_events`)
 

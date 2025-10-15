@@ -11,6 +11,7 @@ type DBMetrics struct {
 	ValidatorRewards bool
 	APIRewards       bool
 	Transactions     bool
+	BlobSidecars     bool
 }
 
 func NewMetrics(input string) (DBMetrics, error) {
@@ -33,6 +34,9 @@ func NewMetrics(input string) (DBMetrics, error) {
 		case "transactions":
 			dbMetrics.Transactions = true
 			dbMetrics.Block = true
+		case "blob_sidecars":
+			dbMetrics.Block = true
+			dbMetrics.BlobSidecars = true
 		default:
 			return DBMetrics{}, fmt.Errorf("could not parse metric: %s", item)
 		}

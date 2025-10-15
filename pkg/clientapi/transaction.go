@@ -15,10 +15,6 @@ import (
 	"github.com/migalabs/goteth/pkg/utils"
 )
 
-var (
-	blobTxType uint8 = 3
-)
-
 func (client *APIClient) GetBlockReceipts(block spec.AgnosticBlock) ([]*types.Receipt, error) {
 	if client.ELApi == nil {
 		return nil, errors.New("execution endpoint not configured")
