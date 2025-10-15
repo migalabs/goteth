@@ -293,17 +293,19 @@ Config: `engine = ReplacingMergeTree ORDER BY f_block`
 
 # Blob Sidecars (`t_blob_sidecars`)
 
+Will be filled only if `blob_sidecars` is present in `--metrics` config (requires a supernode after Fulu hardfork).
+
 Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_index`
 
-| Column Name      | Type of Data | Description                                                |     |     |
-| ---------------- | ------------ | ---------------------------------------------------------- | --- | --- |
-| f_blob_hash      | string       | versioned blob has                                         |
-| f_tx_hash        | string       | hash of the transaction referencing this blob in this slot |
-| f_slot           | uint64       | slot number                                                |
-| f_index          | uint8        | index of the blob                                          |
-| f_kzg_commitment | string       | kzg commitment of the blob                                 |
-| f_kzg_proof      | string       | kzg proof of the blob                                      |
-| f_ending_0s      | uint64       | amount of consecutive 0s at the end of the blob bytes      |
+| Column Name      | Type of Data | Description                                                                                                                   |     |     |
+| ---------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- | --- | --- |
+| f_blob_hash      | string       | versioned blob has                                                                                                            |
+| f_tx_hash        | string       | hash of the transaction referencing this blob in this slot, will be filled if `transactions` is present in `--metrics` config |
+| f_slot           | uint64       | slot number                                                                                                                   |
+| f_index          | uint8        | index of the blob                                                                                                             |
+| f_kzg_commitment | string       | kzg commitment of the blob                                                                                                    |
+| f_kzg_proof      | string       | kzg proof of the blob                                                                                                         |
+| f_ending_0s      | uint64       | amount of consecutive 0s at the end of the blob bytes                                                                         |
 
 # Blob Sidecars Events (`t_blob_sidecars_events`)
 

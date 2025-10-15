@@ -4,6 +4,7 @@ const (
 	MainnetGenesis               = 1606824023
 	SepoliaGenesis               = 1655733600
 	HoleskyGenesis               = 1695902400
+	HoodiGenesis                 = 1742213400
 	MainnetBeaconContractAddress = "0x00000000219ab540356cBB839Cbe05303d7705Fa"
 	SepoliaBeaconContractAddress = "0x7f02C3E3c98b133055B8B348B2Ac625669Ed295D"
 	HoleskyBeaconContractAddress = "0x4242424242424242424242424242424242424242"

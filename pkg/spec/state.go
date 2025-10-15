@@ -85,6 +85,8 @@ func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (Agnos
 		return NewDenebState(bstate, duties), nil
 	case spec.DataVersionElectra:
 		return NewElectraState(bstate, duties), nil
+	case spec.DataVersionFulu:
+		return NewFuluState(bstate, duties), nil
 	default:
 		return AgnosticState{}, fmt.Errorf("could not figure out the Beacon State Fork Version: %s", bstate.Version)
 	}
@@ -543,4 +545,34 @@ func NewElectraState(bstate spec.VersionedBeaconState, duties EpochDuties) Agnos
 	ProcessAltairAttestations(&electraObj, bstate.Electra.PreviousEpochParticipation)
 
 	return electraObj
+}
+
+// This Wrapper is meant to include all necessary data from the Fulu Fork
+func NewFuluState(bstate spec.VersionedBeaconState, duties EpochDuties) AgnosticState {
+	fuluObj := AgnosticState{
+		Version:                    bstate.Version,
+		Balances:                   bstate.Fulu.Balances,
+		Validators:                 bstate.Fulu.Validators,
+		EpochStructs:               duties,
+		Epoch:                      phase0.Epoch(bstate.Fulu.Slot / SlotsPerEpoch),
+		Slot:                       bstate.Fulu.Slot,
+		BlockRoots:                 bstate.Fulu.BlockRoots,
+		SyncCommittee:              *bstate.Fulu.CurrentSyncCommittee,
+		GenesisTimestamp:           bstate.Fulu.GenesisTime,
+		CurrentJustifiedCheckpoint: *bstate.Fulu.CurrentJustifiedCheckpoint,
+		LatestBlockHeader:          bstate.Fulu.LatestBlockHeader,
+		PendingConsolidations:      bstate.Fulu.PendingConsolidations,
+		PendingPartialWithdrawals:  bstate.Fulu.PendingPartialWithdrawals,
+		DepositBalanceToConsume:    bstate.Fulu.DepositBalanceToConsume,
+		PendingDeposits:            bstate.Fulu.PendingDeposits,
+		CurrentFinalizedCheckpoint: *bstate.Fulu.FinalizedCheckpoint,
+		Eth1DepositIndex:           bstate.Fulu.ETH1DepositIndex,
+		DepositRequestsStartIndex:  bstate.Fulu.DepositRequestsStartIndex,
+	}
+
+	fuluObj.Setup()
+
+	ProcessAltairAttestations(&fuluObj, bstate.Fulu.PreviousEpochParticipation)
+
+	return fuluObj
 }
