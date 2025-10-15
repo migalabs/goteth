@@ -28,34 +28,36 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 
 	s.processWithdrawals(block)
 
-	if s.metrics.Transactions {
-		s.ProcessETH1Data(block)
-	}
+	s.ProcessETH1Data(block)
+
 	s.processBLSToExecutionChanges(block)
 	s.processDeposits(block)
 	s.processerBook.FreePage(routineKey)
 }
 
 func (s *ChainAnalyzer) ProcessETH1Data(block *spec.AgnosticBlock) {
-	receipts, err := s.cli.GetBlockReceipts(*block)
-	if err != nil {
-		log.Errorf("error getting slot %d receipts: %s", block.Slot, err.Error())
-		return
+	if s.metrics.Transactions {
+		receipts, err := s.cli.GetBlockReceipts(*block)
+		if err != nil {
+			log.Errorf("error getting slot %d receipts: %s", block.Slot, err.Error())
+			return
+		}
+
+		err = s.processTransactions(block, receipts)
+		if err != nil {
+			log.Errorf("error processing transactions: %s", err.Error())
+			return
+		}
+
+		// process eth1 deposits depends on processTransactions storing the receipts on the Agnostic transactions
+		err = s.processETH1Deposits(block)
+		if err != nil {
+			log.Errorf("error processing eth1 deposits: %s", err.Error())
+			return
+		}
 	}
 
-	err = s.processTransactions(block, receipts)
-	if err != nil {
-		log.Errorf("error processing transactions: %s", err.Error())
-		return
-	}
-
-	// process eth1 deposits depends on processTransactions storing the receipts on the Agnostic transactions
-	err = s.processETH1Deposits(block)
-	if err != nil {
-		log.Errorf("error processing eth1 deposits: %s", err.Error())
-		return
-	}
-	if block.HardForkVersion >= eth2_client_spec.DataVersionDeneb {
+	if block.HardForkVersion >= eth2_client_spec.DataVersionDeneb && s.metrics.BlobSidecars {
 		s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
 	}
 }
@@ -178,11 +180,13 @@ func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock, receipts 
 func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spec.AgnosticTransaction) {
 	blobs, err := s.cli.RequestBlobSidecars(block.Slot)
 	if err != nil {
-		log.Fatalf("could not download blob sidecars for slot %d: %s", block.Slot, err)
+		log.Errorf("could not download blob sidecars for slot %d: %s", block.Slot, err)
 	}
 	if len(blobs) > 0 {
-		for _, blob := range blobs {
-			blob.GetTxHash(txs)
+		if len(txs) > 0 {
+			for _, blob := range blobs {
+				blob.GetTxHash(txs)
+			}
 		}
 		s.dbClient.PersistBlobSidecars(blobs)
 	}

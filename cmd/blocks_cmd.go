@@ -81,7 +81,7 @@ var BlocksCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:        "metrics",
-			Usage:       "Metrics to be persisted to the database: epoch,block,rewards,transactions,api_rewards",
+			Usage:       "Metrics to be persisted to the database: epoch,block,rewards,transactions,api_rewards,blob_sidecars",
 			EnvVars:     []string{"ANALYZER_METRICS"},
 			DefaultText: "epoch,block",
 		},
