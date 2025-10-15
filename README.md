@@ -4,11 +4,7 @@ GotEth is a go-written client that indexes all validator-related duties, paramet
 
 The client indexes all the validator/epoch related metrics into a set of clickhouse tables which later on can be used to monitor the performance of validators in the beaconchain. See the [docs/tables.md](https://github.com/migalabs/goteth/blob/master/docs/tables.md) for more information on the tables indexed by Goteth.
 
-This tool has been used to power the
-
-- [pandametrics.xyz](https://pandametrics.xyz/) public dashboard
-- [ethseer.io](https://ethseer.io) block explorer
-- [monitoreth.io](https://monitoreth.io/nodes#validators-entities) public dashboard
+This tool has been used to power the [migalabs.io](https://migalabs.io/) public dashboard.
 
 ## Prerequisites
 
@@ -16,12 +12,13 @@ To use the tool, the following requirements need to be installed in the machine:
 
 - [go](https://go.dev/doc/install) preferably on its 1.21 version or above. Go also needs to be executable from the terminal.
 - Clickhouse DB
-- Access to an Ethereum consensus archival node (we have only tested using lighthouse in archival mode, other clients/configs might not work). IMPORTANT: Goteth requires the `/eth/v2/debug/beacon/states` endpoint enabled. 
+- Access to an Ethereum consensus archival node (we have only tested using lighthouse in archival mode, other clients/configs might not work). IMPORTANT: Goteth requires the `/eth/v2/debug/beacon/states` endpoint enabled.
 - Access to an Ethereum execution node (optional)
 - Access to a Clickhouse server database (use native port, usually 9000)
 
 ## Cloning
-Goteth uses a fork of [github.com/attestantio/go-relay-client](https://github.com/attestantio/go-relay-client) as a git submodule. In order to be able to run goteth, you will need to clone the submodule as well with: `--recurse-submodules` flag. 
+
+Goteth uses a fork of [github.com/attestantio/go-relay-client](https://github.com/attestantio/go-relay-client) as a git submodule. In order to be able to run goteth, you will need to clone the submodule as well with: `--recurse-submodules` flag.
 
 ## Installation
 
