@@ -333,7 +333,7 @@ Config: `engine = ReplacingMergeTree ORDER BY f_slot`
 | f_cl_api_reward    | uint64       | Block reward gathered from the Beacon API regarding Consensus Layer (Gwei)                                                        |
 | f_relays           | []string     | List of relays that were offering this block's payload                                                                            |
 | f_builder_pubkey   | string       | The first of the builder pubkeys list that were submitting this block's payload (usually the same builder through several relays) |
-| f_bid_commission   | uint64       | Bid submitted with the payload: what the validator receives as a reward                                                           |
+| f_bid_commission   | uint64       | Bid submitted with the payload: what the validator receives as a reward (Wei)                                                     |
 
 # Slashings (`t_slashings`)
 
