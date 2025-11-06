@@ -55,3 +55,5 @@ jobs:
           GITHUB_SHA=${{ github.sha }}
           GO_BUILD_FLAG=${{ env.GO_BUILD_FLAG }}
         tags: ${{ steps.meta.outputs.tags }}
+
+# Bring back the branch
