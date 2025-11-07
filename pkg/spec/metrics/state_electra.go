@@ -741,7 +741,9 @@ func (p *ElectraMetrics) processPendingDeposits() {
 			processedDeposits = append(processedDeposits, processedDeposit)
 		}
 		index++
-		state.DepositedAmounts[validatorIdx] += deposit.Amount
+		if exists { // Track deposited amounts per validator only if validator exists
+			state.DepositedAmounts[validatorIdx] += deposit.Amount
+		}
 		state.DepositsNum += 1
 		state.TotalDepositsAmount += deposit.Amount
 	}
