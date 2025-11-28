@@ -178,9 +178,9 @@ func (s *ChainAnalyzer) processTransactions(block *spec.AgnosticBlock, receipts 
 }
 
 func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spec.AgnosticTransaction) {
-	blobs, err := s.cli.RequestBlobSidecars(block.Slot)
+	blobs, err := s.cli.RequestFuluBlobs(block.Slot)
 	if err != nil {
-		log.Errorf("could not download blob sidecars for slot %d: %s", block.Slot, err)
+		log.Errorf("could not download blobs for slot %d: %s", block.Slot, err)
 	}
 	if len(blobs) > 0 {
 		if len(txs) > 0 {
