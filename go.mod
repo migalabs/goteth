@@ -1,13 +1,11 @@
 module github.com/migalabs/goteth
 
-go 1.23.0
-
-toolchain go1.24.0
+go 1.25
 
 require (
 	github.com/ClickHouse/ch-go v0.65.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.32.1
-	github.com/attestantio/go-eth2-client v0.27.1
+	github.com/attestantio/go-eth2-client v0.27.2
 	github.com/attestantio/go-relay-client v0.2.7
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb
