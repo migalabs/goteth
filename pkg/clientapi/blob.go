@@ -39,6 +39,8 @@ func (s *APIClient) RequestBlobSidecars(slot phase0.Slot) ([]*local_spec.Agnosti
 	return agnosticBlobs, nil
 }
 
+// requestKZGCommitmentFromSignedBlock fetches a block from /eth/v2/beacon/blocks/
+// to match the KZG Commitments to the blobs given by the new blobs endpoint.
 func (s *APIClient) requestKZGCommitmentFromSignedBlock(slot phase0.Slot) ([]deneb.KZGCommitment, error) {
 	resp, err := s.Api.SignedBeaconBlock(s.ctx, &api.SignedBeaconBlockOpts{
 		Block: fmt.Sprintf("%d", slot),
