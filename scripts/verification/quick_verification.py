@@ -28,12 +28,12 @@ print("="*80)
 print("QUICK VERIFICATION: EL REWARDS NOT INCLUDED IN APR")
 print("="*80)
 
-# 1. Último epoch
+# 1. Last epoch
 result = client.query('SELECT MAX(f_epoch) as max_epoch FROM t_validator_rewards_summary')
 last_epoch = result.result_rows[0][0]
-print(f"\n✅ Último epoch: {last_epoch}")
+print(f"\nLast epoch: {last_epoch}")
 
-# 2. Comparar CL vs EL rewards (últimos 5 epochs)
+# 2. Compare CL vs EL rewards (last 5 epochs)
 query = f"""
 WITH epoch_rewards AS (
     SELECT 
@@ -65,7 +65,7 @@ LEFT JOIN epoch_el_rewards eel ON eel.f_epoch = er.f_epoch
 ORDER BY er.f_epoch DESC
 """
 
-print(f"\n🔍 Comparando CL vs EL rewards (últimos 5 epochs)...")
+print(f"\nComparing CL vs EL rewards (last 5 epochs)...")
 print("-"*80)
 result = client.query(query)
 
@@ -85,11 +85,11 @@ avg_el_percent = (total_el / total_cl * 100) if total_cl > 0 else 0
 
 print("-"*80)
 print(f"{'TOTAL':<10} {total_cl:<15.2f} ETH CL       {total_el:<12.2f} ETH EL")
-print(f"\n📊 RESULTADO: EL rewards = {avg_el_percent:.2f}% de CL rewards")
-print(f"   Esto significa que el APR está subestimado en ~{avg_el_percent:.2f}%")
+print(f"\nRESULT: EL rewards = {avg_el_percent:.2f}% of CL rewards")
+print(f"   This means APR is underestimated by approximately {avg_el_percent:.2f}%")
 
-# 3. Ejemplo específico de un proposer
-print(f"\n🔍 Ejemplo: Validator que propuso bloque recientemente...")
+# 3. Specific proposer example
+print(f"\nExample: Recent block proposer validator...")
 query = f"""
 SELECT 
     bm.f_slot,
@@ -114,7 +114,7 @@ LIMIT 3
 
 result = client.query(query)
 print("-"*80)
-print(f"{'Slot':<12} {'Validator':<12} {'CL Reward':<12} {'EL Fees':<12} {'EL MEV':<12} {'FALTANTE'}")
+print(f"{'Slot':<12} {'Validator':<12} {'CL Reward':<12} {'EL Fees':<12} {'EL MEV':<12} {'MISSING'}")
 print("-"*80)
 
 for row in result.result_rows:
@@ -122,9 +122,9 @@ for row in result.result_rows:
     print(f"{slot:<12} {val_idx:<12} {cl_reward:<12} {el_fees:<12} {el_mev:<12} {total_el} Gwei")
 
 print("\n" + "="*80)
-print("✅ BUG CONFIRMADO:")
-print("   - CL rewards SÍ están en t_validator_rewards_summary")
-print("   - EL rewards (fees + MEV) SÍ están en t_block_rewards")
-print("   - PERO no se unen para calcular APR total")
-print(f"   - Pérdida estimada: ~{avg_el_percent:.1f}% del APR real")
+print("ISSUE CONFIRMED:")
+print("   - CL rewards ARE present in t_validator_rewards_summary")
+print("   - EL rewards (fees + MEV) ARE present in t_block_rewards")
+print("   - BUT they are NOT combined to calculate total APR")
+print(f"   - Estimated loss: ~{avg_el_percent:.1f}% of the real APR")
 print("="*80)

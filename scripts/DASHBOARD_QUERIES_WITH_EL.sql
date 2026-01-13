@@ -1,16 +1,16 @@
 -- ============================================
--- QUERIES PARA DASHBOARDS CON EL REWARDS
+-- DASHBOARD QUERIES WITH EL REWARDS
 -- Database: goteth_mainnet
 -- ============================================
--- IMPORTANTE: Estas queries reemplazan las queries actuales del dashboard
--- que solo calculan APR con CL rewards. Incluyen EL rewards (fees + MEV)
+-- IMPORTANT: These queries replace current dashboard queries
+-- that only calculate APR with CL rewards. They include EL rewards (fees + MEV)
 -- ============================================
 
 -- ===========================================
--- QUERY 1: APR NETWORK-WIDE POR ÉPOCA
+-- QUERY 1: NETWORK-WIDE APR BY EPOCH
 -- ===========================================
--- Usar esta query para mostrar el APR de toda la red por época
--- Incluye CL rewards + EL rewards (fees + MEV)
+-- Use this query to display network-wide APR by epoch
+-- Includes CL rewards + EL rewards (fees + MEV)
 
 WITH epoch_aggregated AS (
     SELECT 
@@ -18,7 +18,7 @@ WITH epoch_aggregated AS (
         SUM(vr.f_effective_balance) as total_effective_balance_gwei,
         SUM(vr.f_reward) as total_cl_rewards_gwei,
         COUNT(DISTINCT vr.f_val_idx) as active_validators,
-        -- EL Rewards agregados por época
+        -- EL Rewards aggregated by epoch
         COALESCE(SUM(br.f_reward_fees / 1e9), 0) as total_el_fees_gwei,
         COALESCE(SUM(br.f_bid_commission / 1e9), 0) as total_el_mev_gwei
     FROM t_validator_rewards_summary vr
@@ -28,7 +28,7 @@ WITH epoch_aggregated AS (
     LEFT JOIN t_block_rewards br 
         ON br.f_slot = bm.f_slot
     WHERE vr.f_epoch >= (SELECT MAX(f_epoch) - 225 FROM t_validator_rewards_summary)
-      -- 225 epochs = ~30 días para dashboards en tiempo real
+      -- 225 epochs = ~30 days for real-time dashboards
     GROUP BY vr.f_epoch
 )
 SELECT 
@@ -36,25 +36,25 @@ SELECT
     active_validators,
     round(total_effective_balance_gwei / 1e9, 2) as total_staked_eth,
     
-    -- Rewards detallados
+    -- Detailed rewards
     round(total_cl_rewards_gwei / 1e9, 4) as total_cl_rewards_eth,
     round(total_el_fees_gwei / 1e9, 4) as total_el_fees_eth,
     round(total_el_mev_gwei / 1e9, 4) as total_el_mev_eth,
     round((total_cl_rewards_gwei + total_el_fees_gwei + total_el_mev_gwei) / 1e9, 4) as total_rewards_with_el_eth,
     
-    -- APR SIN EL (INCORRECTO - lo que tienen ahora)
+    -- APR WITHOUT EL (INCORRECT - current state)
     round(
         (total_cl_rewards_gwei / total_effective_balance_gwei) * 365.25 * 100,
         4
     ) as network_apr_cl_only_percent,
     
-    -- APR CON EL (CORRECTO - lo que deberían mostrar)
+    -- APR WITH EL (CORRECT - target state)
     round(
         ((total_cl_rewards_gwei + total_el_fees_gwei + total_el_mev_gwei) / total_effective_balance_gwei) * 365.25 * 100,
         4
     ) as network_apr_with_el_percent,
     
-    -- Contribución de EL al APR
+    -- EL contribution to APR
     round(
         ((total_el_fees_gwei + total_el_mev_gwei) / total_effective_balance_gwei) * 365.25 * 100,
         4
@@ -62,13 +62,13 @@ SELECT
     
 FROM epoch_aggregated
 ORDER BY f_epoch DESC
-LIMIT 30;  -- Últimos 30 epochs
+LIMIT 30;  -- Last 30 epochs
 
 
 -- ===========================================
--- QUERY 2: APR PROMEDIO RED (ÚLTIMOS 30 DÍAS)
+-- QUERY 2: AVERAGE NETWORK APR (LAST 30 DAYS)
 -- ===========================================
--- Query simple para mostrar un único valor de APR de la red
+-- Simple query to display a single network APR value
 
 WITH last_225_epochs AS (
     SELECT 
@@ -84,14 +84,14 @@ WITH last_225_epochs AS (
     WHERE vr.f_epoch >= (SELECT MAX(f_epoch) - 225 FROM t_validator_rewards_summary)
 )
 SELECT 
-    -- APR CORRECTO (con EL rewards)
+    -- CORRECT APR (with EL rewards)
     round(
         ((total_cl_rewards_gwei + total_el_fees_gwei + total_el_mev_gwei) / total_effective_balance_gwei) 
         * 365.25 * 100,
         2
     ) as network_apr_percent,
     
-    -- Desglose
+    -- Breakdown
     round((total_cl_rewards_gwei / total_effective_balance_gwei) * 365.25 * 100, 2) as cl_apr_percent,
     round(((total_el_fees_gwei + total_el_mev_gwei) / total_effective_balance_gwei) * 365.25 * 100, 2) as el_apr_percent
     
@@ -99,9 +99,9 @@ FROM last_225_epochs;
 
 
 -- ===========================================
--- QUERY 3: APR POR VALIDATOR (TOP 100)
+-- QUERY 3: APR PER VALIDATOR (TOP 100)
 -- ===========================================
--- Para mostrar APR de validators individuales
+-- To display individual validator APR
 
 WITH validator_epoch_data AS (
     SELECT 
@@ -120,7 +120,7 @@ WITH validator_epoch_data AS (
         ON br.f_slot = bm.f_slot
     WHERE vr.f_epoch >= (SELECT MAX(f_epoch) - 225 FROM t_validator_rewards_summary)
     GROUP BY vr.f_val_idx
-    HAVING epochs_count > 200  -- Mínimo 200 epochs para tener datos representativos
+    HAVING epochs_count > 200  -- Minimum 200 epochs for representative data
 )
 SELECT 
     f_val_idx as validator_index,
@@ -129,14 +129,14 @@ SELECT
     round((total_el_fees_gwei + total_el_mev_gwei) / 1e9, 4) as total_el_rewards_eth,
     round((total_cl_reward_gwei + total_el_fees_gwei + total_el_mev_gwei) / 1e9, 4) as total_rewards_eth,
     
-    -- APR CON EL (correcto)
+    -- APR WITH EL (correct)
     round(
         ((total_cl_reward_gwei + total_el_fees_gwei + total_el_mev_gwei) / avg_effective_balance_gwei) 
         * (365.25 / epochs_count) * 100,
         4
     ) as apr_with_el_percent,
     
-    -- Porcentaje de EL sobre total
+    -- EL percentage of total
     round(
         (total_el_fees_gwei + total_el_mev_gwei) / 
         (total_cl_reward_gwei + total_el_fees_gwei + total_el_mev_gwei) * 100,
@@ -149,9 +149,9 @@ LIMIT 100;
 
 
 -- ===========================================
--- QUERY 4: APR POR POOL (si tienen t_eth2_pubkeys)
+-- QUERY 4: APR PER POOL (if t_eth2_pubkeys exists)
 -- ===========================================
--- Para mostrar APR por pool de staking
+-- To display APR per staking pool
 
 WITH pool_epoch_data AS (
     SELECT 
@@ -178,14 +178,14 @@ SELECT
     f_pool_name as pool_name,
     round(avg_total_effective_balance_gwei / 1e9, 2) as avg_staked_eth,
     
-    -- APR CON EL (correcto)
+    -- APR WITH EL (correct)
     round(
         AVG((total_cl_rewards_gwei + total_el_fees_gwei + total_el_mev_gwei) / avg_total_effective_balance_gwei) 
         * 365.25 * 100,
         4
     ) as apr_with_el_percent,
     
-    -- Desglose CL vs EL
+    -- Breakdown CL vs EL
     round(AVG(total_cl_rewards_gwei / avg_total_effective_balance_gwei) * 365.25 * 100, 4) as cl_apr_percent,
     round(AVG((total_el_fees_gwei + total_el_mev_gwei) / avg_total_effective_balance_gwei) * 365.25 * 100, 4) as el_apr_percent,
     
@@ -200,10 +200,10 @@ LIMIT 50;
 
 
 -- ===========================================
--- QUERY 5: VALIDACIÓN - COMPARAR ANTES VS DESPUÉS
+-- QUERY 5: VALIDATION - COMPARE BEFORE VS AFTER
 -- ===========================================
--- Query para verificar que el cambio funciona correctamente
--- Muestra la diferencia entre APR actual (sin EL) vs APR corregido (con EL)
+-- Query to verify that the change works correctly
+-- Shows the difference between current APR (without EL) vs corrected APR (with EL)
 
 WITH network_apr AS (
     SELECT 
@@ -216,46 +216,46 @@ WITH network_apr AS (
     WHERE vr.f_epoch >= (SELECT MAX(f_epoch) - 225 FROM t_validator_rewards_summary)
 )
 SELECT 
-    'APR ACTUAL (solo CL)' as tipo,
+    'CURRENT APR (CL only)' as type,
     round((total_cl_gwei / total_balance_gwei) * 365.25 * 100, 4) as apr_percent
 FROM network_apr
 UNION ALL
 SELECT 
-    'APR CORREGIDO (CL + EL)' as tipo,
+    'CORRECTED APR (CL + EL)' as type,
     round(((total_cl_gwei + total_el_gwei) / total_balance_gwei) * 365.25 * 100, 4) as apr_percent
 FROM network_apr
 UNION ALL
 SELECT 
-    'DIFERENCIA' as tipo,
+    'DIFFERENCE' as type,
     round((total_el_gwei / total_balance_gwei) * 365.25 * 100, 4) as apr_percent
 FROM network_apr;
 
 
 -- ============================================
--- NOTAS DE IMPLEMENTACIÓN
+-- IMPLEMENTATION NOTES
 -- ============================================
 --
--- 1. CONVERSIÓN DE UNIDADES:
---    - CL rewards (f_reward): Ya están en Gwei
---    - EL fees (f_reward_fees): Están en Wei → dividir entre 1e9 para Gwei
---    - EL MEV (f_bid_commission): Están en Wei → dividir entre 1e9 para Gwei
+-- 1. UNIT CONVERSION:
+--    - CL rewards (f_reward): Already in Gwei
+--    - EL fees (f_reward_fees): In Wei, divide by 1e9 for Gwei
+--    - EL MEV (f_bid_commission): In Wei, divide by 1e9 for Gwei
 --
--- 2. FÓRMULA APR:
+-- 2. APR FORMULA:
 --    APR = (total_rewards / effective_balance) * (365.25 / epochs) * 100
 --
 -- 3. PERFORMANCE:
---    - Los JOINs son con LEFT JOIN para no perder validators que no propusieron
---    - Usar índices en f_epoch, f_slot, f_proposer_index si hay problemas de performance
+--    - JOINs use LEFT JOIN to avoid losing non-proposing validators
+--    - Use indexes on f_epoch, f_slot, f_proposer_index if performance issues occur
 --
--- 4. VALIDACIÓN:
---    - Ejecutar QUERY 5 para verificar que el APR aumenta correctamente (~3-4%)
---    - Si no aumenta, revisar conversión Wei→Gwei y los JOINs
+-- 4. VALIDATION:
+--    - Run QUERY 5 to verify APR increases correctly (~3-4%)
+--    - If no increase, check Wei to Gwei conversion and JOINs
 --
 -- 5. DASHBOARD:
---    - Query 1: Gráfico de APR por época (línea temporal)
---    - Query 2: Métrica única de APR actual de la red (número grande)
---    - Query 3: Tabla de top validators por APR
---    - Query 4: Tabla de pools por APR
---    - Query 5: Widget de validación mostrando antes/después
+--    - Query 1: APR by epoch chart (timeline)
+--    - Query 2: Single network APR metric (large number)
+--    - Query 3: Top validators by APR table
+--    - Query 4: Pools by APR table
+--    - Query 5: Validation widget showing before/after
 --
 -- ============================================

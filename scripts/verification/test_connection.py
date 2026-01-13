@@ -42,31 +42,31 @@ def test_connection():
         else:
             version = "Unknown"
         
-        print(f"✅ Conexión exitosa!")
-        print(f"   Versión Clickhouse: {version}")
+        print(f"Connection successful!")
+        print(f"   Clickhouse version: {version}")
         print()
         
-        # Test query simple
-        print("🔍 Ejecutando query de prueba...")
+        # Test query
+        print("Executing test query...")
         result = client.query('SELECT currentDatabase()')
         database = result.result_rows[0][0] if result and result.result_rows else "Unknown"
-        print(f"✅ Database actual: {database}")
+        print(f"Current database: {database}")
         print()
         
-        # Listar tablas
-        print("🔍 Listando tablas disponibles...")
+        # List tables
+        print("Listing available tables...")
         result = client.query('SHOW TABLES')
         tables = [row[0] for row in result.result_rows]
         
-        print(f"✅ Encontradas {len(tables)} tablas:")
+        print(f"Found {len(tables)} tables:")
         for table in tables[:10]:
             print(f"   - {table}")
         if len(tables) > 10:
-            print(f"   ... y {len(tables) - 10} más")
+            print(f"   ... and {len(tables) - 10} more")
         print()
         
-        # Verificar tablas críticas
-        print("🔍 Verificando tablas críticas para EL rewards...")
+        # Verify critical tables
+        print("Verifying critical tables for EL rewards...")
         critical_tables = [
             't_validator_rewards_summary',
             't_block_rewards', 
@@ -75,57 +75,57 @@ def test_connection():
         
         for table in critical_tables:
             if table in tables:
-                print(f"   ✅ {table}")
+                print(f"   [OK] {table}")
             else:
-                print(f"   ❌ {table} - NO ENCONTRADA")
+                print(f"   [MISSING] {table}")
         print()
         
         return True
             
     except Exception as e:
         import traceback
-        print(f"❌ Error detallado: {e}")
-        print(f"Tipo: {type(e).__name__}")
+        print(f"Detailed error: {e}")
+        print(f"Type: {type(e).__name__}")
         traceback.print_exc()
         
         error_msg = str(e).lower()
         if 'connection' in error_msg or 'refused' in error_msg:
-            print("❌ Error: No se pudo conectar a localhost:8123")
+            print("Error: Cannot connect to localhost:8123")
             print()
-            print("🔧 ¿Estableciste el túnel SSH?")
-            print("   Comando: ssh -L 8123:localhost:8123 zyrav21@57.129.148.45")
+            print("Did you establish the SSH tunnel?")
+            print("   Command: ssh -L 8123:localhost:8123 user@host")
             print()
-            print("   Luego ejecuta este script nuevamente.")
+            print("   Then run this script again.")
             return False
         else:
-            print(f"❌ Error inesperado: {e}")
+            print(f"Unexpected error: {e}")
             return False
 
 def main():
     print("="*80)
-    print("TEST DE CONEXION A CLICKHOUSE - Via SSH Tunnel")
+    print("CONNECTION TEST TO CLICKHOUSE - Via SSH Tunnel")
     print("="*80)
     
     if test_connection():
         print("="*80)
-        print("✅ CONEXIÓN EXITOSA")
+        print("CONNECTION SUCCESSFUL")
         print("="*80)
         print()
-        print("Puedes proceder con:")
-        print("  python verify_el_rewards_issue.py http://zyrav21@localhost:8123/default")
+        print("You can proceed with:")
+        print("  python verify_apr_calculation.py")
         print()
     else:
         print("="*80)
-        print("❌ CONEXIÓN FALLIDA")
+        print("CONNECTION FAILED")
         print("="*80)
         print()
-        print("Pasos para conectar:")
-        print("  1. Abre una terminal y ejecuta:")
-        print("     ssh -L 8123:localhost:8123 zyrav21@57.129.148.45")
+        print("Connection steps:")
+        print("  1. Open a terminal and run:")
+        print("     ssh -L 8123:localhost:8123 user@host")
         print()
-        print("  2. Deja esa terminal abierta (el túnel debe estar activo)")
+        print("  2. Keep that terminal open (tunnel must stay active)")
         print()
-        print("  3. En otra terminal ejecuta:")
+        print("  3. In another terminal run:")
         print("     python test_connection.py")
         print()
 
