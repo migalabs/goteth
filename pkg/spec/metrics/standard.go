@@ -29,7 +29,7 @@ type StateMetricsBase struct {
 }
 
 func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
-	consolidatedAmount, ok := p.CurrentState.ConsolidatedAmounts[valIdx]
+	consolidatedAmount, ok := p.NextState.ConsolidatedAmounts[valIdx]
 	if !ok {
 		consolidatedAmount = 0
 	}
