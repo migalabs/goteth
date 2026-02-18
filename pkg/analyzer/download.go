@@ -23,6 +23,7 @@ func (s *ChainAnalyzer) DownloadBlock(slot phase0.Slot) {
 	if err != nil {
 		log.Errorf("block error at slot %d: %s", slot, err)
 		s.stop = true
+		return
 	}
 	s.downloadCache.AddNewBlock(newBlock)
 	// check if the min Request time has been completed (to avoid spaming the API)
@@ -62,6 +63,7 @@ func (s *ChainAnalyzer) DownloadState(slot phase0.Slot) {
 	if err != nil {
 		log.Errorf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
 		s.stop = true
+		return
 	}
 
 	if err := s.downloadCache.AddNewState(s.ctx, state); err != nil {
