@@ -217,6 +217,7 @@ func (s *ChainAnalyzer) Run() {
 
 	s.wgMainRoutine.Wait()
 	s.stop = true
+	s.cancel()
 	log.Infof("main routine finished, waiting for downloader...")
 
 	s.wgDownload.Wait()
@@ -234,5 +235,6 @@ func (s *ChainAnalyzer) Run() {
 func (s *ChainAnalyzer) Close() {
 	log.Info("Sudden closed detected, closing StateAnalyzer")
 	s.stop = true
+	s.cancel()
 	<-s.routineClosed // Wait for services to stop before returning
 }

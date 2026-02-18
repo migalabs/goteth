@@ -23,6 +23,7 @@ func (s *ChainAnalyzer) DownloadBlock(slot phase0.Slot) {
 	if err != nil {
 		log.Errorf("block error at slot %d: %s", slot, err)
 		s.stop = true
+		s.cancel()
 		return
 	}
 	s.downloadCache.AddNewBlock(newBlock)
@@ -63,6 +64,7 @@ func (s *ChainAnalyzer) DownloadState(slot phase0.Slot) {
 	if err != nil {
 		log.Errorf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
 		s.stop = true
+		s.cancel()
 		return
 	}
 

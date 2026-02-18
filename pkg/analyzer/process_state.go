@@ -62,6 +62,8 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		s.processerBook.FreePage(routineKey)
 		log.Errorf("could not parse bundle metrics at epoch: %s", err)
 		s.stop = true
+		s.cancel()
+		return
 	}
 
 	// If prevState, currentState and nextState are filled, we can process proposer duties, epoch metrics and validator rewards
