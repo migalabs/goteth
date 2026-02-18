@@ -20,8 +20,13 @@ func (s *ChainAnalyzer) ProcessBlock(slot phase0.Slot) {
 	routineKey := fmt.Sprintf("%s%d", slotProcesserTag, slot)
 	s.processerBook.Acquire(routineKey) // register a new slot to process, good for monitoring
 
-	block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](slot))
-	err := s.dbClient.PersistBlocks([]spec.AgnosticBlock{*block})
+	block, err := s.downloadCache.BlockHistory.Wait(s.ctx, SlotTo[uint64](slot))
+	if err != nil {
+		s.processerBook.FreePage(routineKey)
+		log.Errorf("context cancelled waiting for block at slot %d: %s", slot, err)
+		return
+	}
+	err = s.dbClient.PersistBlocks([]spec.AgnosticBlock{*block})
 	if err != nil {
 		log.Errorf("error persisting blocks: %s", err.Error())
 	}

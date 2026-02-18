@@ -31,14 +31,31 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 	currentState := &spec.AgnosticState{}
 	nextState := &spec.AgnosticState{}
 
+	var err error
+
 	// this state may never be downloaded if it is below initSlot
 	if epoch >= 2 && epoch-2 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
-		prevState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch) - 2)
+		prevState, err = s.downloadCache.StateHistory.Wait(s.ctx, EpochTo[uint64](epoch)-2)
+		if err != nil {
+			s.processerBook.FreePage(routineKey)
+			log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch-2, err)
+			return
+		}
 	}
 	if epoch >= 1 && epoch-1 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
-		currentState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch) - 1)
+		currentState, err = s.downloadCache.StateHistory.Wait(s.ctx, EpochTo[uint64](epoch)-1)
+		if err != nil {
+			s.processerBook.FreePage(routineKey)
+			log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch-1, err)
+			return
+		}
 	}
-	nextState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))
+	nextState, err = s.downloadCache.StateHistory.Wait(s.ctx, EpochTo[uint64](epoch))
+	if err != nil {
+		s.processerBook.FreePage(routineKey)
+		log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch, err)
+		return
+	}
 
 	bundle, err := metrics.StateMetricsByForkVersion(nextState, currentState, prevState, s.cli.Api)
 	if err != nil {

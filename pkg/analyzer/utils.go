@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -96,17 +97,18 @@ func (m *AgnosticMap[T]) Set(key uint64, value *T) {
 	delete(m.subs, key)
 }
 
-func (m *AgnosticMap[T]) Wait(key uint64) *T {
+func (m *AgnosticMap[T]) Wait(ctx context.Context, key uint64) (*T, error) {
 	m.Lock()
 	// Unlock cannot be deferred so we can unblock Set() while waiting
 
 	value, ok := m.m[key]
 	if ok {
 		m.Unlock()
-		return value
+		return value, nil
 	}
 
 	ticker := time.NewTicker(dataWaitInterval)
+	defer ticker.Stop()
 
 	// if there is no value yet, subscribe to any new values for this key
 	ch := make(chan *T)
@@ -115,11 +117,14 @@ func (m *AgnosticMap[T]) Wait(key uint64) *T {
 
 	for {
 		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+
 		case <-ticker.C:
 			log.Warnf("Waiting for %T %d...", *new(T), key)
 
 		case item := <-ch:
-			return item
+			return item, nil
 		}
 	}
 }

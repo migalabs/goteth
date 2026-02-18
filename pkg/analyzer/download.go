@@ -64,7 +64,10 @@ func (s *ChainAnalyzer) DownloadState(slot phase0.Slot) {
 		s.stop = true
 	}
 
-	s.downloadCache.AddNewState(state)
+	if err := s.downloadCache.AddNewState(s.ctx, state); err != nil {
+		log.Errorf("context cancelled adding state at slot %d: %s", slot, err)
+		return
+	}
 }
 
 func (s *ChainAnalyzer) WaitForPrevState(slot phase0.Slot) {
