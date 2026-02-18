@@ -201,8 +201,13 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 			}
 		}
 
-		s.downloadTaskChan <- i
-		i += 1
+		select {
+		case s.downloadTaskChan <- i:
+			i += 1
+		case <-s.ctx.Done():
+			log.Info("context cancelled, stopping historical download")
+			return
+		}
 
 	}
 	log.Infof("historical mode: all download tasks sent")
