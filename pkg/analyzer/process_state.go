@@ -273,13 +273,6 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 			continue
 		}
 
-		if s.rewardsAggregationEpochs > 1 {
-			// if validator is not in s.validatorsRewardsAggregations, we need to create it
-			if _, ok := s.validatorsRewardsAggregations[valIdx]; !ok {
-				s.validatorsRewardsAggregations[valIdx] = spec.NewValidatorRewardsAggregation(valIdx, s.startEpochAggregation, s.endEpochAggregation)
-			}
-			s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
-		}
 		insertValsObj = append(insertValsObj, maxRewards)
 	}
 	if len(insertValsObj) > 0 { // persist everything
@@ -289,16 +282,30 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 		}
 	}
 
-	if s.rewardsAggregationEpochs > 1 && nextState.Epoch == s.endEpochAggregation {
-		if len(s.validatorsRewardsAggregations) > 0 {
-			err := s.dbClient.PersistValidatorRewardsAggregation(s.validatorsRewardsAggregations)
-			if err != nil {
-				log.Fatalf("error persisting validator rewards aggregation: %s", err.Error())
+	if s.rewardsAggregationEpochs > 1 {
+		s.validatorsRewardsAggregationsMu.Lock()
+
+		for _, maxRewards := range insertValsObj {
+			valIdx := maxRewards.ValidatorIndex
+			if _, ok := s.validatorsRewardsAggregations[valIdx]; !ok {
+				s.validatorsRewardsAggregations[valIdx] = spec.NewValidatorRewardsAggregation(valIdx, s.startEpochAggregation, s.endEpochAggregation)
 			}
+			s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
 		}
-		s.validatorsRewardsAggregations = make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation)
-		s.startEpochAggregation = s.endEpochAggregation + 1
-		s.endEpochAggregation = s.endEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs)
+
+		if nextState.Epoch == s.endEpochAggregation {
+			if len(s.validatorsRewardsAggregations) > 0 {
+				err := s.dbClient.PersistValidatorRewardsAggregation(s.validatorsRewardsAggregations)
+				if err != nil {
+					log.Fatalf("error persisting validator rewards aggregation: %s", err.Error())
+				}
+			}
+			s.validatorsRewardsAggregations = make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation)
+			s.startEpochAggregation = s.endEpochAggregation + 1
+			s.endEpochAggregation = s.endEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs)
+		}
+
+		s.validatorsRewardsAggregationsMu.Unlock()
 	}
 
 }
