@@ -84,7 +84,11 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 		customBlock.ExecutionPayload.PayloadSize = uint32(block.Size())
 	}
 
-	customBlock.StateRoot = s.RequestStateRoot(slot)
+	stateRoot, err := s.RequestStateRoot(slot)
+	if err != nil {
+		log.Errorf("could not get state root for block at slot %d: %s", slot, err)
+	}
+	customBlock.StateRoot = stateRoot
 
 	// optional depending on metrics
 	if s.Metrics.APIRewards {
@@ -148,9 +152,14 @@ func (s *APIClient) CreateMissingBlock(slot phase0.Slot) *local_spec.AgnosticBlo
 		}
 	}
 
+	stateRoot, err := s.RequestStateRoot(slot)
+	if err != nil {
+		log.Warnf("could not get state root for missing block at slot %d: %s", slot, err)
+	}
+
 	return &local_spec.AgnosticBlock{
 		Slot:                slot,
-		StateRoot:           s.RequestStateRoot(slot),
+		StateRoot:           stateRoot,
 		ProposerIndex:       proposerValIdx,
 		Graffiti:            [32]byte{},
 		Proposed:            false,
