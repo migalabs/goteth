@@ -25,9 +25,6 @@ downloadRoutine:
 		select {
 
 		case downloadSlot := <-s.downloadTaskChan: // wait for new head event
-			if s.stop {
-				break downloadRoutine
-			}
 			log.Tracef("received new download signal: %d", downloadSlot)
 
 			go s.DownloadBlockCotrolled(phase0.Slot(downloadSlot))
