@@ -292,8 +292,8 @@ func (p AltairMetrics) GetMaxReward(valIdx phase0.ValidatorIndex) (spec.Validato
 	baseReward := p.GetBaseReward(valIdx, nextState.Validators[valIdx].EffectiveBalance, nextState.TotalActiveBalance)
 
 	attestationIncluded := false
-	if int(valIdx) < len(prevState.ValidatorAttestationIncluded) {
-		attestationIncluded = prevState.ValidatorAttestationIncluded[valIdx]
+	if int(valIdx) < len(currentState.ValidatorAttestationIncluded) {
+		attestationIncluded = currentState.ValidatorAttestationIncluded[valIdx]
 	}
 
 	result := spec.ValidatorRewards{
