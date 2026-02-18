@@ -186,23 +186,25 @@ func (s *ChainAnalyzer) processPoolMetrics(epoch phase0.Epoch) {
 
 func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
 
-	missedBlocks := bundle.GetMetricsBase().NextState.MissedBlocks
+	nextState := bundle.GetMetricsBase().NextState
+
+	// Build a map of slot → proposed from the actual blocks in the cache.
+	// This correctly handles both missed blocks (Proposed=false from
+	// CreateMissingBlock) and orphaned blocks that were reorged out,
+	// unlike MissedBlocks which only detects slots with no block proposed.
+	proposedBySlot := make(map[phase0.Slot]bool)
+	for _, block := range nextState.Blocks {
+		proposedBySlot[block.Slot] = block.Proposed
+	}
 
 	var duties []spec.ProposerDuty
 
-	for _, item := range bundle.GetMetricsBase().NextState.EpochStructs.ProposerDuties {
-
-		newDuty := spec.ProposerDuty{
+	for _, item := range nextState.EpochStructs.ProposerDuties {
+		duties = append(duties, spec.ProposerDuty{
 			ValIdx:       item.ValidatorIndex,
 			ProposerSlot: item.Slot,
-			Proposed:     true,
-		}
-		for _, item := range missedBlocks {
-			if newDuty.ProposerSlot == item { // we found the proposer slot in the missed blocks
-				newDuty.Proposed = false
-			}
-		}
-		duties = append(duties, newDuty)
+			Proposed:     proposedBySlot[item.Slot],
+		})
 	}
 
 	err := s.dbClient.PersistDuties(duties)
