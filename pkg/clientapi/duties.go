@@ -15,22 +15,24 @@ func (s *APIClient) NewEpochData(slot phase0.Slot) spec.EpochDuties {
 	})
 
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf("could not get beacon committees at slot %d: %s", slot, err)
 	}
 
 	validatorsAttSlot := make(map[phase0.ValidatorIndex]phase0.Slot) // each validator, when it had to attest
 	validatorsPerSlot := make(map[phase0.Slot][]phase0.ValidatorIndex)
 
-	for _, committee := range epochCommittees.Data {
-		for _, valID := range committee.Validators {
-			validatorsAttSlot[valID] = committee.Slot
+	if epochCommittees != nil {
+		for _, committee := range epochCommittees.Data {
+			for _, valID := range committee.Validators {
+				validatorsAttSlot[valID] = committee.Slot
 
-			if val, ok := validatorsPerSlot[committee.Slot]; ok {
-				// the slot exists in the map
-				validatorsPerSlot[committee.Slot] = append(val, valID)
-			} else {
-				// the slot does not exist, create
-				validatorsPerSlot[committee.Slot] = []phase0.ValidatorIndex{valID}
+				if val, ok := validatorsPerSlot[committee.Slot]; ok {
+					// the slot exists in the map
+					validatorsPerSlot[committee.Slot] = append(val, valID)
+				} else {
+					// the slot does not exist, create
+					validatorsPerSlot[committee.Slot] = []phase0.ValidatorIndex{valID}
+				}
 			}
 		}
 	}
@@ -40,12 +42,18 @@ func (s *APIClient) NewEpochData(slot phase0.Slot) spec.EpochDuties {
 	})
 
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf("could not get proposer duties at slot %d: %s", slot, err)
 	}
 
-	return spec.EpochDuties{
-		ProposerDuties:   proposerDuties.Data,
-		BeaconCommittees: epochCommittees.Data,
+	result := spec.EpochDuties{
 		ValidatorAttSlot: validatorsAttSlot,
 	}
+	if proposerDuties != nil {
+		result.ProposerDuties = proposerDuties.Data
+	}
+	if epochCommittees != nil {
+		result.BeaconCommittees = epochCommittees.Data
+	}
+
+	return result
 }
