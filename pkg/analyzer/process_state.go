@@ -293,7 +293,9 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 			s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
 		}
 
-		if nextState.Epoch == s.endEpochAggregation {
+		s.aggregatedEpochsInWindow++
+
+		if s.aggregatedEpochsInWindow >= s.rewardsAggregationEpochs {
 			if len(s.validatorsRewardsAggregations) > 0 {
 				err := s.dbClient.PersistValidatorRewardsAggregation(s.validatorsRewardsAggregations)
 				if err != nil {
@@ -303,6 +305,7 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 			s.validatorsRewardsAggregations = make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation)
 			s.startEpochAggregation = s.endEpochAggregation + 1
 			s.endEpochAggregation = s.endEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs)
+			s.aggregatedEpochsInWindow = 0
 		}
 
 		s.validatorsRewardsAggregationsMu.Unlock()
