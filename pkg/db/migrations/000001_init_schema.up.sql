@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS t_epoch_metrics_summary(
 CREATE TABLE IF NOT EXISTS t_pool_summary(
 	f_pool_name TEXT,
 	f_epoch UInt64,
-	aggregated_rewards Int64,
+	aggregated_rewards UInt64,
 	aggregated_max_rewards UInt64,
 	count_sync_committee UInt64,
 	count_missing_source UInt64,
