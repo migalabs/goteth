@@ -70,40 +70,47 @@ func (s *APIClient) requestBeaconStateWithID(slot phase0.Slot, stateID string, k
 	if knownRoot != zeroRoot {
 		resultState.StateRoot = knownRoot
 	} else {
-		resultState.StateRoot = s.RequestStateRoot(slot)
+		stateRoot, err := s.RequestStateRoot(slot)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get state root at slot %d: %w", slot, err)
+		}
+		resultState.StateRoot = stateRoot
 	}
 
 	return &resultState, nil
 }
 
-func (s *APIClient) RequestStateRoot(slot phase0.Slot) phase0.Root {
+func (s *APIClient) RequestStateRoot(slot phase0.Slot) (phase0.Root, error) {
 
 	root, err := s.Api.BeaconStateRoot(s.ctx, &api.BeaconStateRootOpts{
 		State: fmt.Sprintf("%d", slot),
 	})
 	if err != nil {
-		log.Panicf("could not download the state root at %d: %s", slot, err)
+		return phase0.Root{}, fmt.Errorf("could not download the state root at %d: %w", slot, err)
 	}
 
-	return *root.Data
+	return *root.Data, nil
 }
 
 // Finalized Checkpoints happen at the beginning of an epoch
 // This method returns the finalized slot at the end of an epoch
 // Usually, it is the slot before the finalized one
-func (s *APIClient) GetFinalizedEndSlotStateRoot() (phase0.Slot, phase0.Root) {
+func (s *APIClient) GetFinalizedEndSlotStateRoot() (phase0.Slot, phase0.Root, error) {
 
 	currentFinalized, err := s.Api.Finality(s.ctx, &api.FinalityOpts{
 		State: "head",
 	})
 
 	if err != nil {
-		log.Panicf("could not determine the current finalized checkpoint")
+		return 0, phase0.Root{}, fmt.Errorf("could not determine the current finalized checkpoint: %w", err)
 	}
 
 	finalizedSlot := phase0.Slot(currentFinalized.Data.Finalized.Epoch*local_spec.SlotsPerEpoch - 1)
 
-	root := s.RequestStateRoot(finalizedSlot)
+	root, err := s.RequestStateRoot(finalizedSlot)
+	if err != nil {
+		return 0, phase0.Root{}, fmt.Errorf("could not get finalized state root: %w", err)
+	}
 
-	return finalizedSlot, root
+	return finalizedSlot, root, nil
 }
