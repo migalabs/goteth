@@ -219,10 +219,10 @@ func (s *ChainAnalyzer) Run() {
 
 	s.wgMainRoutine.Wait()
 	s.stop = true
-	s.cancel()
 	log.Infof("main routine finished, waiting for downloader...")
 
 	s.wgDownload.Wait()
+	s.cancel()
 
 	log.Infof("downloader finished, waiting for db client...")
 
