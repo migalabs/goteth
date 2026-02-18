@@ -28,7 +28,11 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 			log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch, err)
 			return
 		}
-		finalizedStateRoot := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
+		finalizedStateRoot, err := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
+		if err != nil {
+			log.Errorf("could not get state root at slot %d: %s", cacheState.Slot, err)
+			continue
+		}
 		cacheStateRoot := cacheState.StateRoot
 
 		if finalizedStateRoot != cacheStateRoot { // no match, reorg happened
