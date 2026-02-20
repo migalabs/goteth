@@ -117,6 +117,7 @@ func (p *AgnosticState) Setup() error {
 	p.ConsolidationsProcessed = make([]ConsolidationProcessed, 0)
 	p.NewExitingValidators = make([]phase0.ValidatorIndex, 0)
 	p.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.ConsolidatedOutAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.DepositedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	return nil
 }
