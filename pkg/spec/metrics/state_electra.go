@@ -653,6 +653,7 @@ func (p ElectraMetrics) processConsolidationsForRewardCalculation(currentState *
 
 		sourceEffectiveBalance := min(currentState.Balances[pendingConsolidation.SourceIndex], sourceValidator.EffectiveBalance)
 		currentState.ConsolidatedAmounts[pendingConsolidation.TargetIndex] += sourceEffectiveBalance
+		currentState.ConsolidatedOutAmounts[pendingConsolidation.SourceIndex] += sourceEffectiveBalance
 	}
 }
 
