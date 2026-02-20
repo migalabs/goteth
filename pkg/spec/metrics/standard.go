@@ -54,6 +54,7 @@ func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
 		reward += int64(p.NextState.Withdrawals[valIdx])
 		reward -= int64(depositedAmount)
 		reward -= int64(consolidatedAmount)
+		reward += int64(consolidatedOutAmount)
 		return reward
 	}
 
