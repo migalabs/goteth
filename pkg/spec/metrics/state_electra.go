@@ -657,6 +657,39 @@ func (p ElectraMetrics) processConsolidationsForRewardCalculation(currentState *
 	}
 }
 
+// processExcessActiveBalanceRestructuring detects validators that switched from ETH1 (0x01)
+// to compounding (0x02) withdrawal credentials during block processing. When this happens,
+// the spec's switch_to_compounding_validator calls queue_excess_active_balance, which:
+//   - Reduces balance by excess (balance - MIN_ACTIVATION_BALANCE)
+//   - Creates a PendingDeposit(slot=0, amount=excess)
+//
+// The PendingDeposit is appended at the END of the queue, so it's almost never processed
+// in the same epoch transition (MAX_PENDING_DEPOSITS_PER_EPOCH=16, queue is typically large).
+// This means NextState.Balance reflects the decrease but NOT the re-deposit, causing
+// EpochReward to report a large negative reward equal to the excess.
+//
+// We compensate by adding the excess to ConsolidatedOutAmounts, which EpochReward adds back.
+// The corresponding slot=0 deposit will be subtracted at a later epoch when it's processed.
+// See: https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-queue_excess_active_balance
+func (p ElectraMetrics) processExcessActiveBalanceRestructuring(currentState *spec.AgnosticState, nextState *spec.AgnosticState) {
+	if currentState == nil || nextState == nil {
+		return
+	}
+
+	minLen := min(len(currentState.Validators), len(nextState.Validators))
+	for i := 0; i < minLen; i++ {
+		// Detect switch-to-compounding: withdrawal credentials changed from 0x01 to 0x02
+		if currentState.Validators[i].WithdrawalCredentials[0] == spec.Eth1AddressWithdrawalPrefix &&
+			nextState.Validators[i].WithdrawalCredentials[0] == spec.CompoundingWithdrawalPrefix {
+			valIdx := phase0.ValidatorIndex(i)
+			if currentState.Balances[valIdx] > phase0.Gwei(spec.MinActivationBalance) {
+				excess := currentState.Balances[valIdx] - phase0.Gwei(spec.MinActivationBalance)
+				currentState.ConsolidatedOutAmounts[valIdx] += excess
+			}
+		}
+	}
+}
+
 // processDepositsForRewardCalculation replays the spec's process_pending_deposits
 // on currentState to identify deposits processed at the CurrentState→NextState boundary.
 // These affect NextState.Balances and must be subtracted from reward.
