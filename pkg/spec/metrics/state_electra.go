@@ -51,7 +51,8 @@ func (p *ElectraMetrics) PreProcessBundle() {
 		p.baseMetrics.CurrentState.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 		p.baseMetrics.CurrentState.ConsolidatedOutAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 		p.baseMetrics.CurrentState.DepositedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
-		// Process consolidations and deposits that affect NextState.Balances
+		// Process balance-affecting operations that happen during epoch transition
+		p.processExcessActiveBalanceRestructuring(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
 		p.processConsolidationsForRewardCalculation(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
 		p.processDepositsForRewardCalculation(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
 		p.processPendingConsolidations(p.baseMetrics.NextState)
