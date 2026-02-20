@@ -766,12 +766,7 @@ func (p ElectraMetrics) processDepositsForRewardCalculation(currentState *spec.A
 
 			// Deposit will be applied (increases validator balance).
 			// Skip internal deposits (slot == GENESIS_SLOT == 0) from queue_excess_active_balance.
-			// These represent balance restructuring within the same epoch transition
-			// (balance decreased by queue_excess_active_balance, then increased back by
-			// process_pending_deposits), so they cancel out and should NOT be subtracted.
-			if deposit.Slot > 0 {
-				currentState.DepositedAmounts[validatorIdx] += deposit.Amount
-			}
+			currentState.DepositedAmounts[validatorIdx] += deposit.Amount
 		} else {
 			// New validator (pubkey not in current state): deposit creates a new validator.
 			// No existing balance to adjust, but still consumes churn.
