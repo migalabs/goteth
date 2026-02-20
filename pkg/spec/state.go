@@ -58,7 +58,8 @@ type AgnosticState struct {
 	ConsolidationsProcessed       []ConsolidationProcessed
 	ConsolidationsProcessedAmount phase0.Gwei                           // total amount of Gwei consolidated
 	NewExitingValidators          []phase0.ValidatorIndex               // list of validators that are exiting due to consolidation/withdrawal requests, used for tracking errors of a validator trying to consolidate/withdraw twice on same epoch.
-	ConsolidatedAmounts           map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to consolidated amount
+	ConsolidatedAmounts           map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to consolidated amount (target receives)
+	ConsolidatedOutAmounts        map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to outgoing consolidated amount (source sends)
 	PendingDeposits               []*electra.PendingDeposit
 	DepositsProcessed             []Deposit
 	DepositedAmounts              map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to deposited amount (used for Electra Fork)
