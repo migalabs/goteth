@@ -49,6 +49,7 @@ func (p *ElectraMetrics) PreProcessBundle() {
 		p.processPendingDeposits()
 		// FIX: Clear state maps before processing (state objects are reused between iterations)
 		p.baseMetrics.CurrentState.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
+		p.baseMetrics.CurrentState.ConsolidatedOutAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 		p.baseMetrics.CurrentState.DepositedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 		// Process consolidations and deposits that affect NextState.Balances
 		p.processConsolidationsForRewardCalculation(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
