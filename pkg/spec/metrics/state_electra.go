@@ -620,23 +620,27 @@ func (p ElectraMetrics) processPendingConsolidations(s *spec.AgnosticState) {
 	}
 }
 
-// processConsolidationsForRewardCalculation identifies consolidations processed at the START
-// of nextState's epoch. These affect nextState.Balances and must be subtracted from reward.
+// processConsolidationsForRewardCalculation replays the spec's process_pending_consolidations
+// on currentState to identify consolidations processed at the CurrentState→NextState boundary.
+// These affect NextState.Balances and must be subtracted from reward.
+//
+// Previous approach used numProcessed = len(currentState.PC) - len(nextState.PC), but this
+// is unreliable because blocks can add new PendingConsolidation entries during the epoch,
+// making the queue length difference != the number of consumed entries. This caused:
+// - Missed consolidations (numProcessed ≤ 0) → inflated rewards
+// - Over-counted consolidations (numProcessed too large) → negative rewards
+//
+// The correct approach is to replay the spec logic directly: iterate currentState.PendingConsolidations,
+// skip slashed sources, break on non-withdrawable sources, and accumulate consolidated amounts.
 // See: https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_pending_consolidations
 func (p ElectraMetrics) processConsolidationsForRewardCalculation(currentState *spec.AgnosticState, nextState *spec.AgnosticState) {
-	if currentState == nil || nextState == nil {
-		return
-	}
-
-	numProcessed := len(currentState.PendingConsolidations) - len(nextState.PendingConsolidations)
-	if numProcessed <= 0 {
+	if currentState == nil {
 		return
 	}
 
 	nextEpoch := currentState.Epoch + 1
 
-	for i := 0; i < numProcessed && i < len(currentState.PendingConsolidations); i++ {
-		pendingConsolidation := currentState.PendingConsolidations[i]
+	for _, pendingConsolidation := range currentState.PendingConsolidations {
 		sourceValidator := currentState.Validators[pendingConsolidation.SourceIndex]
 
 		if sourceValidator.Slashed {
