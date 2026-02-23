@@ -130,6 +130,21 @@ func (p *AgnosticState) AddBlocks(blockList []*AgnosticBlock) {
 	p.CalculateSyncParticipation()
 }
 
+// RefreshBlocks replaces the state's block list and recalculates all derived
+// fields. Unlike AddBlocks, it resets the accumulators first so that calling
+// it on a state whose blocks were already set does not double-count values.
+// This is needed after chain reorganisations where block objects in the cache
+// have been replaced but states still hold pointers to the old blocks.
+func (p *AgnosticState) RefreshBlocks(blockList []*AgnosticBlock) {
+	p.WithdrawalsNum = 0
+	p.TotalWithdrawalsAmount = 0
+	p.DepositsNum = 0
+	p.TotalDepositsAmount = 0
+	p.NumAttestations = 0
+	p.SyncCommitteeParticipation = 0
+	p.AddBlocks(blockList)
+}
+
 func (p *AgnosticState) CalculateSyncParticipation() {
 	for _, block := range p.Blocks {
 		p.SyncCommitteeParticipation += block.SyncAggregate.SyncCommitteeBits.Count()
