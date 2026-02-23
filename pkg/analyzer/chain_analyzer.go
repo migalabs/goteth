@@ -51,8 +51,10 @@ type ChainAnalyzer struct {
 	metrics                  db.DBMetrics       // what metrics to be downloaded / processed
 	processerBook            *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
 
-	downloadCache                 ChainCache // store the blocks and states downloaded
-	validatorsRewardsAggregations map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation
+	downloadCache                    ChainCache // store the blocks and states downloaded
+	validatorsRewardsAggregations   map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation
+	validatorsRewardsAggregationsMu sync.Mutex
+	aggregatedEpochsInWindow        int // tracks how many epochs have been aggregated in the current window
 	epochBoundaryStateRoots       sync.Map   // slot -> phase0.Root, caches state roots from Head SSE events at epoch boundaries
 
 	initTime    time.Time
@@ -220,6 +222,7 @@ func (s *ChainAnalyzer) Run() {
 	log.Infof("main routine finished, waiting for downloader...")
 
 	s.wgDownload.Wait()
+	s.cancel()
 
 	log.Infof("downloader finished, waiting for db client...")
 
@@ -234,5 +237,6 @@ func (s *ChainAnalyzer) Run() {
 func (s *ChainAnalyzer) Close() {
 	log.Info("Sudden closed detected, closing StateAnalyzer")
 	s.stop = true
+	s.cancel()
 	<-s.routineClosed // Wait for services to stop before returning
 }

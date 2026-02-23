@@ -23,6 +23,8 @@ func (s *ChainAnalyzer) DownloadBlock(slot phase0.Slot) {
 	if err != nil {
 		log.Errorf("block error at slot %d: %s", slot, err)
 		s.stop = true
+		s.cancel()
+		return
 	}
 	s.downloadCache.AddNewBlock(newBlock)
 	// check if the min Request time has been completed (to avoid spaming the API)
@@ -62,9 +64,14 @@ func (s *ChainAnalyzer) DownloadState(slot phase0.Slot) {
 	if err != nil {
 		log.Errorf("unable to retrieve beacon state from the beacon node, closing requester routine. %s", err.Error())
 		s.stop = true
+		s.cancel()
+		return
 	}
 
-	s.downloadCache.AddNewState(state)
+	if err := s.downloadCache.AddNewState(s.ctx, state); err != nil {
+		log.Errorf("context cancelled adding state at slot %d: %s", slot, err)
+		return
+	}
 }
 
 func (s *ChainAnalyzer) WaitForPrevState(slot phase0.Slot) {
@@ -84,18 +91,24 @@ func (s *ChainAnalyzer) WaitForPrevState(slot phase0.Slot) {
 	// also check that prevstate was supposed to be downloaded
 	if (!prevStateAvailable || prevStateProcessing) && prevStateSlot >= s.initSlot {
 		ticker := time.NewTicker(4 * time.Second) // average max time for a state to be downloaded
+		defer ticker.Stop()
 	stateWaitLoop:
-		for range ticker.C {
-			if slot%spec.SlotsPerEpoch == 0 { // only print for first slot of epoch
-				log.Debugf("slot %d waiting for state at slot %d (epoch %d) to be downloaded or processed...", slot, prevStateSlot, prevStateEpoch)
-			}
+		for {
+			select {
+			case <-s.ctx.Done():
+				log.Infof("context cancelled while waiting for prev state at slot %d", slot)
+				return
+			case <-ticker.C:
+				if slot%spec.SlotsPerEpoch == 0 { // only print for first slot of epoch
+					log.Debugf("slot %d waiting for state at slot %d (epoch %d) to be downloaded or processed...", slot, prevStateSlot, prevStateEpoch)
+				}
 
-			prevStateAvailable = s.downloadCache.StateHistory.Available(uint64(prevStateEpoch))
-			prevStateProcessing = s.processerBook.CheckPageActive(fmt.Sprintf("%s%d", epochProcesserTag, prevStateEpoch))
-			if prevStateAvailable && !prevStateProcessing {
-				// it was available in the queue and processed
-				ticker.Stop()
-				break stateWaitLoop
+				prevStateAvailable = s.downloadCache.StateHistory.Available(uint64(prevStateEpoch))
+				prevStateProcessing = s.processerBook.CheckPageActive(fmt.Sprintf("%s%d", epochProcesserTag, prevStateEpoch))
+				if prevStateAvailable && !prevStateProcessing {
+					// it was available in the queue and processed
+					break stateWaitLoop
+				}
 			}
 		}
 	}

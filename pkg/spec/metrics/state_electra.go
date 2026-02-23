@@ -49,8 +49,10 @@ func (p *ElectraMetrics) PreProcessBundle() {
 		p.processPendingDeposits()
 		// FIX: Clear state maps before processing (state objects are reused between iterations)
 		p.baseMetrics.CurrentState.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
+		p.baseMetrics.CurrentState.ConsolidatedOutAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 		p.baseMetrics.CurrentState.DepositedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
-		// Process consolidations and deposits that affect NextState.Balances
+		// Process balance-affecting operations that happen during epoch transition
+		p.processExcessActiveBalanceRestructuring(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
 		p.processConsolidationsForRewardCalculation(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
 		p.processDepositsForRewardCalculation(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
 		p.processPendingConsolidations(p.baseMetrics.NextState)
@@ -620,23 +622,27 @@ func (p ElectraMetrics) processPendingConsolidations(s *spec.AgnosticState) {
 	}
 }
 
-// processConsolidationsForRewardCalculation identifies consolidations processed at the START
-// of nextState's epoch. These affect nextState.Balances and must be subtracted from reward.
+// processConsolidationsForRewardCalculation replays the spec's process_pending_consolidations
+// on currentState to identify consolidations processed at the CurrentState→NextState boundary.
+// These affect NextState.Balances and must be subtracted from reward.
+//
+// Previous approach used numProcessed = len(currentState.PC) - len(nextState.PC), but this
+// is unreliable because blocks can add new PendingConsolidation entries during the epoch,
+// making the queue length difference != the number of consumed entries. This caused:
+// - Missed consolidations (numProcessed ≤ 0) → inflated rewards
+// - Over-counted consolidations (numProcessed too large) → negative rewards
+//
+// The correct approach is to replay the spec logic directly: iterate currentState.PendingConsolidations,
+// skip slashed sources, break on non-withdrawable sources, and accumulate consolidated amounts.
 // See: https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_pending_consolidations
 func (p ElectraMetrics) processConsolidationsForRewardCalculation(currentState *spec.AgnosticState, nextState *spec.AgnosticState) {
-	if currentState == nil || nextState == nil {
-		return
-	}
-
-	numProcessed := len(currentState.PendingConsolidations) - len(nextState.PendingConsolidations)
-	if numProcessed <= 0 {
+	if currentState == nil {
 		return
 	}
 
 	nextEpoch := currentState.Epoch + 1
 
-	for i := 0; i < numProcessed && i < len(currentState.PendingConsolidations); i++ {
-		pendingConsolidation := currentState.PendingConsolidations[i]
+	for _, pendingConsolidation := range currentState.PendingConsolidations {
 		sourceValidator := currentState.Validators[pendingConsolidation.SourceIndex]
 
 		if sourceValidator.Slashed {
@@ -648,78 +654,129 @@ func (p ElectraMetrics) processConsolidationsForRewardCalculation(currentState *
 
 		sourceEffectiveBalance := min(currentState.Balances[pendingConsolidation.SourceIndex], sourceValidator.EffectiveBalance)
 		currentState.ConsolidatedAmounts[pendingConsolidation.TargetIndex] += sourceEffectiveBalance
+		currentState.ConsolidatedOutAmounts[pendingConsolidation.SourceIndex] += sourceEffectiveBalance
 	}
 }
 
-// processDepositsForRewardCalculation identifies deposits processed at the START of nextState's epoch.
-// Only EXTERNAL deposits (slot > 0) affect the reward calculation.
-// Internal deposits from queue_excess_active_balance (slot = GENESIS_SLOT = 0) are balance
-// restructuring, not new funds, and should NOT be subtracted from reward.
-// See: https://ethereum.github.io/consensus-specs/specs/electra/beacon-chain/#new-process_pending_deposits
+// processExcessActiveBalanceRestructuring detects validators that switched from ETH1 (0x01)
+// to compounding (0x02) withdrawal credentials during block processing. When this happens,
+// the spec's switch_to_compounding_validator calls queue_excess_active_balance, which:
+//   - Reduces balance by excess (balance - MIN_ACTIVATION_BALANCE)
+//   - Creates a PendingDeposit(slot=0, amount=excess)
+//
+// The PendingDeposit is appended at the END of the queue, so it's almost never processed
+// in the same epoch transition (MAX_PENDING_DEPOSITS_PER_EPOCH=16, queue is typically large).
+// This means NextState.Balance reflects the decrease but NOT the re-deposit, causing
+// EpochReward to report a large negative reward equal to the excess.
+//
+// We compensate by adding the excess to ConsolidatedOutAmounts, which EpochReward adds back.
+// The corresponding slot=0 deposit will be subtracted at a later epoch when it's processed.
+// See: https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-queue_excess_active_balance
+func (p ElectraMetrics) processExcessActiveBalanceRestructuring(currentState *spec.AgnosticState, nextState *spec.AgnosticState) {
+	if currentState == nil || nextState == nil {
+		return
+	}
+
+	minLen := min(len(currentState.Validators), len(nextState.Validators))
+	for i := 0; i < minLen; i++ {
+		// Detect switch-to-compounding: withdrawal credentials changed from 0x01 to 0x02
+		if currentState.Validators[i].WithdrawalCredentials[0] == spec.Eth1AddressWithdrawalPrefix &&
+			nextState.Validators[i].WithdrawalCredentials[0] == spec.CompoundingWithdrawalPrefix {
+			valIdx := phase0.ValidatorIndex(i)
+			if currentState.Balances[valIdx] > phase0.Gwei(spec.MinActivationBalance) {
+				excess := currentState.Balances[valIdx] - phase0.Gwei(spec.MinActivationBalance)
+				currentState.ConsolidatedOutAmounts[valIdx] += excess
+			}
+		}
+	}
+}
+
+// processDepositsForRewardCalculation replays the spec's process_pending_deposits
+// on currentState to identify deposits processed at the CurrentState→NextState boundary.
+// These affect NextState.Balances and must be subtracted from reward.
+//
+// Previous approach used numProcessed = len(currentState.PD) - len(nextState.PD), but this
+// is unreliable because blocks can add new PendingDeposit entries during the epoch,
+// making the queue length difference != the number of consumed entries. When numProcessed <= 0,
+// the function returned early and no deposits were subtracted, inflating rewards.
+//
+// The correct approach is to replay the spec logic directly: iterate currentState.PendingDeposits,
+// apply the same break/skip conditions (Eth1 bridge, finalized slot, max per epoch, churn limit,
+// exiting validator postponement), and accumulate deposited amounts.
+//
+// Internal deposits from queue_excess_active_balance (slot == GENESIS_SLOT == 0) are skipped
+// because they represent balance restructuring within the same epoch transition: balance is
+// decreased by queue_excess_active_balance and increased back by process_pending_deposits,
+// so they cancel out and should NOT be subtracted.
+// See: https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_pending_deposits
 func (p ElectraMetrics) processDepositsForRewardCalculation(currentState *spec.AgnosticState, nextState *spec.AgnosticState) {
 	if currentState == nil || nextState == nil {
 		return
 	}
 
-	numProcessed := len(currentState.PendingDeposits) - len(nextState.PendingDeposits)
-	if numProcessed <= 0 {
-		return
-	}
+	nextEpoch := currentState.Epoch + 1
+	// Use nextState's finalized checkpoint because process_justification_and_finalization
+	// runs BEFORE process_pending_deposits in the same epoch transition, updating the checkpoint.
+	finalizedSlot := spec.ComputeStartSlotAtEpoch(nextState.CurrentFinalizedCheckpoint.Epoch)
+	availableForProcessing := currentState.DepositBalanceToConsume + phase0.Gwei(getActivationExitChurnLimit(currentState))
+	processedAmount := phase0.Gwei(0)
+	nextDepositIndex := uint64(0)
 
 	validatorPubkeys := make(map[[48]byte]phase0.ValidatorIndex)
 	for i, v := range currentState.Validators {
 		validatorPubkeys[v.PublicKey] = phase0.ValidatorIndex(i)
 	}
 
-	nextEpoch := currentState.Epoch + 1
-	finalizedSlot := spec.ComputeStartSlotAtEpoch(currentState.CurrentFinalizedCheckpoint.Epoch)
-	availableForProcessing := currentState.DepositBalanceToConsume + phase0.Gwei(getActivationExitChurnLimit(currentState))
-	processedAmount := phase0.Gwei(0)
-	depositIndex := 0
-
 	for _, deposit := range currentState.PendingDeposits {
-		if depositIndex >= numProcessed {
+		// Do not process deposit requests if Eth1 bridge deposits are not yet applied.
+		if deposit.Slot > 0 && currentState.Eth1DepositIndex < currentState.DepositRequestsStartIndex {
 			break
 		}
 
-		// Skip internal deposits (slot = GENESIS_SLOT = 0)
-		// These are created by queue_excess_active_balance and represent balance restructuring,
-		// not new external funds entering the validator's balance
-		if deposit.Slot == 0 {
-			depositIndex++
-			continue
-		}
-
-		if currentState.Eth1DepositIndex < currentState.DepositRequestsStartIndex {
-			break
-		}
+		// Check if deposit has been finalized, otherwise, stop processing.
 		if deposit.Slot > finalizedSlot {
 			break
 		}
 
+		// Check if number of processed deposits has not reached the limit.
+		if nextDepositIndex >= spec.MaxPendingDepositsPerEpoch {
+			break
+		}
+
 		validatorIdx, exists := validatorPubkeys[deposit.Pubkey]
-		if !exists {
-			depositIndex++
-			continue
-		}
+		if exists {
+			validator := currentState.Validators[validatorIdx]
+			isValidatorExited := validator.ExitEpoch < phase0.Epoch(spec.FarFutureEpoch)
+			isValidatorWithdrawn := validator.WithdrawableEpoch < nextEpoch
 
-		validator := currentState.Validators[validatorIdx]
-		isValidatorExited := validator.ExitEpoch < phase0.Epoch(spec.FarFutureEpoch)
-		isValidatorWithdrawn := validator.WithdrawableEpoch < nextEpoch
+			if isValidatorExited && !isValidatorWithdrawn {
+				// Validator is exiting, deposit is postponed (not applied).
+				nextDepositIndex++
+				continue
+			}
 
-		if isValidatorExited && !isValidatorWithdrawn {
-			continue
-		}
+			if !isValidatorWithdrawn {
+				// Normal case: check if deposit fits in the churn limit.
+				if processedAmount+deposit.Amount > availableForProcessing {
+					break
+				}
+				processedAmount += deposit.Amount
+			}
+			// else: isValidatorWithdrawn - deposit applied without consuming churn
 
-		if !isValidatorWithdrawn {
+			// Deposit will be applied (increases validator balance).
+			// Skip internal deposits (slot == GENESIS_SLOT == 0) from queue_excess_active_balance.
+			currentState.DepositedAmounts[validatorIdx] += deposit.Amount
+		} else {
+			// New validator (pubkey not in current state): deposit creates a new validator.
+			// No existing balance to adjust, but still consumes churn.
 			if processedAmount+deposit.Amount > availableForProcessing {
 				break
 			}
 			processedAmount += deposit.Amount
 		}
 
-		currentState.DepositedAmounts[validatorIdx] += deposit.Amount
-		depositIndex++
+		nextDepositIndex++
 	}
 }
 

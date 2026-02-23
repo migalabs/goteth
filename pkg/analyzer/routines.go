@@ -50,7 +50,10 @@ func (s *ChainAnalyzer) runHead() {
 	log.Info("launching head routine")
 	nextSlotDownload := s.fillToHead()
 
-	s.downloadCache.BlockHistory.Wait(SlotTo[uint64](nextSlotDownload))
+	if _, err := s.downloadCache.BlockHistory.Wait(s.ctx, SlotTo[uint64](nextSlotDownload)); err != nil {
+		log.Errorf("context cancelled waiting for block at slot %d: %s", nextSlotDownload, err)
+		return
+	}
 	// do not continue until fill is done
 
 	log.Infof("Switch to head mode: following chain head")
@@ -195,8 +198,13 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 			}
 		}
 
-		s.downloadTaskChan <- i
-		i += 1
+		select {
+		case s.downloadTaskChan <- i:
+			i += 1
+		case <-s.ctx.Done():
+			log.Info("context cancelled, stopping historical download")
+			return
+		}
 
 	}
 	log.Infof("historical mode: all download tasks sent")

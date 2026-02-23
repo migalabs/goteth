@@ -30,9 +30,15 @@ type StateMetricsBase struct {
 
 func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
 	// Consolidations processed at START of NextState's epoch (affecting NextState.Balances)
+	// ConsolidatedAmounts: amount received as consolidation TARGET (balance increased)
 	consolidatedAmount, ok := p.CurrentState.ConsolidatedAmounts[valIdx]
 	if !ok {
 		consolidatedAmount = 0
+	}
+	// ConsolidatedOutAmounts: amount sent as consolidation SOURCE (balance decreased)
+	consolidatedOutAmount, ok := p.CurrentState.ConsolidatedOutAmounts[valIdx]
+	if !ok {
+		consolidatedOutAmount = 0
 	}
 
 	// After electra, we have deposits in depositedAmounts since the logic of deposits changed
@@ -48,6 +54,7 @@ func (p StateMetricsBase) EpochReward(valIdx phase0.ValidatorIndex) int64 {
 		reward += int64(p.NextState.Withdrawals[valIdx])
 		reward -= int64(depositedAmount)
 		reward -= int64(consolidatedAmount)
+		reward += int64(consolidatedOutAmount)
 		return reward
 	}
 

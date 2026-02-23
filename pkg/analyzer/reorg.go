@@ -23,8 +23,16 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		advance = true // only set flag if there is something to do
 
 		// Retrieve stored root and redownload root once finalized
-		cacheState := s.downloadCache.StateHistory.Wait(epoch)
-		finalizedStateRoot := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
+		cacheState, err := s.downloadCache.StateHistory.Wait(s.ctx, epoch)
+		if err != nil {
+			log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch, err)
+			return
+		}
+		finalizedStateRoot, err := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
+		if err != nil {
+			log.Errorf("could not get state root at slot %d: %s", cacheState.Slot, err)
+			continue
+		}
 		cacheStateRoot := cacheState.StateRoot
 
 		if finalizedStateRoot != cacheStateRoot { // no match, reorg happened
@@ -41,7 +49,11 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		for slot := (epoch * spec.SlotsPerEpoch); slot < ((epoch + 1) * spec.SlotsPerEpoch); slot++ {
 
 			// Retrieve stored root and redownload root once finalized
-			cacheBlock := s.downloadCache.BlockHistory.Wait(slot)
+			cacheBlock, err := s.downloadCache.BlockHistory.Wait(s.ctx, slot)
+			if err != nil {
+				log.Errorf("context cancelled waiting for block at slot %d: %s", slot, err)
+				return
+			}
 			finalizedBlockRoot := s.cli.RequestBlockRoot(phase0.Slot(cacheBlock.Slot))
 			cacheBlockRoot := cacheBlock.Root
 
@@ -76,7 +88,11 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 
 	for reorgedSlots <= depth { // for every slot in the reorg
 
-		block := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i)) // first check that it was already in the cache
+		block, err := s.downloadCache.BlockHistory.Wait(s.ctx, SlotTo[uint64](i)) // first check that it was already in the cache
+		if err != nil {
+			log.Errorf("context cancelled waiting for block at slot %d: %s", i, err)
+			return
+		}
 		if i < reorgSlot && block.Proposed {
 			reorgedSlots += 1 // only count as reorged slot if there was a block porposed and we are not at the reorg slot
 		}
@@ -84,7 +100,11 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 		oldBlock := *block
 
 		s.DownloadBlock(i) // -> inserts into the queue and replaces old block
-		newBlock := s.downloadCache.BlockHistory.Wait(SlotTo[uint64](i))
+		newBlock, err := s.downloadCache.BlockHistory.Wait(s.ctx, SlotTo[uint64](i))
+		if err != nil {
+			log.Errorf("context cancelled waiting for block at slot %d: %s", i, err)
+			return
+		}
 
 		if newBlock.Root != oldBlock.Root { // only rewrite if stateroots are different
 			if block.Proposed { // keep orphans -> if previous block was proposed and roots have changed
@@ -101,11 +121,19 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 		if (i+1)%spec.SlotsPerEpoch == 0 { // then we are at the end of the epoch, rewrite state
 			epoch := phase0.Epoch(i / spec.SlotsPerEpoch)
 
-			state := s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))           // first check that it was already in the cache
+			state, err := s.downloadCache.StateHistory.Wait(s.ctx, EpochTo[uint64](epoch)) // first check that it was already in the cache
+			if err != nil {
+				log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch, err)
+				return
+			}
 			s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", epochProcesserTag, i)) // wait until has been processed
 			oldState := *state
 			s.DownloadState(i) // -> inserts into the queue and replaces old block
-			newState := s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))
+			newState, err := s.downloadCache.StateHistory.Wait(s.ctx, EpochTo[uint64](epoch))
+			if err != nil {
+				log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch, err)
+				return
+			}
 
 			if newState.StateRoot != oldState.StateRoot {
 				s.dbClient.DeleteStateMetrics(epoch)

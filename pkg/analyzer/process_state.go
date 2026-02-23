@@ -31,20 +31,39 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 	currentState := &spec.AgnosticState{}
 	nextState := &spec.AgnosticState{}
 
+	var err error
+
 	// this state may never be downloaded if it is below initSlot
 	if epoch >= 2 && epoch-2 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
-		prevState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch) - 2)
+		prevState, err = s.downloadCache.StateHistory.Wait(s.ctx, EpochTo[uint64](epoch)-2)
+		if err != nil {
+			s.processerBook.FreePage(routineKey)
+			log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch-2, err)
+			return
+		}
 	}
 	if epoch >= 1 && epoch-1 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
-		currentState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch) - 1)
+		currentState, err = s.downloadCache.StateHistory.Wait(s.ctx, EpochTo[uint64](epoch)-1)
+		if err != nil {
+			s.processerBook.FreePage(routineKey)
+			log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch-1, err)
+			return
+		}
 	}
-	nextState = s.downloadCache.StateHistory.Wait(EpochTo[uint64](epoch))
+	nextState, err = s.downloadCache.StateHistory.Wait(s.ctx, EpochTo[uint64](epoch))
+	if err != nil {
+		s.processerBook.FreePage(routineKey)
+		log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch, err)
+		return
+	}
 
 	bundle, err := metrics.StateMetricsByForkVersion(nextState, currentState, prevState, s.cli.Api)
 	if err != nil {
 		s.processerBook.FreePage(routineKey)
 		log.Errorf("could not parse bundle metrics at epoch: %s", err)
 		s.stop = true
+		s.cancel()
+		return
 	}
 
 	// If prevState, currentState and nextState are filled, we can process proposer duties, epoch metrics and validator rewards
@@ -167,23 +186,25 @@ func (s *ChainAnalyzer) processPoolMetrics(epoch phase0.Epoch) {
 
 func (s *ChainAnalyzer) processEpochDuties(bundle metrics.StateMetrics) {
 
-	missedBlocks := bundle.GetMetricsBase().NextState.MissedBlocks
+	nextState := bundle.GetMetricsBase().NextState
+
+	// Build a map of slot → proposed from the actual blocks in the cache.
+	// This correctly handles both missed blocks (Proposed=false from
+	// CreateMissingBlock) and orphaned blocks that were reorged out,
+	// unlike MissedBlocks which only detects slots with no block proposed.
+	proposedBySlot := make(map[phase0.Slot]bool)
+	for _, block := range nextState.Blocks {
+		proposedBySlot[block.Slot] = block.Proposed
+	}
 
 	var duties []spec.ProposerDuty
 
-	for _, item := range bundle.GetMetricsBase().NextState.EpochStructs.ProposerDuties {
-
-		newDuty := spec.ProposerDuty{
+	for _, item := range nextState.EpochStructs.ProposerDuties {
+		duties = append(duties, spec.ProposerDuty{
 			ValIdx:       item.ValidatorIndex,
 			ProposerSlot: item.Slot,
-			Proposed:     true,
-		}
-		for _, item := range missedBlocks {
-			if newDuty.ProposerSlot == item { // we found the proposer slot in the missed blocks
-				newDuty.Proposed = false
-			}
-		}
-		duties = append(duties, newDuty)
+			Proposed:     proposedBySlot[item.Slot],
+		})
 	}
 
 	err := s.dbClient.PersistDuties(duties)
@@ -254,13 +275,6 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 			continue
 		}
 
-		if s.rewardsAggregationEpochs > 1 {
-			// if validator is not in s.validatorsRewardsAggregations, we need to create it
-			if _, ok := s.validatorsRewardsAggregations[valIdx]; !ok {
-				s.validatorsRewardsAggregations[valIdx] = spec.NewValidatorRewardsAggregation(valIdx, s.startEpochAggregation, s.endEpochAggregation)
-			}
-			s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
-		}
 		insertValsObj = append(insertValsObj, maxRewards)
 	}
 	if len(insertValsObj) > 0 { // persist everything
@@ -270,16 +284,33 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 		}
 	}
 
-	if s.rewardsAggregationEpochs > 1 && nextState.Epoch == s.endEpochAggregation {
-		if len(s.validatorsRewardsAggregations) > 0 {
-			err := s.dbClient.PersistValidatorRewardsAggregation(s.validatorsRewardsAggregations)
-			if err != nil {
-				log.Fatalf("error persisting validator rewards aggregation: %s", err.Error())
+	if s.rewardsAggregationEpochs > 1 {
+		s.validatorsRewardsAggregationsMu.Lock()
+
+		for _, maxRewards := range insertValsObj {
+			valIdx := maxRewards.ValidatorIndex
+			if _, ok := s.validatorsRewardsAggregations[valIdx]; !ok {
+				s.validatorsRewardsAggregations[valIdx] = spec.NewValidatorRewardsAggregation(valIdx, s.startEpochAggregation, s.endEpochAggregation)
 			}
+			s.validatorsRewardsAggregations[valIdx].Aggregate(maxRewards)
 		}
-		s.validatorsRewardsAggregations = make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation)
-		s.startEpochAggregation = s.endEpochAggregation + 1
-		s.endEpochAggregation = s.endEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs)
+
+		s.aggregatedEpochsInWindow++
+
+		if s.aggregatedEpochsInWindow >= s.rewardsAggregationEpochs {
+			if len(s.validatorsRewardsAggregations) > 0 {
+				err := s.dbClient.PersistValidatorRewardsAggregation(s.validatorsRewardsAggregations)
+				if err != nil {
+					log.Fatalf("error persisting validator rewards aggregation: %s", err.Error())
+				}
+			}
+			s.validatorsRewardsAggregations = make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation)
+			s.startEpochAggregation = s.endEpochAggregation + 1
+			s.endEpochAggregation = s.endEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs)
+			s.aggregatedEpochsInWindow = 0
+		}
+
+		s.validatorsRewardsAggregationsMu.Unlock()
 	}
 
 }
