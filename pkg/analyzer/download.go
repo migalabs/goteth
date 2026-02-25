@@ -78,6 +78,10 @@ func (s *ChainAnalyzer) WaitForPrevState(slot phase0.Slot) {
 	// check if state two epochs before is available
 	// the idea is that blocks are too fast to download, wait for states as well
 
+	if !s.metrics.Epoch {
+		return // no states downloaded when epoch metrics are disabled
+	}
+
 	if slot < spec.SlotsPerEpoch*2 {
 		return
 	}
