@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"fmt"
+	"sort"
 
 	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -14,7 +15,13 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 	stateKeys := s.downloadCache.StateHistory.GetKeyList()
 
+	// Sort keys so we process epochs in ascending order. This guarantees
+	// that when we reach epoch E, we already know whether blocks in
+	// earlier epochs (E-1, E-2) changed and can propagate reprocessing.
+	sort.Slice(stateKeys, func(i, j int) bool { return stateKeys[i] < stateKeys[j] })
+
 	advance := false
+	epochsWithChangedBlocks := make(map[uint64]bool)
 
 	for _, epoch := range stateKeys {
 		if epoch >= uint64(finalizedEpoch) {
@@ -22,33 +29,13 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		}
 		advance = true // only set flag if there is something to do
 
-		// Retrieve stored root and redownload root once finalized
-		cacheState, err := s.downloadCache.StateHistory.Wait(s.ctx, epoch)
-		if err != nil {
-			log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch, err)
-			return
-		}
-		finalizedStateRoot, err := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
-		if err != nil {
-			log.Errorf("could not get state root at slot %d: %s", cacheState.Slot, err)
-			continue
-		}
-		cacheStateRoot := cacheState.StateRoot
-
-		if finalizedStateRoot != cacheStateRoot { // no match, reorg happened
-			log.Warnf("cache state root: %s\nfinalized block root: %s", cacheStateRoot, finalizedStateRoot)
-			log.Warnf("state root for state (slot=%d) incorrect, redownload", cacheState.Slot)
-
-			s.dbClient.DeleteStateMetrics(phase0.Epoch(epoch))
-			log.Infof("rewriting metrics for epoch %d", epoch)
-			// write epoch metrics
-			s.ProcessStateTransitionMetrics(phase0.Epoch(epoch))
-		}
-
-		// loop over slots in the epoch
+		// --- Step 1: verify block roots FIRST ---
+		// Blocks must be checked before state metrics are (re)processed,
+		// because state processing reads block data (e.g. isFlagPossible
+		// uses prevState.Blocks to decide the head attester reward).
+		blocksChanged := false
 		for slot := (epoch * spec.SlotsPerEpoch); slot < ((epoch + 1) * spec.SlotsPerEpoch); slot++ {
 
-			// Retrieve stored root and redownload root once finalized
 			cacheBlock, err := s.downloadCache.BlockHistory.Wait(s.ctx, slot)
 			if err != nil {
 				log.Errorf("context cancelled waiting for block at slot %d: %s", slot, err)
@@ -63,9 +50,59 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 				s.dbClient.DeleteBlockMetrics(phase0.Slot(slot))
 				log.Infof("rewriting metrics for slot %d", slot)
-				// write slot metrics
 				s.ProcessBlock(phase0.Slot(slot))
+				blocksChanged = true
 			}
+		}
+
+		if blocksChanged {
+			epochsWithChangedBlocks[epoch] = true
+			// Refresh the state's Blocks array so it points to the newly
+			// downloaded block objects instead of the stale pre-reorg ones.
+			if err := s.downloadCache.RefreshStateBlocks(s.ctx, epoch); err != nil {
+				log.Errorf("failed to refresh state blocks for epoch %d: %s", epoch, err)
+			}
+		}
+
+		// --- Step 2: verify state root ---
+		cacheState, err := s.downloadCache.StateHistory.Wait(s.ctx, epoch)
+		if err != nil {
+			log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch, err)
+			return
+		}
+		finalizedStateRoot, err := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
+		if err != nil {
+			log.Errorf("could not get state root at slot %d: %s", cacheState.Slot, err)
+			continue
+		}
+
+		stateRootChanged := finalizedStateRoot != cacheState.StateRoot
+
+		// Determine if state metrics need reprocessing.
+		// ProcessStateTransitionMetrics(E) uses three states:
+		//   prevState  (E-2) — validator rewards via isFlagPossible
+		//   currentState (E-1) — block rewards
+		//   nextState  (E)   — proposer duties, epoch metrics
+		// If blocks changed in any of those epochs, the derived metrics
+		// for epoch E are stale and must be recomputed.
+		needsReprocess := stateRootChanged || blocksChanged
+		if epoch >= 1 && epochsWithChangedBlocks[epoch-1] {
+			needsReprocess = true
+		}
+		if epoch >= 2 && epochsWithChangedBlocks[epoch-2] {
+			needsReprocess = true
+		}
+
+		if needsReprocess {
+			if stateRootChanged {
+				log.Warnf("cache state root: %s\nfinalized state root: %s", cacheState.StateRoot, finalizedStateRoot)
+				log.Warnf("state root for state (slot=%d) incorrect", cacheState.Slot)
+			}
+			s.dbClient.DeleteStateMetrics(phase0.Epoch(epoch))
+			log.Infof("rewriting metrics for epoch %d (stateRootChanged=%t, blocksChanged=%t, dep=%t)",
+				epoch, stateRootChanged, blocksChanged,
+				(epoch >= 1 && epochsWithChangedBlocks[epoch-1]) || (epoch >= 2 && epochsWithChangedBlocks[epoch-2]))
+			s.ProcessStateTransitionMetrics(phase0.Epoch(epoch))
 		}
 	}
 
@@ -73,7 +110,6 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 	if advance {
 		log.Infof("checked states until slot %d, epoch %d", newFinalizedSlot, newFinalizedSlot/spec.SlotsPerEpoch)
-
 	}
 }
 
