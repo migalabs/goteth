@@ -74,7 +74,7 @@ func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 		f_gas_price.Append(uint64(transaction.GasPrice))
 		f_gas_tip_cap.Append(uint64(transaction.GasTipCap))
 		f_gas_fee_cap.Append(uint64(transaction.GasFeeCap))
-		f_value.Append(float32(transaction.Value))
+		f_value.Append(transaction.Value.String())
 		f_nonce.Append(transaction.Nonce)
 		// to sometimes is empty or nil
 		tx := ""
