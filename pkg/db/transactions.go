@@ -49,7 +49,7 @@ func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 		f_gas_price        proto.ColUInt64
 		f_gas_tip_cap      proto.ColUInt64
 		f_gas_fee_cap      proto.ColUInt64
-		f_value            proto.ColFloat32
+		f_value            proto.ColStr
 		f_nonce            proto.ColUInt64
 		f_to               proto.ColStr
 		f_hash             proto.ColStr
