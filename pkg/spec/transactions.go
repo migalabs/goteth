@@ -128,7 +128,7 @@ func ParseTransactionFromReceipt(
 		GasPrice:        gasPrice,
 		GasTipCap:       parsedTx.GasTipCap().Uint64(),
 		GasFeeCap:       parsedTx.GasFeeCap().Uint64(),
-		Value:           parsedTx.Value().Uint64(),
+		Value:           new(big.Int).Set(parsedTx.Value()),
 		Nonce:           parsedTx.Nonce(),
 		To:              parsedTx.To(),
 		From:            from,
