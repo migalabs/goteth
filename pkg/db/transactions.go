@@ -49,7 +49,7 @@ func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 		f_gas_price        proto.ColUInt64
 		f_gas_tip_cap      proto.ColUInt64
 		f_gas_fee_cap      proto.ColUInt64
-		f_value            proto.ColFloat32
+		f_value            proto.ColStr
 		f_nonce            proto.ColUInt64
 		f_to               proto.ColStr
 		f_hash             proto.ColStr
@@ -74,7 +74,7 @@ func transactionsInput(transactions []spec.AgnosticTransaction) proto.Input {
 		f_gas_price.Append(uint64(transaction.GasPrice))
 		f_gas_tip_cap.Append(uint64(transaction.GasTipCap))
 		f_gas_fee_cap.Append(uint64(transaction.GasFeeCap))
-		f_value.Append(float32(transaction.Value))
+		f_value.Append(transaction.Value.String())
 		f_nonce.Append(transaction.Nonce)
 		// to sometimes is empty or nil
 		tx := ""
