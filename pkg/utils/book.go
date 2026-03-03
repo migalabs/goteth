@@ -43,11 +43,16 @@ func (r *RoutineBook) Init() {
 func (r *RoutineBook) Acquire(key string) {
 
 	ticker := time.NewTicker(AcquireWaitIntervalLog)
-	select {
-	case <-ticker.C:
-		log.WithField("bookTag", r.bookTag).Warnf("Waiting for too long to acquire page %s...", key)
-	case <-r.freeSpaceChan:
-		r.Set(key, "active")
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			log.WithField("bookTag", r.bookTag).Warnf("Waiting for too long to acquire page %s...", key)
+		case <-r.freeSpaceChan:
+			r.Set(key, "active")
+			return
+		}
 	}
 }
 
