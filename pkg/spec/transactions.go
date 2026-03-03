@@ -24,7 +24,7 @@ type AgnosticTransaction struct {
 	GasPrice        uint64          // the gas price of the transaction
 	GasTipCap       uint64          // the tip cap per gas of the transaction
 	GasFeeCap       uint64          // the fee cap per gas of the transaction
-	Value           uint64          // the ether amount of the transaction.
+	Value           *big.Int        // the ether amount of the transaction in wei.
 	Nonce           uint64          // the sender account nonce of the transaction
 	To              *common.Address // transaction recipient's address
 	From            common.Address  // transaction sender's address
