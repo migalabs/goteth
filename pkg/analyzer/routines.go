@@ -81,7 +81,9 @@ func (s *ChainAnalyzer) runHead() {
 			// avoiding a race condition in Lighthouse v8.1.0+ where the Head event is
 			// emitted before canonical_head is updated.
 			lastSlotOfEpoch := (event.HeadEvent.Slot/spec.SlotsPerEpoch+1)*spec.SlotsPerEpoch - 1
-			s.setEpochBoundaryStateRoot(lastSlotOfEpoch, event.HeadEvent.State)
+			if event.HeadEvent.Slot == lastSlotOfEpoch {
+				s.setEpochBoundaryStateRoot(lastSlotOfEpoch, event.HeadEvent.State)
+			}
 
 			for nextSlotDownload <= event.HeadEvent.Slot {
 
