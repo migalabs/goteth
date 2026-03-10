@@ -33,7 +33,7 @@ func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
 		ctx:                 iCtx,
 		cli:                 iCli,
 		SubscribedHead:      false,
-		HeadChan:            make(chan db.HeadEvent),
+		HeadChan:            make(chan db.HeadEvent, 32),
 		SubscribedFinalized: false,
 		FinalizedChan:       make(chan apiv1.FinalizedCheckpointEvent),
 		ReorgChan:           make(chan apiv1.ChainReorgEvent),
