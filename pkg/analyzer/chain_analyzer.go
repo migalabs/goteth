@@ -54,7 +54,7 @@ type ChainAnalyzer struct {
 	downloadCache                    ChainCache // store the blocks and states downloaded
 	validatorsRewardsAggregations   map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation
 	validatorsRewardsAggregationsMu sync.Mutex
-	aggregatedEpochsInWindow        int // tracks how many epochs have been aggregated in the current window
+	aggregatedEpochsInWindow        map[phase0.Epoch]bool // set of unique epochs aggregated in current window; prevents double-counting on reprocessing (#255)
 	epochBoundaryStateRoots       sync.Map   // slot -> phase0.Root, caches state roots from Head SSE events at epoch boundaries
 
 	initTime    time.Time
@@ -177,6 +177,7 @@ func NewChainAnalyzer(
 		PromMetrics:                   promethMetrics,
 		downloadCache:                 NewQueue(),
 		validatorsRewardsAggregations: make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation),
+		aggregatedEpochsInWindow:      make(map[phase0.Epoch]bool),
 		processerBook:                 utils.NewRoutineBook(32, "processer"), // one whole epoch
 		wgMainRoutine:                 &sync.WaitGroup{},
 		wgDownload:                    &sync.WaitGroup{},
