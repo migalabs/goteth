@@ -37,6 +37,12 @@ var ValidatorWindowCommand = &cli.Command{
 			EnvVars:     []string{"NUM_EPOCHS"},
 			DefaultText: "100",
 		},
+		&cli.IntFlag{
+			Name:        "delete-cadence-epochs",
+			Usage:       "Batch retention deletes: only run DELETE FROM t_validator_rewards_summary once every N epochs. Reduces ClickHouse mutation pressure on networks with many validators. Set to 1 to delete on every finalized checkpoint (legacy behaviour).",
+			EnvVars:     []string{"DELETE_CADENCE_EPOCHS"},
+			DefaultText: "32",
+		},
 		&cli.StringFlag{
 			Name:        "bn-endpoint",
 			Usage:       "Beacon node endpoint (to request the Beacon States and Blocks)",
