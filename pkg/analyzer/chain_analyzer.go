@@ -54,6 +54,7 @@ type ChainAnalyzer struct {
 	downloadCache                    ChainCache // store the blocks and states downloaded
 	validatorsRewardsAggregations   map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation
 	validatorsRewardsAggregationsMu sync.Mutex
+	advanceFinalizedMu              sync.Mutex // serializes AdvanceFinalized so concurrent invocations cannot race CleanUpTo against in-flight Wait()s
 	aggregatedEpochsInWindow        map[phase0.Epoch]bool // set of unique epochs aggregated in current window; prevents double-counting on reprocessing (#255)
 	epochBoundaryStateRoots       sync.Map   // slot -> phase0.Root, caches state roots from Head SSE events at epoch boundaries
 
