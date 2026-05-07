@@ -38,8 +38,7 @@ being closed.
 
 ## Before You Start
 
-1. Read [CLAUDE.md](./CLAUDE.md) and the [README](./README.md). They cover the build,
-   the three-state sliding window mental model, the rewards pipeline, and the recurring
+1. Read [README](./README.md). They cover the build, the three-state sliding window mental model, the rewards pipeline, and the recurring
    gotchas — most "is this a bug?" questions are answered there.
 2. Search [existing issues](https://github.com/migalabs/goteth/issues) and
    [pull requests](https://github.com/migalabs/goteth/pulls) (open and closed) for
