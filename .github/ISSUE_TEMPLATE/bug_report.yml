@@ -1,0 +1,132 @@
+name: Bug report
+description: Report incorrect indexer behavior, wrong persisted data, crashes, or performance regressions.
+title: "[bug] <short summary>"
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill every section.
+        Reports missing reproduction steps, version, or expected vs. actual behavior
+        will be asked for the missing information before any investigation starts.
+
+        Before filing, please:
+        - Read the [Recurring gotchas](https://github.com/migalabs/goteth/blob/master/CLAUDE.md#6-recurring-gotchas) section.
+        - Search [existing issues](https://github.com/migalabs/goteth/issues?q=is%3Aissue) for prior discussion.
+        - For data-quality bugs against `t_validator_rewards_summary`, follow the checklist in `CLAUDE.md` §6.2.
+
+  - type: input
+    id: version
+    attributes:
+      label: GotEth version / commit SHA
+      description: Output of `goteth --version`, or the SHA the binary was built from.
+      placeholder: "v3.8.1 (commit b06f617)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network
+      options:
+        - mainnet
+        - holesky
+        - sepolia
+        - hoodi
+        - gnosis
+        - fusaka-devnet
+        - other (specify in environment)
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        ClickHouse version, beacon node implementation and version, execution-layer
+        client (if wired), MEV relays enabled, Docker vs. bare-metal, OS.
+      placeholder: |
+        - ClickHouse: 24.8.4
+        - Beacon node: Lighthouse 5.3.0
+        - Execution: Geth 1.14.7 (wired via --el-endpoint)
+        - Docker: yes (docker compose up goteth)
+        - OS: Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Configuration
+      description: |
+        Relevant CLI flags and env vars. **Redact secrets** (DB passwords, endpoint tokens).
+        Specifically include `--metrics`, `--init-slot`, `--final-slot`, `--workers-num`,
+        `--rewards-aggregation-epochs`, and the run mode (`historical` / `finalized`).
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: |
+        Minimal steps an outsider can run end-to-end. Include the epoch range, validator
+        index, or block slot if the bug is data-specific.
+      placeholder: |
+        1. Run `goteth blocks --bn-endpoint ... --metrics rewards --init-slot 9_500_000 --final-slot 9_510_000`
+        2. Wait for ingest to complete.
+        3. `SELECT f_val_idx, f_epoch, f_reward, f_max_reward FROM t_validator_rewards_summary WHERE f_val_idx = 2170445 AND f_epoch BETWEEN 421000 AND 421100;`
+        4. Observe `f_reward` values that exceed `f_max_reward` for the listed validator.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you thought should happen, with a link to the consensus spec or doc passage if applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: |
+        Logs (with timestamps), database query results, dashboard screenshots, Prometheus
+        metrics — whatever shows the discrepancy.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope of impact
+      description: How many rows / validators / epochs / networks are affected.
+      placeholder: "≈ 1.2M rows on mainnet, validators in the range 2,150,000–2,200,000, epochs 421000–425000."
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Mitigation already applied or considered
+      description: |
+        Workarounds you have already tried (re-indexing, val-window adjustments, querying
+        the beacon node directly). Helps the reviewer skip suggestions you ruled out.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I have read the recurring gotchas in `CLAUDE.md` §6.
+          required: true
+        - label: I have searched existing issues and PRs.
+          required: true
+        - label: My GotEth binary was built after 2026-02-20 (post-Electra consolidation rework) — or I have already retested on `master`.
+          required: true

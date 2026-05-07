@@ -1,0 +1,80 @@
+name: Feature request
+description: Propose a new metric, table, CLI flag, fork support, or other enhancement.
+title: "[feat] <short summary>"
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For non-trivial work (new fork support, schema changes, new metrics, new
+        subcommands), please open this issue **before** writing code so we can
+        align on scope. A merged PR that does not match the agreed scope is
+        more painful for everyone than a thirty-minute design discussion.
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: |
+        What problem does this solve and for whom? (downstream dashboard, research,
+        internal tooling). Features without a concrete consumer rarely justify the
+        maintenance cost.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: |
+        Sketch of the API, schema additions, or CLI flag — enough for a maintainer to
+        flag obvious issues before you start coding.
+      placeholder: |
+        - New table `t_attestation_inclusion_distance` keyed by (f_epoch, f_val_idx).
+        - Populated from `pkg/spec/metrics/state_<fork>.go` during `processEpochValRewards`.
+        - Toggle via `--metrics inclusion_distance`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: |
+        Equivalent SQL queries, beacon API calls, or off-the-shelf tools. If the data
+        is already derivable from existing tables, the answer may be a documentation
+        patch rather than a feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cost
+    attributes:
+      label: Impact on disk and ingest cost
+      description: |
+        Estimate row count per epoch and per month at full mainnet validator count
+        (~1.1M validators, 225 epochs/day). Per-validator-per-epoch tables are
+        especially expensive — see `docs/tables.md` for current sizes.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - "New metric / column on an existing table"
+        - "New persisted table + migration"
+        - "New CLI flag / subcommand"
+        - "New fork support"
+        - "Performance improvement"
+        - "Other (describe in proposal)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: willing_to_implement
+    attributes:
+      label: Are you willing to implement this?
+      description: We welcome contributions. Indicate whether you plan to open a PR yourself.
+      placeholder: "Yes, I'd like to draft the PR — I will follow CONTRIBUTING.md."

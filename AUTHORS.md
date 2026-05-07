@@ -7,14 +7,21 @@ Primary Authors
 
 	@cortze is the researcher that started this project and had the idea to build a consensus layer data analyzer.
 	He started the code, built the basis and release a simple version of what today we call GotEth.
-	At the moment, he builds small features, participates in new features' design and reviews all the pull requests in the project.
 
 * __[Tarun Mohandas](https://github.com/tdahar)__
 
-    @tdahar is the engineer that currently maintains the repository. 
-	He deploys the new features, tests for bugs and runs the tool for internal analysis.
-	He has improved the tool from the simple first releases to the new GotEth.
+    @tdahar is the engineer that maintained the repository for a long time.
+	He deployed new features, tested for bugs and ran the tool for internal analysis.
+	He did improve the tool from the simple first releases to most complex / complete logic.
 
+* __[Zyra V21](https://github.com/Zyra-V21)__
+
+* 	@Zyra-V21 is the engineer currently developing and maintaining GotEth.                                                                                                                                                                            
+  	He triages production reports, ships fixes against the live mainnet pipeline.
+
+* __[Leo Bautista-Gomez](https://github.com/leobago)__
+
+* 	@leobago is the repository main reviewer and release coordinator.
 
 Other Contributors
 ==================
@@ -23,5 +30,8 @@ The list of individuals below have provided patches, testing cases or small feat
 GitHub commit log for a list of recent contributors. We would like to thank
 everyone who has contributed to the project in any way.
 
+* [Alejandro Laguna](https://github.com/alejandrolaguna20) — Fusaka blob support and toolchain bumps.
 * [Patrick Ocheja](https://github.com/ocheja)
 * [Santiago Somoza](https://github.com/santi1234567)
+
+* [Barnabas Busa](https://github.com/barnabasbusa) — Dockerfile fixes.
