@@ -327,13 +327,13 @@ Config: `engine = ReplacingMergeTree ORDER BY f_slot`
 | Column Name        | Type of Data | Description                                                                                                                       |     |     |
 | ------------------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------- | --- | --- |
 | f_slot             | uint64       | Slot                                                                                                                              |
-| f_reward_fees      | string       | Fees paid to the block builder (Wei)                                                                                              |
-| f_burnt_fees       | string       | Fees burnt within the block (Wei)                                                                                                 |
+| f_reward_fees      | uint256      | Fees paid to the block builder (Wei)                                                                                              |
+| f_burnt_fees       | uint256      | Fees burnt within the block (Wei)                                                                                                 |
 | f_cl_manual_reward | uint64       | Block reward manually calculated in the tool regarding Consensus Layer (Gwei)                                                     |
 | f_cl_api_reward    | uint64       | Block reward gathered from the Beacon API regarding Consensus Layer (Gwei)                                                        |
 | f_relays           | []string     | List of relays that were offering this block's payload                                                                            |
 | f_builder_pubkey   | string       | The first of the builder pubkeys list that were submitting this block's payload (usually the same builder through several relays) |
-| f_bid_commission   | string       | Bid submitted with the payload: what the validator receives as a reward (Wei)                                                     |
+| f_bid_commission   | uint256      | Bid submitted with the payload: what the validator receives as a reward (Wei)                                                     |
 
 # Slashings (`t_slashings`)
 
