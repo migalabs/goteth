@@ -27,13 +27,13 @@ func blockRewardsInput(blocks []BlockReward) proto.Input {
 	// one object per column
 	var (
 		f_slot             proto.ColUInt64
-		f_reward_fees      proto.ColStr
-		f_burnt_fees       proto.ColStr
+		f_reward_fees      proto.ColUInt256
+		f_burnt_fees       proto.ColUInt256
 		f_cl_manual_reward proto.ColUInt64
 		f_cl_api_reward    proto.ColUInt64
 		f_relays           = new(proto.ColStr).Array()
 		f_builder_pubkey   proto.ColStr
-		f_bid_commission   proto.ColStr
+		f_bid_commission   proto.ColUInt256
 	)
 
 	for _, blockReward := range blocks {
@@ -44,13 +44,13 @@ func blockRewardsInput(blocks []BlockReward) proto.Input {
 		}
 
 		f_slot.Append(uint64(blockReward.Slot))
-		f_reward_fees.Append(utils.BigIntToString(blockReward.RewardFees))
-		f_burnt_fees.Append(utils.BigIntToString(blockReward.BurntFees))
+		f_reward_fees.Append(utils.BigIntToUInt256(blockReward.RewardFees))
+		f_burnt_fees.Append(utils.BigIntToUInt256(blockReward.BurntFees))
 		f_cl_manual_reward.Append(uint64(blockReward.CLManualReward))
 		f_cl_api_reward.Append(uint64(blockReward.CLApiReward))
 		f_relays.Append(blockReward.Relays)
 		f_builder_pubkey.Append(builder_pubkey)
-		f_bid_commission.Append(utils.BigIntToString(blockReward.BidCommision))
+		f_bid_commission.Append(utils.BigIntToUInt256(blockReward.BidCommision))
 	}
 
 	return proto.Input{
