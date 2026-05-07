@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/migalabs/goteth/discussions
+    about: For open-ended questions, design discussions, or "is this expected behavior?" use Discussions instead of an issue.
+  - name: Security report
+    url: https://github.com/migalabs/goteth/blob/master/CONTRIBUTING.md#security-issues
+    about: Do not file security issues publicly. See CONTRIBUTING.md for the disclosure process.
