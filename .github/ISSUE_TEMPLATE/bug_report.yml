@@ -11,9 +11,7 @@ body:
         will be asked for the missing information before any investigation starts.
 
         Before filing, please:
-        - Read the [Recurring gotchas](https://github.com/migalabs/goteth/blob/master/CLAUDE.md#6-recurring-gotchas) section.
         - Search [existing issues](https://github.com/migalabs/goteth/issues?q=is%3Aissue) for prior discussion.
-        - For data-quality bugs against `t_validator_rewards_summary`, follow the checklist in `CLAUDE.md` §6.2.
 
   - type: input
     id: version
@@ -124,8 +122,6 @@ body:
     attributes:
       label: Pre-flight checks
       options:
-        - label: I have read the recurring gotchas in `CLAUDE.md` §6.
-          required: true
         - label: I have searched existing issues and PRs.
           required: true
         - label: My GotEth binary was built after 2026-02-20 (post-Electra consolidation rework) — or I have already retested on `master`.

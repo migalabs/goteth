@@ -18,8 +18,6 @@ _Related links:_
 <!--
 How the change works. Major structural changes, new packages or tables, new flags.
 Call out any non-obvious decisions and the alternatives you rejected.
-If the change touches reward math, reorg handling, or ClickHouse mutation paths,
-explicitly cite the relevant CLAUDE.md section you reviewed.
 -->
 
 ## Type of change
@@ -78,7 +76,6 @@ the indexer pipeline, include at least one run against a live beacon endpoint.
 ## Documentation
 - [ ] `README.md` updated (if user-facing flag, install, or run change)
 - [ ] `docs/tables.md` updated (if persisted schema change)
-- [ ] `CLAUDE.md` updated (if recurring gotcha or mental-model change)
 - [ ] Inline comments added where the *why* is non-obvious
 
 ## Backwards compatibility

@@ -113,10 +113,6 @@ A high-quality bug report contains:
   this by querying the beacon node directly". This helps the reviewer skip
   suggestions you already ruled out.
 
-For data-quality bugs against `t_validator_rewards_summary`, follow the checklist
-in `CLAUDE.md` §6.2 ("`f_reward > f_max_reward` investigation pattern") before
-filing — most reports fall into a known pattern documented there.
-
 ## Proposing a Feature
 
 Open a [feature request](https://github.com/migalabs/goteth/issues/new?template=feature_request.yml).
@@ -144,7 +140,7 @@ Include:
 3. **Match the existing style**. Run `gofmt`, keep package layout consistent, do
    not introduce new third-party dependencies without justification.
 4. **Update documentation**. If you change a CLI flag, schema, or behavior, update
-   `README.md`, `docs/tables.md`, and `CLAUDE.md` in the same PR.
+   `README.md` and `docs/tables.md` in the same PR.
 5. **Add or update tests** (see [Testing Requirements](#testing-requirements)).
 6. **Run the full suite locally** before pushing: `go test ./...` plus the relevant
    Python integration tests under `tests/`.
@@ -209,7 +205,7 @@ When in doubt, smaller is better. A 200-line PR that lands in two days beats a
 
 | Change type | Minimum required |
 |---|---|
-| Reward math (any file under `pkg/spec/metrics/`) | Unit test that drives `EpochReward` with a known synthetic state and asserts the expected gwei value. **Reward changes will not be merged without a test.** See `CLAUDE.md` §5 and §7. |
+| Reward math (any file under `pkg/spec/metrics/`) | Unit test that drives `EpochReward` with a known synthetic state and asserts the expected gwei value. **Reward changes will not be merged without a test.** |
 | Reorg / lock model (`pkg/analyzer/`) | Unit test reproducing the failure mode if it is a fix. The existing `pkg/analyzer/reorg_deadlock_test.go` is the canonical example. |
 | New persisted table | A round-trip integration test under `tests/` that writes a row and reads it back. Update `docs/tables.md`. |
 | New CLI flag | The flag must round-trip through `pkg/config` defaults and be listed in `cmd/<command>.go`. Manual run output in the PR is sufficient — no unit test required. |
