@@ -9,6 +9,7 @@ require (
 	github.com/attestantio/go-relay-client v0.2.7
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb
+	github.com/holiman/uint256 v1.3.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.21.0
 	github.com/rs/zerolog v1.33.0
@@ -45,7 +46,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
-	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/huandu/go-clone v1.7.2 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect

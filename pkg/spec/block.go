@@ -3,7 +3,7 @@ package spec
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
+	"math/big"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec"
@@ -67,53 +67,42 @@ func (f AgnosticBlock) Type() ModelType {
 	return BlockModel
 }
 
-func (p AgnosticBlock) BlockGasFees() (uint64, uint64, error) {
-	reward := uint64(0)
-	burn := uint64(0)
-	baseFeePerGas := p.ExecutionPayload.BaseFeePerGas
+func (p AgnosticBlock) BlockGasFees() (*big.Int, *big.Int, error) {
+	reward := new(big.Int)
+	burn := new(big.Int)
+	baseFee := new(big.Int).SetUint64(p.ExecutionPayload.BaseFeePerGas)
 
 	if len(p.ExecutionPayload.AgnosticTransactions) == 0 {
 		return reward, burn, fmt.Errorf("cannot calculate block reward: no transactions appended")
 	}
 
-	// Max reasonable fee per transaction: 1000 ETH in Wei (sanity cap)
-	// Note: 1e21 exceeds uint64 max, using 1e19 (~184 ETH) as practical cap
-	const maxReasonableTxFee uint64 = 10000000000000000000
+	// 1000 ETH in Wei — sanity check threshold for logging
+	maxReasonableTxFee := new(big.Int).Mul(big.NewInt(1000), big.NewInt(1000000000000000000))
 
 	for _, tx := range p.ExecutionPayload.AgnosticTransactions {
-		// Check for underflow: GasPrice < baseFee should not happen but protect against it
-		if tx.GasPrice < baseFeePerGas {
+		gasPrice := new(big.Int).SetUint64(tx.GasPrice)
+
+		if gasPrice.Cmp(baseFee) < 0 {
 			logrus.Warnf("Slot %d: Transaction gas price (%d) < base fee (%d), skipping",
-				p.Slot, tx.GasPrice, baseFeePerGas)
+				p.Slot, tx.GasPrice, p.ExecutionPayload.BaseFeePerGas)
 			continue
 		}
 
-		priorityFee := (tx.GasPrice - baseFeePerGas) * tx.Gas
-		baseFee := baseFeePerGas * uint64(tx.Gas)
+		gas := new(big.Int).SetUint64(tx.Gas)
+		priorityFee := new(big.Int).Sub(gasPrice, baseFee)
+		priorityFee.Mul(priorityFee, gas)
+		baseFeeForTx := new(big.Int).Mul(new(big.Int).Set(baseFee), gas)
 
-		// Sanity check: no single transaction should exceed 1000 ETH in fees
-		if priorityFee > maxReasonableTxFee {
-			logrus.Warnf("Slot %d: Priority fee %d exceeds max reasonable (%d), likely overflow or corrupted data, skipping",
-				p.Slot, priorityFee, maxReasonableTxFee)
-			continue
+		if priorityFee.Cmp(maxReasonableTxFee) > 0 {
+			logrus.Warnf("Slot %d: Priority fee %s Wei exceeds 1000 ETH, unusually high transaction",
+				p.Slot, priorityFee.String())
 		}
 
-		// Check for overflow before accumulation
-		if math.MaxUint64-reward < priorityFee {
-			logrus.Errorf("Slot %d: Overflow detected when accumulating priority fees", p.Slot)
-			return reward, burn, fmt.Errorf("fee accumulation overflow at slot %d", p.Slot)
-		}
-		if math.MaxUint64-burn < baseFee {
-			logrus.Errorf("Slot %d: Overflow detected when accumulating base fees", p.Slot)
-			return reward, burn, fmt.Errorf("burn accumulation overflow at slot %d", p.Slot)
-		}
-
-		reward += priorityFee
-		burn += baseFee
+		reward.Add(reward, priorityFee)
+		burn.Add(burn, baseFeeForTx)
 	}
 
 	return reward, burn, nil
-
 }
 
 func GetCustomBlock(block spec.VersionedSignedBeaconBlock) (AgnosticBlock, error) {
