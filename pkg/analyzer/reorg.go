@@ -50,6 +50,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 				s.dbClient.DeleteBlockMetrics(phase0.Slot(slot))
 				log.Infof("rewriting metrics for slot %d", slot)
+				s.DownloadBlock(phase0.Slot(slot))
 				s.ProcessBlock(phase0.Slot(slot))
 				blocksChanged = true
 			}
