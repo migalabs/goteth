@@ -11,6 +11,20 @@ import (
 
 func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
+	// Each FinalizedCheckpointEvent fires a new `go AdvanceFinalized(...)`. If a
+	// previous invocation is still running, two goroutines race over the same
+	// StateHistory: the new one calls CleanUpTo and evicts entries that the old
+	// one is still blocked on inside StateHistory.Wait/BlockHistory.Wait, which
+	// then deadlocks holding processerBook slots until the whole pool is leaked.
+	// Skip overlapping invocations — the next finalized event will pick up any
+	// epochs the skipped one would have processed (the iteration is monotonic
+	// over GetKeyList()).
+	if !s.advanceFinalizedMu.TryLock() {
+		log.Infof("AdvanceFinalized already in progress, skipping invocation for slot %d", newFinalizedSlot)
+		return
+	}
+	defer s.advanceFinalizedMu.Unlock()
+
 	finalizedEpoch := newFinalizedSlot / spec.SlotsPerEpoch
 
 	stateKeys := s.downloadCache.StateHistory.GetKeyList()
