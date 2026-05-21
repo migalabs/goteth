@@ -57,6 +57,60 @@ class CheckIntegrityOfDB(dbtest.DBintegrityTest):
         """
         df = self.db.get_df_from_sql_query(sql_query)
         self.assertNoRows(df)
-        
+
+    # FAR_FUTURE_EPOCH = 2^64 - 1; sentinel meaning "not yet / possibly never".
+    # Used as the default for f_activation_eligibility_epoch and f_activation_epoch
+    # when those state transitions have not yet occurred.
+    FAR_FUTURE_EPOCH = 18446744073709551615
+
+    def test_active_validators_have_eligibility_set(self):
+        """ Any validator that is active, exiting, exited or slashed must have a
+        real activation_eligibility_epoch (not FAR_FUTURE_EPOCH). The spec
+        forbids activation without prior eligibility, so seeing FAR_FUTURE here
+        indicates the analyzer did not populate the new column for that row. """
+        sql_query = f"""
+        select f_val_idx, f_status, f_activation_epoch, f_activation_eligibility_epoch
+        from t_validator_last_status
+        where f_status in (1, 2, 3)
+          and f_activation_eligibility_epoch = {self.FAR_FUTURE_EPOCH}
+        """
+        df = self.db.get_df_from_sql_query(sql_query)
+        self.assertNoRows(df)
+
+    def test_eligibility_precedes_activation(self):
+        """ For any validator that has an activation_epoch set, its
+        activation_eligibility_epoch must also be set AND be less-than-or-equal
+        to the activation_epoch. process_registry_updates requires eligibility
+        before scheduling activation, so the inverse cannot legitimately occur. """
+        sql_query = f"""
+        select f_val_idx, f_activation_epoch, f_activation_eligibility_epoch
+        from t_validator_last_status
+        where f_activation_epoch != {self.FAR_FUTURE_EPOCH}
+          and (f_activation_eligibility_epoch = {self.FAR_FUTURE_EPOCH}
+               or f_activation_eligibility_epoch > f_activation_epoch)
+        """
+        df = self.db.get_df_from_sql_query(sql_query)
+        self.assertNoRows(df)
+
+    def test_pending_split_is_observable(self):
+        """ Sanity check that the new column is being populated, not just
+        defaulted. After indexing a recent finalized range on a live network,
+        we expect the queue (f_status = 0) to contain at least one row with
+        a real eligibility epoch (pending_queued) — otherwise the analyzer is
+        either not reading the field, or the migration default is hiding it.
+
+        On a quiet testnet with no queued validators this can be empty; in
+        that case rely on the synthetic SQL evidence in the PR proof of
+        success instead of this test. """
+        sql_query = f"""
+        select count(*) as queued_count
+        from t_validator_last_status
+        where f_status = 0
+          and f_activation_eligibility_epoch != {self.FAR_FUTURE_EPOCH}
+          and f_activation_epoch = {self.FAR_FUTURE_EPOCH}
+        """
+        df = self.db.get_df_from_sql_query(sql_query)
+        self.assertGreater(df['queued_count'].iloc[0], 0)
+
 if __name__ == '__main__':
     unittest.main()
