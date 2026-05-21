@@ -9,14 +9,15 @@ import (
 var (
 	valLastStatusTable               = "t_validator_last_status"
 	insertValidatorLastStatusesQuery = `
-	INSERT INTO %s (	
-		f_val_idx, 
-		f_epoch, 
-		f_balance_eth, 
+	INSERT INTO %s (
+		f_val_idx,
+		f_epoch,
+		f_balance_eth,
 		f_effective_balance,
 		f_status,
 		f_slashed,
 		f_activation_epoch,
+		f_activation_eligibility_epoch,
 		f_withdrawal_epoch,
 		f_exit_epoch,
 		f_public_key,
@@ -32,18 +33,19 @@ var (
 func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 	// one object per column
 	var (
-		f_val_idx                proto.ColUInt64
-		f_epoch                  proto.ColUInt64
-		f_balance_eth            proto.ColFloat32
-		f_effective_balance      proto.ColUInt64
-		f_status                 proto.ColUInt8
-		f_slashed                proto.ColBool
-		f_activation_epoch       proto.ColUInt64
-		f_withdrawal_epoch       proto.ColUInt64
-		f_exit_epoch             proto.ColUInt64
-		f_public_key             proto.ColStr
-		f_withdrawal_prefix      proto.ColUInt8
-		f_withdrawal_credentials proto.ColStr
+		f_val_idx                      proto.ColUInt64
+		f_epoch                        proto.ColUInt64
+		f_balance_eth                  proto.ColFloat32
+		f_effective_balance            proto.ColUInt64
+		f_status                       proto.ColUInt8
+		f_slashed                      proto.ColBool
+		f_activation_epoch             proto.ColUInt64
+		f_activation_eligibility_epoch proto.ColUInt64
+		f_withdrawal_epoch             proto.ColUInt64
+		f_exit_epoch                   proto.ColUInt64
+		f_public_key                   proto.ColStr
+		f_withdrawal_prefix            proto.ColUInt8
+		f_withdrawal_credentials       proto.ColStr
 	)
 
 	for _, status := range validatorStatuses {
@@ -54,6 +56,7 @@ func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 		f_status.Append(uint8(status.CurrentStatus))
 		f_slashed.Append(status.Slashed)
 		f_activation_epoch.Append(uint64(status.ActivationEpoch))
+		f_activation_eligibility_epoch.Append(uint64(status.ActivationEligibilityEpoch))
 		f_withdrawal_epoch.Append(uint64(status.WithdrawalEpoch))
 		f_exit_epoch.Append(uint64(status.ExitEpoch))
 		f_public_key.Append(status.PublicKey.String())
@@ -69,6 +72,7 @@ func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 		{Name: "f_status", Data: f_status},
 		{Name: "f_slashed", Data: f_slashed},
 		{Name: "f_activation_epoch", Data: f_activation_epoch},
+		{Name: "f_activation_eligibility_epoch", Data: f_activation_eligibility_epoch},
 		{Name: "f_withdrawal_epoch", Data: f_withdrawal_epoch},
 		{Name: "f_exit_epoch", Data: f_exit_epoch},
 		{Name: "f_public_key", Data: f_public_key},

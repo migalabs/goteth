@@ -156,6 +156,7 @@ Config: `engine = MergeTree ORDER BY f_val_idx`
 | f_status                 | uint8        | status (see status table)                           |
 | f_slashed                | bool         | whether the validator has ever been slashed or not  |
 | f_activation_epoch       | uint64       | epoch at which the validator was activated          |
+| f_activation_eligibility_epoch | uint64 | epoch at which the validator became eligible for activation; `FAR_FUTURE_EPOCH` (`18446744073709551615`) means not yet eligible. Combined with `f_activation_epoch`, this lets downstream consumers split `pending_initialized` (eligibility = FAR_FUTURE) from `pending_queued` (eligibility set, activation = FAR_FUTURE). |
 | f_withdrawal_epoch       | uint64       | epoch at which the validator can withdraw funds     |
 | f_exit_epoch             | uint64       | epoch at which the validator exited the network     |
 | f_public_key             | string       | public key of the validator                         |
