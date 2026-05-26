@@ -37,6 +37,12 @@ func (p AltairMetrics) GetValidatorFromCommitteeIndex(slot phase0.Slot, committe
 		return 0, fmt.Errorf("could not get validator from any epoch (slot %d, committee %d, index %d): %w", slot, committeeIndex, idx, err)
 	}
 	valList := state.EpochStructs.GetValList(slot, committeeIndex)
+	if idx < 0 || idx >= len(valList) {
+		// GetValList returns nil when the committee is missing (e.g. committee
+		// data failed to download). Guard against the nil/out-of-range slice
+		// instead of panicking (see https://github.com/migalabs/goteth/issues/271).
+		return 0, fmt.Errorf("validator at index %d not found in committee %d at slot %d (committee size %d)", idx, committeeIndex, slot, len(valList))
+	}
 	return valList[idx], nil
 }
 
