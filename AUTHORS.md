@@ -3,10 +3,6 @@ title: Authors
 Primary Authors
 ===============
 
-* __[Mikel Cortes](https://github.com/cortze)__
-
-	@cortze is the researcher that started this project and had the idea to build a consensus layer data analyzer.
-	He started the code, built the basis and released a simple version of what today we call GotEth.
 
 * __[Tarun Mohandas](https://github.com/tdahar)__
 
@@ -33,7 +29,7 @@ Other Contributors
 The list of individuals below have provided patches, testing cases or small features to the tool. See the
 GitHub commit log for a list of recent contributors. We would like to thank
 everyone who has contributed to the project in any way.
-
+* [Mikel Cortes](https://github.com/cortze) - The researcher that started this project and had the idea to build a consensus layer data analyzer.
 * [Alejandro Laguna](https://github.com/alejandrolaguna20) — Fusaka blob support and toolchain bumps.
 * [Patrick Ocheja](https://github.com/ocheja)
 * [Santiago Somoza](https://github.com/santi1234567)
