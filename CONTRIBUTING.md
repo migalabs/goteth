@@ -225,8 +225,7 @@ correct migration or query.
 
 ## Review Process
 
-- A maintainer (currently @tdahar with @cortze on rewards-related changes) will
-  review within a few business days. Please be patient.
+- A maintainer (currently @zyrav21) will review within a few business days. Please be patient.
 - Address review comments by pushing additional commits. Do not force-push during
   review — it makes incremental review impossible. We will squash on merge.
 - If review stalls, ping the PR with a short summary of what is blocking and
@@ -236,11 +235,11 @@ correct migration or query.
 
 ## Security Issues
 
-**Do not file security issues publicly.** Email the maintainers directly (see
-`AUTHORS.md` for handles; you can reach `@cortze` and `@tdahar` via GitHub
-profiles or MigaLabs channels) with a description of the issue, reproduction
+**Do not file security issues publicly.** Contact the maintainers directly (see
+`AUTHORS.md` for handles); you can reach @zyrav21 with description of the issue, reproduction
 steps, and your proposed mitigation. We will acknowledge within five business
-days and coordinate disclosure.
+days and coordinate disclosure. You can also join our Discord Community and reach out to us in: https://discord.gg/aP83V2rYt or check out our site https://www.migalabs.io
+for other ways of communication.
 
 If the issue is in a dependency, also report it upstream. If it is in
 `go-relay-client` (the submodule), follow that repository's policy.
