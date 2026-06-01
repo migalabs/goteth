@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/migalabs/goteth/pkg/db"
@@ -233,17 +234,18 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 		for i, validator := range nextState.Validators {
 			valIdx := phase0.ValidatorIndex(i)
 			newVal := spec.ValidatorLastStatus{
-				ValIdx:                valIdx,
-				Epoch:                 nextState.Epoch,
-				CurrentBalance:        nextState.Balances[valIdx],
-				EffectiveBalance:      validator.EffectiveBalance,
-				CurrentStatus:         nextState.GetValStatus(valIdx),
-				Slashed:               validator.Slashed,
-				ActivationEpoch:       validator.ActivationEpoch,
-				WithdrawalEpoch:       validator.WithdrawableEpoch,
-				ExitEpoch:             validator.ExitEpoch,
-				PublicKey:             validator.PublicKey,
-				WithdrawalCredentials: validator.WithdrawalCredentials,
+				ValIdx:                     valIdx,
+				Epoch:                      nextState.Epoch,
+				CurrentBalance:             nextState.Balances[valIdx],
+				EffectiveBalance:           validator.EffectiveBalance,
+				CurrentStatus:              nextState.GetValStatus(valIdx),
+				Slashed:                    validator.Slashed,
+				ActivationEpoch:            validator.ActivationEpoch,
+				ActivationEligibilityEpoch: validator.ActivationEligibilityEpoch,
+				WithdrawalEpoch:            validator.WithdrawableEpoch,
+				ExitEpoch:                  validator.ExitEpoch,
+				PublicKey:                  validator.PublicKey,
+				WithdrawalCredentials:      validator.WithdrawalCredentials,
 			}
 			valStatusArr = append(valStatusArr, newVal)
 		}
@@ -378,9 +380,9 @@ func (s *ChainAnalyzer) getSingleBlockRewards(
 	var err error
 
 	// obtain
-	burntFees := uint64(0)
-	rewardFees := uint64(0)
-	bidCommision := uint64(0)
+	rewardFees := new(big.Int)
+	burntFees := new(big.Int)
+	bidCommision := new(big.Int)
 	relayAddresses := make([]string, 0)
 	builderPubkeys := make([]string, 0)
 
@@ -397,7 +399,9 @@ func (s *ChainAnalyzer) getSingleBlockRewards(
 			bidBlockHash := bid.BlockHash
 
 			if blockHash == bidBlockHash {
-				bidCommision = bid.Value.Uint64()
+				if bid.Value != nil {
+					bidCommision = new(big.Int).Set(bid.Value)
+				}
 				relayAddresses = append(relayAddresses, address)
 				builderPubkeys = append(builderPubkeys, bid.BuilderPubkey.String())
 			}
