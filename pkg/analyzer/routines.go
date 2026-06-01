@@ -174,9 +174,41 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 	s.endEpochAggregation = s.startEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs-1)
 
 	log.Infof("filling to head...")
-	s.wgMainRoutine.Add(1) // add because historical will defer it
-	s.runHistorical(nextSlotDownload, headSlot)
-	return headSlot
+
+	// Re-run historical if the chain head moved more than half an epoch
+	// during the previous pass. Hands off to runHead with a small gap.
+	//
+	// The handoff gap is half SlotsPerEpoch (not the full epoch) because
+	// processerBook is sized to SlotsPerEpoch (see NewChainAnalyzer in
+	// chain_analyzer.go). Returning with a gap equal to the pool capacity
+	// lets runHead's first enqueue burst saturate the pool immediately;
+	// any cross-epoch BlockHistory.Wait dependency in the first batch of
+	// ProcessStateTransitionMetrics goroutines then deadlocks the pool —
+	// the exact failure mode this loop was added to avoid in the first
+	// place. Half an epoch leaves room for those dependencies to drain.
+	handoffGapSlots := phase0.Slot(spec.SlotsPerEpoch / 2)
+	for {
+		s.wgMainRoutine.Add(1) // add because historical will defer it
+		s.runHistorical(nextSlotDownload, headSlot)
+
+		// runHistorical returns immediately when s.stop is set. Without
+		// this guard the outer loop would re-query the head and call
+		// runHistorical again — and since the chain keeps advancing,
+		// handoffThreshold is always exceeded and the loop spins
+		// indefinitely on shutdown.
+		if s.stop {
+			return headSlot
+		}
+
+		nextSlotDownload = headSlot + 1
+		newHead := s.cli.RequestCurrentHead()
+		handoffThreshold := headSlot + handoffGapSlots
+		if newHead <= handoffThreshold {
+			return headSlot
+		}
+		log.Infof("head moved %d slots during catch-up, looping historical", newHead-headSlot)
+		headSlot = newHead
+	}
 }
 
 func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
