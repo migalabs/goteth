@@ -61,7 +61,11 @@ func (s *APIClient) requestBeaconStateWithID(slot phase0.Slot, stateID string, k
 	}
 
 	log.Infof("state at slot %d downloaded in %f seconds (id=%s)", slot, time.Since(startTime).Seconds(), stateID)
-	resultState, err := local_spec.GetCustomState(*newState.Data, s.NewEpochData(slot))
+	epochData, err := s.NewEpochData(slot)
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve epoch duties for state at slot %d: %w", slot, err)
+	}
+	resultState, err := local_spec.GetCustomState(*newState.Data, epochData)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open beacon state, closing requester routine. %s", err.Error())
 	}
