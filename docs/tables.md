@@ -166,10 +166,11 @@ Config: `engine = MergeTree ORDER BY f_val_idx`
 ## Appendix: deposit-lifecycle status vocabulary
 
 `f_status` keeps its coarse, stable encoding (`0 in_activation_queue · 1 active · 2 exited · 3 slashed`).
-Consumers that want the finer, Beacon-API-aligned deposit-lifecycle vocabulary derive it from
+Consumers that want the finer deposit-lifecycle vocabulary derive it from
 `f_status` + `f_activation_eligibility_epoch` (and, for pre-registration deposits, from
-`t_deposit_requests`). This is the terminology proposed upstream for the `ValidatorStatus` enum
-(EIP-6110/EIP-7251 deposit pipeline):
+`t_deposit_requests`). This is a proposed vocabulary the current Beacon API `ValidatorStatus`
+enum does not provide — its `pending_initialized` / `pending_queued` predate the post-Electra
+deposit pipeline (EIP-6110/EIP-7251) and there is no deposit-queue state:
 
 | Derived status | Condition | Meaning |
 | -------------- | --------- | ------- |
