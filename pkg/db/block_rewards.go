@@ -50,7 +50,7 @@ func blockRewardsInput(blocks []BlockReward) proto.Input {
 		f_cl_api_reward.Append(uint64(blockReward.CLApiReward))
 		f_relays.Append(blockReward.Relays)
 		f_builder_pubkey.Append(builder_pubkey)
-		f_bid_commission.Append(utils.BigIntToUInt256(blockReward.BidCommision))
+		f_bid_commission.Append(utils.BigIntToUInt256(blockReward.BidCommission))
 	}
 
 	return proto.Input{
@@ -91,5 +91,5 @@ type BlockReward struct {
 	BurntFees      *big.Int    // Wei
 	Relays         []string
 	BuilderPubkeys []string
-	BidCommision   *big.Int // Wei
+	BidCommission   *big.Int // Wei
 }

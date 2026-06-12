@@ -381,7 +381,7 @@ func (s *ChainAnalyzer) getSingleBlockRewards(
 	// obtain
 	rewardFees := new(big.Int)
 	burntFees := new(big.Int)
-	bidCommision := new(big.Int)
+	bidCommission := new(big.Int)
 	relayAddresses := make([]string, 0)
 	builderPubkeys := make([]string, 0)
 
@@ -399,7 +399,7 @@ func (s *ChainAnalyzer) getSingleBlockRewards(
 
 			if blockHash == bidBlockHash {
 				if bid.Value != nil {
-					bidCommision = new(big.Int).Set(bid.Value)
+					bidCommission = new(big.Int).Set(bid.Value)
 				}
 				relayAddresses = append(relayAddresses, address)
 				builderPubkeys = append(builderPubkeys, bid.BuilderPubkey.String())
@@ -413,7 +413,7 @@ func (s *ChainAnalyzer) getSingleBlockRewards(
 		RewardFees:     rewardFees,
 		BurntFees:      burntFees,
 		Relays:         relayAddresses,
-		BidCommision:   bidCommision,
+		BidCommission:   bidCommission,
 		BuilderPubkeys: builderPubkeys,
 	}
 }
