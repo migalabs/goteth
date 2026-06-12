@@ -156,11 +156,31 @@ Config: `engine = MergeTree ORDER BY f_val_idx`
 | f_status                 | uint8        | status (see status table)                           |
 | f_slashed                | bool         | whether the validator has ever been slashed or not  |
 | f_activation_epoch       | uint64       | epoch at which the validator was activated          |
+| f_activation_eligibility_epoch | uint64 | epoch at which the validator became eligible for activation; `FAR_FUTURE_EPOCH` (`18446744073709551615`) means not yet eligible. Combined with `f_activation_epoch`, this splits the pre-activation queue (`f_status = 0`) into the two deposit-lifecycle states described below. |
 | f_withdrawal_epoch       | uint64       | epoch at which the validator can withdraw funds     |
 | f_exit_epoch             | uint64       | epoch at which the validator exited the network     |
 | f_public_key             | string       | public key of the validator                         |
 | f_withdrawal_prefix      | uint8        | withdrawal prefix of the validator's credentials    |
 | f_withdrawal_credentials | text         | withdrawal credentials of the validator (see below) |
+
+## Appendix: deposit-lifecycle status vocabulary
+
+`f_status` keeps its coarse, stable encoding (`0 in_activation_queue · 1 active · 2 exited · 3 slashed`).
+Consumers that want the finer deposit-lifecycle vocabulary derive it from
+`f_status` + `f_activation_eligibility_epoch` (and, for pre-registration deposits, from
+`t_deposit_requests`). This is a proposed vocabulary the current Beacon API `ValidatorStatus`
+enum does not provide — its `pending_initialized` / `pending_queued` predate the post-Electra
+deposit pipeline (EIP-6110/EIP-7251) and there is no deposit-queue state:
+
+| Derived status | Condition | Meaning |
+| -------------- | --------- | ------- |
+| `deposit_inqueue` | pubkey present in `t_deposit_requests`, absent from `t_validator_last_status` (not yet a registered validator) | Deposit waiting in `state.pending_deposits`; the real churn-limited queue |
+| `pending_minBalance` | `f_status = 0` and `f_activation_eligibility_epoch = FAR_FUTURE_EPOCH` | Validator created, effective balance < 32 ETH (not yet eligible) |
+| `pending_lookahead` | `f_status = 0` and `f_activation_eligibility_epoch != FAR_FUTURE_EPOCH` | Eligible; fixed `1 + MAX_SEED_LOOKAHEAD` delay (not a queue) |
+| `active` / `exited` / `slashed` | `f_status` 1 / 2 / 3 | unchanged |
+
+`deposit_inqueue` is not a `t_validator_last_status` row because the deposit has no validator index
+yet; it is materialised by downstream consumers (e.g. bindeth) joining `t_deposit_requests`.
 
 ## Appendix: Reference for `f_withdrawal_prefix`
 
