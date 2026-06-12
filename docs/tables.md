@@ -175,7 +175,7 @@ deposit pipeline (EIP-6110/EIP-7251) and there is no deposit-queue state:
 | Derived status | Condition | Meaning |
 | -------------- | --------- | ------- |
 | `deposit_inqueue` | pubkey present in `t_deposit_requests`, absent from `t_validator_last_status` (not yet a registered validator) | Deposit waiting in `state.pending_deposits`; the real churn-limited queue |
-| `pending_balance` | `f_status = 0` and `f_activation_eligibility_epoch = FAR_FUTURE_EPOCH` | Validator created, effective balance < 32 ETH (not yet eligible) |
+| `pending_minBalance` | `f_status = 0` and `f_activation_eligibility_epoch = FAR_FUTURE_EPOCH` | Validator created, effective balance < 32 ETH (not yet eligible) |
 | `pending_lookahead` | `f_status = 0` and `f_activation_eligibility_epoch != FAR_FUTURE_EPOCH` | Eligible; fixed `1 + MAX_SEED_LOOKAHEAD` delay (not a queue) |
 | `active` / `exited` / `slashed` | `f_status` 1 / 2 / 3 | unchanged |
 
