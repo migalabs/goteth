@@ -6,7 +6,7 @@
 -- on the next analyzer pass.
 --
 -- IF NOT EXISTS: the column may already be present on databases where the
--- earlier #268 migration was applied before it was reverted in code; this
+-- earlier #268 migration was applied before it was reverted in code, this
 -- keeps the migration idempotent. ADD COLUMN with a DEFAULT is a metadata-only
 -- operation in ClickHouse (no data rewrite).
 ALTER TABLE t_validator_last_status
