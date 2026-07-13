@@ -9,6 +9,7 @@ const (
 	mainnetTitanRegionalRelay      string = "https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@regional.titanrelay.xyz"
 	mainnetFlashbotsRelay          string = "https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net"
 	mainnetUltraSoundRelay         string = "https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money"
+	mainnetEthgasRelay             string = "https://0x88ef3061f598101ca713d556cf757763d9be93d33c3092d3ab6334a36855b6b4a4020528dd533a62d25ea6648251e62e@relay.ethgas.com"
 )
 
 var mainnetRelayList []string = []string{
@@ -20,6 +21,7 @@ var mainnetRelayList []string = []string{
 	mainnetTitanRegionalRelay,
 	mainnetFlashbotsRelay,
 	mainnetUltraSoundRelay,
+	mainnetEthgasRelay,
 }
 
 const (
@@ -44,6 +46,7 @@ const (
 	hoodiUltraSoundRelay string = "https://0xb1559beef7b5ba3127485bbbb090362d9f497ba64e177ee2c8e7db74746306efad687f2cf8574e38d70067d40ef136dc@relay-hoodi.ultrasound.money"
 	hoodiTitanRelay      string = "https://0xaa58208899c6105603b74396734a6263cc7d947f444f396a90f7b7d3e65d102aec7e5e5291b27e08d02c50a050825c2f@hoodi.titanrelay.xyz"
 	hoodiAestusRelay     string = "https://0x98f0ef62f00780cf8eb06701a7d22725b9437d4768bb19b363e882ae87129945ec206ec2dc16933f31d983f8225772b6@hoodi.aestus.live"
+	hoodiEthgasRelay     string = "https://0xb20c3fe59db9c3655088839ef3d972878d182eb745afd8abb1dd2abf6c14f93cd5934ed4446a5fe1ba039e2bc0cf1011@hoodi-relay.ethgas.com"
 )
 
 var hoodiRelayList []string = []string{
@@ -52,6 +55,7 @@ var hoodiRelayList []string = []string{
 	hoodiUltraSoundRelay,
 	hoodiTitanRelay,
 	hoodiAestusRelay,
+	hoodiEthgasRelay,
 }
 
 const (
