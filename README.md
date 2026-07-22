@@ -140,7 +140,7 @@ If you wish to migrate your existing database, please follow [this](https://miga
 
 # Maintainers
 
-@santi1234567
+@Zyra-V21
 
 # Contributing
 
