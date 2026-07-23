@@ -43,6 +43,12 @@ var ValidatorWindowCommand = &cli.Command{
 			EnvVars:     []string{"DELETE_CADENCE_EPOCHS"},
 			DefaultText: "32",
 		},
+		&cli.IntFlag{
+			Name:        "pool-reroll-epochs",
+			Usage:       "Refresh t_pool_summary for the last N epochs whenever the validator->pool mapping in t_eth2_pubkeys changes, so late-tagged validators and pool renames propagate to recent history. Set to 0 to disable.",
+			EnvVars:     []string{"POOL_REROLL_EPOCHS"},
+			DefaultText: "0",
+		},
 		&cli.StringFlag{
 			Name:        "bn-endpoint",
 			Usage:       "Beacon node endpoint (to request the Beacon States and Blocks)",

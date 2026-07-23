@@ -47,6 +47,7 @@ func main() {
 		Commands: []*cli.Command{
 			cmd.BlocksCommand,
 			cmd.ValidatorWindowCommand,
+			cmd.PoolSummaryRefillCommand,
 		},
 	}
 

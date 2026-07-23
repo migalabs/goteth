@@ -9,6 +9,7 @@ type ValidatorWindowConfig struct {
 	DBUrl               string `json:"db-url"`
 	NumEpochs           int    `json:"num-epochs"`
 	DeleteCadenceEpochs int    `json:"delete-cadence-epochs"`
+	PoolRerollEpochs    int    `json:"pool-reroll-epochs"`
 	BnEndpoint          string `json:"bn-endpoint"`
 	MaxRequestRetries   int    `json:"max-request-retries"`
 }
@@ -21,6 +22,7 @@ func NewValidatorWindowConfig() *ValidatorWindowConfig {
 		DBUrl:               DefaultDBUrl,
 		NumEpochs:           DefaultValidatorWindowEpochs,
 		DeleteCadenceEpochs: DefaultValidatorWindowDeleteCadence,
+		PoolRerollEpochs:    DefaultValidatorWindowPoolReroll,
 		BnEndpoint:          DefaultBnEndpoint,
 		MaxRequestRetries:   DefaultMaxRequestRetries,
 	}
@@ -43,6 +45,10 @@ func (c *ValidatorWindowConfig) Apply(ctx *cli.Context) {
 	// delete cadence (batch retention deletes every N epochs)
 	if ctx.IsSet("delete-cadence-epochs") {
 		c.DeleteCadenceEpochs = ctx.Int("delete-cadence-epochs")
+	}
+	// pool summary reroll window (0 disables the automatic refresh)
+	if ctx.IsSet("pool-reroll-epochs") {
+		c.PoolRerollEpochs = ctx.Int("pool-reroll-epochs")
 	}
 	// cl url
 	if ctx.IsSet("bn-endpoint") {
