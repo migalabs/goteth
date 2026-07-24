@@ -76,7 +76,7 @@ func (r *DBService) initMonitorMetrics() {
 
 	tablesArr := []string{
 		blobsTable,
-		blobEventsTable,
+		dataColumnEventsTable,
 		blockRewardsTable,
 		blocksTable,
 		epochsTable,

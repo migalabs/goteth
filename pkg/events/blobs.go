@@ -8,28 +8,34 @@ import (
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
-func (e *Events) SubscribeToBlobSidecarsEvents() {
-	// subscribe to head event
+// SubscribeToDataColumnSidecarsEvents subscribes to the p2p arrival of data columns.
+//
+// This replaces the old `blob_sidecar` subscription. Since the Fulu fork (PeerDAS)
+// blobs are erasure-coded into columns and gossiped per column, so beacon nodes no
+// longer emit `blob_sidecar` at all: the topic is still accepted (HTTP 200) but
+// never fires. That is why blob arrival timings silently stopped being recorded at
+// the fork while every other blob table kept working.
+func (e *Events) SubscribeToDataColumnSidecarsEvents() {
 	err := e.cli.Api.Events(e.ctx, &eth2api.EventsOpts{
-		Topics:  []string{"blob_sidecar"},
-		Handler: e.HandleBlobSidecarEvent,
-	}) // every reorg
+		Topics:  []string{"data_column_sidecar"},
+		Handler: e.HandleDataColumnSidecarEvent,
+	})
 	if err != nil {
-		log.Panicf("failed to subscribe to blob_sidecar events: %s", err)
+		log.Panicf("failed to subscribe to data_column_sidecar events: %s", err)
 	}
-	log.Infof("subscribed to blob_sidecar events")
+	log.Infof("subscribed to data_column_sidecar events")
 }
 
-func (e *Events) HandleBlobSidecarEvent(event *apiv1.Event) {
+func (e *Events) HandleDataColumnSidecarEvent(event *apiv1.Event) {
 	timestamp := time.Now()
 	if event.Data == nil {
 		return
 	}
 
-	data := spec.BlobSideCarEventWraper{
-		Timestamp:        timestamp,
-		BlobSidecarEvent: *event.Data.(*apiv1.BlobSidecarEvent),
+	data := spec.DataColumnSidecarEventWrapper{
+		Timestamp:              timestamp,
+		DataColumnSidecarEvent: *event.Data.(*apiv1.DataColumnSidecarEvent),
 	}
 
-	e.BlobSidecarChan <- data
+	e.DataColumnSidecarChan <- data
 }

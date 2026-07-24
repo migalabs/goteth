@@ -327,18 +327,24 @@ Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_index`
 | f_kzg_proof      | string       | kzg proof of the blob                                                                                                         |
 | f_ending_0s      | uint64       | amount of consecutive 0s at the end of the blob bytes                                                                         |
 
-# Blob Sidecars Events (`t_blob_sidecars_events`)
+# Data Column Sidecars Events (`t_data_column_sidecars_events`)
 
-Config: `engine = ReplacingMergeTree ORDER BY f_arrival_timestamp_ms, f_blob_hash, f_slot`
+Config: `engine = ReplacingMergeTree PARTITION BY intDiv(f_slot, 100000) ORDER BY (f_slot, f_column_index, f_block_root)`
 
-| Column Name            | Type of Data | Description                                       |     |     |
-| ---------------------- | ------------ | ------------------------------------------------- | --- | --- |
-| f_arrival_timestamp_ms | uint64       | timestamp at which goteth received the blob event |
-| f_blob_hash            | string       | hash of the blob                                  |
-| f_slot                 | uint64       | slot at which the blob was sent                   |
-| f_block_root           | string       | block root hash                                   |
-| f_index                | uint8        | index of the blob                                 |
-| f_kzg_commitment       | string       | kzg commitment of the blob                        |
+P2P arrival timings for blob data. Since the Fulu fork (PeerDAS) blobs are no longer gossiped whole: they are erasure-coded into columns and each node custodies a subset, so beacon nodes emit `data_column_sidecar` instead of the now-dead `blob_sidecar` event. One row per **column** arrival (up to 128 per slot), which also exposes the reconstruction curve of each blob rather than a single arrival timestamp.
+
+Blob *metadata* is unaffected and still comes from the block itself (`t_blob_sidecars`).
+
+| Column Name            | Type of Data  | Description                                                    |     |     |
+| ---------------------- | ------------- | -------------------------------------------------------------- | --- | --- |
+| f_arrival_timestamp_ms | uint64        | timestamp at which goteth received the data column event       |
+| f_slot                 | uint64        | slot the data column belongs to                                |
+| f_block_root           | string        | block root hash                                                |
+| f_column_index         | uint16        | index of the data column (0..127)                              |
+| f_kzg_commitments      | array(string) | kzg commitments of the blobs this column carries a piece of    |
+| f_num_commitments      | uint16        | number of commitments (denormalised from the array for queries)|
+
+> `t_blob_sidecars_events` is the pre-Fulu predecessor of this table (one row per whole blob). It can no longer receive rows because the `blob_sidecar` event is never emitted post-Fulu; migration `000038` renames it to `t_blob_sidecars_events_pre_fulu` to preserve its history.
 
 # Block Rewards (`t_block_rewards`)
 

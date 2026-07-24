@@ -145,7 +145,7 @@ type PersistableObject[
 		spec.Withdrawal |
 		HeadEvent |
 		spec.AgnosticBlobSidecar |
-		spec.BlobSideCarEventWraper |
+		spec.DataColumnSidecarEventWrapper |
 		BlockReward |
 		spec.AgnosticSlashing |
 		spec.BLSToExecutionChange |
