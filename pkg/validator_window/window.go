@@ -2,6 +2,8 @@ package validatorwindow
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -174,6 +176,23 @@ func (s *ValidatorWindowRunner) maybeRerollPoolSummaries(dbHeadEpoch phase0.Epoc
 	if fingerprint == "" {
 		return
 	}
+	// Sync scripts commonly refresh t_eth2_pubkeys with TRUNCATE + INSERT,
+	// so a checkpoint landing mid-sync would observe an empty or partial
+	// mapping and reroll recent history with most validators as 'unknown'.
+	// Skip (without recording the fingerprint) until the mapping recovers.
+	newCount := fingerprintRowCount(fingerprint)
+	if newCount == 0 {
+		log.Warnf("pool mapping is empty, skipping pool summary reroll (pubkeys sync in progress?)")
+		return
+	}
+	if s.lastPoolsFingerprint != "" {
+		lastCount := fingerprintRowCount(s.lastPoolsFingerprint)
+		if lastCount > 0 && newCount < lastCount/2 {
+			log.Warnf("pool mapping shrank from %d to %d entries, skipping pool summary reroll until it recovers (pubkeys sync in progress?)",
+				lastCount, newCount)
+			return
+		}
+	}
 	if s.lastPoolsFingerprint == "" {
 		// first observation after startup: record without refreshing so a
 		// restart alone does not trigger a reroll
@@ -217,6 +236,20 @@ func (s *ValidatorWindowRunner) maybeRerollPoolSummaries(dbHeadEpoch phase0.Epoc
 		return
 	}
 	s.lastPoolsFingerprint = fingerprint
+}
+
+// fingerprintRowCount extracts the row count from a pools fingerprint,
+// which is formatted as "<rowcount>-<hash>".
+func fingerprintRowCount(fingerprint string) uint64 {
+	parts := strings.SplitN(fingerprint, "-", 2)
+	if len(parts) < 1 {
+		return 0
+	}
+	count, err := strconv.ParseUint(parts[0], 10, 64)
+	if err != nil {
+		return 0
+	}
+	return count
 }
 
 func (s *ValidatorWindowRunner) Close() {
