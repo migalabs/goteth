@@ -9,7 +9,7 @@
 --
 -- Note: blob *metadata* still comes from the block itself (t_blob_sidecars) and is
 -- unaffected. Only the p2p arrival timing moved here.
-CREATE TABLE t_data_column_sidecars_events (
+CREATE TABLE IF NOT EXISTS t_data_column_sidecars_events (
 	f_arrival_timestamp_ms UInt64 CODEC(DoubleDelta, ZSTD(3)),
 	f_slot                 UInt64 CODEC(DoubleDelta, ZSTD(3)),
 	f_block_root           String CODEC(ZSTD(3)),
