@@ -117,9 +117,6 @@ func (s *ChainAnalyzer) runHead() {
 			s.dbClient.PersistReorgs([]v1.ChainReorgEvent{newReorg})
 			go s.HandleReorg(newReorg)
 
-		case newDataColumnEvent := <-s.eventsObj.DataColumnSidecarChan:
-			s.dbClient.PersistDataColumnSidecarsEvents([]spec.DataColumnSidecarEventWrapper{newDataColumnEvent})
-
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
 			return
@@ -131,6 +128,104 @@ func (s *ChainAnalyzer) runHead() {
 			}
 		}
 
+	}
+}
+
+// dataColumnMaxBatch flushes as soon as one full-custody per-slot burst
+// (NUMBER_OF_COLUMNS = 128) has accumulated, without waiting for the ticker.
+const dataColumnMaxBatch = 128
+
+// runDataColumnSidecarsPersister drains DataColumnSidecarChan and persists the
+// events in batches, off the head loop. Under PeerDAS a full-custody node emits
+// up to 128 data_column_sidecar events per slot; persisting them one by one from
+// runHead meant one synchronous ClickHouse INSERT per event on the same loop
+// that dispatches block downloads (#282).
+func (s *ChainAnalyzer) runDataColumnSidecarsPersister() {
+	defer s.wgMainRoutine.Done()
+	log.Info("launching data column sidecars persister routine")
+
+	ticker := time.NewTicker(utils.RoutineFlushTimeout)
+	defer ticker.Stop()
+
+	batchDataColumnSidecarEvents(
+		s.eventsObj.DataColumnSidecarChan,
+		ticker.C,
+		s.ctx.Done(),
+		func() bool { return s.stop },
+		dataColumnMaxBatch,
+		func(batch []spec.DataColumnSidecarEventWrapper) {
+			if err := s.dbClient.PersistDataColumnSidecarsEvents(batch); err != nil {
+				log.Errorf("error persisting data column sidecar events batch: %s", err)
+			}
+		},
+	)
+
+	log.Info("data column sidecars persister routine finished")
+}
+
+// batchDataColumnSidecarEvents accumulates events from the channel and flushes
+// them in batches: immediately when maxBatch is reached, and on every tick when
+// the buffer is non-empty. It returns when done fires or when stopped() reports
+// true on a tick; in both cases it first drains whatever sits in the channel and
+// does a best-effort final flush (on the done path the write can fail if the DB
+// context is already cancelled, which the flush callback logs).
+func batchDataColumnSidecarEvents(
+	events <-chan spec.DataColumnSidecarEventWrapper,
+	tick <-chan time.Time,
+	done <-chan struct{},
+	stopped func() bool,
+	maxBatch int,
+	flush func([]spec.DataColumnSidecarEventWrapper),
+) {
+	buffer := make([]spec.DataColumnSidecarEventWrapper, 0, maxBatch)
+
+	// Reusing the backing array is safe: the persist path copies every value
+	// into its insert columns before returning.
+	flushBuffer := func() {
+		if len(buffer) == 0 {
+			return
+		}
+		flush(buffer)
+		buffer = buffer[:0]
+	}
+
+	// drain moves everything currently sitting in the channel into the buffer,
+	// flushing at maxBatch so the final batches stay bounded.
+	drain := func() {
+		for {
+			select {
+			case ev := <-events:
+				buffer = append(buffer, ev)
+				if len(buffer) >= maxBatch {
+					flushBuffer()
+				}
+			default:
+				return
+			}
+		}
+	}
+
+	for {
+		select {
+		case ev := <-events:
+			buffer = append(buffer, ev)
+			if len(buffer) >= maxBatch {
+				flushBuffer()
+			}
+
+		case <-tick:
+			flushBuffer()
+			if stopped() {
+				drain()
+				flushBuffer()
+				return
+			}
+
+		case <-done:
+			drain()
+			flushBuffer()
+			return
+		}
 	}
 }
 

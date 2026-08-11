@@ -215,6 +215,10 @@ func (s *ChainAnalyzer) Run() {
 		// Block requester in finalized slots, not used for now
 		s.wgMainRoutine.Add(1)
 		go s.runHead()
+
+		// Persists data_column_sidecar arrivals in batches, off the head loop (#282).
+		s.wgMainRoutine.Add(1)
+		go s.runDataColumnSidecarsPersister()
 	}
 
 	s.PromMetrics.Start()
