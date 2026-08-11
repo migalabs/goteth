@@ -30,6 +30,7 @@ func (e *Events) SubscribeToDataColumnSidecarsEvents() {
 		log.Errorf("failed to subscribe to data_column_sidecar events, blob arrival timings will not be recorded: %s", err)
 		return
 	}
+	e.SubscribedDataColumns.Store(true)
 	log.Infof("subscribed to data_column_sidecar events")
 }
 
