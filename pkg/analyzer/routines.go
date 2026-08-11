@@ -37,7 +37,7 @@ downloadRoutine:
 				go s.ProcessStateTransitionMetrics(phase0.Epoch(downloadSlot / spec.SlotsPerEpoch))
 			}
 		case <-ticker.C: // every certain amount of time check if need to finish
-			if s.stop && len(s.downloadTaskChan) == 0 && s.cli.ActiveReqNum() == 0 && s.processerBook.ActivePages() == 0 {
+			if s.stop.Load() && len(s.downloadTaskChan) == 0 && s.cli.ActiveReqNum() == 0 && s.processerBook.ActivePages() == 0 {
 				break downloadRoutine
 			}
 		}
@@ -122,7 +122,7 @@ func (s *ChainAnalyzer) runHead() {
 			return
 
 		case <-ticker.C:
-			if s.stop {
+			if s.stop.Load() {
 				log.Info("sudden shutdown detected, block downloader routine")
 				return
 			}
@@ -151,7 +151,7 @@ func (s *ChainAnalyzer) runDataColumnSidecarsPersister() {
 		s.eventsObj.DataColumnSidecarChan,
 		ticker.C,
 		s.ctx.Done(),
-		func() bool { return s.stop },
+		func() bool { return s.stop.Load() },
 		dataColumnMaxBatch,
 		func(batch []spec.DataColumnSidecarEventWrapper) {
 			if err := s.dbClient.PersistDataColumnSidecarsEvents(batch); err != nil {
@@ -291,7 +291,7 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 		// runHistorical again — and since the chain keeps advancing,
 		// handoffThreshold is always exceeded and the loop spins
 		// indefinitely on shutdown.
-		if s.stop {
+		if s.stop.Load() {
 			return headSlot
 		}
 
@@ -313,7 +313,7 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 
 	i := init
 	for i <= end {
-		if s.stop {
+		if s.stop.Load() {
 			log.Info("sudden shutdown detected, block downloader routine")
 			return
 		}

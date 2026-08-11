@@ -3,6 +3,7 @@ package analyzer
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -42,7 +43,7 @@ type ChainAnalyzer struct {
 	// Control Variables
 	wgMainRoutine            *sync.WaitGroup    // wait group for main routine (either historical or head)
 	wgDownload               *sync.WaitGroup    // wait group for download routine
-	stop                     bool               // flag to notify all routine to finish
+	stop                     atomic.Bool        // flag to notify all routine to finish (read and written from several goroutines)
 	routineClosed            chan struct{}      // signal that everything was closed succesfully
 	downloadMode             string             // whether to download historical blocks (defined by user) or follow chain head
 	rewardsAggregationEpochs int                // number of epochs to aggregate rewards
@@ -224,7 +225,7 @@ func (s *ChainAnalyzer) Run() {
 	s.PromMetrics.Start()
 
 	s.wgMainRoutine.Wait()
-	s.stop = true
+	s.stop.Store(true)
 	log.Infof("main routine finished, waiting for downloader...")
 
 	s.wgDownload.Wait()
@@ -242,7 +243,7 @@ func (s *ChainAnalyzer) Run() {
 
 func (s *ChainAnalyzer) Close() {
 	log.Info("Sudden closed detected, closing StateAnalyzer")
-	s.stop = true
+	s.stop.Store(true)
 	s.cancel()
 	<-s.routineClosed // Wait for services to stop before returning
 }
