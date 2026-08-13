@@ -73,7 +73,7 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 	if err != nil {
 		s.processerBook.FreePage(routineKey)
 		log.Errorf("could not parse bundle metrics at epoch: %s", err)
-		s.stop = true
+		s.stop.Store(true)
 		s.cancel()
 		return
 	}
