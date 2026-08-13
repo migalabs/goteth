@@ -61,9 +61,14 @@ func (b *AgnosticBlobSidecar) GetTxHash(txs []AgnosticTransaction) {
 	}
 }
 
-type BlobSideCarEventWraper struct {
-	Timestamp        time.Time
-	BlobSidecarEvent api.BlobSidecarEvent
+// DataColumnSidecarEventWrapper carries a data-column arrival plus the local time
+// we observed it. Since the Fulu fork (PeerDAS) blobs are no longer gossiped whole:
+// they are erasure-coded into columns and each node custodies a subset, so
+// `data_column_sidecar` replaced the now-dead `blob_sidecar` event as the p2p
+// propagation signal.
+type DataColumnSidecarEventWrapper struct {
+	Timestamp              time.Time
+	DataColumnSidecarEvent api.DataColumnSidecarEvent
 }
 
 func KZGCommitmentToVersionedHash(input deneb.KZGCommitment) string {
