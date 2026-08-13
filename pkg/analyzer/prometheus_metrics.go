@@ -25,6 +25,12 @@ var (
 		Name:      "block_queue_length",
 		Help:      "The number of blocks int the history queue",
 	})
+	DataColumnSubscriptionActive = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: strings.ToLower(utils.CliName),
+		Subsystem: modName,
+		Name:      "data_column_subscription_active",
+		Help:      "1 while the data_column_sidecar SSE subscription is established; blob arrival timings are not recorded while 0",
+	})
 )
 
 func (c *ChainAnalyzer) GetPrometheusMetrics() *metrics.MetricsModule {
@@ -36,6 +42,7 @@ func (c *ChainAnalyzer) GetPrometheusMetrics() *metrics.MetricsModule {
 
 	metricsMod.AddIndvMetric(c.getStateHistoryLength())
 	metricsMod.AddIndvMetric(c.getBlockHistoryLength())
+	metricsMod.AddIndvMetric(c.getDataColumnSubscriptionActive())
 
 	return metricsMod
 }
@@ -60,6 +67,39 @@ func (p *ChainAnalyzer) getStateHistoryLength() *metrics.IndvMetrics {
 	)
 	if err != nil {
 		log.Error(errors.Wrap(err, "unable to init state_queue_length"))
+		return nil
+	}
+
+	return indvMetr
+}
+
+// getDataColumnSubscriptionActive makes a silent data_column_sidecar
+// subscription failure visible: the subscribe path logs and skips instead of
+// crashing, so without this gauge an operator could miss that blob arrival
+// timings stopped being recorded (the exact silent-loss failure mode of #280).
+func (p *ChainAnalyzer) getDataColumnSubscriptionActive() *metrics.IndvMetrics {
+
+	initFn := func() error {
+		prometheus.MustRegister(DataColumnSubscriptionActive)
+		return nil
+	}
+
+	updateFn := func() (interface{}, error) {
+		active := 0
+		if p.eventsObj.SubscribedDataColumns.Load() {
+			active = 1
+		}
+		DataColumnSubscriptionActive.Set(float64(active))
+		return active, nil
+	}
+
+	indvMetr, err := metrics.NewIndvMetrics(
+		"data_column_subscription_active",
+		initFn,
+		updateFn,
+	)
+	if err != nil {
+		log.Error(errors.Wrap(err, "unable to init data_column_subscription_active"))
 		return nil
 	}
 
