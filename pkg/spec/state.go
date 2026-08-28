@@ -42,13 +42,19 @@ type AgnosticState struct {
 	Deposits                     []phase0.Gwei                // one per validator index
 	DepositsNum                  uint64                       // number of deposits
 	TotalDepositsAmount          phase0.Gwei                  // total amount of deposits
-	CurrentJustifiedCheckpoint   phase0.Checkpoint            // the latest justified checkpoint
-	CurrentFinalizedCheckpoint   phase0.Checkpoint            // the latest finalized checkpoint
-	LatestBlockHeader            *phase0.BeaconBlockHeader
-	SyncCommitteeParticipation   uint64 // Tracks sync committee participation
-	NewProposerSlashings         int    // number of new proposer slashings
-	NewAttesterSlashings         int    // number of new attester slashings
-	Slashings                    []AgnosticSlashing
+	// PendingDepositsProcessed records whether the two counters above were
+	// accumulated for this state object. They are filled while the state is
+	// NextState and read one epoch later while it is CurrentState, so a state
+	// that was re-downloaded or refreshed in between carries zeros that nothing
+	// else recomputes (migalabs/goteth#287).
+	PendingDepositsProcessed   bool
+	CurrentJustifiedCheckpoint phase0.Checkpoint // the latest justified checkpoint
+	CurrentFinalizedCheckpoint phase0.Checkpoint // the latest finalized checkpoint
+	LatestBlockHeader          *phase0.BeaconBlockHeader
+	SyncCommitteeParticipation uint64 // Tracks sync committee participation
+	NewProposerSlashings       int    // number of new proposer slashings
+	NewAttesterSlashings       int    // number of new attester slashings
+	Slashings                  []AgnosticSlashing
 	// Electra
 	ConsolidationRequests         []ConsolidationRequest
 	WithdrawalRequests            []WithdrawalRequest
@@ -140,6 +146,10 @@ func (p *AgnosticState) RefreshBlocks(blockList []*AgnosticBlock) {
 	p.TotalWithdrawalsAmount = 0
 	p.DepositsNum = 0
 	p.TotalDepositsAmount = 0
+	// Reset the flag with the counters it describes. Leaving it set would let a
+	// refreshed state claim numbers it no longer has, and nothing would
+	// recompute them.
+	p.PendingDepositsProcessed = false
 	p.NumAttestations = 0
 	p.SyncCommitteeParticipation = 0
 	p.AddBlocks(blockList)

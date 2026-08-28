@@ -52,6 +52,21 @@ func (p *ElectraMetrics) PreProcessBundle() error {
 			return err
 		}
 		p.processPendingDeposits()
+
+		// The epoch row for CurrentState.Epoch reads its deposit counters from
+		// CurrentState, but they were accumulated an epoch earlier, while that
+		// object was NextState. Reorg handling deletes and re-downloads states
+		// (AdvanceFinalized, ensureDependencyStates) and RefreshBlocks zeroes
+		// these counters outright, so the object serving as CurrentState here is
+		// not always the one that was accumulated. When it is not, the counters
+		// read as exactly zero while t_deposits holds the rows.
+		//
+		// Recompute from the state itself, which is deterministic and costs
+		// nothing on the common path where the object survived (#287).
+		if !p.baseMetrics.CurrentState.PendingDepositsProcessed {
+			p.processPendingDepositsFor(p.baseMetrics.CurrentState)
+		}
+
 		// FIX: Clear state maps before processing (state objects are reused between iterations)
 		p.baseMetrics.CurrentState.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 		p.baseMetrics.CurrentState.ConsolidatedOutAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
@@ -862,8 +877,24 @@ func (p *ElectraMetrics) ProcessSlashings() {
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_pending_deposits
 func (p *ElectraMetrics) processPendingDeposits() {
-	nextEpoch := p.baseMetrics.NextState.Epoch + 1
-	state := p.baseMetrics.NextState
+	p.processPendingDepositsFor(p.baseMetrics.NextState)
+}
+
+// processPendingDepositsFor walks a state's pending deposit queue, accumulating
+// its deposit counters and rebuilding its list of processed deposits. What it
+// derives depends only on the state passed in, so running it on a state that
+// was re-downloaded reproduces the numbers the original accumulation reached.
+//
+// It must run at most once per state object. The counters are accumulated with
+// +=, not assigned, so a second run doubles them; PendingDepositsProcessed
+// records that a state has been through it and is what keeps that from
+// happening.
+//
+// It is normally run while the state is NextState. The epoch row, however,
+// reads the counters from CurrentState, one epoch later. See PreProcessBundle
+// for why that gap has to be closed.
+func (p *ElectraMetrics) processPendingDepositsFor(state *spec.AgnosticState) {
+	nextEpoch := state.Epoch + 1
 	availableForProcessing := state.DepositBalanceToConsume + phase0.Gwei(getActivationExitChurnLimit(state))
 	processedAmount := phase0.Gwei(0)
 	nextDepositIndex := uint64(0)
@@ -935,4 +966,5 @@ func (p *ElectraMetrics) processPendingDeposits() {
 		state.TotalDepositsAmount += deposit.Amount
 	}
 	state.DepositsProcessed = processedDeposits
+	state.PendingDepositsProcessed = true
 }
