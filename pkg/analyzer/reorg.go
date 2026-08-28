@@ -36,6 +36,10 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 	advance := false
 	epochsWithChangedBlocks := make(map[uint64]bool)
+	// Epochs whose state object this invocation replaced, by re-download or by
+	// refreshing its blocks. The rows derived from those states are what goes
+	// stale, so this, not epochsWithChangedBlocks, is what gets carried.
+	epochsWithChangedState := make(map[uint64]bool)
 
 	for _, epoch := range stateKeys {
 		if epoch >= uint64(finalizedEpoch) {
@@ -72,6 +76,10 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 		if blocksChanged {
 			epochsWithChangedBlocks[epoch] = true
+			// Refreshing the blocks below rewrites the derived fields of state
+			// epoch, so record it here rather than after the state root check:
+			// that check can fail and skip the rest of this iteration.
+			epochsWithChangedState[epoch] = true
 			// Refresh the state's Blocks array so it points to the newly
 			// downloaded block objects instead of the stale pre-reorg ones.
 			if err := s.downloadCache.RefreshStateBlocks(s.ctx, epoch); err != nil {
@@ -100,11 +108,18 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		//   nextState  (E)   — proposer duties, epoch metrics
 		// If blocks changed in any of those epochs, the derived metrics
 		// for epoch E are stale and must be recomputed.
+		if stateRootChanged {
+			epochsWithChangedState[epoch] = true
+		}
+
 		needsReprocess := stateRootChanged || blocksChanged
 		if epoch >= 1 && epochsWithChangedBlocks[epoch-1] {
 			needsReprocess = true
 		}
 		if epoch >= 2 && epochsWithChangedBlocks[epoch-2] {
+			needsReprocess = true
+		}
+		if s.consumeCarriedEpoch(epoch) {
 			needsReprocess = true
 		}
 
@@ -136,10 +151,64 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		}
 	}
 
+	s.carryStaleDependents(epochsWithChangedState, uint64(finalizedEpoch))
+
 	s.downloadCache.CleanUpTo(newFinalizedSlot)
 
 	if advance {
 		log.Infof("checked states until slot %d, epoch %d", newFinalizedSlot, newFinalizedSlot/spec.SlotsPerEpoch)
+	}
+}
+
+// consumeCarriedEpoch reports whether this epoch was carried over by an earlier
+// invocation that rewrote one of its predecessors, and clears the debt.
+//
+// The debt is cleared whether or not the rest of the iteration succeeds. An
+// epoch that keeps failing would otherwise be retried on every finalized event
+// for the lifetime of the process.
+//
+// Callers must hold advanceFinalizedMu.
+func (s *ChainAnalyzer) consumeCarriedEpoch(epoch uint64) bool {
+	if !s.pendingReprocess[epoch] {
+		return false
+	}
+	delete(s.pendingReprocess, epoch)
+	log.Infof("reprocessing epoch %d carried over from an earlier AdvanceFinalized", epoch)
+	return true
+}
+
+// carryStaleDependents records the epochs whose derived rows this invocation
+// made stale but could not rewrite itself.
+//
+// Replacing the state at epoch E leaves rows belonging to later epochs stale:
+// the epoch row for E is written by processing E+1 (ExportToEpoch reads
+// CurrentState), and the validator rewards for E+1 and E+2 by processing E+1
+// and E+2, both of which read state E. AdvanceFinalized reprocesses those when
+// its loop reaches them, but it skips everything at or past the finalized
+// boundary, and the flags that would have marked them do not survive the call,
+// so the next invocation no longer knows they are stale. Carrying them is what
+// makes a later invocation rewrite them (#285).
+//
+// The caller passes the epochs whose state object it replaced, whether by
+// re-downloading it after a state root mismatch or by refreshing its blocks.
+// Both rewrite state E, and it is state E the stale rows derive from. Epochs
+// reprocessed only because a predecessor changed do not belong here: their own
+// state is untouched, so nothing downstream of them went stale.
+//
+// Only dependents at or past the boundary are carried. Anything below it the
+// loop already reprocessed, and carrying it would repeat the work.
+//
+// Callers must hold advanceFinalizedMu.
+func (s *ChainAnalyzer) carryStaleDependents(changed map[uint64]bool, finalizedEpoch uint64) {
+	if s.pendingReprocess == nil {
+		s.pendingReprocess = make(map[uint64]bool)
+	}
+	for epoch := range changed {
+		for _, dependent := range []uint64{epoch + 1, epoch + 2} {
+			if dependent >= finalizedEpoch {
+				s.pendingReprocess[dependent] = true
+			}
+		}
 	}
 }
 
