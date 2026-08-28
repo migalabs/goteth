@@ -227,8 +227,8 @@ func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spe
 	}
 	if len(blobs) > 0 {
 		if len(txs) > 0 {
-			for _, blob := range blobs {
-				blob.GetTxHash(txs)
+			if err := spec.AssignTxHashes(blobs, txs); err != nil {
+				log.Errorf("slot %d: could not attribute blob sidecars to transactions: %s", block.Slot, err)
 			}
 		}
 		s.dbClient.PersistBlobSidecars(blobs)

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"time"
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
@@ -45,20 +46,81 @@ func NewAgnosticBlobFromAPI(slot phase0.Slot, blob deneb.BlobSidecar) (*Agnostic
 	}, nil
 }
 
-func (b *AgnosticBlobSidecar) GetTxHash(txs []AgnosticTransaction) {
+// AssignTxHashes maps every blob sidecar of a block to the transaction that
+// carried it.
+//
+// A block's blob commitments are the concatenation of each type-3 transaction's
+// blob hashes taken in transaction order, so the sidecar holding index i belongs
+// to the transaction that owns the i-th entry of that concatenation.
+//
+// Position is the only dependable key. A versioned hash is derived from nothing
+// but the blob's KZG commitment, so two transactions carrying byte-identical
+// blobs share one hash and cannot be told apart by it; matching on the hash
+// awards every copy to whichever of them is compared last, and leaves the
+// others with no blobs at all.
+//
+// Nothing is assigned until the whole block has been checked: the sidecars must
+// account for exactly the blobs the transactions committed to, each index must
+// appear once, and every hash must agree with the one committed at that
+// position. Any disagreement means these sidecars are not the ones this block's
+// transactions committed to, or that a transaction went missing because its
+// receipt never arrived, and the positions are then meaningless. In that case
+// the mapping is left untouched and an error returned, rather than shifting
+// every blob onto the wrong transaction.
+func AssignTxHashes(blobs []*AgnosticBlobSidecar, txs []AgnosticTransaction) error {
+
+	carriers := make([]AgnosticTransaction, 0, len(blobs))
 
 	for _, tx := range txs {
-		if tx.BlobHashes == nil {
+		if len(tx.BlobHashes) == 0 {
 			continue // this tx does not reference any blobs
 		}
+		carriers = append(carriers, tx)
+	}
 
-		for _, txBlobHash := range tx.BlobHashes {
-			if txBlobHash.String() == b.BlobHash {
-				// we found it
-				b.TxHash = common.Hash(tx.Hash)
-			}
+	sort.Slice(carriers, func(i, j int) bool { return carriers[i].TxIdx < carriers[j].TxIdx })
+
+	// The block's commitments, flattened in transaction order: one entry per
+	// blob, holding the transaction that carried it and the hash it committed.
+	type commitment struct {
+		txHash   common.Hash
+		blobHash string
+	}
+	committed := make([]commitment, 0, len(blobs))
+	for _, tx := range carriers {
+		for _, blobHash := range tx.BlobHashes {
+			committed = append(committed, commitment{common.Hash(tx.Hash), blobHash.String()})
 		}
 	}
+
+	if len(committed) != len(blobs) {
+		return fmt.Errorf("%d blob sidecars but %d blobs committed by %d transactions",
+			len(blobs), len(committed), len(carriers))
+	}
+
+	seen := make([]bool, len(committed))
+	for _, blob := range blobs {
+		index := int(blob.Index)
+		if index >= len(committed) {
+			return fmt.Errorf("blob index %d is past the %d blobs this block committed",
+				blob.Index, len(committed))
+		}
+		if seen[index] {
+			return fmt.Errorf("two sidecars claim blob index %d", blob.Index)
+		}
+		seen[index] = true
+
+		if committed[index].blobHash != blob.BlobHash {
+			return fmt.Errorf("blob %d does not match the hash committed at that position",
+				blob.Index)
+		}
+	}
+
+	for _, blob := range blobs {
+		blob.TxHash = committed[blob.Index].txHash
+	}
+
+	return nil
 }
 
 // DataColumnSidecarEventWrapper carries a data-column arrival plus the local time
