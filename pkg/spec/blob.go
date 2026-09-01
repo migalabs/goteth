@@ -124,8 +124,13 @@ func AssignTxHashes(blobs []*AgnosticBlobSidecar, blockTxs []bellatrix.Transacti
 		seen[index] = true
 
 		if committed[index].blobHash != blob.BlobHash {
-			return fmt.Errorf("blob %d does not match the hash committed at that position",
-				blob.Index)
+			// Both hashes belong in the message. Every other check here reports
+			// the numbers it compared, and this is the one most likely to need
+			// reading against the chain: when several blobs in a block share a
+			// versioned hash, "does not match" alone gives nobody enough to
+			// tell which sidecar arrived where it should not have.
+			return fmt.Errorf("blob %d carries hash %s but this block committed %s at that position",
+				blob.Index, blob.BlobHash, committed[index].blobHash)
 		}
 	}
 

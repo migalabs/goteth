@@ -315,3 +315,34 @@ func TestAssignTxHashesCountsOnlyBlobCarriersInItsError(t *testing.T) {
 		t.Errorf("error should report 1 blob-carrying transaction, got: %s", err)
 	}
 }
+
+func TestAssignTxHashesReportsBothHashesOnMismatch(t *testing.T) {
+	// The error is all anyone gets when a slot goes unattributed. Naming only
+	// the index leaves them unable to tell which sidecar landed where it should
+	// not have, which matters most in exactly the case this function exists
+	// for: several blobs in one block sharing a versioned hash.
+	tx, _ := blobTx(t, 0, 1)
+	arrived, committed := blobHash(8).String(), blobHash(1).String()
+
+	err := spec.AssignTxHashes(
+		[]*spec.AgnosticBlobSidecar{{Index: 0, BlobHash: arrived}},
+		[]bellatrix.Transaction{tx},
+	)
+	if err == nil {
+		t.Fatal("expected a hash mismatch error, got none")
+	}
+	msg := err.Error()
+	gotAt, wantAt := strings.Index(msg, arrived), strings.Index(msg, committed)
+	if gotAt < 0 {
+		t.Errorf("error omits the hash that arrived (%s): %s", arrived, msg)
+	}
+	if wantAt < 0 {
+		t.Errorf("error omits the hash the block committed (%s): %s", committed, msg)
+	}
+	// Naming both but the wrong way round is worse than naming neither: it
+	// reads plausibly and sends the reader looking for the wrong sidecar. The
+	// hash that arrived is described first, the one the block committed second.
+	if gotAt >= 0 && wantAt >= 0 && gotAt > wantAt {
+		t.Errorf("the hashes are the wrong way round; the arrived hash should come first: %s", msg)
+	}
+}
