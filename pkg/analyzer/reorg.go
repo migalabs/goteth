@@ -255,6 +255,10 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 	cacheHeadBlock := s.downloadCache.GetHeadBlock()
 	i := cacheHeadBlock.Slot
 
+	// Epochs whose state the reorg replaced, collected here and rewritten after
+	// the walk. See rewriteStateMetrics for why not during it.
+	replaced := make([]phase0.Epoch, 0)
+
 	for reorgedSlots <= depth { // for every slot in the reorg
 
 		block, err := s.downloadCache.BlockHistory.Wait(s.ctx, SlotTo[uint64](i)) // first check that it was already in the cache
@@ -304,14 +308,68 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 				return
 			}
 
+			// Only note it here. Rewriting the metrics now would read the two
+			// preceding states, which sit at lower slots this walk has not
+			// reached yet and so are still the pre-reorg copies.
 			if newState.StateRoot != oldState.StateRoot {
-				s.dbClient.DeleteStateMetrics(epoch)
-				log.Infof("rewriting metrics for epoch %d", epoch)
-				// write epoch metrics
-				s.ProcessStateTransitionMetrics(epoch)
+				replaced = append(replaced, epoch)
 			}
 		}
 		i -= 1
 	}
 
+	s.rewriteStateMetrics(replaced)
+}
+
+// rewriteStateMetrics rewrites the epoch metrics for every state the reorg
+// replaced, once every replacement has been downloaded and in ascending epoch
+// order.
+//
+// Both conditions matter, for different reasons.
+//
+// The walk above runs backwards, so it reaches a higher epoch before the lower
+// ones it derives from. ProcessStateTransitionMetrics(E) reads the states for
+// E, E-1 and E-2 out of the cache, so rewriting E during the walk computes it
+// from whichever of those the walk has not replaced yet: the stale pre-reorg
+// copies. Deferring every rewrite until the walk has finished means each one
+// reads states that have all been brought up to date.
+//
+// Ascending order is the second half. ProcessStateTransitionMetrics already
+// waits for epoch-1 to finish before starting, because ProcessAttestations
+// writes ManualReward onto block objects that the following epoch reads back
+// (goteth#242). Running E before E-1 satisfies that barrier trivially - E-1 has
+// not started - and then lets E-1 mutate blocks E has already read.
+func (s *ChainAnalyzer) rewriteStateMetrics(epochs []phase0.Epoch) {
+	rewriteInOrder(epochs, s.dbClient.DeleteStateMetrics, s.ProcessStateTransitionMetrics)
+}
+
+// rewriteInOrder deletes and rewrites each epoch's metrics, lowest first, and
+// deletes an epoch's rows immediately before rewriting them rather than
+// clearing everything up front. Taking the two apart would leave every epoch
+// after the first deleted and not yet written, which is the orphaning this
+// branch exists to stop, for as long as the rewrites take.
+//
+// The delete and the process are passed in so the order can be asserted without
+// a database or a beacon node.
+func rewriteInOrder(epochs []phase0.Epoch, del func(phase0.Epoch) error, process func(phase0.Epoch)) {
+	for _, epoch := range ascendingEpochs(epochs) {
+		if err := del(epoch); err != nil {
+			log.Errorf("could not delete metrics for epoch %d before rewriting them: %s", epoch, err)
+		}
+		log.Infof("rewriting metrics for epoch %d", epoch)
+		process(epoch)
+	}
+}
+
+// ascendingEpochs returns the epochs in the order they must be processed. The
+// reorg walk collects them from the head downwards, which is the reverse of the
+// order each epoch's inputs become correct in.
+//
+// It copies rather than sorting in place: the caller's slice records what the
+// walk found, and reordering that under it would make the two disagree.
+func ascendingEpochs(epochs []phase0.Epoch) []phase0.Epoch {
+	ordered := make([]phase0.Epoch, len(epochs))
+	copy(ordered, epochs)
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
+	return ordered
 }
