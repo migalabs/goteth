@@ -33,10 +33,10 @@ var (
 func valStatusInput(validatorStatuses []spec.ValidatorLastStatus) proto.Input {
 	// one object per column
 	var (
-		f_val_idx                      proto.ColUInt64
-		f_epoch                        proto.ColUInt64
-		f_balance_eth                  proto.ColFloat32
-		f_effective_balance            proto.ColUInt64
+		f_val_idx                proto.ColUInt64
+		f_epoch                  proto.ColUInt64
+		f_balance_eth            proto.ColFloat32
+		f_effective_balance      proto.ColUInt64
 		f_status                       proto.ColUInt8
 		f_slashed                      proto.ColBool
 		f_activation_epoch             proto.ColUInt64
