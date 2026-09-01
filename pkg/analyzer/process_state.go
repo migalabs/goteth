@@ -414,7 +414,7 @@ func (s *ChainAnalyzer) getSingleBlockRewards(
 		RewardFees:     rewardFees,
 		BurntFees:      burntFees,
 		Relays:         relayAddresses,
-		BidCommission:   bidCommission,
+		BidCommission:  bidCommission,
 		BuilderPubkeys: builderPubkeys,
 	}
 }

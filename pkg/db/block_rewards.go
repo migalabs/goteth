@@ -91,5 +91,5 @@ type BlockReward struct {
 	BurntFees      *big.Int    // Wei
 	Relays         []string
 	BuilderPubkeys []string
-	BidCommission   *big.Int // Wei
+	BidCommission  *big.Int // Wei
 }

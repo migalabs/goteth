@@ -106,3 +106,44 @@ func TestConsumingACarriedEpochDoesNotCascade(t *testing.T) {
 		t.Errorf("consuming carried epochs left %v queued", s.pendingReprocess)
 	}
 }
+
+func TestAnEpochWhoseOwnCheckFailedIsCarried(t *testing.T) {
+	// AdvanceFinalized gives up on an epoch when it cannot fetch the finalized
+	// state root, which leaves it unable to say whether that epoch's state is
+	// stale. Nothing else would carry it: carryStaleDependents only carries an
+	// epoch's dependents, never an epoch whose own check failed, and CleanUpTo
+	// can evict the state before another invocation looks again.
+	s := &ChainAnalyzer{}
+
+	s.carryEpoch(500)
+
+	if !s.consumeCarriedEpoch(500) {
+		t.Error("an epoch whose state root could not be fetched was not carried")
+	}
+}
+
+func TestCarryingAnEpochTwiceOwesItOnce(t *testing.T) {
+	// The fetch can keep failing across invocations, re-arming the debt each
+	// time. Consuming it once must clear it.
+	s := &ChainAnalyzer{}
+
+	s.carryEpoch(500)
+	s.carryEpoch(500)
+
+	if !s.consumeCarriedEpoch(500) {
+		t.Fatal("epoch 500 was not carried")
+	}
+	if s.consumeCarriedEpoch(500) {
+		t.Error("epoch 500 was still owed after being reprocessed once")
+	}
+}
+
+func TestCarryingOneEpochLeavesOthersAlone(t *testing.T) {
+	s := &ChainAnalyzer{}
+
+	s.carryEpoch(500)
+
+	if s.consumeCarriedEpoch(501) {
+		t.Error("carrying epoch 500 also marked 501 as owed")
+	}
+}

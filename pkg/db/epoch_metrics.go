@@ -227,14 +227,31 @@ func (p *DBService) RetrieveLastEpoch() (phase0.Epoch, error) {
 // Rows belonging to E+1 and E+2 are deleted and rewritten when those epochs are
 // processed, which AdvanceFinalized now guarantees by carrying them over to a
 // later invocation if it cannot reach them in this one.
+// EpochRowWrittenBy returns the epoch row that processing the given epoch
+// writes, and whether there is one at all.
+//
+// Processing epoch E writes the row for E-1. Processing epoch 0 writes no epoch
+// row: there is nothing before genesis. phase0.Epoch is unsigned, so computing
+// 0-1 wraps to the maximum uint64 and would address a row that cannot exist -
+// harmless today only because nothing matches it, which is not a property worth
+// relying on.
+func EpochRowWrittenBy(epoch phase0.Epoch) (phase0.Epoch, bool) {
+	if epoch == 0 {
+		return 0, false
+	}
+	return epoch - 1, true
+}
+
 func (s *DBService) DeleteStateMetrics(epoch phase0.Epoch) error {
 	// The epoch row written by this epoch's processing is the one for epoch-1.
-	if err := s.Delete(DeletableObject{
-		query: deleteEpochsQuery,
-		table: epochsTable,
-		args:  []any{epoch - 1},
-	}); err != nil {
-		return err
+	if row, ok := EpochRowWrittenBy(epoch); ok {
+		if err := s.Delete(DeletableObject{
+			query: deleteEpochsQuery,
+			table: epochsTable,
+			args:  []any{row},
+		}); err != nil {
+			return err
+		}
 	}
 
 	// Proposer duties are written using nextState, so they belong to epoch.

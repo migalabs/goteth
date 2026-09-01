@@ -96,6 +96,18 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		finalizedStateRoot, err := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
 		if err != nil {
 			log.Errorf("could not get state root at slot %d: %s", cacheState.Slot, err)
+			// Whether this epoch's state is stale is now unknown, and both
+			// obvious answers are wrong. Rewriting anyway would derive the rows
+			// from a state that may still be the pre-reorg copy. Skipping
+			// silently drops the epoch: nothing carries one whose own check
+			// failed, blocksChanged does not survive the call, and CleanUpTo
+			// may evict the state before the next invocation ever looks again.
+			//
+			// Carry it instead, so a later invocation decides with a root it
+			// could actually fetch. Unlike a debt consumed on arrival, this one
+			// re-arms itself for as long as the fetch keeps failing, which is
+			// the point: the epoch stays owed until something can answer for it.
+			s.carryEpoch(epoch)
 			continue
 		}
 
@@ -200,16 +212,24 @@ func (s *ChainAnalyzer) consumeCarriedEpoch(epoch uint64) bool {
 //
 // Callers must hold advanceFinalizedMu.
 func (s *ChainAnalyzer) carryStaleDependents(changed map[uint64]bool, finalizedEpoch uint64) {
-	if s.pendingReprocess == nil {
-		s.pendingReprocess = make(map[uint64]bool)
-	}
 	for epoch := range changed {
 		for _, dependent := range []uint64{epoch + 1, epoch + 2} {
 			if dependent >= finalizedEpoch {
-				s.pendingReprocess[dependent] = true
+				s.carryEpoch(dependent)
 			}
 		}
 	}
+}
+
+// carryEpoch records that an epoch still owes a reprocess, so a later
+// AdvanceFinalized picks it up.
+//
+// Callers must hold advanceFinalizedMu.
+func (s *ChainAnalyzer) carryEpoch(epoch uint64) {
+	if s.pendingReprocess == nil {
+		s.pendingReprocess = make(map[uint64]bool)
+	}
+	s.pendingReprocess[epoch] = true
 }
 
 // ensureDependencyStates checks that the states required by
