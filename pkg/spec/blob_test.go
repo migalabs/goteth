@@ -2,11 +2,14 @@ package spec_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/deneb"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/holiman/uint256"
 	"github.com/migalabs/goteth/pkg/spec"
 )
 
@@ -20,15 +23,56 @@ func blobHash(seed byte) common.Hash {
 	return h
 }
 
-func carrier(txIdx uint64, txSeed byte, blobSeeds ...byte) spec.AgnosticTransaction {
-	var txHash phase0.Hash32
-	txHash[31] = txSeed
+// blobTx encodes a type-3 transaction committing the given blob hashes, in the
+// form a block's execution payload carries, and returns its hash.
+//
+// The transaction is unsigned, so the hash is not one that would appear on
+// chain - a signature changes it. That does not matter here: what attribution
+// needs is that each hash is derived from its own transaction rather than
+// chosen by the test, and that two transactions differ. The nonce provides the
+// second part, so two transactions committing identical blobs still hash
+// differently, which is the situation that produced the bug.
+func blobTx(t *testing.T, nonce uint64, blobSeeds ...byte) (bellatrix.Transaction, common.Hash) {
+	t.Helper()
 
 	hashes := make([]common.Hash, 0, len(blobSeeds))
 	for _, seed := range blobSeeds {
 		hashes = append(hashes, blobHash(seed))
 	}
-	return spec.AgnosticTransaction{TxIdx: txIdx, Hash: txHash, BlobHashes: hashes}
+	tx := types.NewTx(&types.BlobTx{
+		ChainID:    uint256.NewInt(1),
+		Nonce:      nonce,
+		GasTipCap:  uint256.NewInt(1),
+		GasFeeCap:  uint256.NewInt(1),
+		Gas:        21000,
+		Value:      uint256.NewInt(0),
+		BlobFeeCap: uint256.NewInt(1),
+		BlobHashes: hashes,
+	})
+	raw, err := tx.MarshalBinary()
+	if err != nil {
+		t.Fatalf("encoding blob transaction: %s", err)
+	}
+	return bellatrix.Transaction(raw), tx.Hash()
+}
+
+// plainTx encodes a transaction that carries no blobs.
+func plainTx(t *testing.T, nonce uint64) bellatrix.Transaction {
+	t.Helper()
+
+	tx := types.NewTx(&types.DynamicFeeTx{
+		ChainID:   uint256.NewInt(1).ToBig(),
+		Nonce:     nonce,
+		GasTipCap: uint256.NewInt(1).ToBig(),
+		GasFeeCap: uint256.NewInt(1).ToBig(),
+		Gas:       21000,
+		Value:     uint256.NewInt(0).ToBig(),
+	})
+	raw, err := tx.MarshalBinary()
+	if err != nil {
+		t.Fatalf("encoding plain transaction: %s", err)
+	}
+	return bellatrix.Transaction(raw)
 }
 
 // sidecars builds the block's sidecar list, indexed in block order.
@@ -51,12 +95,21 @@ func attributed(blobs []*spec.AgnosticBlobSidecar) []string {
 	return got
 }
 
-func expectedAttribution(pairs ...uint64) []string {
-	want := make([]string, 0, len(pairs))
-	for i := 0; i < len(pairs); i += 2 {
-		var txHash phase0.Hash32
-		txHash[31] = byte(pairs[i+1])
-		want = append(want, fmt.Sprintf("%d:%s", pairs[i], common.Hash(txHash).String()))
+// expect pairs each sidecar, in the order they were handed over, with the
+// transaction hash it should end up carrying.
+func expect(blobs []*spec.AgnosticBlobSidecar, hashes ...common.Hash) []string {
+	want := make([]string, 0, len(blobs))
+	for i, b := range blobs {
+		want = append(want, fmt.Sprintf("%d:%s", b.Index, hashes[i].String()))
+	}
+	return want
+}
+
+// unattributed is the expectation when nothing should be assigned at all.
+func unattributed(blobs []*spec.AgnosticBlobSidecar) []string {
+	want := make([]string, 0, len(blobs))
+	for _, b := range blobs {
+		want = append(want, fmt.Sprintf("%d:%s", b.Index, common.Hash{}.String()))
 	}
 	return want
 }
@@ -64,130 +117,170 @@ func expectedAttribution(pairs ...uint64) []string {
 func TestAssignTxHashes(t *testing.T) {
 	tests := []struct {
 		name    string
-		blobs   []*spec.AgnosticBlobSidecar
-		txs     []spec.AgnosticTransaction
-		want    []string
+		build   func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string)
 		wantErr bool
 	}{
 		{
 			// Mainnet slot 14414626. Three consecutive transactions each carried
 			// the same near-empty blob, so all three shared one versioned hash.
-			// Matching on that hash collapsed every copy onto transaction 132.
-			name:  "transactions carrying identical blobs keep their own",
-			blobs: sidecars(1, 2, 3, 4, 5, 9, 9, 9, 6, 7),
-			txs: []spec.AgnosticTransaction{
-				carrier(9, 0xaa, 1, 2, 3, 4, 5),
-				carrier(130, 0xbb, 9),
-				carrier(131, 0xcc, 9),
-				carrier(132, 0xdd, 9),
-				carrier(201, 0xee, 6),
-				carrier(471, 0xff, 7),
+			// Matching on that hash collapsed every copy onto the last of them.
+			name: "transactions carrying identical blobs keep their own",
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				t0, h0 := blobTx(t, 0, 1, 2, 3, 4, 5)
+				t1, h1 := blobTx(t, 1, 9)
+				t2, h2 := blobTx(t, 2, 9)
+				t3, h3 := blobTx(t, 3, 9)
+				t4, h4 := blobTx(t, 4, 6)
+				t5, h5 := blobTx(t, 5, 7)
+
+				blobs := sidecars(1, 2, 3, 4, 5, 9, 9, 9, 6, 7)
+				txs := []bellatrix.Transaction{t0, t1, t2, t3, t4, t5}
+				want := expect(blobs, h0, h0, h0, h0, h0, h1, h2, h3, h4, h5)
+				return blobs, txs, want
 			},
-			want: expectedAttribution(
-				0, 0xaa, 1, 0xaa, 2, 0xaa, 3, 0xaa, 4, 0xaa,
-				5, 0xbb, 6, 0xcc, 7, 0xdd,
-				8, 0xee, 9, 0xff),
 		},
 		{
-			name:  "one transaction carrying the same blob twice",
-			blobs: sidecars(4, 4),
-			txs:   []spec.AgnosticTransaction{carrier(3, 0xaa, 4, 4)},
-			want:  expectedAttribution(0, 0xaa, 1, 0xaa),
+			// The review case: a blob transaction whose EL receipt has not
+			// arrived. Attribution reads the block body, so the receipt is
+			// irrelevant and every blob in the slot is still attributed.
+			name: "a blob transaction whose receipt never arrived",
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				t0, h0 := blobTx(t, 0, 1)
+				t1, h1 := blobTx(t, 1, 2)
+				t2, h2 := blobTx(t, 2, 3)
+
+				blobs := sidecars(1, 2, 3)
+				// All three are in the block. Only one produced a receipt, so
+				// AgnosticTransactions would have held a single entry.
+				txs := []bellatrix.Transaction{t0, t1, t2}
+				return blobs, txs, expect(blobs, h0, h1, h2)
+			},
 		},
 		{
-			name:  "transactions without blobs are ignored",
-			blobs: sidecars(1, 2),
-			txs: []spec.AgnosticTransaction{
-				{TxIdx: 0},
-				carrier(1, 0xaa, 1),
-				{TxIdx: 2},
-				carrier(3, 0xbb, 2),
+			name: "one transaction carrying the same blob twice",
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				tx, h := blobTx(t, 0, 4, 4)
+				blobs := sidecars(4, 4)
+				return blobs, []bellatrix.Transaction{tx}, expect(blobs, h, h)
 			},
-			want: expectedAttribution(0, 0xaa, 1, 0xbb),
 		},
 		{
-			// A transaction whose receipt never arrived is dropped while parsing,
-			// so the sidecars outnumber the blobs the transactions account for.
-			// Attributing them positionally would shift every blob onto the wrong
-			// transaction, so nothing is attributed at all.
-			name:  "a missing transaction leaves the mapping untouched",
-			blobs: sidecars(1, 2, 3),
-			txs: []spec.AgnosticTransaction{
-				carrier(1, 0xaa, 1),
-				carrier(9, 0xbb, 3),
+			name: "transactions without blobs are ignored",
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				t1, h1 := blobTx(t, 1, 1)
+				t3, h3 := blobTx(t, 3, 2)
+				blobs := sidecars(1, 2)
+				txs := []bellatrix.Transaction{plainTx(t, 0), t1, plainTx(t, 2), t3}
+				return blobs, txs, expect(blobs, h1, h3)
 			},
-			want:    expectedAttribution(0, 0, 1, 0, 2, 0),
+		},
+		{
+			// Sidecars need not arrive in index order; the index decides, not
+			// the position in the slice.
+			name: "sidecars given out of order",
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				t0, h0 := blobTx(t, 0, 1, 2)
+				t1, h1 := blobTx(t, 1, 3)
+				blobs := []*spec.AgnosticBlobSidecar{
+					{Index: 2, BlobHash: blobHash(3).String()},
+					{Index: 0, BlobHash: blobHash(1).String()},
+					{Index: 1, BlobHash: blobHash(2).String()},
+				}
+				return blobs, []bellatrix.Transaction{t0, t1}, expect(blobs, h1, h0, h0)
+			},
+		},
+		{
+			// More sidecars than the block committed to. Attributing them
+			// positionally would shift every blob onto the wrong transaction.
+			name: "more sidecars than the block committed",
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				t0, _ := blobTx(t, 0, 1)
+				blobs := sidecars(1, 2, 3)
+				return blobs, []bellatrix.Transaction{t0}, unattributed(blobs)
+			},
 			wantErr: true,
 		},
 		{
-			// Nothing else in the block tells these apart, so an index the
-			// block never committed has to be refused rather than folded onto
-			// whichever transaction happens to sit nearby.
+			// The other direction, and the one the index-bound check cannot
+			// see: every sidecar present is valid and in range, but the block
+			// committed a blob that never arrived. Attributing the ones that
+			// did would publish a slot that is quietly short a blob.
+			name: "fewer sidecars than the block committed",
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				t0, _ := blobTx(t, 0, 1, 2, 3)
+				blobs := sidecars(1, 2)
+				return blobs, []bellatrix.Transaction{t0}, unattributed(blobs)
+			},
+			wantErr: true,
+		},
+		{
 			name: "a sidecar claiming an index past the block's blobs",
-			blobs: []*spec.AgnosticBlobSidecar{
-				{Index: 0, BlobHash: blobHash(1).String()},
-				{Index: 7, BlobHash: blobHash(2).String()},
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				t0, _ := blobTx(t, 0, 1)
+				t1, _ := blobTx(t, 1, 2)
+				blobs := []*spec.AgnosticBlobSidecar{
+					{Index: 0, BlobHash: blobHash(1).String()},
+					{Index: 7, BlobHash: blobHash(2).String()},
+				}
+				return blobs, []bellatrix.Transaction{t0, t1}, unattributed(blobs)
 			},
-			txs: []spec.AgnosticTransaction{
-				carrier(1, 0xaa, 1),
-				carrier(2, 0xbb, 2),
+			wantErr: true,
+		},
+		{
+			// Index is a uint64 from the beacon API. Narrowing one at or above
+			// 2^63 to int wraps it negative, which passes a "too large" check
+			// and then panics on the bounds array, taking block processing with
+			// it.
+			name: "a sidecar with an index that wraps when narrowed",
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				t0, _ := blobTx(t, 0, 1)
+				blobs := []*spec.AgnosticBlobSidecar{
+					{Index: deneb.BlobIndex(1 << 63), BlobHash: blobHash(1).String()},
+				}
+				return blobs, []bellatrix.Transaction{t0}, unattributed(blobs)
 			},
-			want:    expectedAttribution(0, 0, 7, 0),
 			wantErr: true,
 		},
 		{
 			name: "two sidecars claiming the same index",
-			blobs: []*spec.AgnosticBlobSidecar{
-				{Index: 0, BlobHash: blobHash(1).String()},
-				{Index: 0, BlobHash: blobHash(1).String()},
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				t0, _ := blobTx(t, 0, 1)
+				t1, _ := blobTx(t, 1, 1)
+				blobs := []*spec.AgnosticBlobSidecar{
+					{Index: 0, BlobHash: blobHash(1).String()},
+					{Index: 0, BlobHash: blobHash(1).String()},
+				}
+				return blobs, []bellatrix.Transaction{t0, t1}, unattributed(blobs)
 			},
-			txs: []spec.AgnosticTransaction{
-				carrier(1, 0xaa, 1),
-				carrier(2, 0xbb, 1),
-			},
-			want:    expectedAttribution(0, 0, 0, 0),
 			wantErr: true,
 		},
 		{
-			// Sidecars need not arrive in index order.
-			name: "sidecars given out of order",
-			blobs: []*spec.AgnosticBlobSidecar{
-				{Index: 2, BlobHash: blobHash(3).String()},
-				{Index: 0, BlobHash: blobHash(1).String()},
-				{Index: 1, BlobHash: blobHash(2).String()},
+			name: "sidecars that the transactions did not commit to",
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				t0, _ := blobTx(t, 0, 1)
+				t1, _ := blobTx(t, 1, 2)
+				blobs := sidecars(1, 8)
+				return blobs, []bellatrix.Transaction{t0, t1}, unattributed(blobs)
 			},
-			txs: []spec.AgnosticTransaction{
-				carrier(1, 0xaa, 1, 2),
-				carrier(2, 0xbb, 3),
-			},
-			want: expectedAttribution(2, 0xbb, 0, 0xaa, 1, 0xaa),
+			wantErr: true,
 		},
 		{
-			// Transaction order decides the mapping, not the order the caller
-			// happened to hand them over in.
-			name:  "transactions given out of order",
-			blobs: sidecars(1, 2, 3),
-			txs: []spec.AgnosticTransaction{
-				carrier(9, 0xbb, 3),
-				carrier(1, 0xaa, 1, 2),
+			// A payload entry that is not a valid transaction is a decoding
+			// failure, not a mismatch, and must not be silently skipped.
+			name: "an undecodable transaction",
+			build: func(t *testing.T) ([]*spec.AgnosticBlobSidecar, []bellatrix.Transaction, []string) {
+				blobs := sidecars(1)
+				return blobs, []bellatrix.Transaction{{0xff, 0xff, 0xff}}, unattributed(blobs)
 			},
-			want: expectedAttribution(0, 0xaa, 1, 0xaa, 2, 0xbb),
-		},
-		{
-			name:  "sidecars that the transactions did not commit to",
-			blobs: sidecars(1, 8),
-			txs: []spec.AgnosticTransaction{
-				carrier(1, 0xaa, 1),
-				carrier(2, 0xbb, 2),
-			},
-			want:    expectedAttribution(0, 0, 1, 0),
 			wantErr: true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := spec.AssignTxHashes(test.blobs, test.txs)
+			blobs, txs, want := test.build(t)
+
+			err := spec.AssignTxHashes(blobs, txs)
 
 			if test.wantErr && err == nil {
 				t.Fatal("expected an error, got none")
@@ -196,12 +289,29 @@ func TestAssignTxHashes(t *testing.T) {
 				t.Fatalf("unexpected error: %s", err)
 			}
 
-			got := attributed(test.blobs)
-			for i := range test.want {
-				if got[i] != test.want[i] {
-					t.Errorf("blob %d: got %s, want %s", i, got[i], test.want[i])
+			got := attributed(blobs)
+			for i := range want {
+				if got[i] != want[i] {
+					t.Errorf("blob %d: got %s, want %s", i, got[i], want[i])
 				}
 			}
 		})
+	}
+}
+
+func TestAssignTxHashesCountsOnlyBlobCarriersInItsError(t *testing.T) {
+	// The error is the only thing anyone sees when a slot goes unattributed, so
+	// the transaction count in it has to mean "transactions that committed
+	// blobs", not "transactions in the block". Counting plain transactions here
+	// would send whoever reads the log looking in the wrong place.
+	t1, _ := blobTx(t, 1, 1)
+	txs := []bellatrix.Transaction{plainTx(t, 0), t1, plainTx(t, 2), plainTx(t, 3)}
+
+	err := spec.AssignTxHashes(sidecars(1, 2), txs)
+	if err == nil {
+		t.Fatal("expected a mismatch error, got none")
+	}
+	if !strings.Contains(err.Error(), "by 1 transactions") {
+		t.Errorf("error should report 1 blob-carrying transaction, got: %s", err)
 	}
 }

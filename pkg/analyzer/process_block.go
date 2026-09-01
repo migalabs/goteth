@@ -63,7 +63,7 @@ func (s *ChainAnalyzer) ProcessETH1Data(block *spec.AgnosticBlock) {
 	}
 
 	if block.HardForkVersion >= eth2_client_spec.DataVersionDeneb && s.metrics.BlobSidecars {
-		s.processBlobSidecars(block, block.ExecutionPayload.AgnosticTransactions)
+		s.processBlobSidecars(block)
 	}
 }
 
@@ -212,7 +212,7 @@ func (s *ChainAnalyzer) recoverBlockReceipts(block *spec.AgnosticBlock) {
 	log.Infof("slot %d: recovered %d transaction receipts for fee calculation", block.Slot, len(txs))
 }
 
-func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spec.AgnosticTransaction) {
+func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock) {
 	var blobs []*spec.AgnosticBlobSidecar
 	var err error
 
@@ -226,10 +226,11 @@ func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock, txs []spe
 		log.Errorf("could not download blobs for slot %d: %s", block.Slot, err)
 	}
 	if len(blobs) > 0 {
-		if len(txs) > 0 {
-			if err := spec.AssignTxHashes(blobs, txs); err != nil {
-				log.Errorf("slot %d: could not attribute blob sidecars to transactions: %s", block.Slot, err)
-			}
+		// The block's own transaction list, not AgnosticTransactions: the
+		// latter is filtered by which EL receipts arrived, and a missing
+		// receipt would cost this slot every one of its blob attributions.
+		if err := spec.AssignTxHashes(blobs, block.ExecutionPayload.Transactions); err != nil {
+			log.Errorf("slot %d: could not attribute blob sidecars to transactions: %s", block.Slot, err)
 		}
 		s.dbClient.PersistBlobSidecars(blobs)
 	}

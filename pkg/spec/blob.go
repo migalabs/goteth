@@ -4,13 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"sort"
 	"time"
 
 	api "github.com/attestantio/go-eth2-client/api/v1"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/migalabs/goteth/pkg/utils"
 )
 
@@ -59,26 +60,25 @@ func NewAgnosticBlobFromAPI(slot phase0.Slot, blob deneb.BlobSidecar) (*Agnostic
 // awards every copy to whichever of them is compared last, and leaves the
 // others with no blobs at all.
 //
+// It reads the block's own transaction list rather than the parsed
+// AgnosticTransactions, and that is deliberate. Everything needed here - each
+// type-3 transaction's hash and the blob hashes it committed - is in the block
+// body. AgnosticTransactions are built by matching transactions to EL receipts
+// and only include the ones that matched, so a receipt that has not arrived
+// drops a blob carrier from the list. Attribution would then see fewer blobs
+// committed than sidecars delivered and refuse the whole slot, leaving every
+// blob in it with no transaction. Partial receipt fetches happen often enough
+// to have their own recovery path (recoverBlockReceipts), so this must not
+// depend on them.
+//
 // Nothing is assigned until the whole block has been checked: the sidecars must
 // account for exactly the blobs the transactions committed to, each index must
 // appear once, and every hash must agree with the one committed at that
-// position. Any disagreement means these sidecars are not the ones this block's
-// transactions committed to, or that a transaction went missing because its
-// receipt never arrived, and the positions are then meaningless. In that case
-// the mapping is left untouched and an error returned, rather than shifting
-// every blob onto the wrong transaction.
-func AssignTxHashes(blobs []*AgnosticBlobSidecar, txs []AgnosticTransaction) error {
-
-	carriers := make([]AgnosticTransaction, 0, len(blobs))
-
-	for _, tx := range txs {
-		if len(tx.BlobHashes) == 0 {
-			continue // this tx does not reference any blobs
-		}
-		carriers = append(carriers, tx)
-	}
-
-	sort.Slice(carriers, func(i, j int) bool { return carriers[i].TxIdx < carriers[j].TxIdx })
+// position. Because the input no longer depends on receipts, a disagreement now
+// means the sidecars are genuinely not the ones this block committed to, and
+// leaving the mapping untouched is the right answer rather than a symptom of a
+// slow EL.
+func AssignTxHashes(blobs []*AgnosticBlobSidecar, blockTxs []bellatrix.Transaction) error {
 
 	// The block's commitments, flattened in transaction order: one entry per
 	// blob, holding the transaction that carried it and the hash it committed.
@@ -86,25 +86,38 @@ func AssignTxHashes(blobs []*AgnosticBlobSidecar, txs []AgnosticTransaction) err
 		txHash   common.Hash
 		blobHash string
 	}
+
 	committed := make([]commitment, 0, len(blobs))
-	for _, tx := range carriers {
-		for _, blobHash := range tx.BlobHashes {
-			committed = append(committed, commitment{common.Hash(tx.Hash), blobHash.String()})
+	carriers := 0
+	for idx, raw := range blockTxs {
+		var tx types.Transaction
+		if err := tx.UnmarshalBinary(raw); err != nil {
+			return fmt.Errorf("transaction %d could not be decoded: %w", idx, err)
+		}
+		if tx.Type() != types.BlobTxType {
+			continue
+		}
+		carriers++
+		for _, blobHash := range tx.BlobHashes() {
+			committed = append(committed, commitment{tx.Hash(), blobHash.String()})
 		}
 	}
 
 	if len(committed) != len(blobs) {
 		return fmt.Errorf("%d blob sidecars but %d blobs committed by %d transactions",
-			len(blobs), len(committed), len(carriers))
+			len(blobs), len(committed), carriers)
 	}
 
 	seen := make([]bool, len(committed))
 	for _, blob := range blobs {
-		index := int(blob.Index)
-		if index >= len(committed) {
+		// Compared before narrowing, not after. Index is a uint64, and
+		// converting one at or above 2^63 to int wraps it negative, which slips
+		// past a "too large" check and then panics indexing seen.
+		if uint64(blob.Index) >= uint64(len(committed)) {
 			return fmt.Errorf("blob index %d is past the %d blobs this block committed",
 				blob.Index, len(committed))
 		}
+		index := int(blob.Index)
 		if seen[index] {
 			return fmt.Errorf("two sidecars claim blob index %d", blob.Index)
 		}
