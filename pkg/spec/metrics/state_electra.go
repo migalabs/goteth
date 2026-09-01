@@ -62,10 +62,10 @@ func (p *ElectraMetrics) PreProcessBundle() error {
 		// read as exactly zero while t_deposits holds the rows.
 		//
 		// Recompute from the state itself, which is deterministic and costs
-		// nothing on the common path where the object survived (#287).
-		if !p.baseMetrics.CurrentState.PendingDepositsProcessed {
-			p.processPendingDepositsFor(p.baseMetrics.CurrentState)
-		}
+		// nothing on the common path where the object survived (#287): the
+		// function returns immediately for a state that has already been
+		// through it.
+		p.processPendingDepositsFor(p.baseMetrics.CurrentState)
 
 		// FIX: Clear state maps before processing (state objects are reused between iterations)
 		p.baseMetrics.CurrentState.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
@@ -885,15 +885,21 @@ func (p *ElectraMetrics) processPendingDeposits() {
 // derives depends only on the state passed in, so running it on a state that
 // was re-downloaded reproduces the numbers the original accumulation reached.
 //
-// It must run at most once per state object. The counters are accumulated with
-// +=, not assigned, so a second run doubles them; PendingDepositsProcessed
-// records that a state has been through it and is what keeps that from
-// happening.
+// It is idempotent, and that is load-bearing rather than a nicety. The counters
+// are accumulated with +=, not assigned, so a second run would double them, and
+// the same state object legitimately reaches this function twice: once as
+// NextState during its own epoch, and again as CurrentState an epoch later.
+// Reprocessing adds more ways in - a dependency-triggered pass in
+// AdvanceFinalized, a carried reprocess, a state retained in cache rather than
+// re-downloaded. Guarding at one call site only protects that call site, so the
+// guard lives here, where every path meets.
 //
-// It is normally run while the state is NextState. The epoch row, however,
-// reads the counters from CurrentState, one epoch later. See PreProcessBundle
-// for why that gap has to be closed.
+// RefreshBlocks clears the flag, because it zeroes the counters this sets.
 func (p *ElectraMetrics) processPendingDepositsFor(state *spec.AgnosticState) {
+	if state.PendingDepositsProcessed {
+		return
+	}
+
 	nextEpoch := state.Epoch + 1
 	availableForProcessing := state.DepositBalanceToConsume + phase0.Gwei(getActivationExitChurnLimit(state))
 	processedAmount := phase0.Gwei(0)

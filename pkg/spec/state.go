@@ -150,6 +150,12 @@ func (p *AgnosticState) RefreshBlocks(blockList []*AgnosticBlock) {
 	// refreshed state claim numbers it no longer has, and nothing would
 	// recompute them.
 	p.PendingDepositsProcessed = false
+	// DepositedAmounts accumulates per validator with +=, so it is one of the
+	// accumulators this function promises to reset. Zeroing DepositsNum while
+	// leaving this populated meant the next pass added a second time and the
+	// per-validator amounts doubled, even though the scalar counters looked
+	// right.
+	p.DepositedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.NumAttestations = 0
 	p.SyncCommitteeParticipation = 0
 	p.AddBlocks(blockList)
