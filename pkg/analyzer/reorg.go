@@ -353,7 +353,21 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 // (goteth#242). Running E before E-1 satisfies that barrier trivially - E-1 has
 // not started - and then lets E-1 mutate blocks E has already read.
 func (s *ChainAnalyzer) rewriteStateMetrics(epochs []phase0.Epoch) {
-	rewriteInOrder(epochs, s.dbClient.DeleteStateMetrics, s.ProcessStateTransitionMetrics)
+	// Make sure the states are present before deleting anything. Deferring the
+	// rewrites until after the walk widened the gap between downloading a state
+	// and using it, and HandleReorg holds no lock: a concurrent
+	// AdvanceFinalized can CleanUpTo in between and evict one. Missing states
+	// would make ProcessStateTransitionMetrics either block forever inside
+	// StateHistory.Wait, holding processerBook slots (#245), or write nothing
+	// at all - after the rows had already been deleted.
+	//
+	// Ensuring before the delete rather than before the process is what keeps
+	// that last case from turning into a hole.
+	ensureThenDelete := func(epoch phase0.Epoch) error {
+		s.ensureDependencyStates(uint64(epoch))
+		return s.dbClient.DeleteStateMetrics(epoch)
+	}
+	rewriteInOrder(epochs, ensureThenDelete, s.ProcessStateTransitionMetrics)
 }
 
 // rewriteInOrder deletes and rewrites each epoch's metrics, lowest first, and
