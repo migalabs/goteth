@@ -96,18 +96,13 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		finalizedStateRoot, err := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
 		if err != nil {
 			log.Errorf("could not get state root at slot %d: %s", cacheState.Slot, err)
-			// Whether this epoch's state is stale is now unknown, and both
-			// obvious answers are wrong. Rewriting anyway would derive the rows
-			// from a state that may still be the pre-reorg copy. Skipping
-			// silently drops the epoch: nothing carries one whose own check
-			// failed, blocksChanged does not survive the call, and CleanUpTo
-			// may evict the state before the next invocation ever looks again.
-			//
-			// Carry it instead, so a later invocation decides with a root it
-			// could actually fetch. Unlike a debt consumed on arrival, this one
-			// re-arms itself for as long as the fetch keeps failing, which is
-			// the point: the epoch stays owed until something can answer for it.
-			s.carryEpoch(epoch)
+			// This epoch is now unresolved: its state may be stale and nothing
+			// here can tell. Rewriting anyway would derive the rows from a
+			// state that may still be the pre-reorg copy, and carrying it does
+			// not help either - see carryStaleDependents for why a debt below
+			// the finalized boundary can never be paid. Fixing this needs the
+			// loop to be able to revisit an epoch whose state has been evicted,
+			// which is a larger change than this one.
 			continue
 		}
 
@@ -207,29 +202,27 @@ func (s *ChainAnalyzer) consumeCarriedEpoch(epoch uint64) bool {
 // reprocessed only because a predecessor changed do not belong here: their own
 // state is untouched, so nothing downstream of them went stale.
 //
-// Only dependents at or past the boundary are carried. Anything below it the
-// loop already reprocessed, and carrying it would repeat the work.
+// Only dependents at or past the boundary are carried, and that condition is
+// load-bearing rather than an optimisation. The loop skips epochs at or past
+// finalizedEpoch, so it only ever visits epochs below it, and CleanUpTo then
+// evicts every state below the finalized slot. An epoch carried from below the
+// boundary is therefore gone from StateHistory before any later invocation
+// could reach it: the loop never visits it, consumeCarriedEpoch never fires,
+// and the debt sits unpayable. Only epochs at or past the boundary survive the
+// eviction and become reachable once the boundary advances.
 //
 // Callers must hold advanceFinalizedMu.
 func (s *ChainAnalyzer) carryStaleDependents(changed map[uint64]bool, finalizedEpoch uint64) {
-	for epoch := range changed {
-		for _, dependent := range []uint64{epoch + 1, epoch + 2} {
-			if dependent >= finalizedEpoch {
-				s.carryEpoch(dependent)
-			}
-		}
-	}
-}
-
-// carryEpoch records that an epoch still owes a reprocess, so a later
-// AdvanceFinalized picks it up.
-//
-// Callers must hold advanceFinalizedMu.
-func (s *ChainAnalyzer) carryEpoch(epoch uint64) {
 	if s.pendingReprocess == nil {
 		s.pendingReprocess = make(map[uint64]bool)
 	}
-	s.pendingReprocess[epoch] = true
+	for epoch := range changed {
+		for _, dependent := range []uint64{epoch + 1, epoch + 2} {
+			if dependent >= finalizedEpoch {
+				s.pendingReprocess[dependent] = true
+			}
+		}
+	}
 }
 
 // ensureDependencyStates checks that the states required by
