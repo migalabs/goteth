@@ -52,6 +52,31 @@ func (p *ElectraMetrics) PreProcessBundle() error {
 			return err
 		}
 		p.processPendingDeposits()
+
+		// The epoch row for CurrentState.Epoch reads its deposit counters from
+		// CurrentState, but they were accumulated an epoch earlier, while that
+		// object was NextState. Reorg handling deletes and re-downloads states
+		// (AdvanceFinalized, ensureDependencyStates) and RefreshBlocks zeroes
+		// these counters outright, so the object serving as CurrentState here is
+		// not always the one that was accumulated. When it is not, the counters
+		// read as exactly zero while t_deposits holds the rows.
+		//
+		// Recompute from the state itself, which is deterministic and costs
+		// nothing on the common path where the object survived (#287): the
+		// function returns immediately for a state that has already been
+		// through it.
+		p.processPendingDepositsFor(p.baseMetrics.CurrentState)
+
+		// The consolidation counters have the same lifecycle and the same
+		// failure: ConsolidationsProcessedNum and ConsolidationsProcessedAmount
+		// are read from CurrentState in standard.go but accumulated an epoch
+		// earlier against NextState, so a re-downloaded object reports zero
+		// while t_consolidations holds the rows. This runs before the
+		// ConsolidatedAmounts maps are cleared below, so only the epoch-row
+		// counters survive it; the per-validator reward maps are rebuilt by
+		// processConsolidationsForRewardCalculation as before.
+		p.processPendingConsolidationsFor(p.baseMetrics.CurrentState)
+
 		// FIX: Clear state maps before processing (state objects are reused between iterations)
 		p.baseMetrics.CurrentState.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 		p.baseMetrics.CurrentState.ConsolidatedOutAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
@@ -60,7 +85,7 @@ func (p *ElectraMetrics) PreProcessBundle() error {
 		p.processExcessActiveBalanceRestructuring(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
 		p.processConsolidationsForRewardCalculation(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
 		p.processDepositsForRewardCalculation(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
-		p.processPendingConsolidations(p.baseMetrics.NextState)
+		p.processPendingConsolidations()
 		if !p.baseMetrics.PrevState.EmptyStateRoot() {
 			// block rewards
 			p.ProcessSlashings()
@@ -607,7 +632,19 @@ func (p ElectraMetrics) getParticipationFlags(attestation electra.Attestation, i
 }
 
 // // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_pending_consolidations
-func (p ElectraMetrics) processPendingConsolidations(s *spec.AgnosticState) {
+func (p *ElectraMetrics) processPendingConsolidations() {
+	p.processPendingConsolidationsFor(p.baseMetrics.NextState)
+}
+
+// processPendingConsolidationsFor walks a state's pending consolidation queue,
+// accumulating the counters the epoch row reads. It is safe to call twice on
+// the same state: the counters accumulate with += and append, so the flag makes
+// the second call a no-op rather than a doubling.
+func (p *ElectraMetrics) processPendingConsolidationsFor(s *spec.AgnosticState) {
+	if s.PendingConsolidationsProcessed {
+		return
+	}
+
 	nextEpoch := s.Epoch + 1
 
 	for index, pendingConsolidation := range s.PendingConsolidations {
@@ -636,6 +673,8 @@ func (p ElectraMetrics) processPendingConsolidations(s *spec.AgnosticState) {
 		s.ConsolidationsProcessed = append(s.ConsolidationsProcessed, *consolidationProcessed)
 		s.ConsolidationsProcessedAmount += sourceEffectiveBalance
 	}
+
+	s.PendingConsolidationsProcessed = true
 }
 
 // processConsolidationsForRewardCalculation replays the spec's process_pending_consolidations
@@ -862,8 +901,30 @@ func (p *ElectraMetrics) ProcessSlashings() {
 
 // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_pending_deposits
 func (p *ElectraMetrics) processPendingDeposits() {
-	nextEpoch := p.baseMetrics.NextState.Epoch + 1
-	state := p.baseMetrics.NextState
+	p.processPendingDepositsFor(p.baseMetrics.NextState)
+}
+
+// processPendingDepositsFor walks a state's pending deposit queue, accumulating
+// its deposit counters and rebuilding its list of processed deposits. What it
+// derives depends only on the state passed in, so running it on a state that
+// was re-downloaded reproduces the numbers the original accumulation reached.
+//
+// It is idempotent, and that is load-bearing rather than a nicety. The counters
+// are accumulated with +=, not assigned, so a second run would double them, and
+// the same state object legitimately reaches this function twice: once as
+// NextState during its own epoch, and again as CurrentState an epoch later.
+// Reprocessing adds more ways in - a dependency-triggered pass in
+// AdvanceFinalized, a carried reprocess, a state retained in cache rather than
+// re-downloaded. Guarding at one call site only protects that call site, so the
+// guard lives here, where every path meets.
+//
+// RefreshBlocks clears the flag, because it zeroes the counters this sets.
+func (p *ElectraMetrics) processPendingDepositsFor(state *spec.AgnosticState) {
+	if state.PendingDepositsProcessed {
+		return
+	}
+
+	nextEpoch := state.Epoch + 1
 	availableForProcessing := state.DepositBalanceToConsume + phase0.Gwei(getActivationExitChurnLimit(state))
 	processedAmount := phase0.Gwei(0)
 	nextDepositIndex := uint64(0)
@@ -935,4 +996,5 @@ func (p *ElectraMetrics) processPendingDeposits() {
 		state.TotalDepositsAmount += deposit.Amount
 	}
 	state.DepositsProcessed = processedDeposits
+	state.PendingDepositsProcessed = true
 }
