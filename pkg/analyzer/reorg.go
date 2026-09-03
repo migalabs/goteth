@@ -36,6 +36,10 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 	advance := false
 	epochsWithChangedBlocks := make(map[uint64]bool)
+	// Epochs whose state object this invocation replaced, by re-download or by
+	// refreshing its blocks. The rows derived from those states are what goes
+	// stale, so this, not epochsWithChangedBlocks, is what gets carried.
+	epochsWithChangedState := make(map[uint64]bool)
 
 	for _, epoch := range stateKeys {
 		if epoch >= uint64(finalizedEpoch) {
@@ -72,6 +76,10 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 		if blocksChanged {
 			epochsWithChangedBlocks[epoch] = true
+			// Refreshing the blocks below rewrites the derived fields of state
+			// epoch, so record it here rather than after the state root check:
+			// that check can fail and skip the rest of this iteration.
+			epochsWithChangedState[epoch] = true
 			// Refresh the state's Blocks array so it points to the newly
 			// downloaded block objects instead of the stale pre-reorg ones.
 			if err := s.downloadCache.RefreshStateBlocks(s.ctx, epoch); err != nil {
@@ -88,6 +96,13 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		finalizedStateRoot, err := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
 		if err != nil {
 			log.Errorf("could not get state root at slot %d: %s", cacheState.Slot, err)
+			// This epoch is now unresolved: its state may be stale and nothing
+			// here can tell. Rewriting anyway would derive the rows from a
+			// state that may still be the pre-reorg copy, and carrying it does
+			// not help either - see carryStaleDependents for why a debt below
+			// the finalized boundary can never be paid. Fixing this needs the
+			// loop to be able to revisit an epoch whose state has been evicted,
+			// which is a larger change than this one.
 			continue
 		}
 
@@ -100,11 +115,18 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		//   nextState  (E)   — proposer duties, epoch metrics
 		// If blocks changed in any of those epochs, the derived metrics
 		// for epoch E are stale and must be recomputed.
+		if stateRootChanged {
+			epochsWithChangedState[epoch] = true
+		}
+
 		needsReprocess := stateRootChanged || blocksChanged
 		if epoch >= 1 && epochsWithChangedBlocks[epoch-1] {
 			needsReprocess = true
 		}
 		if epoch >= 2 && epochsWithChangedBlocks[epoch-2] {
+			needsReprocess = true
+		}
+		if s.consumeCarriedEpoch(epoch) {
 			needsReprocess = true
 		}
 
@@ -136,10 +158,70 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		}
 	}
 
+	s.carryStaleDependents(epochsWithChangedState, uint64(finalizedEpoch))
+
 	s.downloadCache.CleanUpTo(newFinalizedSlot)
 
 	if advance {
 		log.Infof("checked states until slot %d, epoch %d", newFinalizedSlot, newFinalizedSlot/spec.SlotsPerEpoch)
+	}
+}
+
+// consumeCarriedEpoch reports whether this epoch was carried over by an earlier
+// invocation that rewrote one of its predecessors, and clears the debt.
+//
+// The debt is cleared whether or not the rest of the iteration succeeds. An
+// epoch that keeps failing would otherwise be retried on every finalized event
+// for the lifetime of the process.
+//
+// Callers must hold advanceFinalizedMu.
+func (s *ChainAnalyzer) consumeCarriedEpoch(epoch uint64) bool {
+	if !s.pendingReprocess[epoch] {
+		return false
+	}
+	delete(s.pendingReprocess, epoch)
+	log.Infof("reprocessing epoch %d carried over from an earlier AdvanceFinalized", epoch)
+	return true
+}
+
+// carryStaleDependents records the epochs whose derived rows this invocation
+// made stale but could not rewrite itself.
+//
+// Replacing the state at epoch E leaves rows belonging to later epochs stale:
+// the epoch row for E is written by processing E+1 (ExportToEpoch reads
+// CurrentState), and the validator rewards for E+1 and E+2 by processing E+1
+// and E+2, both of which read state E. AdvanceFinalized reprocesses those when
+// its loop reaches them, but it skips everything at or past the finalized
+// boundary, and the flags that would have marked them do not survive the call,
+// so the next invocation no longer knows they are stale. Carrying them is what
+// makes a later invocation rewrite them (#285).
+//
+// The caller passes the epochs whose state object it replaced, whether by
+// re-downloading it after a state root mismatch or by refreshing its blocks.
+// Both rewrite state E, and it is state E the stale rows derive from. Epochs
+// reprocessed only because a predecessor changed do not belong here: their own
+// state is untouched, so nothing downstream of them went stale.
+//
+// Only dependents at or past the boundary are carried, and that condition is
+// load-bearing rather than an optimisation. The loop skips epochs at or past
+// finalizedEpoch, so it only ever visits epochs below it, and CleanUpTo then
+// evicts every state below the finalized slot. An epoch carried from below the
+// boundary is therefore gone from StateHistory before any later invocation
+// could reach it: the loop never visits it, consumeCarriedEpoch never fires,
+// and the debt sits unpayable. Only epochs at or past the boundary survive the
+// eviction and become reachable once the boundary advances.
+//
+// Callers must hold advanceFinalizedMu.
+func (s *ChainAnalyzer) carryStaleDependents(changed map[uint64]bool, finalizedEpoch uint64) {
+	if s.pendingReprocess == nil {
+		s.pendingReprocess = make(map[uint64]bool)
+	}
+	for epoch := range changed {
+		for _, dependent := range []uint64{epoch + 1, epoch + 2} {
+			if dependent >= finalizedEpoch {
+				s.pendingReprocess[dependent] = true
+			}
+		}
 	}
 }
 
@@ -185,6 +267,10 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 
 	cacheHeadBlock := s.downloadCache.GetHeadBlock()
 	i := cacheHeadBlock.Slot
+
+	// Epochs whose state the reorg replaced, collected here and rewritten after
+	// the walk. See rewriteStateMetrics for why not during it.
+	replaced := make([]phase0.Epoch, 0)
 
 	for reorgedSlots <= depth { // for every slot in the reorg
 
@@ -235,14 +321,82 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 				return
 			}
 
+			// Only note it here. Rewriting the metrics now would read the two
+			// preceding states, which sit at lower slots this walk has not
+			// reached yet and so are still the pre-reorg copies.
 			if newState.StateRoot != oldState.StateRoot {
-				s.dbClient.DeleteStateMetrics(epoch)
-				log.Infof("rewriting metrics for epoch %d", epoch)
-				// write epoch metrics
-				s.ProcessStateTransitionMetrics(epoch)
+				replaced = append(replaced, epoch)
 			}
 		}
 		i -= 1
 	}
 
+	s.rewriteStateMetrics(replaced)
+}
+
+// rewriteStateMetrics rewrites the epoch metrics for every state the reorg
+// replaced, once every replacement has been downloaded and in ascending epoch
+// order.
+//
+// Both conditions matter, for different reasons.
+//
+// The walk above runs backwards, so it reaches a higher epoch before the lower
+// ones it derives from. ProcessStateTransitionMetrics(E) reads the states for
+// E, E-1 and E-2 out of the cache, so rewriting E during the walk computes it
+// from whichever of those the walk has not replaced yet: the stale pre-reorg
+// copies. Deferring every rewrite until the walk has finished means each one
+// reads states that have all been brought up to date.
+//
+// Ascending order is the second half. ProcessStateTransitionMetrics already
+// waits for epoch-1 to finish before starting, because ProcessAttestations
+// writes ManualReward onto block objects that the following epoch reads back
+// (goteth#242). Running E before E-1 satisfies that barrier trivially - E-1 has
+// not started - and then lets E-1 mutate blocks E has already read.
+func (s *ChainAnalyzer) rewriteStateMetrics(epochs []phase0.Epoch) {
+	// Make sure the states are present before deleting anything. Deferring the
+	// rewrites until after the walk widened the gap between downloading a state
+	// and using it, and HandleReorg holds no lock: a concurrent
+	// AdvanceFinalized can CleanUpTo in between and evict one. Missing states
+	// would make ProcessStateTransitionMetrics either block forever inside
+	// StateHistory.Wait, holding processerBook slots (#245), or write nothing
+	// at all - after the rows had already been deleted.
+	//
+	// Ensuring before the delete rather than before the process is what keeps
+	// that last case from turning into a hole.
+	ensureThenDelete := func(epoch phase0.Epoch) error {
+		s.ensureDependencyStates(uint64(epoch))
+		return s.dbClient.DeleteStateMetrics(epoch)
+	}
+	rewriteInOrder(epochs, ensureThenDelete, s.ProcessStateTransitionMetrics)
+}
+
+// rewriteInOrder deletes and rewrites each epoch's metrics, lowest first, and
+// deletes an epoch's rows immediately before rewriting them rather than
+// clearing everything up front. Taking the two apart would leave every epoch
+// after the first deleted and not yet written, which is the orphaning this
+// branch exists to stop, for as long as the rewrites take.
+//
+// The delete and the process are passed in so the order can be asserted without
+// a database or a beacon node.
+func rewriteInOrder(epochs []phase0.Epoch, del func(phase0.Epoch) error, process func(phase0.Epoch)) {
+	for _, epoch := range ascendingEpochs(epochs) {
+		if err := del(epoch); err != nil {
+			log.Errorf("could not delete metrics for epoch %d before rewriting them: %s", epoch, err)
+		}
+		log.Infof("rewriting metrics for epoch %d", epoch)
+		process(epoch)
+	}
+}
+
+// ascendingEpochs returns the epochs in the order they must be processed. The
+// reorg walk collects them from the head downwards, which is the reverse of the
+// order each epoch's inputs become correct in.
+//
+// It copies rather than sorting in place: the caller's slice records what the
+// walk found, and reordering that under it would make the two disagree.
+func ascendingEpochs(epochs []phase0.Epoch) []phase0.Epoch {
+	ordered := make([]phase0.Epoch, len(epochs))
+	copy(ordered, epochs)
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
+	return ordered
 }

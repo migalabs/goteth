@@ -52,12 +52,13 @@ type ChainAnalyzer struct {
 	metrics                  db.DBMetrics       // what metrics to be downloaded / processed
 	processerBook            *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
 
-	downloadCache                    ChainCache // store the blocks and states downloaded
+	downloadCache                   ChainCache // store the blocks and states downloaded
 	validatorsRewardsAggregations   map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation
 	validatorsRewardsAggregationsMu sync.Mutex
-	advanceFinalizedMu              sync.Mutex // serializes AdvanceFinalized so concurrent invocations cannot race CleanUpTo against in-flight Wait()s
+	advanceFinalizedMu              sync.Mutex            // serializes AdvanceFinalized so concurrent invocations cannot race CleanUpTo against in-flight Wait()s
+	pendingReprocess                map[uint64]bool       // epochs whose derived rows went stale when an earlier epoch was rewritten, and that AdvanceFinalized could not reach in that invocation (#285). Guarded by advanceFinalizedMu.
 	aggregatedEpochsInWindow        map[phase0.Epoch]bool // set of unique epochs aggregated in current window; prevents double-counting on reprocessing (#255)
-	epochBoundaryStateRoots       sync.Map   // slot -> phase0.Root, caches state roots from Head SSE events at epoch boundaries
+	epochBoundaryStateRoots         sync.Map              // slot -> phase0.Root, caches state roots from Head SSE events at epoch boundaries
 
 	initTime    time.Time
 	PromMetrics *prom_metrics.PrometheusMetrics // metrics to be stored to prometheus
@@ -180,6 +181,7 @@ func NewChainAnalyzer(
 		downloadCache:                 NewQueue(),
 		validatorsRewardsAggregations: make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation),
 		aggregatedEpochsInWindow:      make(map[phase0.Epoch]bool),
+		pendingReprocess:              make(map[uint64]bool),
 		processerBook:                 utils.NewRoutineBook(32, "processer"), // one whole epoch
 		wgMainRoutine:                 &sync.WaitGroup{},
 		wgDownload:                    &sync.WaitGroup{},
