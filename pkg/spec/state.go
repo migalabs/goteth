@@ -62,16 +62,21 @@ type AgnosticState struct {
 	PendingConsolidations         []*electra.PendingConsolidation
 	PendingPartialWithdrawals     []*electra.PendingPartialWithdrawal
 	ConsolidationsProcessed       []ConsolidationProcessed
-	ConsolidationsProcessedAmount phase0.Gwei                           // total amount of Gwei consolidated
-	NewExitingValidators          []phase0.ValidatorIndex               // list of validators that are exiting due to consolidation/withdrawal requests, used for tracking errors of a validator trying to consolidate/withdraw twice on same epoch.
-	ConsolidatedAmounts           map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to consolidated amount (target receives)
-	ConsolidatedOutAmounts        map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to outgoing consolidated amount (source sends)
-	PendingDeposits               []*electra.PendingDeposit
-	DepositsProcessed             []Deposit
-	DepositedAmounts              map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to deposited amount (used for Electra Fork)
-	DepositBalanceToConsume       phase0.Gwei                           // balance to consume for deposits, used for Electra Fork
-	Eth1DepositIndex              uint64                                // index of the next deposit request to be processed, used for Electra Fork
-	DepositRequestsStartIndex     uint64                                // index of the next deposit request to be processed, used for Electra Fork
+	ConsolidationsProcessedAmount phase0.Gwei // total amount of Gwei consolidated
+	// PendingConsolidationsProcessed records whether ConsolidationsProcessed and
+	// ConsolidationsProcessedAmount were accumulated for this state object. They
+	// have the same lifecycle as the deposit counters above: filled while the
+	// state is NextState, read an epoch later while it is CurrentState.
+	PendingConsolidationsProcessed bool
+	NewExitingValidators           []phase0.ValidatorIndex               // list of validators that are exiting due to consolidation/withdrawal requests, used for tracking errors of a validator trying to consolidate/withdraw twice on same epoch.
+	ConsolidatedAmounts            map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to consolidated amount (target receives)
+	ConsolidatedOutAmounts         map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to outgoing consolidated amount (source sends)
+	PendingDeposits                []*electra.PendingDeposit
+	DepositsProcessed              []Deposit
+	DepositedAmounts               map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to deposited amount (used for Electra Fork)
+	DepositBalanceToConsume        phase0.Gwei                           // balance to consume for deposits, used for Electra Fork
+	Eth1DepositIndex               uint64                                // index of the next deposit request to be processed, used for Electra Fork
+	DepositRequestsStartIndex      uint64                                // index of the next deposit request to be processed, used for Electra Fork
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -156,6 +161,15 @@ func (p *AgnosticState) RefreshBlocks(blockList []*AgnosticBlock) {
 	// per-validator amounts doubled, even though the scalar counters looked
 	// right.
 	p.DepositedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	// The consolidation counters have the same shape as the deposit ones: a
+	// slice appended to and a total accumulated with +=, both read from
+	// CurrentState by the epoch row. They were left populated here, so a
+	// refreshed state kept the old entries and the next pass added to them.
+	p.ConsolidationsProcessed = make([]ConsolidationProcessed, 0)
+	p.ConsolidationsProcessedAmount = 0
+	p.PendingConsolidationsProcessed = false
+	p.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.ConsolidatedOutAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.NumAttestations = 0
 	p.SyncCommitteeParticipation = 0
 	p.AddBlocks(blockList)

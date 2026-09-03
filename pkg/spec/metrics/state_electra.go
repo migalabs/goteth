@@ -67,6 +67,16 @@ func (p *ElectraMetrics) PreProcessBundle() error {
 		// through it.
 		p.processPendingDepositsFor(p.baseMetrics.CurrentState)
 
+		// The consolidation counters have the same lifecycle and the same
+		// failure: ConsolidationsProcessedNum and ConsolidationsProcessedAmount
+		// are read from CurrentState in standard.go but accumulated an epoch
+		// earlier against NextState, so a re-downloaded object reports zero
+		// while t_consolidations holds the rows. This runs before the
+		// ConsolidatedAmounts maps are cleared below, so only the epoch-row
+		// counters survive it; the per-validator reward maps are rebuilt by
+		// processConsolidationsForRewardCalculation as before.
+		p.processPendingConsolidationsFor(p.baseMetrics.CurrentState)
+
 		// FIX: Clear state maps before processing (state objects are reused between iterations)
 		p.baseMetrics.CurrentState.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 		p.baseMetrics.CurrentState.ConsolidatedOutAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
@@ -75,7 +85,7 @@ func (p *ElectraMetrics) PreProcessBundle() error {
 		p.processExcessActiveBalanceRestructuring(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
 		p.processConsolidationsForRewardCalculation(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
 		p.processDepositsForRewardCalculation(p.baseMetrics.CurrentState, p.baseMetrics.NextState)
-		p.processPendingConsolidations(p.baseMetrics.NextState)
+		p.processPendingConsolidations()
 		if !p.baseMetrics.PrevState.EmptyStateRoot() {
 			// block rewards
 			p.ProcessSlashings()
@@ -622,7 +632,19 @@ func (p ElectraMetrics) getParticipationFlags(attestation electra.Attestation, i
 }
 
 // // https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#new-process_pending_consolidations
-func (p ElectraMetrics) processPendingConsolidations(s *spec.AgnosticState) {
+func (p *ElectraMetrics) processPendingConsolidations() {
+	p.processPendingConsolidationsFor(p.baseMetrics.NextState)
+}
+
+// processPendingConsolidationsFor walks a state's pending consolidation queue,
+// accumulating the counters the epoch row reads. It is safe to call twice on
+// the same state: the counters accumulate with += and append, so the flag makes
+// the second call a no-op rather than a doubling.
+func (p *ElectraMetrics) processPendingConsolidationsFor(s *spec.AgnosticState) {
+	if s.PendingConsolidationsProcessed {
+		return
+	}
+
 	nextEpoch := s.Epoch + 1
 
 	for index, pendingConsolidation := range s.PendingConsolidations {
@@ -651,6 +673,8 @@ func (p ElectraMetrics) processPendingConsolidations(s *spec.AgnosticState) {
 		s.ConsolidationsProcessed = append(s.ConsolidationsProcessed, *consolidationProcessed)
 		s.ConsolidationsProcessedAmount += sourceEffectiveBalance
 	}
+
+	s.PendingConsolidationsProcessed = true
 }
 
 // processConsolidationsForRewardCalculation replays the spec's process_pending_consolidations
