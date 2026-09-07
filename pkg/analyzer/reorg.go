@@ -54,6 +54,17 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		// no longer in the cache, so they have to be back before either runs.
 		if !s.downloadCache.StateHistory.Available(epoch) {
 			s.ensureDependencyStates(epoch)
+
+			// DownloadState adds the state inline, so still missing here means
+			// it could not be fetched. Falling through would Wait on it
+			// forever while holding advanceFinalizedMu, which stops every
+			// later invocation too - the failure mode this loop already
+			// documents elsewhere. Count the attempt and move on.
+			if !s.downloadCache.StateHistory.Available(epoch) {
+				log.Errorf("carried epoch %d could not be restored to the cache; skipping it this pass", epoch)
+				s.settleReprocess(epoch, false)
+				continue
+			}
 		}
 
 		// --- Step 1: verify block roots FIRST ---
@@ -141,8 +152,7 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		if epoch >= 2 && epochsWithChangedBlocks[epoch-2] {
 			needsReprocess = true
 		}
-		carried := s.carriedEpoch(epoch)
-		if carried {
+		if s.carriedEpoch(epoch) {
 			needsReprocess = true
 		}
 
@@ -176,9 +186,6 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 			// Settling only here is the point: clearing it on the way in threw
 			// the debt away before knowing whether it had been paid (#291).
 			s.settleReprocess(epoch, wrote)
-		} else if carried {
-			// Carried but nothing needed doing, so the debt is discharged.
-			s.settleReprocess(epoch, true)
 		}
 	}
 
@@ -191,14 +198,6 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 	}
 }
 
-// consumeCarriedEpoch reports whether this epoch was carried over by an earlier
-// invocation that rewrote one of its predecessors, and clears the debt.
-//
-// The debt is cleared whether or not the rest of the iteration succeeds. An
-// epoch that keeps failing would otherwise be retried on every finalized event
-// for the lifetime of the process.
-//
-// Callers must hold advanceFinalizedMu.
 // epochsToVisit returns the epochs an invocation should examine: everything
 // still in the cache, plus any carried debt whose state has been evicted since
 // it was recorded.
@@ -289,14 +288,15 @@ func (s *ChainAnalyzer) settleReprocess(epoch uint64, wrote bool) {
 // reprocessed only because a predecessor changed do not belong here: their own
 // state is untouched, so nothing downstream of them went stale.
 //
-// Only dependents at or past the boundary are carried, and that condition is
-// load-bearing rather than an optimisation. The loop skips epochs at or past
-// finalizedEpoch, so it only ever visits epochs below it, and CleanUpTo then
-// evicts every state below the finalized slot. An epoch carried from below the
-// boundary is therefore gone from StateHistory before any later invocation
-// could reach it: the loop never visits it, consumeCarriedEpoch never fires,
-// and the debt sits unpayable. Only epochs at or past the boundary survive the
-// eviction and become reachable once the boundary advances.
+// Only dependents at or past the boundary are carried, because the loop already
+// reached the ones below it in this same invocation and carrying them would
+// repeat work.
+//
+// This used to have a second reason: a debt below the boundary was unpayable,
+// since CleanUpTo evicts those states and the loop only iterated what was still
+// cached. That no longer holds - epochsToVisit re-adds an evicted debt and
+// ensureDependencyStates re-downloads it - so the boundary is now about
+// avoiding duplicate work rather than about what can be paid at all.
 //
 // Callers must hold advanceFinalizedMu.
 func (s *ChainAnalyzer) carryStaleDependents(changed map[uint64]bool, finalizedEpoch uint64) {
