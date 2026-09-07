@@ -29,6 +29,8 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 
 	stateKeys := s.downloadCache.StateHistory.GetKeyList()
 
+	stateKeys = epochsToVisit(stateKeys, s.pendingReprocess, s.downloadCache.StateHistory.Available)
+
 	// Sort keys so we process epochs in ascending order. This guarantees
 	// that when we reach epoch E, we already know whether blocks in
 	// earlier epochs (E-1, E-2) changed and can propagate reprocessing.
@@ -46,6 +48,13 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 			continue // only process epochs that are before the given epoch
 		}
 		advance = true // only set flag if there is something to do
+
+		// Re-added from the carried set above and evicted since. Both the
+		// block loop and the state root check below Wait on entries that are
+		// no longer in the cache, so they have to be back before either runs.
+		if !s.downloadCache.StateHistory.Available(epoch) {
+			s.ensureDependencyStates(epoch)
+		}
 
 		// --- Step 1: verify block roots FIRST ---
 		// Blocks must be checked before state metrics are (re)processed,
@@ -83,7 +92,14 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 			// Refresh the state's Blocks array so it points to the newly
 			// downloaded block objects instead of the stale pre-reorg ones.
 			if err := s.downloadCache.RefreshStateBlocks(s.ctx, epoch); err != nil {
+				// The state still points at the pre-reorg blocks, so anything
+				// derived from it now would be built on the orphaned chain.
+				// Carry it rather than rewrite it: the old rows stay, which is
+				// wrong, but the retry can replace them with correct ones,
+				// whereas rewriting now records the wrong values as final.
 				log.Errorf("failed to refresh state blocks for epoch %d: %s", epoch, err)
+				s.settleReprocess(epoch, false)
+				continue
 			}
 		}
 
@@ -96,13 +112,12 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		finalizedStateRoot, err := s.cli.RequestStateRoot(phase0.Slot(cacheState.Slot))
 		if err != nil {
 			log.Errorf("could not get state root at slot %d: %s", cacheState.Slot, err)
-			// This epoch is now unresolved: its state may be stale and nothing
-			// here can tell. Rewriting anyway would derive the rows from a
-			// state that may still be the pre-reorg copy, and carrying it does
-			// not help either - see carryStaleDependents for why a debt below
-			// the finalized boundary can never be paid. Fixing this needs the
-			// loop to be able to revisit an epoch whose state has been evicted,
-			// which is a larger change than this one.
+			// This epoch is unresolved: its state may be stale and nothing here
+			// can tell. Rewriting anyway would derive the rows from what may
+			// still be the pre-reorg copy, so carry it instead. The loop can
+			// revisit an evicted epoch now, which is what makes a debt below
+			// the finalized boundary payable at all.
+			s.settleReprocess(epoch, false)
 			continue
 		}
 
@@ -126,7 +141,8 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 		if epoch >= 2 && epochsWithChangedBlocks[epoch-2] {
 			needsReprocess = true
 		}
-		if s.consumeCarriedEpoch(epoch) {
+		carried := s.carriedEpoch(epoch)
+		if carried {
 			needsReprocess = true
 		}
 
@@ -154,7 +170,15 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 			log.Infof("rewriting metrics for epoch %d (stateRootChanged=%t, blocksChanged=%t, dep=%t)",
 				epoch, stateRootChanged, blocksChanged,
 				(epoch >= 1 && epochsWithChangedBlocks[epoch-1]) || (epoch >= 2 && epochsWithChangedBlocks[epoch-2]))
-			s.ProcessStateTransitionMetrics(phase0.Epoch(epoch))
+			wrote := s.ProcessStateTransitionMetrics(phase0.Epoch(epoch))
+			// The rows were deleted just above. If nothing replaced them the
+			// epoch is a hole, and the debt is what gets it rewritten later.
+			// Settling only here is the point: clearing it on the way in threw
+			// the debt away before knowing whether it had been paid (#291).
+			s.settleReprocess(epoch, wrote)
+		} else if carried {
+			// Carried but nothing needed doing, so the debt is discharged.
+			s.settleReprocess(epoch, true)
 		}
 	}
 
@@ -175,13 +199,76 @@ func (s *ChainAnalyzer) AdvanceFinalized(newFinalizedSlot phase0.Slot) {
 // for the lifetime of the process.
 //
 // Callers must hold advanceFinalizedMu.
-func (s *ChainAnalyzer) consumeCarriedEpoch(epoch uint64) bool {
+// epochsToVisit returns the epochs an invocation should examine: everything
+// still in the cache, plus any carried debt whose state has been evicted since
+// it was recorded.
+//
+// Without the second half a debt below the finalized boundary could never be
+// paid: CleanUpTo evicts those states at the end of the invocation that
+// recorded them, so they are absent from GetKeyList on every later pass and the
+// loop never visits them again (migalabs/goteth#291).
+func epochsToVisit(cached []uint64, pending map[uint64]bool, available func(uint64) bool) []uint64 {
+	visit := cached
+	for epoch := range pending {
+		if !available(epoch) {
+			visit = append(visit, epoch)
+		}
+	}
+	return visit
+}
+
+// maxReprocessAttempts bounds the retry. A debt still unpaid after this many
+// finalized events is not going to be paid by trying again - most often the
+// beacon node no longer serves that state - and an unbounded debt would
+// re-download and re-delete the same epoch on every finalized event for the
+// life of the process.
+const maxReprocessAttempts = 3
+
+// carriedEpoch reports whether this epoch is owed a reprocess. It does not
+// clear the debt: settleReprocess does that, and only once something is known
+// to have been written. Clearing it here meant an epoch whose rewrite wrote
+// nothing had its rows deleted and its debt forgotten in the same pass (#291).
+func (s *ChainAnalyzer) carriedEpoch(epoch uint64) bool {
 	if !s.pendingReprocess[epoch] {
 		return false
 	}
-	delete(s.pendingReprocess, epoch)
 	log.Infof("reprocessing epoch %d carried over from an earlier AdvanceFinalized", epoch)
 	return true
+}
+
+// settleReprocess records the outcome of an attempt to rewrite an epoch.
+//
+// A successful write clears the debt. A failure keeps it so a later invocation
+// retries, up to maxReprocessAttempts, after which the epoch is abandoned with
+// an error: its rows are missing, which is at least detectable, and repeating
+// the attempt forever would not make them appear.
+func (s *ChainAnalyzer) settleReprocess(epoch uint64, wrote bool) {
+	if s.pendingReprocess == nil {
+		s.pendingReprocess = make(map[uint64]bool)
+	}
+	if s.reprocessAttempts == nil {
+		s.reprocessAttempts = make(map[uint64]int)
+	}
+
+	if wrote {
+		delete(s.pendingReprocess, epoch)
+		delete(s.reprocessAttempts, epoch)
+		return
+	}
+
+	s.reprocessAttempts[epoch]++
+	attempts := s.reprocessAttempts[epoch]
+	if attempts >= maxReprocessAttempts {
+		delete(s.pendingReprocess, epoch)
+		delete(s.reprocessAttempts, epoch)
+		log.Errorf("epoch %d could not be reprocessed after %d attempts; its derived rows are missing and nothing further will retry them",
+			epoch, maxReprocessAttempts)
+		return
+	}
+
+	s.pendingReprocess[epoch] = true
+	log.Warnf("epoch %d could not be reprocessed (attempt %d of %d); carrying it to the next finalized event",
+		epoch, attempts, maxReprocessAttempts)
 }
 
 // carryStaleDependents records the epochs whose derived rows this invocation
@@ -378,7 +465,7 @@ func (s *ChainAnalyzer) rewriteStateMetrics(epochs []phase0.Epoch) {
 //
 // The delete and the process are passed in so the order can be asserted without
 // a database or a beacon node.
-func rewriteInOrder(epochs []phase0.Epoch, del func(phase0.Epoch) error, process func(phase0.Epoch)) {
+func rewriteInOrder(epochs []phase0.Epoch, del func(phase0.Epoch) error, process func(phase0.Epoch) bool) {
 	for _, epoch := range ascendingEpochs(epochs) {
 		if err := del(epoch); err != nil {
 			log.Errorf("could not delete metrics for epoch %d before rewriting them: %s", epoch, err)
