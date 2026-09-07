@@ -97,20 +97,44 @@ func (r *RoutineBook) CheckPageActive(key string) bool {
 
 }
 
-func (r *RoutineBook) WaitUntilInactive(key string) bool {
+// WaitUntilInactive blocks until nothing holds key.
+//
+// The ticker is stopped on the way out. It was not, and an unstopped ticker is
+// never collected, so every call left a runtime timer behind - once per block
+// processed and once per slot of every reorg walk.
+//
+// The wait is unbounded, which is deliberate: the caller is about to replace
+// something the holder is still reading, and giving up would defeat the point.
+// It warns while it waits, the way Acquire does, so a barrier that never clears
+// is visible rather than silent.
+//
+// It returned a bool that no caller read and that could only ever be true: the
+// old loop ranged over a ticker channel, which is never closed, so the trailing
+// `return false` was unreachable.
+func (r *RoutineBook) WaitUntilInactive(key string) {
 	ticker := time.NewTicker(CheckPageInterval)
+	defer ticker.Stop()
 
-	for range ticker.C {
+	warn := time.NewTicker(AcquireWaitIntervalLog)
+	defer warn.Stop()
 
-		_, ok := r.get(key)
-
-		if !ok {
-			return true
-		}
+	// Checked before the first tick. The loop used to wait a whole interval
+	// before looking, so a key nobody held still cost that second - once per
+	// block processed, since ProcessBlock waits on its own slot key.
+	if _, ok := r.get(key); !ok {
+		return
 	}
 
-	return false
-
+	for {
+		select {
+		case <-warn.C:
+			log.WithField("bookTag", r.bookTag).Warnf("Still waiting for page %s to become inactive...", key)
+		case <-ticker.C:
+			if _, ok := r.get(key); !ok {
+				return
+			}
+		}
+	}
 }
 
 // hold records one more holder of key. The caller has already taken a token.

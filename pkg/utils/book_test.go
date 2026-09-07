@@ -132,3 +132,75 @@ func TestConcurrentAcquireAndFreeKeepsTheAccountingExact(t *testing.T) {
 		t.Errorf("%d holders still recorded with none outstanding", active)
 	}
 }
+
+// WaitUntilInactive is what stops a reorg replacing a state a processor is
+// still reading. It has to return once the last holder releases the key, and
+// not before.
+func TestWaitUntilInactiveReturnsWhenTheLastHolderReleases(t *testing.T) {
+	previous := CheckPageInterval
+	CheckPageInterval = time.Millisecond
+	defer func() { CheckPageInterval = previous }()
+
+	book := NewRoutineBook(4, "test")
+	book.Acquire("epoch=10")
+	book.Acquire("epoch=10")
+
+	returned := make(chan struct{})
+	go func() {
+		defer close(returned)
+		book.WaitUntilInactive("epoch=10")
+	}()
+
+	book.FreePage("epoch=10")
+	select {
+	case <-returned:
+		t.Fatal("the wait returned while a second holder was still working; " +
+			"the caller would replace the state underneath it")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	book.FreePage("epoch=10")
+	select {
+	case <-returned:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the wait never returned after the last holder released the key")
+	}
+}
+
+func TestWaitUntilInactiveReturnsImmediatelyForAnUnheldKey(t *testing.T) {
+	previous := CheckPageInterval
+	CheckPageInterval = time.Millisecond
+	defer func() { CheckPageInterval = previous }()
+
+	book := NewRoutineBook(4, "test")
+
+	returned := make(chan struct{})
+	go func() {
+		defer close(returned)
+		book.WaitUntilInactive("nobody-holds-this")
+	}()
+
+	select {
+	case <-returned:
+	case <-time.After(5 * time.Second):
+		t.Fatal("waiting on a key nobody holds never returned")
+	}
+}
+
+// The unheld case has to be free. ProcessBlock waits on its own slot key for
+// every block, so a wasted interval there is a wasted interval per block.
+func TestWaitUntilInactiveDoesNotPayAnIntervalForAnUnheldKey(t *testing.T) {
+	previous := CheckPageInterval
+	CheckPageInterval = 2 * time.Second
+	defer func() { CheckPageInterval = previous }()
+
+	book := NewRoutineBook(4, "test")
+
+	start := time.Now()
+	book.WaitUntilInactive("nobody-holds-this")
+
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("waiting on an unheld key took %s; it should not wait for a tick "+
+			"before looking", elapsed)
+	}
+}
