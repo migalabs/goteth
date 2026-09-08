@@ -103,8 +103,9 @@ func (r *record) del(e phase0.Epoch) error {
 	return nil
 }
 
-func (r *record) process(e phase0.Epoch) {
+func (r *record) process(e phase0.Epoch) bool {
 	r.steps = append(r.steps, "process "+epochStr(e))
+	return true
 }
 
 func epochStr(e phase0.Epoch) string {
@@ -141,8 +142,9 @@ func TestARewriteStillHappensWhenTheDeleteFails(t *testing.T) {
 	var processed []phase0.Epoch
 	failing := func(phase0.Epoch) error { return errDeleteFailed }
 
-	rewriteInOrder([]phase0.Epoch{4}, failing, func(e phase0.Epoch) {
+	rewriteInOrder([]phase0.Epoch{4}, failing, func(e phase0.Epoch) bool {
 		processed = append(processed, e)
+		return true
 	})
 
 	if len(processed) != 1 || processed[0] != 4 {

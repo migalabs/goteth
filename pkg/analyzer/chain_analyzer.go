@@ -58,6 +58,7 @@ type ChainAnalyzer struct {
 	advanceFinalizedMu              sync.Mutex            // serializes AdvanceFinalized so concurrent invocations cannot race CleanUpTo against in-flight Wait()s
 	handleReorgMu                   sync.Mutex            // serializes HandleReorg so two walks cannot process the same epoch at once and leak processerBook slots (#292)
 	pendingReprocess                map[uint64]bool       // epochs whose derived rows went stale when an earlier epoch was rewritten, and that AdvanceFinalized could not reach in that invocation (#285). Guarded by advanceFinalizedMu.
+	reprocessAttempts               map[uint64]int        // how many times each pending epoch has been attempted, so a debt that cannot be paid is abandoned loudly rather than retried forever (#291). Guarded by advanceFinalizedMu.
 	aggregatedEpochsInWindow        map[phase0.Epoch]bool // set of unique epochs aggregated in current window; prevents double-counting on reprocessing (#255)
 	epochBoundaryStateRoots         sync.Map              // slot -> phase0.Root, caches state roots from Head SSE events at epoch boundaries
 

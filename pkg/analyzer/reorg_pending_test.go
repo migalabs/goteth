@@ -10,9 +10,12 @@ import "testing"
 // them (migalabs/goteth#285).
 
 func TestDependentsBelowTheBoundaryAreNotCarried(t *testing.T) {
-	// The loop reached them itself, so there is no debt - and a debt below the
-	// boundary could not be paid anyway: CleanUpTo evicts those states at the
-	// end of the invocation, so no later loop ever visits them again.
+	// The loop reached them itself, so there is no debt to record. Note the
+	// second reason this once had - that a debt below the boundary could never
+	// be paid, because CleanUpTo evicts those states - no longer holds:
+	// epochsToVisit re-adds an evicted debt and ensureDependencyStates
+	// re-downloads it. Not carrying these is now purely about not repeating
+	// work already done in this invocation.
 	s := &ChainAnalyzer{}
 
 	s.carryStaleDependents(map[uint64]bool{100: true}, 200)
@@ -50,24 +53,91 @@ func TestOnlyTheUnreachableDependentIsCarried(t *testing.T) {
 	}
 }
 
-// A carried epoch must be reprocessed once and then forgotten. Leaving the debt
-// in place would retry it on every finalized event for the life of the process.
-func TestACarriedEpochIsConsumedExactlyOnce(t *testing.T) {
+// A carried epoch that was actually rewritten must be forgotten. Leaving the
+// debt in place would retry it on every finalized event for the life of the
+// process.
+func TestACarriedEpochIsForgottenOnceItIsWritten(t *testing.T) {
 	s := &ChainAnalyzer{}
 	s.carryStaleDependents(map[uint64]bool{199: true}, 200)
 
-	if !s.consumeCarriedEpoch(200) {
+	if !s.carriedEpoch(200) {
 		t.Fatal("the carried epoch was not reported as needing reprocessing")
 	}
-	if s.consumeCarriedEpoch(200) {
-		t.Error("the same epoch was reported twice; the debt was never cleared")
+	s.settleReprocess(200, true)
+
+	if s.carriedEpoch(200) {
+		t.Error("the same epoch was reported again after being written; the debt was never cleared")
+	}
+}
+
+// The failure this exists for: the debt used to be cleared when the epoch was
+// reached, before anything was known to have been written. A rewrite that wrote
+// nothing then left the rows deleted and no debt to retry, so the hole was
+// permanent (migalabs/goteth#291).
+func TestAnEpochThatWroteNothingKeepsItsDebt(t *testing.T) {
+	s := &ChainAnalyzer{}
+	s.carryStaleDependents(map[uint64]bool{199: true}, 200)
+
+	if !s.carriedEpoch(200) {
+		t.Fatal("the carried epoch was not reported as needing reprocessing")
+	}
+	s.settleReprocess(200, false)
+
+	if !s.carriedEpoch(200) {
+		t.Error("the debt was cleared even though nothing was written; " +
+			"the rows are deleted and nothing will ever rewrite them")
+	}
+}
+
+// Reading the debt must not clear it, or the caller cannot report an outcome.
+func TestReadingTheDebtDoesNotClearIt(t *testing.T) {
+	s := &ChainAnalyzer{}
+	s.carryStaleDependents(map[uint64]bool{199: true}, 200)
+
+	if !s.carriedEpoch(200) || !s.carriedEpoch(200) {
+		t.Error("reading the debt cleared it, so a failed rewrite could not carry it forward")
+	}
+}
+
+// An unpayable debt must not be retried forever: the epoch would be
+// re-downloaded and re-deleted on every finalized event for the life of the
+// process. It is abandoned loudly instead, leaving a hole, which is detectable.
+func TestAnUnpayableDebtIsAbandonedAfterABoundedNumberOfAttempts(t *testing.T) {
+	s := &ChainAnalyzer{}
+	s.carryStaleDependents(map[uint64]bool{199: true}, 200)
+
+	for attempt := 1; attempt < maxReprocessAttempts; attempt++ {
+		s.settleReprocess(200, false)
+		if !s.carriedEpoch(200) {
+			t.Fatalf("the debt was dropped after %d attempts, before the bound", attempt)
+		}
+	}
+	s.settleReprocess(200, false)
+
+	if s.carriedEpoch(200) {
+		t.Errorf("the debt survived %d attempts; it would be retried on every "+
+			"finalized event forever", maxReprocessAttempts)
+	}
+}
+
+// A retry that succeeds must reset the count, or an epoch that fails
+// intermittently exhausts its budget across unrelated incidents.
+func TestASuccessfulRetryResetsTheAttemptCount(t *testing.T) {
+	s := &ChainAnalyzer{}
+	s.carryStaleDependents(map[uint64]bool{199: true}, 200)
+
+	s.settleReprocess(200, false)
+	s.settleReprocess(200, true)
+
+	if s.reprocessAttempts[200] != 0 {
+		t.Errorf("attempt count survived a successful write: %d", s.reprocessAttempts[200])
 	}
 }
 
 func TestAnEpochThatWasNeverCarriedIsNotReprocessed(t *testing.T) {
 	s := &ChainAnalyzer{}
 
-	if s.consumeCarriedEpoch(200) {
+	if s.carriedEpoch(200) {
 		t.Error("an epoch nothing made stale was queued for reprocessing")
 	}
 }
@@ -93,18 +163,18 @@ func TestAStateReplacedWithoutBlockChangesIsStillCarried(t *testing.T) {
 // Consuming a carried epoch must not enqueue its own dependents: it is being
 // reprocessed because a predecessor changed, not because its own blocks did.
 // Propagating from it would cascade forward with no end.
-func TestConsumingACarriedEpochDoesNotCascade(t *testing.T) {
+func TestSettlingACarriedEpochDoesNotCascade(t *testing.T) {
 	s := &ChainAnalyzer{}
 	s.carryStaleDependents(map[uint64]bool{199: true}, 200)
 
-	s.consumeCarriedEpoch(200)
-	s.consumeCarriedEpoch(201)
+	s.settleReprocess(200, true)
+	s.settleReprocess(201, true)
 
 	// The consumed epochs are not added to epochsWithChangedBlocks, so the
 	// next invocation carries nothing on their behalf.
 	s.carryStaleDependents(map[uint64]bool{}, 202)
 
 	if len(s.pendingReprocess) != 0 {
-		t.Errorf("consuming carried epochs left %v queued", s.pendingReprocess)
+		t.Errorf("settling carried epochs left %v queued", s.pendingReprocess)
 	}
 }
