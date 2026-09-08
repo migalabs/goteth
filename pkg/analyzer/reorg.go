@@ -259,7 +259,38 @@ func (s *ChainAnalyzer) ensureDependencyStates(epoch uint64) {
 	}
 }
 
+// slotBarrierKey and epochBarrierKey build the processerBook keys HandleReorg
+// waits on before replacing what a processor may still be reading.
+//
+// Both take a slot, because HandleReorg walks slots, and the conversion for the
+// epoch one belongs here rather than at the call site. Leaving it to the caller
+// is exactly how it went wrong: the epoch barrier was built from the raw slot,
+// so it asked for "epoch=15096543" while the processor had registered
+// "epoch=471766". No such key is ever in the book, so that wait returned
+// immediately every time it ran and the state was replaced underneath a live
+// reader (migalabs/goteth#292).
+func slotBarrierKey(slot phase0.Slot) string {
+	return fmt.Sprintf("%s%d", slotProcesserTag, uint64(slot))
+}
+
+func epochBarrierKey(slot phase0.Slot) string {
+	return fmt.Sprintf("%s%d", epochProcesserTag, uint64(slot)/spec.SlotsPerEpoch)
+}
+
 func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
+	// Each reorg event fires its own goroutine, and two arriving close together
+	// walk overlapping slot ranges. Both then call
+	// ProcessStateTransitionMetrics for the same epoch, which takes two
+	// processerBook tokens for one key and, before #292, returned only one.
+	//
+	// Serialized rather than skipped, which is where this differs from
+	// AdvanceFinalized: that one is monotonic, so an invocation it drops is
+	// covered by the next finalized event. A dropped reorg is not covered by
+	// anything - nothing else rewrites those slots - so the second walk waits
+	// and then runs against the state the first one left.
+	s.handleReorgMu.Lock()
+	defer s.handleReorgMu.Unlock()
+
 	depth := newReorg.Depth
 	reorgSlot := newReorg.Slot
 
@@ -282,7 +313,7 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 		if i < reorgSlot && block.Proposed {
 			reorgedSlots += 1 // only count as reorged slot if there was a block porposed and we are not at the reorg slot
 		}
-		s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", slotProcesserTag, i)) // wait until has been processed
+		s.processerBook.WaitUntilInactive(slotBarrierKey(i)) // wait until has been processed
 		oldBlock := *block
 
 		s.DownloadBlock(i) // -> inserts into the queue and replaces old block
@@ -312,7 +343,7 @@ func (s *ChainAnalyzer) HandleReorg(newReorg v1.ChainReorgEvent) {
 				log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch, err)
 				return
 			}
-			s.processerBook.WaitUntilInactive(fmt.Sprintf("%s%d", epochProcesserTag, i)) // wait until has been processed
+			s.processerBook.WaitUntilInactive(epochBarrierKey(i))
 			oldState := *state
 			s.DownloadState(i) // -> inserts into the queue and replaces old block
 			newState, err := s.downloadCache.StateHistory.Wait(s.ctx, EpochTo[uint64](epoch))

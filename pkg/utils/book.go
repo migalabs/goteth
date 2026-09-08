@@ -8,14 +8,21 @@ import (
 )
 
 var (
-	emptyKey          = ""
 	structName        = "routinebook"
 	CheckPageInterval = 1 * time.Second
 )
 
+// RoutineBook is a counting semaphore that also records what is holding each
+// slot, so callers can ask whether a given key is still being worked on.
+//
+// pages counts holders rather than marking presence. Acquire is not a per-key
+// lock: two goroutines can acquire the same key, and each takes its own token.
+// While a page was a bare marker the second acquire overwrote the first and
+// only one FreePage found a key to delete, so one token was never returned and
+// the pool shrank by one every time it happened (migalabs/goteth#292).
 type RoutineBook struct {
 	sync.Mutex
-	pages         map[string]string
+	pages         map[string]int
 	freeSpaceChan chan struct{}
 	size          int64
 	bookTag       string
@@ -24,8 +31,8 @@ type RoutineBook struct {
 func NewRoutineBook(size int, tag string) *RoutineBook {
 
 	r := &RoutineBook{
-		pages:         make(map[string]string, size), // contains a list of keys identifying routines
-		freeSpaceChan: make(chan struct{}, size),     // indicates the free position in the array
+		pages:         make(map[string]int, size), // holders per key, see the type comment
+		freeSpaceChan: make(chan struct{}, size),  // indicates the free position in the array
 		size:          int64(size),
 		bookTag:       tag,
 	}
@@ -50,23 +57,36 @@ func (r *RoutineBook) Acquire(key string) {
 		case <-ticker.C:
 			log.WithField("bookTag", r.bookTag).Warnf("Waiting for too long to acquire page %s...", key)
 		case <-r.freeSpaceChan:
-			r.Set(key, "active")
+			r.hold(key)
 			return
 		}
 	}
 }
 
+// FreePage releases one holder of key and returns its token.
+//
+// The token goes back for every held acquire, not once per key: releasing only
+// once would strand the tokens of any other holder of the same key. A key with
+// no holders returns nothing, which keeps the channel from being filled past
+// its capacity - a send that blocked there would never complete.
 func (r *RoutineBook) FreePage(key string) {
 
 	r.Lock()
-	defer r.Unlock()
-	_, ok := r.pages[key]
-	// If the key exists
-	if ok {
-		delete(r.pages, key)
-		r.freeSpaceChan <- struct{}{}
+	holders, ok := r.pages[key]
+	if !ok || holders <= 0 {
+		r.Unlock()
+		return
 	}
+	if holders == 1 {
+		delete(r.pages, key)
+	} else {
+		r.pages[key] = holders - 1
+	}
+	r.Unlock()
 
+	// Outside the lock: a send here can only block if the channel is full,
+	// and blocking while holding the mutex would stop every other caller.
+	r.freeSpaceChan <- struct{}{}
 }
 
 func (r *RoutineBook) CheckPageActive(key string) bool {
@@ -77,30 +97,54 @@ func (r *RoutineBook) CheckPageActive(key string) bool {
 
 }
 
-func (r *RoutineBook) WaitUntilInactive(key string) bool {
+// WaitUntilInactive blocks until nothing holds key.
+//
+// The ticker is stopped on the way out. It was not, and an unstopped ticker is
+// never collected, so every call left a runtime timer behind - once per block
+// processed and once per slot of every reorg walk.
+//
+// The wait is unbounded, which is deliberate: the caller is about to replace
+// something the holder is still reading, and giving up would defeat the point.
+// It warns while it waits, the way Acquire does, so a barrier that never clears
+// is visible rather than silent.
+//
+// It returned a bool that no caller read and that could only ever be true: the
+// old loop ranged over a ticker channel, which is never closed, so the trailing
+// `return false` was unreachable.
+func (r *RoutineBook) WaitUntilInactive(key string) {
 	ticker := time.NewTicker(CheckPageInterval)
+	defer ticker.Stop()
 
-	for range ticker.C {
+	warn := time.NewTicker(AcquireWaitIntervalLog)
+	defer warn.Stop()
 
-		_, ok := r.get(key)
-
-		if !ok {
-			return true
-		}
+	// Checked before the first tick. The loop used to wait a whole interval
+	// before looking, so a key nobody held still cost that second - once per
+	// block processed, since ProcessBlock waits on its own slot key.
+	if _, ok := r.get(key); !ok {
+		return
 	}
 
-	return false
-
+	for {
+		select {
+		case <-warn.C:
+			log.WithField("bookTag", r.bookTag).Warnf("Still waiting for page %s to become inactive...", key)
+		case <-ticker.C:
+			if _, ok := r.get(key); !ok {
+				return
+			}
+		}
+	}
 }
 
-func (r *RoutineBook) Set(key string, value string) {
+// hold records one more holder of key. The caller has already taken a token.
+func (r *RoutineBook) hold(key string) {
 	r.Lock()
 	defer r.Unlock()
-	r.pages[key] = value // book page
-
+	r.pages[key]++
 }
 
-func (r *RoutineBook) get(key string) (string, bool) {
+func (r *RoutineBook) get(key string) (int, bool) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -110,24 +154,25 @@ func (r *RoutineBook) get(key string) (string, bool) {
 
 }
 
+// ActivePages is the number of holders across all keys, which is what the
+// shutdown checks mean by "anything still running". Two holders of one key
+// count twice, because two routines are running.
 func (r *RoutineBook) ActivePages() int {
 	r.Lock()
 	defer r.Unlock()
 	result := 0
-	for _, item := range r.pages {
-		if item != emptyKey {
-			result += 1
-		}
+	for _, holders := range r.pages {
+		result += holders
 	}
 
 	return result
 }
 
+// NumFreePages counts the tokens still available. It reads the channel rather
+// than subtracting the number of keys: a key can have several holders, so the
+// key count stopped matching the tokens in use once pages began counting.
 func (r *RoutineBook) NumFreePages() int {
-
-	r.Lock()
-	defer r.Unlock()
-	return int(r.size) - len(r.pages)
+	return len(r.freeSpaceChan)
 }
 
 func (r *RoutineBook) GetKeys() []string {
