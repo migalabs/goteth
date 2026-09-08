@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+
+# This repository had no CI at all. Every change to the indexer serving
+# mainnet merged without being compiled, vetted or tested by anything but
+# whoever wrote it.
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # go.mod replaces go-relay-client with a local path.
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        # The metrics tests need a live beacon node and skip themselves when
+        # none answers; set GOTETH_TEST_BN_ENDPOINT (and GOTETH_TEST_EL_ENDPOINT)
+        # to run them against one.
+        run: go test -race ./...
