@@ -18,6 +18,7 @@ func (s *ChainAnalyzer) runDownloadBlocks() {
 	defer s.wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
+	defer ticker.Stop() // lives as long as the routine; stopped for a clean shutdown
 
 downloadRoutine:
 	for {
@@ -80,6 +81,7 @@ func (s *ChainAnalyzer) runHead() {
 	s.eventsObj.SubscribeToReorgsEvents()
 	s.eventsObj.SubscribeToDataColumnSidecarsEvents()
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
+	defer ticker.Stop() // lives as long as the routine; stopped for a clean shutdown
 	// loop over the list of slots that we need to analyze
 
 	for {
@@ -319,8 +321,10 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 		}
 		if s.processerBook.NumFreePages() == 0 {
 			log.Debugf("hit limit of concurrent processers")
-			limitTicker := time.NewTicker(utils.RoutineFlushTimeout)
-			<-limitTicker.C // if rate limit, wait for ticker
+			// One-shot wait, so a sleep rather than a ticker nothing stops.
+			// This is the rate-limit path, so it fires exactly when the node is
+			// already under load and the leaks accumulate fastest.
+			time.Sleep(utils.RoutineFlushTimeout)
 			continue
 		}
 		if i%spec.SlotsPerEpoch == 0 { // every time a new epoch is crossed
