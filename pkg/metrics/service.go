@@ -84,6 +84,7 @@ func (p *PrometheusMetrics) launchMetricsUpdater() {
 	defer p.wg.Done()
 
 	ticker := time.NewTicker(p.RefreshInterval)
+	defer ticker.Stop() // lives as long as the routine; stopped for a clean shutdown
 
 metricsUpdateLoop:
 	for {

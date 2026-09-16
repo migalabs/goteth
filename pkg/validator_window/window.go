@@ -87,6 +87,7 @@ func (s *ValidatorWindowRunner) Run() {
 	s.eventsObj.SubscribeToFinalizedCheckpointEvents() // every new finalized checkpoint, trigger deletes
 	s.eventsObj.SubscribeToHeadEvents()                // for monitorization
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
+	defer ticker.Stop() // lives as long as the routine; stopped for a clean shutdown
 	s.routineSyncGroup.Add(1)
 	defer s.routineSyncGroup.Done()
 
