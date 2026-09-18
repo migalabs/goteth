@@ -19,7 +19,7 @@ func (s *APIClient) RequestBlobSidecars(slot phase0.Slot) ([]*local_spec.Agnosti
 	})
 
 	if err != nil {
-		if response404(err.Error()) {
+		if isNotFound(err) {
 			return agnosticBlobs, nil
 		}
 		return nil, fmt.Errorf("could not retrieve blob sidecars for slot %d: %s", slot, err)
@@ -47,7 +47,7 @@ func (s *APIClient) requestKZGCommitmentFromSignedBlock(slot phase0.Slot) ([]den
 	})
 
 	if err != nil {
-		if response404(err.Error()) {
+		if isNotFound(err) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("could not retrieve KZGCommitments for slot %d: %s", slot, err)
@@ -65,7 +65,7 @@ func (s *APIClient) RequestFuluBlobs(slot phase0.Slot) ([]*local_spec.AgnosticBl
 	})
 
 	if err != nil {
-		if response404(err.Error()) {
+		if isNotFound(err) {
 			return blobs, nil
 		}
 		return nil, fmt.Errorf("could not retrieve blobs for slot %d: %s", slot, err)

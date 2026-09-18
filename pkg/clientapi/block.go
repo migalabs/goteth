@@ -3,7 +3,6 @@ package clientapi
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/api"
@@ -41,7 +40,7 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 			Block: fmt.Sprintf("%d", slot),
 		})
 		if err != nil {
-			if response404(err.Error()) {
+			if isNotFound(err) {
 				if attempts < s.maxRetries-1 {
 					// Retry on 404: with Lighthouse v8.1.0+ the Head SSE event can
 					// fire before the block is queryable via the API.
@@ -122,7 +121,7 @@ func (s *APIClient) RequestBlockRoot(slot phase0.Slot) phase0.Root {
 		Block: fmt.Sprintf("%d", slot),
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "404") {
+		if isNotFound(err) {
 			// block was not found => block does not exist
 			return phase0.Root{}
 		}
