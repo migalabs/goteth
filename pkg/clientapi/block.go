@@ -54,9 +54,11 @@ func (s *APIClient) RequestBeaconBlock(slot phase0.Slot) (*local_spec.AgnosticBl
 			}
 
 			timeoutTime := utils.RoutineFlushTimeout * time.Duration(attempts+1)
-			ticker := time.NewTicker(timeoutTime)
 			log.Warnf("retrying request: %s. Attempt number: %d", routineKey, attempts)
-			<-ticker.C
+			// A plain sleep, like the 404 retry above. A ticker here was never
+			// stopped, so every retry left one waking the runtime once a second
+			// for the life of the process.
+			time.Sleep(timeoutTime)
 
 		}
 		attempts += 1

@@ -47,9 +47,9 @@ func (s *APIClient) requestBeaconStateWithID(slot phase0.Slot, stateID string, k
 		})
 
 		if errors.Is(err, context.DeadlineExceeded) {
-			ticker := time.NewTicker(utils.RoutineFlushTimeout)
 			log.Warnf("retrying request: %s", routineKey)
-			<-ticker.C
+			// One-shot wait, so a sleep rather than a ticker nothing stops.
+			time.Sleep(utils.RoutineFlushTimeout)
 
 		}
 		attempts += 1
