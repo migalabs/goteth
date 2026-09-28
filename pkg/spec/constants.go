@@ -78,6 +78,10 @@ const (
 
 	MinActivationBalance uint64 = 32_000_000_000 // Gwei(2**5 * 10**9)
 
+	// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#rewards-and-penalties
+	// Replaces WhistleBlowerRewardQuotient (512) in slash_validator from Electra on.
+	WhistleBlowerRewardQuotientElectra = 4096
+
 	// https://github.com/ethereum/consensus-specs/blob/dev/specs/electra/beacon-chain.md#misc
 	FullExitRequestAmount          uint64 = 0
 	UnsetDepositRequestsStartIndex uint64 = 1<<64 - 1 //uint64(2**64 - 1)

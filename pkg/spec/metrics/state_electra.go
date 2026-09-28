@@ -852,7 +852,7 @@ func (p *ElectraMetrics) ProcessSlashings() {
 					valid = true
 					state.NewAttesterSlashings += 1
 					slashedEffBalance := state.Validators[idx].EffectiveBalance
-					wbr := slashedEffBalance / spec.WhistleBlowerRewardQuotient
+					wbr := slashedEffBalance / spec.WhistleBlowerRewardQuotientElectra
 					pr := wbr * spec.ProposerWeight / spec.WeightDenominator
 					blockWhistleBlowerReward += wbr
 					blockProposerReward += pr
@@ -876,7 +876,7 @@ func (p *ElectraMetrics) ProcessSlashings() {
 				valid = true
 				state.NewProposerSlashings += 1
 				slashedEffBalance := state.Validators[slashedValidatorIdx].EffectiveBalance
-				wbr := slashedEffBalance / spec.WhistleBlowerRewardQuotient
+				wbr := slashedEffBalance / spec.WhistleBlowerRewardQuotientElectra
 				pr := wbr * spec.ProposerWeight / spec.WeightDenominator
 				blockWhistleBlowerReward += wbr
 				blockProposerReward += pr
