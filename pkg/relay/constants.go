@@ -3,7 +3,6 @@ package relay
 const (
 	mainnetAestusRelay             string = "https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa092c71bbded0bae5b5ea401aab7e@aestus.live"
 	mainnetAgnosticRelay           string = "https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net"
-	mainnetBloxRouteMaxProfitRelay string = "https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com"
 	mainnetBloxRouteRegulatedRelay string = "https://0xb0b07cd0abef743db4260b0ed50619cf6ad4d82064cb4fbec9d3ec530f7c5e6793d9f286c4e082c0244ffb9f2658fe88@bloxroute.regulated.blxrbdn.com"
 	mainnetTitanGlobalRelay        string = "https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@global.titanrelay.xyz"
 	mainnetTitanRegionalRelay      string = "https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@regional.titanrelay.xyz"
@@ -15,7 +14,6 @@ const (
 var mainnetRelayList []string = []string{
 	mainnetAestusRelay,
 	mainnetAgnosticRelay,
-	mainnetBloxRouteMaxProfitRelay,
 	mainnetBloxRouteRegulatedRelay,
 	mainnetTitanGlobalRelay,
 	mainnetTitanRegionalRelay,
