@@ -23,7 +23,22 @@ const (
 	// relay for a cooldown period instead of waiting for timeout every time.
 	cbFailureThreshold = 3
 	cbCooldown         = 2 * time.Minute
+
+	// A failed request is retried before the relay's bids for the epoch are
+	// given up: they are fetched once per epoch and nothing fetches them again.
+	// The first retry waits relayRetryBackoff, each next one twice as long.
+	relayRequestAttempts = 3
+	relayRetryBackoff    = 5 * time.Second
 )
+
+// waitBeforeRetry waits d, or less if ctx is done. A variable so the tests can
+// record the waits instead of sleeping.
+var waitBeforeRetry = func(ctx context.Context, d time.Duration) {
+	select {
+	case <-time.After(d):
+	case <-ctx.Done():
+	}
+}
 
 var (
 	log = logrus.WithField(
@@ -79,6 +94,13 @@ func (r *RelayClient) isOpen() bool {
 	return true
 }
 
+// failing tells whether the relay's last query failed.
+func (r *RelayClient) failing() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.consecutiveFail > 0
+}
+
 // recordResult updates the circuit breaker after a query.
 func (r *RelayClient) recordResult(failed bool) {
 	r.mu.Lock()
@@ -103,15 +125,35 @@ func (r *RelayClient) GetDeliveredBidsPerSlotRange(slot phase0.Slot, limit int) 
 		return nil, fmt.Errorf("circuit breaker open for %s, skipping", r.address)
 	}
 
-	bidsDelivered, err := r.client.(relayclient.DeliveredBidTraceProvider).DeliveredBulkBidTrace(r.ctx, slot, limit)
-	if err != nil || bidsDelivered == nil {
-		r.recordResult(true)
-		return bidsDelivered, fmt.Errorf("error obtaining delivered bid trace from %s: %s", r.address, err)
+	// A relay whose last query failed gets a single attempt: retrying one that
+	// is down only delays the epoch, and the circuit breaker deals with it.
+	attempts := relayRequestAttempts
+	if r.failing() {
+		attempts = 1
+	}
+	backoff := relayRetryBackoff
+	var err error
+	for attempt := 1; ; attempt++ {
+		// An empty answer (nil, nil) is an answer: the relay delivered nothing.
+		var bidsDelivered []*v1.BidTrace
+		bidsDelivered, err = r.client.(relayclient.DeliveredBidTraceProvider).DeliveredBulkBidTrace(r.ctx, slot, limit)
+		if err == nil {
+			r.recordResult(false)
+			return bidsDelivered, nil
+		}
+		if attempt == attempts || r.ctx.Err() != nil {
+			break
+		}
+		log.Warnf("retrying %s at slot %d in %s (attempt %d of %d): %s", r.address, slot, backoff, attempt+1, attempts, err)
+		waitBeforeRetry(r.ctx, backoff)
+		if r.ctx.Err() != nil {
+			break
+		}
+		backoff *= 2
 	}
 
-	r.recordResult(false)
-	return bidsDelivered, nil
-
+	r.recordResult(true)
+	return nil, fmt.Errorf("error obtaining delivered bid trace from %s: %s", r.address, err)
 }
 
 type RelaysMonitor struct {
@@ -150,7 +192,7 @@ func (m RelaysMonitor) GetDeliveredBidsPerSlotRange(slot phase0.Slot, limit int)
 			defer wg.Done()
 
 			singleRelayBidsDelivered, err := rc.GetDeliveredBidsPerSlotRange(slot, limit)
-			if err != nil || singleRelayBidsDelivered == nil {
+			if err != nil {
 				log.Errorf("%s", err)
 				return
 			}
