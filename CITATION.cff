@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+title: GotEth
+abstract: >-
+  GotEth is a go-written client that indexes all validator-related duties,
+  parameters and transactions from Ethereum's consensus and execution layers.
+authors:
+  - given-names: Tarun
+    family-names: Mohandas
+    affiliation: MigaLabs
+  - alias: Zyra-V21
+    given-names: Ruben
+    family-names: Planes Llinares
+    affiliation: MigaLabs
+  - given-names: Leo
+    family-names: Bautista-Gomez
+    affiliation: MigaLabs
+  - given-names: Mikel
+    family-names: Cortes
+    affiliation: MigaLabs
+repository-code: "https://github.com/migalabs/goteth"
+license: MIT
+keywords:
+  - ethereum
+  - consensus layer
+  - beacon chain
+  - validators
+  - clickhouse
+version: v3.9.0
+date-released: "2026-10-22"
