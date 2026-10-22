@@ -6,16 +6,18 @@ abstract: >-
   GotEth is a go-written client that indexes all validator-related duties,
   parameters and transactions from Ethereum's consensus and execution layers.
 authors:
-  - given-names: Mikel
-    family-names: Cortes
-    affiliation: MigaLabs
   - given-names: Tarun
     family-names: Mohandas
     affiliation: MigaLabs
   - alias: Zyra-V21
+    given-names: Ruben
+    family-names: Planes Llinares
     affiliation: MigaLabs
   - given-names: Leo
     family-names: Bautista-Gomez
+    affiliation: MigaLabs
+  - given-names: Mikel
+    family-names: Cortes
     affiliation: MigaLabs
 repository-code: "https://github.com/migalabs/goteth"
 license: MIT
