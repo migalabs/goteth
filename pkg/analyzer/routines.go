@@ -18,6 +18,7 @@ func (s *ChainAnalyzer) runDownloadBlocks() {
 	defer s.wgDownload.Done()
 	log.Info("Launching Beacon Block Requester")
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
+	defer ticker.Stop() // lives as long as the routine; stopped for a clean shutdown
 
 downloadRoutine:
 	for {
@@ -37,7 +38,7 @@ downloadRoutine:
 				go s.ProcessStateTransitionMetrics(phase0.Epoch(downloadSlot / spec.SlotsPerEpoch))
 			}
 		case <-ticker.C: // every certain amount of time check if need to finish
-			if s.stop && len(s.downloadTaskChan) == 0 && s.cli.ActiveReqNum() == 0 && s.processerBook.ActivePages() == 0 {
+			if s.stop.Load() && len(s.downloadTaskChan) == 0 && s.cli.ActiveReqNum() == 0 && s.processerBook.ActivePages() == 0 {
 				break downloadRoutine
 			}
 		}
@@ -78,8 +79,9 @@ func (s *ChainAnalyzer) runHead() {
 	s.eventsObj.SubscribeToHeadEvents()
 	s.eventsObj.SubscribeToFinalizedCheckpointEvents()
 	s.eventsObj.SubscribeToReorgsEvents()
-	s.eventsObj.SubscribeToBlobSidecarsEvents()
+	s.eventsObj.SubscribeToDataColumnSidecarsEvents()
 	ticker := time.NewTicker(utils.RoutineFlushTimeout)
+	defer ticker.Stop() // lives as long as the routine; stopped for a clean shutdown
 	// loop over the list of slots that we need to analyze
 
 	for {
@@ -117,20 +119,115 @@ func (s *ChainAnalyzer) runHead() {
 			s.dbClient.PersistReorgs([]v1.ChainReorgEvent{newReorg})
 			go s.HandleReorg(newReorg)
 
-		case newBlobSidecarEvent := <-s.eventsObj.BlobSidecarChan:
-			s.dbClient.PersistBlobSidecarsEvents([]spec.BlobSideCarEventWraper{newBlobSidecarEvent})
-
 		case <-s.ctx.Done():
 			log.Info("context has died, closing block requester routine")
 			return
 
 		case <-ticker.C:
-			if s.stop {
+			if s.stop.Load() {
 				log.Info("sudden shutdown detected, block downloader routine")
 				return
 			}
 		}
 
+	}
+}
+
+// dataColumnMaxBatch flushes as soon as one full-custody per-slot burst
+// (NUMBER_OF_COLUMNS = 128) has accumulated, without waiting for the ticker.
+const dataColumnMaxBatch = 128
+
+// runDataColumnSidecarsPersister drains DataColumnSidecarChan and persists the
+// events in batches, off the head loop. Under PeerDAS a full-custody node emits
+// up to 128 data_column_sidecar events per slot; persisting them one by one from
+// runHead meant one synchronous ClickHouse INSERT per event on the same loop
+// that dispatches block downloads (#282).
+func (s *ChainAnalyzer) runDataColumnSidecarsPersister() {
+	defer s.wgMainRoutine.Done()
+	log.Info("launching data column sidecars persister routine")
+
+	ticker := time.NewTicker(utils.RoutineFlushTimeout)
+	defer ticker.Stop()
+
+	batchDataColumnSidecarEvents(
+		s.eventsObj.DataColumnSidecarChan,
+		ticker.C,
+		s.ctx.Done(),
+		func() bool { return s.stop.Load() },
+		dataColumnMaxBatch,
+		func(batch []spec.DataColumnSidecarEventWrapper) {
+			if err := s.dbClient.PersistDataColumnSidecarsEvents(batch); err != nil {
+				log.Errorf("error persisting data column sidecar events batch: %s", err)
+			}
+		},
+	)
+
+	log.Info("data column sidecars persister routine finished")
+}
+
+// batchDataColumnSidecarEvents accumulates events from the channel and flushes
+// them in batches: immediately when maxBatch is reached, and on every tick when
+// the buffer is non-empty. It returns when done fires or when stopped() reports
+// true on a tick; in both cases it first drains whatever sits in the channel and
+// does a best-effort final flush (on the done path the write can fail if the DB
+// context is already cancelled, which the flush callback logs).
+func batchDataColumnSidecarEvents(
+	events <-chan spec.DataColumnSidecarEventWrapper,
+	tick <-chan time.Time,
+	done <-chan struct{},
+	stopped func() bool,
+	maxBatch int,
+	flush func([]spec.DataColumnSidecarEventWrapper),
+) {
+	buffer := make([]spec.DataColumnSidecarEventWrapper, 0, maxBatch)
+
+	// Reusing the backing array is safe: the persist path copies every value
+	// into its insert columns before returning.
+	flushBuffer := func() {
+		if len(buffer) == 0 {
+			return
+		}
+		flush(buffer)
+		buffer = buffer[:0]
+	}
+
+	// drain moves everything currently sitting in the channel into the buffer,
+	// flushing at maxBatch so the final batches stay bounded.
+	drain := func() {
+		for {
+			select {
+			case ev := <-events:
+				buffer = append(buffer, ev)
+				if len(buffer) >= maxBatch {
+					flushBuffer()
+				}
+			default:
+				return
+			}
+		}
+	}
+
+	for {
+		select {
+		case ev := <-events:
+			buffer = append(buffer, ev)
+			if len(buffer) >= maxBatch {
+				flushBuffer()
+			}
+
+		case <-tick:
+			flushBuffer()
+			if stopped() {
+				drain()
+				flushBuffer()
+				return
+			}
+
+		case <-done:
+			drain()
+			flushBuffer()
+			return
+		}
 	}
 }
 
@@ -196,7 +293,7 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 		// runHistorical again — and since the chain keeps advancing,
 		// handoffThreshold is always exceeded and the loop spins
 		// indefinitely on shutdown.
-		if s.stop {
+		if s.stop.Load() {
 			return headSlot
 		}
 
@@ -218,14 +315,16 @@ func (s *ChainAnalyzer) runHistorical(init phase0.Slot, end phase0.Slot) {
 
 	i := init
 	for i <= end {
-		if s.stop {
+		if s.stop.Load() {
 			log.Info("sudden shutdown detected, block downloader routine")
 			return
 		}
 		if s.processerBook.NumFreePages() == 0 {
 			log.Debugf("hit limit of concurrent processers")
-			limitTicker := time.NewTicker(utils.RoutineFlushTimeout)
-			<-limitTicker.C // if rate limit, wait for ticker
+			// One-shot wait, so a sleep rather than a ticker nothing stops.
+			// This is the rate-limit path, so it fires exactly when the node is
+			// already under load and the leaks accumulate fastest.
+			time.Sleep(utils.RoutineFlushTimeout)
 			continue
 		}
 		if i%spec.SlotsPerEpoch == 0 { // every time a new epoch is crossed

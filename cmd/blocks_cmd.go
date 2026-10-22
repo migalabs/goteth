@@ -81,7 +81,7 @@ var BlocksCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:        "metrics",
-			Usage:       "Metrics to be persisted to the database: epoch,block,rewards,transactions,api_rewards,blob_sidecars",
+			Usage:       "Metrics to be persisted to the database: epoch,block,rewards,transactions,api_rewards,blob_sidecars. blob_sidecars covers blob metadata (t_blob_sidecars); blob p2p arrival timings are always recorded in head mode via the data_column_sidecar event into t_data_column_sidecars_events (the post-Fulu replacement of the dead blob_sidecar event)",
 			EnvVars:     []string{"ANALYZER_METRICS"},
 			DefaultText: "epoch,block",
 		},

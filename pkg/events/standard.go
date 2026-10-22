@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"sync/atomic"
 
 	apiv1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/migalabs/goteth/pkg/clientapi"
@@ -22,10 +23,16 @@ type Events struct {
 	SubscribedHead bool
 	HeadChan       chan db.HeadEvent
 
-	SubscribedFinalized bool
-	FinalizedChan       chan apiv1.FinalizedCheckpointEvent
-	ReorgChan           chan apiv1.ChainReorgEvent
-	BlobSidecarChan     chan spec.BlobSideCarEventWraper
+	SubscribedFinalized   bool
+	FinalizedChan         chan apiv1.FinalizedCheckpointEvent
+	ReorgChan             chan apiv1.ChainReorgEvent
+	DataColumnSidecarChan chan spec.DataColumnSidecarEventWrapper
+
+	// SubscribedDataColumns turns true once the data_column_sidecar subscription
+	// is established; while false, blob arrival timings are not being recorded.
+	// Pointer so Events stays copyable (atomic values must not be copied); read
+	// by the prometheus updater goroutine.
+	SubscribedDataColumns *atomic.Bool
 }
 
 func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
@@ -37,6 +44,12 @@ func NewEventsObj(iCtx context.Context, iCli *clientapi.APIClient) Events {
 		SubscribedFinalized: false,
 		FinalizedChan:       make(chan apiv1.FinalizedCheckpointEvent),
 		ReorgChan:           make(chan apiv1.ChainReorgEvent),
-		BlobSidecarChan:     make(chan spec.BlobSideCarEventWraper),
+		// Buffered like HeadChan: HandleDataColumnSidecarEvent does a blocking send, so
+		// a full channel stalls the SSE reader and with it head ingestion. Sized much
+		// larger than the old blob channel on purpose: PeerDAS emits one event per data
+		// *column*, so a single block can produce up to 128 events (NUMBER_OF_COLUMNS)
+		// instead of the <=6 blob events it used to, all arriving in a burst.
+		DataColumnSidecarChan: make(chan spec.DataColumnSidecarEventWrapper, 1024),
+		SubscribedDataColumns: new(atomic.Bool),
 	}
 }

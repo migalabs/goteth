@@ -202,64 +202,75 @@ func (p *DBService) RetrieveLastEpoch() (phase0.Epoch, error) {
 
 }
 
-// delete metrics that use the state at epoch x
+// DeleteStateMetrics removes rows ahead of ProcessStateTransitionMetrics(epoch)
+// rewriting them. Every row it deletes must be one that the same call writes
+// back; deleting anything else leaves a hole nothing fills.
+//
+// ProcessStateTransitionMetrics(E) writes the epoch row for E-1 (ExportToEpoch
+// uses CurrentState.Epoch), the proposer duties for E and the validator rewards
+// for E (both use NextState.Epoch). It writes nothing for E's own epoch row,
+// nor for the rewards of E+1 and E+2: those belong to the processing of E+1 and
+// E+2.
+//
+// The reverse does not hold, and is not required here. That call also writes
+// slashings, deposits, consolidations, withdrawal and deposit requests,
+// validator last status, block rewards and pool metrics, none of which are
+// deleted first. Those are left as they were before this change.
+//
+// This used to delete those three as well. When the changed epoch sat close to
+// the finalized boundary, AdvanceFinalized skipped E+1 and E+2 (they are not
+// below finalizedEpoch yet) and nothing ever rewrote them, leaving permanent
+// holes: epoch_metrics(E) absent with E-1 and E+1 present, and
+// t_validator_rewards_summary empty for E+1 and E+2. Six such holes were live
+// on mainnet, all matching that signature exactly (migalabs/goteth#285).
+//
+// Rows belonging to E+1 and E+2 are deleted and rewritten when those epochs are
+// processed, which AdvanceFinalized now guarantees by carrying them over to a
+// later invocation if it cannot reach them in this one.
+// EpochRowWrittenBy returns the epoch row that processing the given epoch
+// writes, and whether there is one at all.
+//
+// Processing epoch E writes the row for E-1. Processing epoch 0 writes no epoch
+// row: there is nothing before genesis. phase0.Epoch is unsigned, so computing
+// 0-1 wraps to the maximum uint64 and would address a row that cannot exist -
+// harmless today only because nothing matches it, which is not a property worth
+// relying on.
+func EpochRowWrittenBy(epoch phase0.Epoch) (phase0.Epoch, bool) {
+	if epoch == 0 {
+		return 0, false
+	}
+	return epoch - 1, true
+}
+
 func (s *DBService) DeleteStateMetrics(epoch phase0.Epoch) error {
-	var err error
-
-	// epochs are written at currentState using current state and nextState
-	err = s.Delete(DeletableObject{
-		query: deleteEpochsQuery,
-		table: epochsTable,
-		args:  []any{epoch - 1},
-	}) // when deleteState -> nextState
-
-	if err != nil {
-		return err
-	}
-	err = s.Delete(DeletableObject{
-		query: deleteEpochsQuery,
-		table: epochsTable,
-		args:  []any{epoch},
-	}) // when deleteState -> currentState
-	if err != nil {
-		return err
+	// The epoch row written by this epoch's processing is the one for epoch-1.
+	if row, ok := EpochRowWrittenBy(epoch); ok {
+		if err := s.Delete(DeletableObject{
+			query: deleteEpochsQuery,
+			table: epochsTable,
+			args:  []any{row},
+		}); err != nil {
+			return err
+		}
 	}
 
-	// proposer duties are writter using nextState
-	err = s.Delete(DeletableObject{
+	// Proposer duties are written using nextState, so they belong to epoch.
+	if err := s.Delete(DeletableObject{
 		query: deleteProposerDutiesQuery,
 		table: proposerDutiesTable,
 		args:  []any{epoch},
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
-	// valRewards are written at nextState using prevState, currentState and nextState
-	err = s.Delete(DeletableObject{
-		query: deleteValidatorRewardsInEpochQuery,
-		table: valRewardsTable,
-		args:  []any{epoch + 2},
-	}) // when deleteState -> prevState
-	if err != nil {
-		return err
-	}
-	err = s.Delete(DeletableObject{
-		query: deleteValidatorRewardsInEpochQuery,
-		table: valRewardsTable,
-		args:  []any{epoch + 1},
-	}) // when deleteState -> currentState
-	if err != nil {
-		return err
-	}
-	err = s.Delete(DeletableObject{
+	// Validator rewards are written at nextState, so they belong to epoch.
+	if err := s.Delete(DeletableObject{
 		query: deleteValidatorRewardsInEpochQuery,
 		table: valRewardsTable,
 		args:  []any{epoch},
-	}) // when deleteState -> nextState
-	if err != nil {
+	}); err != nil {
 		return err
 	}
-	return nil
 
+	return nil
 }

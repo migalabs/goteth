@@ -84,9 +84,9 @@ func (s *APIClient) GetTransactionReceipt(iTx bellatrix.Transaction,
 			receipt, err = s.ELApi.TransactionReceipt(s.ctx, parsedTx.Hash())
 
 			if err != nil {
-				ticker := time.NewTicker(utils.RoutineFlushTimeout)
 				log.Warnf("retrying transaction request: %s", parsedTx.Hash().String())
-				<-ticker.C
+				// One-shot wait, so a sleep rather than a ticker nothing stops.
+				time.Sleep(utils.RoutineFlushTimeout)
 			}
 			attempts += 1
 

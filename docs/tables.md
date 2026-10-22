@@ -156,11 +156,31 @@ Config: `engine = MergeTree ORDER BY f_val_idx`
 | f_status                 | uint8        | status (see status table)                           |
 | f_slashed                | bool         | whether the validator has ever been slashed or not  |
 | f_activation_epoch       | uint64       | epoch at which the validator was activated          |
+| f_activation_eligibility_epoch | uint64 | epoch at which the validator became eligible for activation; `FAR_FUTURE_EPOCH` (`18446744073709551615`) means not yet eligible. Combined with `f_activation_epoch`, this splits the pre-activation queue (`f_status = 0`) into the two deposit-lifecycle states described below. |
 | f_withdrawal_epoch       | uint64       | epoch at which the validator can withdraw funds     |
 | f_exit_epoch             | uint64       | epoch at which the validator exited the network     |
 | f_public_key             | string       | public key of the validator                         |
 | f_withdrawal_prefix      | uint8        | withdrawal prefix of the validator's credentials    |
 | f_withdrawal_credentials | text         | withdrawal credentials of the validator (see below) |
+
+## Appendix: deposit-lifecycle status vocabulary
+
+`f_status` keeps its coarse, stable encoding (`0 in_activation_queue · 1 active · 2 exited · 3 slashed`).
+Consumers that want the finer deposit-lifecycle vocabulary derive it from
+`f_status` + `f_activation_eligibility_epoch` (and, for pre-registration deposits, from
+`t_deposit_requests`). This is a proposed vocabulary the current Beacon API `ValidatorStatus`
+enum does not provide — its `pending_initialized` / `pending_queued` predate the post-Electra
+deposit pipeline (EIP-6110/EIP-7251) and there is no deposit-queue state:
+
+| Derived status | Condition | Meaning |
+| -------------- | --------- | ------- |
+| `deposit_inqueue` | pubkey present in `t_deposit_requests`, absent from `t_validator_last_status` (not yet a registered validator) | Deposit waiting in `state.pending_deposits`; the real churn-limited queue |
+| `pending_minBalance` | `f_status = 0` and `f_activation_eligibility_epoch = FAR_FUTURE_EPOCH` | Validator created, effective balance < 32 ETH (not yet eligible) |
+| `pending_lookahead` | `f_status = 0` and `f_activation_eligibility_epoch != FAR_FUTURE_EPOCH` | Eligible; fixed `1 + MAX_SEED_LOOKAHEAD` delay (not a queue) |
+| `active` / `exited` / `slashed` | `f_status` 1 / 2 / 3 | unchanged |
+
+`deposit_inqueue` is not a `t_validator_last_status` row because the deposit has no validator index
+yet; it is materialised by downstream consumers (e.g. bindeth) joining `t_deposit_requests`.
 
 ## Appendix: Reference for `f_withdrawal_prefix`
 
@@ -307,18 +327,24 @@ Config: `engine = ReplacingMergeTree ORDER BY f_slot, f_index`
 | f_kzg_proof      | string       | kzg proof of the blob                                                                                                         |
 | f_ending_0s      | uint64       | amount of consecutive 0s at the end of the blob bytes                                                                         |
 
-# Blob Sidecars Events (`t_blob_sidecars_events`)
+# Data Column Sidecars Events (`t_data_column_sidecars_events`)
 
-Config: `engine = ReplacingMergeTree ORDER BY f_arrival_timestamp_ms, f_blob_hash, f_slot`
+Config: `engine = ReplacingMergeTree PARTITION BY intDiv(f_slot, 100000) ORDER BY (f_slot, f_column_index, f_block_root)`
 
-| Column Name            | Type of Data | Description                                       |     |     |
-| ---------------------- | ------------ | ------------------------------------------------- | --- | --- |
-| f_arrival_timestamp_ms | uint64       | timestamp at which goteth received the blob event |
-| f_blob_hash            | string       | hash of the blob                                  |
-| f_slot                 | uint64       | slot at which the blob was sent                   |
-| f_block_root           | string       | block root hash                                   |
-| f_index                | uint8        | index of the blob                                 |
-| f_kzg_commitment       | string       | kzg commitment of the blob                        |
+P2P arrival timings for blob data. Since the Fulu fork (PeerDAS) blobs are no longer gossiped whole: they are erasure-coded into columns and each node custodies a subset, so beacon nodes emit `data_column_sidecar` instead of the now-dead `blob_sidecar` event. One row per **column** arrival (up to 128 per slot), which also exposes the reconstruction curve of each blob rather than a single arrival timestamp.
+
+Blob *metadata* is unaffected and still comes from the block itself (`t_blob_sidecars`).
+
+| Column Name            | Type of Data  | Description                                                    |     |     |
+| ---------------------- | ------------- | -------------------------------------------------------------- | --- | --- |
+| f_arrival_timestamp_ms | uint64        | timestamp at which goteth received the data column event       |
+| f_slot                 | uint64        | slot the data column belongs to                                |
+| f_block_root           | string        | block root hash                                                |
+| f_column_index         | uint16        | index of the data column (0..127)                              |
+| f_kzg_commitments      | array(string) | kzg commitments of the blobs this column carries a piece of    |
+| f_num_commitments      | uint16        | number of commitments (denormalised from the array for queries)|
+
+> `t_blob_sidecars_events` is the pre-Fulu predecessor of this table (one row per whole blob). It can no longer receive rows because the `blob_sidecar` event is never emitted post-Fulu; migration `000038` renames it to `t_blob_sidecars_events_pre_fulu` to preserve its history.
 
 # Block Rewards (`t_block_rewards`)
 

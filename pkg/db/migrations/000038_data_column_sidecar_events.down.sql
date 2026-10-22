@@ -1,0 +1,2 @@
+RENAME TABLE t_blob_sidecars_events_pre_fulu TO t_blob_sidecars_events;
+DROP TABLE IF EXISTS t_data_column_sidecars_events;

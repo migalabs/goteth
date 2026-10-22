@@ -42,13 +42,19 @@ type AgnosticState struct {
 	Deposits                     []phase0.Gwei                // one per validator index
 	DepositsNum                  uint64                       // number of deposits
 	TotalDepositsAmount          phase0.Gwei                  // total amount of deposits
-	CurrentJustifiedCheckpoint   phase0.Checkpoint            // the latest justified checkpoint
-	CurrentFinalizedCheckpoint   phase0.Checkpoint            // the latest finalized checkpoint
-	LatestBlockHeader            *phase0.BeaconBlockHeader
-	SyncCommitteeParticipation   uint64 // Tracks sync committee participation
-	NewProposerSlashings         int    // number of new proposer slashings
-	NewAttesterSlashings         int    // number of new attester slashings
-	Slashings                    []AgnosticSlashing
+	// PendingDepositsProcessed records whether the two counters above were
+	// accumulated for this state object. They are filled while the state is
+	// NextState and read one epoch later while it is CurrentState, so a state
+	// that was re-downloaded or refreshed in between carries zeros that nothing
+	// else recomputes (migalabs/goteth#287).
+	PendingDepositsProcessed   bool
+	CurrentJustifiedCheckpoint phase0.Checkpoint // the latest justified checkpoint
+	CurrentFinalizedCheckpoint phase0.Checkpoint // the latest finalized checkpoint
+	LatestBlockHeader          *phase0.BeaconBlockHeader
+	SyncCommitteeParticipation uint64 // Tracks sync committee participation
+	NewProposerSlashings       int    // number of new proposer slashings
+	NewAttesterSlashings       int    // number of new attester slashings
+	Slashings                  []AgnosticSlashing
 	// Electra
 	ConsolidationRequests         []ConsolidationRequest
 	WithdrawalRequests            []WithdrawalRequest
@@ -56,16 +62,21 @@ type AgnosticState struct {
 	PendingConsolidations         []*electra.PendingConsolidation
 	PendingPartialWithdrawals     []*electra.PendingPartialWithdrawal
 	ConsolidationsProcessed       []ConsolidationProcessed
-	ConsolidationsProcessedAmount phase0.Gwei                           // total amount of Gwei consolidated
-	NewExitingValidators          []phase0.ValidatorIndex               // list of validators that are exiting due to consolidation/withdrawal requests, used for tracking errors of a validator trying to consolidate/withdraw twice on same epoch.
-	ConsolidatedAmounts           map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to consolidated amount (target receives)
-	ConsolidatedOutAmounts        map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to outgoing consolidated amount (source sends)
-	PendingDeposits               []*electra.PendingDeposit
-	DepositsProcessed             []Deposit
-	DepositedAmounts              map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to deposited amount (used for Electra Fork)
-	DepositBalanceToConsume       phase0.Gwei                           // balance to consume for deposits, used for Electra Fork
-	Eth1DepositIndex              uint64                                // index of the next deposit request to be processed, used for Electra Fork
-	DepositRequestsStartIndex     uint64                                // index of the next deposit request to be processed, used for Electra Fork
+	ConsolidationsProcessedAmount phase0.Gwei // total amount of Gwei consolidated
+	// PendingConsolidationsProcessed records whether ConsolidationsProcessed and
+	// ConsolidationsProcessedAmount were accumulated for this state object. They
+	// have the same lifecycle as the deposit counters above: filled while the
+	// state is NextState, read an epoch later while it is CurrentState.
+	PendingConsolidationsProcessed bool
+	NewExitingValidators           []phase0.ValidatorIndex               // list of validators that are exiting due to consolidation/withdrawal requests, used for tracking errors of a validator trying to consolidate/withdraw twice on same epoch.
+	ConsolidatedAmounts            map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to consolidated amount (target receives)
+	ConsolidatedOutAmounts         map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to outgoing consolidated amount (source sends)
+	PendingDeposits                []*electra.PendingDeposit
+	DepositsProcessed              []Deposit
+	DepositedAmounts               map[phase0.ValidatorIndex]phase0.Gwei // map of validator index to deposited amount (used for Electra Fork)
+	DepositBalanceToConsume        phase0.Gwei                           // balance to consume for deposits, used for Electra Fork
+	Eth1DepositIndex               uint64                                // index of the next deposit request to be processed, used for Electra Fork
+	DepositRequestsStartIndex      uint64                                // index of the next deposit request to be processed, used for Electra Fork
 }
 
 func GetCustomState(bstate spec.VersionedBeaconState, duties EpochDuties) (AgnosticState, error) {
@@ -140,6 +151,25 @@ func (p *AgnosticState) RefreshBlocks(blockList []*AgnosticBlock) {
 	p.TotalWithdrawalsAmount = 0
 	p.DepositsNum = 0
 	p.TotalDepositsAmount = 0
+	// Reset the flag with the counters it describes. Leaving it set would let a
+	// refreshed state claim numbers it no longer has, and nothing would
+	// recompute them.
+	p.PendingDepositsProcessed = false
+	// DepositedAmounts accumulates per validator with +=, so it is one of the
+	// accumulators this function promises to reset. Zeroing DepositsNum while
+	// leaving this populated meant the next pass added a second time and the
+	// per-validator amounts doubled, even though the scalar counters looked
+	// right.
+	p.DepositedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	// The consolidation counters have the same shape as the deposit ones: a
+	// slice appended to and a total accumulated with +=, both read from
+	// CurrentState by the epoch row. They were left populated here, so a
+	// refreshed state kept the old entries and the next pass added to them.
+	p.ConsolidationsProcessed = make([]ConsolidationProcessed, 0)
+	p.ConsolidationsProcessedAmount = 0
+	p.PendingConsolidationsProcessed = false
+	p.ConsolidatedAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
+	p.ConsolidatedOutAmounts = make(map[phase0.ValidatorIndex]phase0.Gwei)
 	p.NumAttestations = 0
 	p.SyncCommitteeParticipation = 0
 	p.AddBlocks(blockList)

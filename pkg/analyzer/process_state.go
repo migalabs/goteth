@@ -17,10 +17,15 @@ var (
 
 // We always provide the epoch we transition to
 // To process the transition from epoch 9 to 10, we provide 10 and we retrieve 8, 9, 10
-func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
+// ProcessStateTransitionMetrics reports whether it wrote the metrics for this
+// epoch. It writes nothing when any of the three states it needs is missing,
+// and a caller that deleted the old rows first has to know that happened:
+// otherwise the rows are gone, nothing replaced them, and nothing retries
+// (migalabs/goteth#291).
+func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) bool {
 
 	if !s.metrics.Epoch {
-		return
+		return false
 	}
 
 	routineKey := fmt.Sprintf("%s%d", epochProcesserTag, epoch)
@@ -51,7 +56,7 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		if err != nil {
 			s.processerBook.FreePage(routineKey)
 			log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch-2, err)
-			return
+			return false
 		}
 	}
 	if epoch >= 1 && epoch-1 >= phase0.Epoch(s.initSlot/spec.SlotsPerEpoch) {
@@ -59,27 +64,29 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 		if err != nil {
 			s.processerBook.FreePage(routineKey)
 			log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch-1, err)
-			return
+			return false
 		}
 	}
 	nextState, err = s.downloadCache.StateHistory.Wait(s.ctx, EpochTo[uint64](epoch))
 	if err != nil {
 		s.processerBook.FreePage(routineKey)
 		log.Errorf("context cancelled waiting for state at epoch %d: %s", epoch, err)
-		return
+		return false
 	}
 
 	bundle, err := metrics.StateMetricsByForkVersion(nextState, currentState, prevState, s.cli.Api)
 	if err != nil {
 		s.processerBook.FreePage(routineKey)
 		log.Errorf("could not parse bundle metrics at epoch: %s", err)
-		s.stop = true
+		s.stop.Store(true)
 		s.cancel()
-		return
+		return false
 	}
 
 	// If prevState, currentState and nextState are filled, we can process proposer duties, epoch metrics and validator rewards
+	wrote := false
 	if !nextState.EmptyStateRoot() && !currentState.EmptyStateRoot() && !prevState.EmptyStateRoot() {
+		wrote = true
 		s.processEpochDuties(bundle)
 		s.processValLastStatus(bundle)
 		s.processEpochMetrics(bundle)
@@ -97,7 +104,7 @@ func (s *ChainAnalyzer) ProcessStateTransitionMetrics(epoch phase0.Epoch) {
 	}
 
 	s.processerBook.FreePage(routineKey)
-
+	return wrote
 }
 
 func (s *ChainAnalyzer) processSlashings(bundle metrics.StateMetrics) {
@@ -234,17 +241,18 @@ func (s *ChainAnalyzer) processValLastStatus(bundle metrics.StateMetrics) {
 		for i, validator := range nextState.Validators {
 			valIdx := phase0.ValidatorIndex(i)
 			newVal := spec.ValidatorLastStatus{
-				ValIdx:                valIdx,
-				Epoch:                 nextState.Epoch,
-				CurrentBalance:        nextState.Balances[valIdx],
-				EffectiveBalance:      validator.EffectiveBalance,
-				CurrentStatus:         nextState.GetValStatus(valIdx),
-				Slashed:               validator.Slashed,
-				ActivationEpoch:       validator.ActivationEpoch,
-				WithdrawalEpoch:       validator.WithdrawableEpoch,
-				ExitEpoch:             validator.ExitEpoch,
-				PublicKey:             validator.PublicKey,
-				WithdrawalCredentials: validator.WithdrawalCredentials,
+				ValIdx:                     valIdx,
+				Epoch:                      nextState.Epoch,
+				CurrentBalance:             nextState.Balances[valIdx],
+				EffectiveBalance:           validator.EffectiveBalance,
+				CurrentStatus:              nextState.GetValStatus(valIdx),
+				Slashed:                    validator.Slashed,
+				ActivationEpoch:            validator.ActivationEpoch,
+				ActivationEligibilityEpoch: validator.ActivationEligibilityEpoch,
+				WithdrawalEpoch:            validator.WithdrawableEpoch,
+				ExitEpoch:                  validator.ExitEpoch,
+				PublicKey:                  validator.PublicKey,
+				WithdrawalCredentials:      validator.WithdrawalCredentials,
 			}
 			valStatusArr = append(valStatusArr, newVal)
 		}
@@ -413,7 +421,7 @@ func (s *ChainAnalyzer) getSingleBlockRewards(
 		RewardFees:     rewardFees,
 		BurntFees:      burntFees,
 		Relays:         relayAddresses,
-		BidCommission:   bidCommission,
+		BidCommission:  bidCommission,
 		BuilderPubkeys: builderPubkeys,
 	}
 }

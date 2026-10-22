@@ -3,6 +3,7 @@ package analyzer
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -42,7 +43,7 @@ type ChainAnalyzer struct {
 	// Control Variables
 	wgMainRoutine            *sync.WaitGroup    // wait group for main routine (either historical or head)
 	wgDownload               *sync.WaitGroup    // wait group for download routine
-	stop                     bool               // flag to notify all routine to finish
+	stop                     atomic.Bool        // flag to notify all routine to finish (read and written from several goroutines)
 	routineClosed            chan struct{}      // signal that everything was closed succesfully
 	downloadMode             string             // whether to download historical blocks (defined by user) or follow chain head
 	rewardsAggregationEpochs int                // number of epochs to aggregate rewards
@@ -51,12 +52,15 @@ type ChainAnalyzer struct {
 	metrics                  db.DBMetrics       // what metrics to be downloaded / processed
 	processerBook            *utils.RoutineBook // defines slot to process new metrics into the database, good for monitoring
 
-	downloadCache                    ChainCache // store the blocks and states downloaded
+	downloadCache                   ChainCache // store the blocks and states downloaded
 	validatorsRewardsAggregations   map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation
 	validatorsRewardsAggregationsMu sync.Mutex
-	advanceFinalizedMu              sync.Mutex // serializes AdvanceFinalized so concurrent invocations cannot race CleanUpTo against in-flight Wait()s
+	advanceFinalizedMu              sync.Mutex            // serializes AdvanceFinalized so concurrent invocations cannot race CleanUpTo against in-flight Wait()s
+	handleReorgMu                   sync.Mutex            // serializes HandleReorg so two walks cannot process the same epoch at once and leak processerBook slots (#292)
+	pendingReprocess                map[uint64]bool       // epochs whose derived rows went stale when an earlier epoch was rewritten, and that AdvanceFinalized could not reach in that invocation (#285). Guarded by advanceFinalizedMu.
+	reprocessAttempts               map[uint64]int        // how many times each pending epoch has been attempted, so a debt that cannot be paid is abandoned loudly rather than retried forever (#291). Guarded by advanceFinalizedMu.
 	aggregatedEpochsInWindow        map[phase0.Epoch]bool // set of unique epochs aggregated in current window; prevents double-counting on reprocessing (#255)
-	epochBoundaryStateRoots       sync.Map   // slot -> phase0.Root, caches state roots from Head SSE events at epoch boundaries
+	epochBoundaryStateRoots         sync.Map              // slot -> phase0.Root, caches state roots from Head SSE events at epoch boundaries
 
 	initTime    time.Time
 	PromMetrics *prom_metrics.PrometheusMetrics // metrics to be stored to prometheus
@@ -179,6 +183,7 @@ func NewChainAnalyzer(
 		downloadCache:                 NewQueue(),
 		validatorsRewardsAggregations: make(map[phase0.ValidatorIndex]*spec.ValidatorRewardsAggregation),
 		aggregatedEpochsInWindow:      make(map[phase0.Epoch]bool),
+		pendingReprocess:              make(map[uint64]bool),
 		processerBook:                 utils.NewRoutineBook(32, "processer"), // one whole epoch
 		wgMainRoutine:                 &sync.WaitGroup{},
 		wgDownload:                    &sync.WaitGroup{},
@@ -215,12 +220,16 @@ func (s *ChainAnalyzer) Run() {
 		// Block requester in finalized slots, not used for now
 		s.wgMainRoutine.Add(1)
 		go s.runHead()
+
+		// Persists data_column_sidecar arrivals in batches, off the head loop (#282).
+		s.wgMainRoutine.Add(1)
+		go s.runDataColumnSidecarsPersister()
 	}
 
 	s.PromMetrics.Start()
 
 	s.wgMainRoutine.Wait()
-	s.stop = true
+	s.stop.Store(true)
 	log.Infof("main routine finished, waiting for downloader...")
 
 	s.wgDownload.Wait()
@@ -238,7 +247,7 @@ func (s *ChainAnalyzer) Run() {
 
 func (s *ChainAnalyzer) Close() {
 	log.Info("Sudden closed detected, closing StateAnalyzer")
-	s.stop = true
+	s.stop.Store(true)
 	s.cancel()
 	<-s.routineClosed // Wait for services to stop before returning
 }
