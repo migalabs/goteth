@@ -27,5 +27,5 @@ keywords:
   - beacon chain
   - validators
   - clickhouse
-version: v3.8.2
-date-released: "2026-06-12"
+version: v3.9.0
+date-released: "2026-10-22"
