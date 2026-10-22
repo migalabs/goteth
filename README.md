@@ -138,6 +138,12 @@ If specific upgrades or downgrades need to be done manually, one could do this w
 During `v3.0.0` we migrated our database system from PostgreSQL to Clickhouse.
 If you wish to migrate your existing database, please follow [this](https://migalabs.notion.site/PostgreSQL-to-Clickhouse-migration-611a52a457824cd494d701773365f62f) guide.
 
+# Citation
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+
+If you use GotEth in your work, please cite it using the metadata in [CITATION.cff](CITATION.cff), or the "Cite this repository" button on GitHub.
+
 # Maintainers
 
 @Zyra-V21
