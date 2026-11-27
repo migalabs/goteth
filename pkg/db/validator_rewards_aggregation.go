@@ -1,6 +1,8 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 
@@ -33,6 +35,32 @@ var (
 		DELETE FROM %s
 		WHERE f_start_epoch <= $1;
 	`
+
+	// Both read the primary key in order, so they only touch the last granules.
+	selectLastAggregationStartQuery = `
+		SELECT f_start_epoch
+		FROM %s
+		ORDER BY f_start_epoch DESC
+		LIMIT 1`
+
+	selectLastAggregationStartBeforeQuery = `
+		SELECT f_start_epoch
+		FROM %s
+		WHERE f_start_epoch < %d
+		ORDER BY f_start_epoch DESC
+		LIMIT 1`
+
+	// FINAL: re-inserted or trimmed windows (same key) must count once, with their latest end.
+	selectAggregationWindowsQuery = `
+		SELECT f_start_epoch, max(f_end_epoch) AS f_last_end, uniqExact(f_val_idx) AS f_validators
+		FROM %s FINAL
+		WHERE f_start_epoch IN (%d, %d)
+		GROUP BY f_start_epoch`
+
+	// A last window with fewer validators than this share of the window before it is taken as
+	// partially persisted and is aggregated again (replaced by key). A window is one insert, so
+	// this is only a safety net.
+	aggregationCompleteRowsRatio = 0.99
 )
 
 func rewardsAggregationInput(vals []spec.ValidatorRewardsAggregation) proto.Input {
@@ -114,6 +142,66 @@ func (p *DBService) PersistValidatorRewardsAggregation(data map[phase0.Validator
 		log.Errorf("error persisting validator rewards: %s", err.Error())
 	}
 	return err
+}
+
+// RetrieveNextAggregationStart returns the first epoch that no persisted rewards aggregation
+// window covers, so a restarted analyzer can continue the window sequence instead of starting a
+// new one wherever it resumes. found is false when the table is empty. If the last window has
+// clearly fewer validators than the one before it, its start is returned so it is aggregated again.
+func (p *DBService) RetrieveNextAggregationStart() (next phase0.Epoch, found bool, err error) {
+	var last []struct {
+		F_start_epoch uint64 `ch:"f_start_epoch"`
+	}
+	if err = p.highSelect(fmt.Sprintf(selectLastAggregationStartQuery, valRewardsAggregationTable), &last); err != nil {
+		return 0, false, err
+	}
+	if len(last) == 0 {
+		return 0, false, nil
+	}
+	lastStart := last[0].F_start_epoch
+
+	var prev []struct {
+		F_start_epoch uint64 `ch:"f_start_epoch"`
+	}
+	if err = p.highSelect(fmt.Sprintf(selectLastAggregationStartBeforeQuery, valRewardsAggregationTable, lastStart), &prev); err != nil {
+		return 0, false, err
+	}
+	prevStart := lastStart
+	if len(prev) > 0 {
+		prevStart = prev[0].F_start_epoch
+	}
+
+	var windows []struct {
+		F_start_epoch uint64 `ch:"f_start_epoch"`
+		F_last_end    uint64 `ch:"f_last_end"`
+		F_validators  uint64 `ch:"f_validators"`
+	}
+	if err = p.highSelect(fmt.Sprintf(selectAggregationWindowsQuery, valRewardsAggregationTable, lastStart, prevStart), &windows); err != nil {
+		return 0, false, err
+	}
+	var lastEnd, lastRows, prevRows uint64
+	for _, w := range windows {
+		if w.F_start_epoch == lastStart {
+			lastEnd, lastRows = w.F_last_end, w.F_validators
+		}
+		if w.F_start_epoch == prevStart && prevStart != lastStart {
+			prevRows = w.F_validators
+		}
+	}
+	if lastRows == 0 {
+		return 0, false, fmt.Errorf("aggregation window %d has no rows", lastStart)
+	}
+	return nextAggregationStart(lastStart, lastEnd, lastRows, prevRows), true, nil
+}
+
+// nextAggregationStart is the decision behind RetrieveNextAggregationStart.
+func nextAggregationStart(lastStart, lastEnd, lastRows, prevRows uint64) phase0.Epoch {
+	if prevRows > 0 && float64(lastRows) < aggregationCompleteRowsRatio*float64(prevRows) {
+		log.Warnf("last rewards aggregation window %d-%d has %d validators, the previous one %d: aggregating it again",
+			lastStart, lastEnd, lastRows, prevRows)
+		return phase0.Epoch(lastStart)
+	}
+	return phase0.Epoch(lastEnd + 1)
 }
 
 func (p *DBService) DeleteValidatorRewardsAggregationUntil(epoch phase0.Epoch) error {

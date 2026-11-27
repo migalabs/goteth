@@ -265,10 +265,12 @@ func (s *ChainAnalyzer) fillToHead() phase0.Slot {
 		log.Infof("database detected, continue from slot %d, epoch %d", nextSlotDownload, nextSlotDownload/spec.SlotsPerEpoch)
 		nextSlotDownload = nextSlotDownload - (epochsToFinalizedTentative * spec.SlotsPerEpoch) // 2 epochs before
 	}
-	nextSlotDownload = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
-	s.initSlot = nextSlotDownload / spec.SlotsPerEpoch * spec.SlotsPerEpoch
-	s.startEpochAggregation = phase0.Epoch(spec.EpochAtSlot(s.initSlot) + 2)
-	s.endEpochAggregation = s.startEpochAggregation + phase0.Epoch(s.rewardsAggregationEpochs-1)
+	// Continue the rewards aggregation window sequence of the previous run (see planAggregationResume).
+	resume := s.planRewardsAggregationResume(nextSlotDownload, headSlot)
+	nextSlotDownload = resume.NextSlot
+	s.initSlot = nextSlotDownload
+	s.startEpochAggregation = resume.Start
+	s.endEpochAggregation = resume.End
 
 	log.Infof("filling to head...")
 
