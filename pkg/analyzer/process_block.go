@@ -217,7 +217,7 @@ func (s *ChainAnalyzer) processBlobSidecars(block *spec.AgnosticBlock) {
 	var err error
 
 	if block.HardForkVersion >= eth2_client_spec.DataVersionFulu {
-		blobs, err = s.cli.RequestFuluBlobs(block.Slot)
+		blobs, err = s.cli.RequestFuluBlobs(block.Slot, block.Root)
 	} else {
 		blobs, err = s.cli.RequestBlobSidecars(block.Slot)
 	}

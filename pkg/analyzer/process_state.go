@@ -344,6 +344,12 @@ func (s *ChainAnalyzer) processEpochValRewards(bundle metrics.StateMetrics) {
 				s.aggregatedEpochsInWindow = make(map[phase0.Epoch]bool)
 			}
 		}
+		if epoch > s.endEpochAggregation {
+			// The window only advances when it has all its epochs: one that never arrives stalls
+			// the aggregation for good, so make it visible.
+			log.Warnf("epoch %d arrived after the rewards aggregation window %d-%d, which has %d of %d epochs: it is not aggregated",
+				epoch, s.startEpochAggregation, s.endEpochAggregation, len(s.aggregatedEpochsInWindow), s.rewardsAggregationEpochs)
+		}
 
 		s.validatorsRewardsAggregationsMu.Unlock()
 	}
